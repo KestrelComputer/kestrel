@@ -152,7 +152,7 @@ V(cpu_latch) {
     kk->rst_i = kk->_rst_i;
 
     if(kk->_pc_r) {
-        kk->rs[kk->rsp] = kk->nip;
+        kk->rs[kk->rsp] = kk->nip+1;
         kk->_rsp = kk->rsp+1;
         kk->_pc_r = NO;
     }
@@ -200,14 +200,6 @@ void emulate(S fb) {
     kk.ram[17] = 0x6503;
     kk.ram[18] = 0x700C;     /* ; */
 
-/*
-    kk.ram[0] = 0x8000;
-    kk.ram[1] = 0x6600;
-    kk.ram[2] = 0x9000;
-    kk.ram[3] = 0x6123;
-    kk.ram[4] = 0x6103;
-    kk.ram[5] = 0x0005;
-*/
     memset(fb->pixels, 0, fb->pitch * fb->h);
     for(kk.stop_emulation = NO; !kk.stop_emulation;){
         TIMES(v,525,TIMES(h,397,sample(&kk);latch(&kk););transcribe_line(&kk, fb, v);)
