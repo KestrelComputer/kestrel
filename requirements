@@ -4,14 +4,6 @@ I WANT      an assembler which translates the source code in a file img.f into a
 SO THAT     I can launch ks without having to translate initial programming into C statements by hand.
 ---
 AS A        coder
-I WANT      an 8192 cell buffer into which software is compiled
-SO THAT     I need not worry about overflowing the buffer or interfering with host colon-definitions.
----
-AS A        coder
-I WANT      all references to the target compilation buffer to be bounds-checked
-SO THAT     I don't crash the compiler when making a wild pointer reference.
----
-AS A        coder
 I WANT      the phrase "0 org" to reset the compilation pointer to zero
 SO THAT     I can create a bootable image for the J1 and other customized processors.  The J1's first instruction is assumed to be located at address 0.
 ---
@@ -71,3 +63,14 @@ AS A        symbol table
 I WANT      to not artificially constrict the length of a name
 SO THAT     the user is free to use whatever names they want.  Shorter is recommended, of course.
 ===
+
+*** DONE ***
+
+AS A        coder
+I WANT      an 8192 cell buffer into which software is compiled
+SO THAT     I need not worry about overflowing the buffer or interfering with host colon-definitions.
+---
+AS A        coder
+I WANT      all references to the target compilation buffer to be bounds-checked
+SO THAT     I don't crash the compiler when making a wild pointer reference.
+---
