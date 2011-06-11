@@ -23,6 +23,10 @@ t01
 : t02       t02.1 ;
 t02
 
+: t10.1     0 org  there abort" t10.1 : compilation pointer should be reset" ;
+: t10       t10.1 ;
+t10
+
 ==end==
 bye
 

@@ -24,7 +24,8 @@ create image
         byte address A+0 to be displayed prior to A+1.  Since, to the
         human eye, A+0 appears to the left of A+1, we treat A+0 as
         bits 15..8 of a 16-bit quantity.  In other words, we define
-        the J1 arbitrarily as big-endian.
+        the J1 arbitrarily as big-endian.  This allows us to write
+        graphics routines without byte-swapping all the time.
 [then]
 
 : -small    dup 0< abort" Address out of range" ;
@@ -35,4 +36,13 @@ create image
 : w!        over 8 rshift over c! 1+ c! ;
 : t@        -odd >host w@ ;
 : t!        -odd >host w! ;
+
+0 [if]  We mainain a compilation pointer, cp, to remember where our next
+        word should be compiled to.  It will always point somewhere inside
+        the target image.
+[then]
+
+variable cp
+: org       cp ! ;
+: there     cp @ ;
 

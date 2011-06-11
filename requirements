@@ -4,10 +4,6 @@ I WANT      an assembler which translates the source code in a file img.f into a
 SO THAT     I can launch ks without having to translate initial programming into C statements by hand.
 ---
 AS A        coder
-I WANT      the phrase "0 org" to reset the compilation pointer to zero
-SO THAT     I can create a bootable image for the J1 and other customized processors.  The J1's first instruction is assumed to be located at address 0.
----
-AS A        coder
 I WANT      "defer foo" to create a deferred Forth word foo
 SO THAT     I can invoke foo at will, whose semantics will be specified at run-time.
 ---
@@ -73,4 +69,8 @@ SO THAT     I need not worry about overflowing the buffer or interfering with ho
 AS A        coder
 I WANT      all references to the target compilation buffer to be bounds-checked
 SO THAT     I don't crash the compiler when making a wild pointer reference.
+---
+AS A        coder
+I WANT      the phrase "0 org" to reset the compilation pointer to zero
+SO THAT     I can create a bootable image for the J1 and other customized processors.  The J1's first instruction is assumed to be located at address 0.
 ---
