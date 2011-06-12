@@ -46,6 +46,15 @@ variable cp
 : org       cp ! ;
 : there     cp @ ;
 
+0 [if]  The act of compiling involves sequentially appending values to
+        the binary image stored in the image buffer.  We define special
+        setters to automate this process, so that we don't have to
+        constantly reference there all the time.
+[then]
+
+: tallot    cp +! ;
+: ,,        there t!  2 tallot ;
+
 0 [if]  While compiling a word, we refer to other words.  To compile the
         instructions to realize the runtime semantics, we need to know the
         addresses of the referenced words.  Therefore, we need a database
@@ -90,7 +99,8 @@ variable >visible
         column point into the strs buffer.
 
         When creating a new definition, we assume the immediacy flag is
-        clear.  This preserves ANS Forth semantics.
+        clear.  This preserves ANS Forth semantics.  Further, we assume
+        the definition will equal the current compilation pointer.
 [then]
 
 : #syms         >symtab @ ;
@@ -100,7 +110,7 @@ variable >visible
 : n!            ofs names + ! ;
 : a!            ofs addresses + ! ;
 : i!            ofs immediacies + ! ;
-: defined       +opening dup l! sp @ n! remembered a! 0 i! 1 >symtab +! ;
+: defined       +opening dup l! sp @ n! remembered there a! 0 i! 1 >symtab +! ;
 
 0 [if]  We also need some mechanism to determine if a label is defined.  Forth
         actually doesn't use this functionality as such; rather, this word is

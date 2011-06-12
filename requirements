@@ -51,10 +51,6 @@ AS A        compiler
 I WANT      "defer foo" to populate the dictionary with a header for "foo" followed by a nil jump
 SO THAT     "blah is foo" can find where to lay down a new jump target.
 ---
-AS A        compiler
-I WANT      "," to populate the next location in the dictionary
-SO THAT     I don't need to keep track of the compile pointer manually.
----
 
 *** DONE ***
 
@@ -81,5 +77,9 @@ SO THAT     the processor can find executable code at its specially reserved mem
 AS A        symbol table
 I WANT      to not artificially constrict the length of a name
 SO THAT     the user is free to use whatever names they want.  Shorter is recommended, of course.
+---
+AS A        compiler
+I WANT      "," to populate the next location in the dictionary
+SO THAT     I don't need to keep track of the compile pointer manually.
 ---
 

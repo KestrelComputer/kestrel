@@ -30,10 +30,16 @@ t02
 : t10       t10.1 ;
 t10
 
+: s         0 org 1234 ,, ;
+: t11.1     s  there 2 xor abort" t11.1 : Placing data into dictionary must advance ptr" ;
+: t11.2     0 t@ 1234 xor abort" t11.2 : I placed 1234" ;
+: t11       t11.1 t11.2 ;
+t11
+
 ( Symbol Table and Related Tools )
 
-: s1        0symtab ;
-: s2        15360 S" aLabel" defined ;
+: s1        0symtab 15360 org ;
+: s2        S" aLabel" defined ;
 : t20.1     s1  #syms abort" t20.1 : haven't defined any symbols yet" ;
 : t20.2     s1 s2  #syms 1 xor abort" t20.2 : defined only a single symbol" ;
 : t20.3     s1 s2  S" aLabel" isDefined? 0= abort" t20.3 : symbol 0 must be defined" ;
@@ -47,8 +53,8 @@ t10
 : t20       t20.1 t20.2 t20.3 t20.4 t20.5 t20.6 t20.7 t20.8 t20.9 t20.10 ;
 t20
 
-: s1        0symtab 15360 S" aLabel" defined ;
-: s2        32767 S" anotherLabel" defined ;
+: s1        0symtab 15360 org S" aLabel" defined ;
+: s2        32767 org S" anotherLabel" defined ;
 : t21.1     s1  #syms 1 xor abort" t21.1 : I defined one symbol" ;
 : t21.2     s1 s2  #syms 2 xor abort" t21.2 : I defined two symbols" ;
 : t21.3     s1 s2  S" aLabel" isDefined? 0= abort" t21.3 : aLabel is defined" ;
