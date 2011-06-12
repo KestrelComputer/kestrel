@@ -4,10 +4,6 @@ I WANT      an assembler which translates the source code in a file img.f into a
 SO THAT     I can launch ks without having to translate initial programming into C statements by hand.
 ---
 AS A        coder
-I WANT      "' blah is foo" to configure foo to jump to blah
-SO THAT     I can alter the semantics of foo at run-time, or implement interrupt vectors.
----
-AS A        coder
 I WANT      the ability to prune away the names belonging to internal/implementation-specific words
 SO THAT     we don't waste precious memory space with unnecessary word names.
 ---
@@ -30,10 +26,6 @@ SO THAT     I can control when : compiles to the target or to the host.
 AS A        compiler
 I WANT      some mechanism to know when I've exhausted the vocabulary's wordlist
 SO THAT     I don't crash when the user asks me to compile or execute a word which hasn't been defined yet.
----
-AS A        compiler
-I WANT      "is foo" to alter foo's first instruction to jump to another word whose execution token is taken from the stack
-SO THAT     I can implement vectors without having to manually compute addresses to poke.
 ===
 AS A        symbol table
 I WANT      to let the compiler alter the immediacy flag
@@ -41,6 +33,15 @@ SO THAT     the word "IMMEDIATE" has the effect specified by ANS Forth.
 ===
 
 *** IN PROGRESS ***
+---
+AS A        coder
+I WANT      "' blah is foo" to configure foo to jump to blah
+SO THAT     I can alter the semantics of foo at run-time, or implement interrupt vectors.
+---
+AS A        compiler
+I WANT      "is foo" to alter foo's first instruction to jump to another word whose execution token is taken from the stack
+SO THAT     I can implement vectors without having to manually compute addresses to poke.
+---
 
 *** DONE ***
 
