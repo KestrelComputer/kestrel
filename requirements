@@ -4,10 +4,6 @@ I WANT      an assembler which translates the source code in a file img.f into a
 SO THAT     I can launch ks without having to translate initial programming into C statements by hand.
 ---
 AS A        coder
-I WANT      "defer foo" to create a deferred Forth word foo
-SO THAT     I can invoke foo at will, whose semantics will be specified at run-time.
----
-AS A        coder
 I WANT      "' blah is foo" to configure foo to jump to blah
 SO THAT     I can alter the semantics of foo at run-time, or implement interrupt vectors.
 ---
@@ -32,10 +28,6 @@ I WANT      the word TARGET to reconfigure the host Forth environment to compile
 SO THAT     I can control when : compiles to the target or to the host.
 ===
 AS A        compiler
-I WANT      "defer foo" to populate the dictionary with a header for "foo" followed by a nil jump
-SO THAT     "blah is foo" can find where to lay down a new jump target.
----
-AS A        compiler
 I WANT      some mechanism to know when I've exhausted the vocabulary's wordlist
 SO THAT     I don't crash when the user asks me to compile or execute a word which hasn't been defined yet.
 ---
@@ -44,21 +36,25 @@ I WANT      "is foo" to alter foo's first instruction to jump to another word wh
 SO THAT     I can implement vectors without having to manually compute addresses to poke.
 ===
 AS A        symbol table
-I WANT      to record a symbol's name, address, and immediacy flag
-SO THAT     the interpreter or compiler can locate or invoke the implementation of a word.
----
-AS A        symbol table
 I WANT      to let the compiler alter the immediacy flag
 SO THAT     the word "IMMEDIATE" has the effect specified by ANS Forth.
----
-AS A        symbol table
-I WANT      to keep a word's metadata separate from its code
-SO THAT     the processor can find executable code at its specially reserved memory locations (e.g., address 0).
----
-AS A        symbol table
-I WANT      to not artificially constrict the length of a name
-SO THAT     the user is free to use whatever names they want.  Shorter is recommended, of course.
 ===
+
+*** IN PROGRESS ***
+
+---
+AS A        coder
+I WANT      "defer foo" to create a deferred Forth word foo
+SO THAT     I can invoke foo at will, whose semantics will be specified at run-time.
+---
+AS A        compiler
+I WANT      "defer foo" to populate the dictionary with a header for "foo" followed by a nil jump
+SO THAT     "blah is foo" can find where to lay down a new jump target.
+---
+AS A        compiler
+I WANT      "," to populate the next location in the dictionary
+SO THAT     I don't need to keep track of the compile pointer manually.
+---
 
 *** DONE ***
 
@@ -74,3 +70,16 @@ AS A        coder
 I WANT      the phrase "0 org" to reset the compilation pointer to zero
 SO THAT     I can create a bootable image for the J1 and other customized processors.  The J1's first instruction is assumed to be located at address 0.
 ---
+AS A        symbol table
+I WANT      to record a symbol's name, address, and immediacy flag
+SO THAT     the interpreter or compiler can locate or invoke the implementation of a word.
+---
+AS A        symbol table
+I WANT      to keep a word's metadata separate from its code
+SO THAT     the processor can find executable code at its specially reserved memory locations (e.g., address 0).
+---
+AS A        symbol table
+I WANT      to not artificially constrict the length of a name
+SO THAT     the user is free to use whatever names they want.  Shorter is recommended, of course.
+---
+

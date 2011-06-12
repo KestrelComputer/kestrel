@@ -46,3 +46,81 @@ variable cp
 : org       cp ! ;
 : there     cp @ ;
 
+0 [if]  While compiling a word, we refer to other words.  To compile the
+        instructions to realize the runtime semantics, we need to know the
+        addresses of the referenced words.  Therefore, we need a database
+        of name, address pairs.  This is the job of the symbol table.
+
+        The symbol table consists of two aggregate components.  First, we
+        have a chunk of storage space reserved for storing the names we
+        encounter.  The bytes comprising the names are stored one after
+        the other in this string buffer.
+[then]
+
+2048 constant /buffer
+create strs     /buffer allot
+strs /buffer + constant strs)
+variable sp
+
+: invariant     sp @ strs u< abort" String pointer too small"
+                sp @ strs) u< 0= abort" String pointer out of bounds" ;
+: +fits         sp @ over + strs) u< 0= abort" String too big to intern" ;
+: remembered    invariant +fits sp @ swap dup sp +! move invariant ;
+
+0 [if]  The second component refers to spans within the string buffer,
+        plus any other data associations.  We keep our data arranged in
+        a column-order relational table for convenience.
+[then]
+
+/buffer cells constant /column
+create names        /column allot
+create lengths      /column allot
+create addresses    /column allot
+create immediacies  /column allot
+variable >symtab
+variable >visible
+
+: 0symtab       0 >symtab !  0 >visible !  strs sp ! ;
+
+0 [if]  Creating a definition requires associating a name with some datum,
+        specifically a definition's address.  However, because we cannot
+        trust the calling program to keep its string memory around for the
+        lifetime of the definition, we must copy it into a temporary lo-
+        cation.  This creates the invariant that all pointers in the names
+        column point into the strs buffer.
+
+        When creating a new definition, we assume the immediacy flag is
+        clear.  This preserves ANS Forth semantics.
+[then]
+
+: #syms         >symtab @ ;
+: ofs           #syms cells ;
+: +opening      ofs /column u< 0= abort" Too many symbols" ;
+: l!            ofs lengths + ! ;
+: n!            ofs names + ! ;
+: a!            ofs addresses + ! ;
+: i!            ofs immediacies + ! ;
+: defined       +opening dup l! sp @ n! remembered a! 0 i! 1 >symtab +! ;
+
+0 [if]  We also need some mechanism to determine if a label is defined.  Forth
+        actually doesn't use this functionality as such; rather, this word is
+        used by the unit tests to ensure we're doing the right thing.
+[then]
+
+: n@            names + @ ;
+: l@            lengths + @ ;
+: -match        >r 2dup r@ n@ r@ l@ compare if r> exit then r> drop 2r> 2drop 2drop -1 ;
+: -end          dup ofs u< 0= if r> 2drop exit then ;
+: -exist        0 begin -end -match cell+ again ;
+: isDefined?    -exist 2drop 0 ;
+
+\       Miscellanious attribute getters and setters.
+
+: length        cells l@ ;
+: name          cells dup n@ swap l@ ;
+: definition    cells addresses + @ ;
+: isImmediate?  cells immediacies + @ ;
+: #visible      >visible @ ;
+: isVisible?    #visible u< ;
+: reveal        #syms >visible ! ;
+
