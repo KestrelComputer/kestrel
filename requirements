@@ -33,16 +33,6 @@ SO THAT     the word "IMMEDIATE" has the effect specified by ANS Forth.
 ===
 
 *** IN PROGRESS ***
----
-AS A        coder
-I WANT      "' blah is foo" to configure foo to jump to blah
-SO THAT     I can alter the semantics of foo at run-time, or implement interrupt vectors.
----
-AS A        compiler
-I WANT      "is foo" to alter foo's first instruction to jump to another word whose execution token is taken from the stack
-SO THAT     I can implement vectors without having to manually compute addresses to poke.
----
-
 *** DONE ***
 
 AS A        coder
@@ -80,5 +70,13 @@ SO THAT     I can invoke foo at will, whose semantics will be specified at run-t
 AS A        compiler
 I WANT      "defer foo" to populate the dictionary with a header for "foo" followed by a nil jump
 SO THAT     "blah is foo" can find where to lay down a new jump target.
+---
+AS A        coder
+I WANT      "' blah is foo" to configure foo to jump to blah
+SO THAT     I can alter the semantics of foo at run-time, or implement interrupt vectors.
+---
+AS A        compiler
+I WANT      "is foo" to alter foo's first instruction to jump to another word whose execution token is taken from the stack
+SO THAT     I can implement vectors without having to manually compute addresses to poke.
 ---
 

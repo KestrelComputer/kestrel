@@ -82,6 +82,23 @@ t21
 : t30       t30.1 t30.2 t30.3 t30.4 t30.5 ;
 t30
 
+: s         0symtab  15360 org S" defer, fooBar" evaluate ;
+: t31.1     s 4321 S" fooBar" sfind, nip -1 xor abort" t31.1 : Dictionary search must show we defined fooBar" ;
+: t31.2     s S" fooBar" sfind, drop 0 xor abort" t31.2 : Dictionary search must show execution token" ;
+: t31.3     s S" barFoo" sfind, nip abort" t31.3 : We did not define barFoo, however" ;
+: t31.4     s S" barFoo" sfind, drop S" barFoo" compare abort" t31.4 : Failed searches leave the word name on the stack" ;
+: t31.5     s S" ', fooBar" evaluate 0 xor abort" t31.4 : tick should yield fooBar's xt" ;
+: try       S" ', barFoo" evaluate ;
+: t31.6     s ['] try catch 0= abort" t31.5 : tick should throw exception upon failed sfind," 2drop ;
+: t31       t31.1 t31.2 t31.3 t31.4 t31.5 t31.6 ;
+t31
+
+: s         0symtab  S" 0 org defer, fooBar 15360 org defer, barFoo" evaluate ;
+: t32.1     s  0 t@ abort" t32.1 : defer, should compile a jmp 0" ;
+: t32.2     s  S" ', barFoo is, fooBar" evaluate   0 t@ $1E00 xor abort" t32.2 : IS, should have patched foobar" ;
+: t32       t32.1 t32.2 ;
+t32
+
 ==end==
 bye
 

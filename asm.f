@@ -112,20 +112,10 @@ variable >visible
 : i!            ofs immediacies + ! ;
 : defined       +opening dup l! sp @ n! remembered there a! 0 i! 1 >symtab +! ;
 
-0 [if]  We also need some mechanism to determine if a label is defined.  Forth
-        actually doesn't use this functionality as such; rather, this word is
-        used by the unit tests to ensure we're doing the right thing.
-[then]
-
-: n@            names + @ ;
-: l@            lengths + @ ;
-: -match        >r 2dup r@ n@ r@ l@ compare if r> exit then r> drop 2r> 2drop 2drop -1 ;
-: -end          dup ofs u< 0= if r> 2drop exit then ;
-: -exist        0 begin -end -match cell+ again ;
-: isDefined?    -exist 2drop 0 ;
-
 \       Miscellanious attribute getters and setters.
 
+: l@            lengths + @ ;
+: n@            names + @ ;
 : length        cells l@ ;
 : name          cells dup n@ swap l@ ;
 : definition    cells addresses + @ ;
@@ -133,6 +123,25 @@ variable >visible
 : #visible      >visible @ ;
 : isVisible?    #visible u< ;
 : revealed      #syms >visible ! ;
+
+0 [if]  We also need some mechanism to determine if a label is defined.  Forth
+        actually doesn't use this functionality as such; rather, this word is
+        used by the unit tests to ensure we're doing the right thing.
+
+        Forth does use sfind, however, to determine the index into the symbol
+        table corresponding to a given name.  This index is considered the
+        "execution token" for the word.
+[then]
+
+: cell-         [ -1 cells ] literal + ;
+: rows          2/ 2/ ;     ( MACHINE SPECIFIC )
+: -end          dup 0 >= if exit then  drop r> drop ;
+: differs?      >r 2dup r@ n@ r@ l@ compare r> swap ;
+: -match        differs? if exit then  nip nip rows -1 2r> 2drop ;
+: -exist        1- cells begin -end -match cell- again ;
+: sfindAll,     #syms -exist 0 ;
+: sfind,        #visible -exist 0 ;
+: isDefined?    sfindAll, dup 0= if nip then nip ;
 
 0 [if]  The first instruction executed by the J1 processor is going to be
         a JMP to the actual start-up code.  However, Forth doesn't work
@@ -152,4 +161,9 @@ variable >visible
 
 : token     32 word count ;
 : defer,    token defined revealed 0 ,, ;
+: ',        token sfind, 0= abort" Undefined" ;
+: +even     dup 1 and abort" Odd address" ;
+: +range    dup $4000 u< 0= abort" Address outside of range CPU can execute" ;
+: +address  +even +range ;
+: is,       definition +address 2/ ', definition t! ;
 
