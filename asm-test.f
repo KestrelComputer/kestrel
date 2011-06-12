@@ -49,8 +49,9 @@ t11
 : t20.7     s1 s2  0 isImmediate? abort" t20.7 : By default, words shouldn't be immediate" ;
 : t20.8     s1 s2  #visible #syms 1- xor abort" t20.8 : I haven't unsmudged the new definition yet" ;
 : t20.9     s1 s2  0 isVisible? abort" t20.9 : by default, created words shouldn't be visible" ;
-: t20.10    s1 s2  reveal  0 isVisible? 0= abort" t20.10 : revealing should make latest definition visible" ;
-: t20       t20.1 t20.2 t20.3 t20.4 t20.5 t20.6 t20.7 t20.8 t20.9 t20.10 ;
+: t20.10    s1 s2  revealed  0 isVisible? 0= abort" t20.10 : revealing should make latest definition visible" ;
+: t20.11    s1 #visible abort" t20.11 : After zeroing the symbol table, we should have no visible words" ;
+: t20       t20.1 t20.2 t20.3 t20.4 t20.5 t20.6 t20.7 t20.8 t20.9 t20.10 t20.11 ;
 t20
 
 : s1        0symtab 15360 org S" aLabel" defined ;
@@ -63,9 +64,23 @@ t20
 : t21.6     s1 s2  1 length 12 xor abort" t21.6 : anotherLabel's length = 12" ;
 : t21.7     s1 s2  0 definition 15360 xor abort" t21.7 : aLabel=15360" ;
 : t21.8     s1 s2  1 definition 32767 xor abort" t21.8 : anotherLabel=32767" ;
-: t21.9     s1 s2 reveal #syms #visible xor abort" t21.9 : #syms=#visible" ;
+: t21.9     s1 s2 revealed #syms #visible xor abort" t21.9 : #syms=#visible" ;
 : t21       t21.1 t21.2 t21.3 t21.4 t21.5 t21.6 t21.7 t21.8 t21.9 ;
 t21
+
+( Compilation )
+  ( DEFER and friends )
+
+: s1        0symtab ;
+: s2        15360 org S" defer, fooBar" evaluate ;
+: s         s1 s2 ;
+: t30.1     s S" fooBar" isDefined? 0= abort" t30.1 : I just deferred fooBar" ;
+: t30.2     s 0 definition 15360 xor abort" t30.2 : I deferred fooBar at address 15360" ;
+: t30.3     s 15360 t@ 0 xor abort" t30.3 : Defer should compile a JMP 0 as its placeholder" ;
+: t30.4     s there 15362 xor abort" t30.4 : All instructions are 16-bits wide." ;
+: t30.5     s1 #visible s2 #visible swap - 1 xor abort" t30.5 : One definition should become visible" ;
+: t30       t30.1 t30.2 t30.3 t30.4 t30.5 ;
+t30
 
 ==end==
 bye

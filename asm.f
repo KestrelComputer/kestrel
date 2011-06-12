@@ -132,5 +132,24 @@ variable >visible
 : isImmediate?  cells immediacies + @ ;
 : #visible      >visible @ ;
 : isVisible?    #visible u< ;
-: reveal        #syms >visible ! ;
+: revealed      #syms >visible ! ;
+
+0 [if]  The first instruction executed by the J1 processor is going to be
+        a JMP to the actual start-up code.  However, Forth doesn't work
+        well compiling forward references.  To implement said forward
+        reference, we use DEFER to compile a vectored word.  Thus, we can
+        use DEFER to make our interrupt vector tables, like so:
+
+            0 org
+            defer   _reset
+            ( ... )
+
+            : reset         blah blah blah ;
+            ' reset is _reset
+
+            ( ... )
+[then]
+
+: token     32 word count ;
+: defer,    token defined revealed 0 ,, ;
 

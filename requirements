@@ -42,16 +42,6 @@ SO THAT     the word "IMMEDIATE" has the effect specified by ANS Forth.
 
 *** IN PROGRESS ***
 
----
-AS A        coder
-I WANT      "defer foo" to create a deferred Forth word foo
-SO THAT     I can invoke foo at will, whose semantics will be specified at run-time.
----
-AS A        compiler
-I WANT      "defer foo" to populate the dictionary with a header for "foo" followed by a nil jump
-SO THAT     "blah is foo" can find where to lay down a new jump target.
----
-
 *** DONE ***
 
 AS A        coder
@@ -81,5 +71,13 @@ SO THAT     the user is free to use whatever names they want.  Shorter is recomm
 AS A        compiler
 I WANT      "," to populate the next location in the dictionary
 SO THAT     I don't need to keep track of the compile pointer manually.
+---
+AS A        coder
+I WANT      "defer foo" to create a deferred Forth word foo
+SO THAT     I can invoke foo at will, whose semantics will be specified at run-time.
+---
+AS A        compiler
+I WANT      "defer foo" to populate the dictionary with a header for "foo" followed by a nil jump
+SO THAT     "blah is foo" can find where to lay down a new jump target.
 ---
 
