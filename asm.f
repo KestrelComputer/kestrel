@@ -76,6 +76,16 @@ variable sp
 : +fits         sp @ over + strs) u< 0= abort" String too big to intern" ;
 : remembered    invariant +fits sp @ swap dup sp +! move invariant ;
 
+0 [if]  After compilation is complete, we want to output the binary image
+        so the Kestrel emulator can import it upon startup.
+[then]
+
+variable        h
+: open          S" romfile" r/w bin create-file throw h ! ;
+: close         h @ close-file throw ;
+: write         image 16384 h @ write-file throw ;
+: romfile       open write close ." romfile created/updated." cr ;
+
 0 [if]  The second component refers to spans within the string buffer,
         plus any other data associations.  We keep our data arranged in
         a column-order relational table for convenience.
