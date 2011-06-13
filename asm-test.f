@@ -164,9 +164,9 @@ t50
 t60
 
 : s         0symtab S" 10 org target : foo $0A 15360 ; host" evaluate ;
-: t61.1     s 10 t@ $000A xor abort" t61.1 : Expected $0A to be treated as a hexadecimal number";
+: t61.1     s 10 t@ $800A xor abort" t61.1 : Expected $0A to be treated as a hexadecimal number";
 : t61.2     s 14 t@ $700C xor abort" t61.2 : return expected" ;
-: t61.3     s 12 t@ $3C00 xor abort" t61.3 : Decimal 15360 expected" ;
+: t61.3     s 12 t@ $BC00 xor abort" t61.3 : Decimal 15360 expected" ;
 : t61       t61.1 t61.2 t61.3 ;
 t61
 

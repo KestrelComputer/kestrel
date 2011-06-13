@@ -204,7 +204,7 @@ variable bb ( true if inside a basic block )
 : +address      +even +range ;
 : call,         +address 2/ $4000 or i, ;
 : -immediate    2dup sfind if nip nip r> drop exit then 2drop ;
-: -compiled     2dup sfind, if nip nip ['] call, r> drop exit then 2drop ;
+: -compiled     2dup sfind, if nip nip definition ['] call, r> drop exit then 2drop ;
 
 0 [if]  I was completely unsuccessful in making a Forth routine
         to abide by BASE when converting numbers from string form
@@ -226,8 +226,10 @@ variable        nn
 : +hex          dup 0 16 within 0= if 2r> 2drop r> drop then ;
 : accum         ucase >bin +hex nn @ 16 * + nn ! ;
 : hexlit        begin -eoi over c@ accum 1 /string again ;
-: +ve           dup $8000 and if invert i, $6600 then ;
-: lit,          +ve i, ;
+: bits14:0,     $8000 or i, ;
+: invert,       $6600 i, ;
+: +ve           dup $8000 and if invert bits14:0, invert, r> drop then ;
+: lit,          +ve bits14:0, ;
 : -hex          over c@ [char] $ = if 1 /string hexlit nn @ ['] lit, 2r> 2drop then ;
 : is0-9?        [char] 0 [char] 9 1+ within ;
 : +dec          dup 0 10 within 0= if 2r> 2drop r> drop then ;
@@ -236,7 +238,7 @@ variable        nn
 : -dec          over c@ is0-9? if declit nn @ ['] lit, 2r> 2drop then ;
 : -number       0 nn ! 2dup -dec -hex 2drop ;
 
-: classify      -immediate -compiled -number ." Error: " type -2 abort" Undefined" ;
+: classify      -compiled -immediate -number ." Error: " type -2 abort" Undefined" ;
 : ],            begin token classify execute again ;
 : [,            r> r> drop >r ;  ( break out of the infinite loop set up by ] )
 : :,            (:) ], ;
@@ -271,23 +273,27 @@ vocabulary target-primitives
 
 also target-primitives definitions previous
 
-: +             +, ;
-: xor           xor, ;
-: drop          drop, ;
-: !             !, ;
-: @             @, ;
-: dup           dup ;
-: over          over, ;
+: defer         defer, ;
 : :             :, ;
+: +             +, ;
 : ;             ;, ;
+: dup           dup, ;
+: @             @, ;
+: xor           xor, ;
+: over          over, ;
+: !             !, ;
+: if            if, ;
+: recurse       recurse, ;
+: exit          exit, ;
+: then          then, ;
+: drop          drop, ;
+: '             ', ;
+: is            is, ;
+
 : [             [, ;
 : ]             ], ;
 : >body         definition ;
-: if            if, ;
-: then          then, ;
-: recurse       recurse, ;
-: '             ', ;
-: is            is, ;
+: invert        invert, ;
 
 host definitions
 

@@ -180,6 +180,7 @@ void emulate(S fb) {
     k_state kk = {1,1,};
     int h, v;
 
+#if 0
     kk.ram[ 0] = 0x9000;     /* $1000 */
     kk.ram[ 1] = 0x4003;     /* begin gfx */
     kk.ram[ 2] = 0x0001;     /* again */
@@ -199,6 +200,31 @@ void emulate(S fb) {
     kk.ram[16] = 0xB000;     /* drop $3000 */
     kk.ram[17] = 0x6503;
     kk.ram[18] = 0x700C;     /* ; */
+#endif
+
+    kk.ram[ 0] = 0x0012;
+    kk.ram[ 1] = 0x8002;
+    kk.ram[ 2] = 0x720F;
+    kk.ram[ 3] = 0x6081;
+    kk.ram[ 4] = 0x6c00;
+    kk.ram[ 5] = 0xD555;
+    kk.ram[ 6] = 0x6503;
+    kk.ram[ 7] = 0x6181;
+    kk.ram[ 8] = 0x6123;
+    kk.ram[ 9] = 0x710F;
+    kk.ram[10] = 0x6081;
+    kk.ram[11] = 0xA000;
+    kk.ram[12] = 0x6503;
+    kk.ram[13] = 0x2011;
+    kk.ram[14] = 0x4003;
+    kk.ram[15] = 0x4001;
+    kk.ram[16] = 0x000A;
+    kk.ram[17] = 0x700C;
+    kk.ram[18] = 0x9000;
+    kk.ram[19] = 0x400A;
+    kk.ram[20] = 0x6103;
+    kk.ram[21] = 0x0012;
+
 
     memset(fb->pixels, 0, fb->pitch * fb->h);
     for(kk.stop_emulation = NO; !kk.stop_emulation;){

@@ -1,3 +1,4 @@
+*** TO DO ***
 ---
 AS A        coder
 I WANT      an assembler which translates the source code in a file img.f into a raw binary image in a file namd img
@@ -7,11 +8,10 @@ AS A        coder
 I WANT      the ability to prune away the names belonging to internal/implementation-specific words
 SO THAT     we don't waste precious memory space with unnecessary word names.
 ---
-===
 AS A        symbol table
 I WANT      to let the compiler alter the immediacy flag
-SO THAT     the word "IMMEDIATE" has the effect specified by ANS Forth.
-===
+SO THAT     we can compile primitives and other syntax into the target run-time image.
+---
 
 *** IN PROGRESS ***
 
