@@ -143,6 +143,15 @@ variable >visible
 : sfind,        #visible -exist 0 ;
 : isDefined?    sfindAll, dup 0= if nip then nip ;
 
+0 [if]  One of the best features of GForth which is lacking in SwiftForth
+        is an implementation of sfind.  SFIND is a variant of FIND which
+        works with an explicit string on the stack, rather than a counted
+        string.  We can fake it, though, by building a temporary counted
+        string in PAD.
+[then]
+
+: sfind         dup pad c!  pad 1+ swap move  pad find dup 0= if >r count r> then ;
+
 0 [if]  The first instruction executed by the J1 processor is going to be
         a JMP to the actual start-up code.  However, Forth doesn't work
         well compiling forward references.  To implement said forward
@@ -159,11 +168,126 @@ variable >visible
             ( ... )
 [then]
 
-: token     32 word count ;
-: defer,    token defined revealed 0 ,, ;
-: ',        token sfind, 0= abort" Undefined" ;
-: +even     dup 1 and abort" Odd address" ;
-: +range    dup $4000 u< 0= abort" Address outside of range CPU can execute" ;
-: +address  +even +range ;
-: is,       definition +address 2/ ', definition t! ;
+: token         32 word count ;
+: defer,        token defined revealed 0 ,, ;
+: ',            token sfind, 0= abort" Undefined" ;
+: +even         dup 1 and abort" Odd address" ;
+: +range        dup $4000 u< 0= abort" Address outside of range CPU can execute" ;
+: +address      +even +range ;
+: is,           definition +address 2/ ', definition t! ;
+
+0 [if]  Once we have the ability to populate vectors, we need to point
+        those vectors somewhere.  Thus, the colon compiler, which lets
+        us define new Forth procedures to be executed in the target
+        environment.
+[then]
+
+variable bb ( true if inside a basic block )
+: p,            ,, bb off ;  ( program flow appendage )
+: i,            ,, bb on ; ( anything else appendage )
+: return,       $700C p, ;
+: +bb           bb @ if exit then return, r> drop ;
+: pInsn         there 2 - t@ ;
+: -call?        $E000 and $4000 xor ;
+: tweak         there 2 - t! bb off ;
+: >jmp          pInsn $4000 xor tweak ;
+: +here>=2      there 2 u< if r> drop then ;
+: -call         +here>=2 pInsn -call? if exit then >jmp r> drop ;
+: -alu?         $F000 and $6000 xor ; ( check top 4 bits to verify r->PC bit is clear too )
+: +r            pInsn $100C or tweak ;
+: -alu          +here>=2 pInsn -alu? if exit then +r r> drop ;
+: exit,         +bb -call -alu return, ;
+: (:)           token defined ;
+: (;)           exit, revealed ;
+: +even         dup 1 and abort" Odd address" ;
+: +range        dup $4000 u< 0= abort" Attempt to call word outside of CPU executable space" ;
+: +address      +even +range ;
+: call,         +address 2/ $4000 or i, ;
+: -immediate    2dup sfind if nip nip r> drop exit then 2drop ;
+: -compiled     2dup sfind, if nip nip ['] call, r> drop exit then 2drop ;
+
+0 [if]  I was completely unsuccessful in making a Forth routine
+        to abide by BASE when converting numbers from string form
+        to binary.  Instead of spending two days debugging why, I just
+        decided to say "Screw it" and just treat all numbers as decimal
+        by default, unless prefixed with a dollar-sign.  Invalid numbers
+        are flagged appropriately.
+
+        The following code is a total and utter mess.  It must be rewritten
+        at the earliest possible convenience, after studying why a more
+        obvious implementation simply doesn't work.  (I'm actually quite
+        upset as I write this.  Can't you tell?)
+[then]
+
+variable        nn
+: -eoi          dup 0= if r> drop then ;
+: ucase         dup [char] a [char] z 1+ within $20 and xor ;
+: >bin          [char] 0 - dup 10 u< 0= 7 and - ;
+: +hex          dup 0 16 within 0= if 2r> 2drop r> drop then ;
+: accum         ucase >bin +hex nn @ 16 * + nn ! ;
+: hexlit        begin -eoi over c@ accum 1 /string again ;
+: +ve           dup $8000 and if invert i, $6600 then ;
+: lit,          +ve i, ;
+: -hex          over c@ [char] $ = if 1 /string hexlit nn @ ['] lit, 2r> 2drop then ;
+: is0-9?        [char] 0 [char] 9 1+ within ;
+: +dec          dup 0 10 within 0= if 2r> 2drop r> drop then ;
+: accum         >bin +dec nn @ 10 * + nn ! ;
+: declit        begin -eoi over c@ accum 1 /string again ;
+: -dec          over c@ is0-9? if declit nn @ ['] lit, 2r> 2drop then ;
+: -number       0 nn ! 2dup -dec -hex 2drop ;
+
+: classify      -immediate -compiled -number ." Error: " type -2 abort" Undefined" ;
+: ],            begin token classify execute again ;
+: [,            r> r> drop >r ;  ( break out of the infinite loop set up by ] )
+: :,            (:) ], ;
+: ;,            [, (;) ;
+
+  ( Control Flow )
+: if,           there $2000 p, ;
+: then,         there 2/ $2000 or swap t! bb off ;
+: recurse,      #syms 1- definition call, ;
+
+  ( Basic Primitives )
+: +,            $6203 i, ;
+: xor,          $6503 i, ;
+: drop,         $6103 i, ;
+: !,            $6123 i, drop, ;
+: @,            $6C00 i, ;
+: dup,          $6081 i, ;
+: over,         $6181 i, ;
+
+0 [if]  It's really inconvenient to have to constantly type commas after
+        primitives and immediate words.  Therefore, we need a way of
+        conveniently alternating between target-specific and host-specific
+        meanings of various words.  We'll exploit SwiftForth's support for
+        vocabularies to achieve this magic.
+[then]
+
+only forth definitions
+vocabulary target-primitives
+
+: target        only forth also target-primitives ;
+: host          only forth ;
+
+also target-primitives definitions previous
+
+: +             +, ;
+: xor           xor, ;
+: drop          drop, ;
+: !             !, ;
+: @             @, ;
+: dup           dup ;
+: over          over, ;
+: :             :, ;
+: ;             ;, ;
+: [             [, ;
+: ]             ], ;
+: >body         definition ;
+: if            if, ;
+: then          then, ;
+: recurse       recurse, ;
+: '             ', ;
+: is            is, ;
+
+host definitions
 

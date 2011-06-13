@@ -99,6 +99,80 @@ t31
 : t32       t32.1 t32.2 ;
 t32
 
+  ( : and friends )
+
+: s         0symtab S" 0 org (:) foo" evaluate ;
+: try       S" ', foo drop" evaluate ;
+: t40.1     s ['] try catch 0= abort" t40.1 : foo should not yet be visible" ;
+: t40.2     s S" foo" isDefined? 0= abort" t40.2 : foo should be in symbol table, however" ;
+: t40       t40.1 t40.2 ;
+t40
+
+: s         0symtab S" 0 org (:) foo (;)" evaluate ;
+: t41.1     s ['] try catch abort" t41.1 : ; should reveal its most recent definition" ;
+: t41       t41.1 ;
+t41
+
+: s         0symtab S" 0 org  :, foo ;," evaluate ;
+: t42.1     s ['] try catch abort" t42.1 : foo should be defined" ;
+: t42.2     s S" ', foo" evaluate definition abort" t42.2 : foo should be at address 0" ;
+: t42.3     s S" ', foo definition t@" evaluate $700C xor abort" t42.3 : foo should just consist of a return" ;
+: t42       t42.1 t42.2 t42.3 ;
+t42
+
+: s         0symtab S" 0 org  :, foo +, ;,  :, bar foo foo ;," evaluate ;
+: t43.1     s S" ', bar definition t@" evaluate $4000 xor abort" t43.1 : expected CALL 0 as first insn for bar" ;
+: t43.2     s S" ', bar definition 2 + t@" evaluate $0000 xor abort" t43.2 : expected JMP 0 as second insn for bar" ;
+: t43.3     s S" ', foo definition t@" evaluate $720F xor abort" t43.3 : expected return after +, in foo" ;
+: t43       t43.1 t43.2 t43.3 ;
+t43
+
+variable    barWasCalled
+: bar       barWasCalled on ;
+: s         0symtab  barWasCalled off  S" 0 org :, foo bar ;," evaluate ;
+: t44.1     s barWasCalled @ 0= abort" t44.1 : host words should be considered immediate" ;
+: t44       t44.1 ;
+t44
+
+: s         0symtab S" 10 org :, foo  recurse, recurse, ;," evaluate ;
+: t45.1     s S" ', foo definition t@" evaluate $4005 xor abort" t45.1 : expected CALL 0 as first insn" ;
+: t45.2     s S" ', foo definition 2 + t@" evaluate $0005 xor abort" t45.2 : expected JMP 0 as second insn" ;
+: t45       t45.1 t45.2 ;
+t45
+
+: s         0symtab S" 10 org :, foo if, recurse, recurse, then, ;," evaluate ;
+: t46.1     s S" ', foo definition t@" evaluate $2008 xor abort" t46.1 : Expected 0BRANCH 14 as first insn" ;
+: t46.2     s S" ', foo definition 4 + t@" evaluate $4005 xor abort" t46.2 : TCO shouldn't cross basic block boundaries" ;
+: t46       t46.1 t46.2 ;
+t46
+
+: s1        image /buffer 0 fill  0symtab S" 10 org target  : foo ; host" evaluate ;
+: s2        image /buffer 0 fill  0symtab S" 10 org host : foo ;" evaluate ;
+: t50.1     s1 10 t@ $700C xor abort" t50.1 : Expected foo to be compiled in target image" ;
+: t50.2     here t50.1 here - abort" t50.2 : Target compilation should not affect HERE" ;
+: t50.3     s2 10 t@ abort" t50.3 : Host compilation should happen in dictionary" ;
+: t50.4     here t50.3 here - 0= abort" t50.4 : Host compilation should happen in dictionary" ;
+: t50       t50.1 t50.2 t50.3 t50.4 ;
+t50
+
+: s         0symtab ;
+: tryH      S" 10 org target : foo $0Z ; host" evaluate ;
+: tryD      S" 10 org target : foo 1536O ; host" evaluate ;
+: t60.1     s ['] tryH catch 0= abort" t60.1 : Malformed hex number should throw error" host ;
+: t60.2     s ['] tryD catch 0= abort" t60.2 : Malformed dec number should throw error" host ;
+: t60       t60.1 t60.2 ;
+t60
+
+: s         0symtab S" 10 org target : foo $0A 15360 ; host" evaluate ;
+: t61.1     s 10 t@ $000A xor abort" t61.1 : Expected $0A to be treated as a hexadecimal number";
+: t61.2     s 14 t@ $700C xor abort" t61.2 : return expected" ;
+: t61.3     s 12 t@ $3C00 xor abort" t61.3 : Decimal 15360 expected" ;
+: t61       t61.1 t61.2 t61.3 ;
+t61
+
+order
+
 ==end==
+
 bye
 

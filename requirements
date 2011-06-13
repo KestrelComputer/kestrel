@@ -7,25 +7,6 @@ AS A        coder
 I WANT      the ability to prune away the names belonging to internal/implementation-specific words
 SO THAT     we don't waste precious memory space with unnecessary word names.
 ---
-AS A        coder
-I WANT      ":" to begin compiling a new Forth word with ANS Forth semantics followed as closely as possible
-SO THAT     I don't have to hand-assemble code myself.
----
-AS A        coder
-I WANT      numbers starting with $ to be treated as hexadecimal, regardless of BASE
-SO THAT     I don't have to futz with BASE.
----
-AS A        coder
-I WANT      words not found in the dictionary to be treated as a number
-SO THAT     I can specify numeric literals easily.
----
-AS A        coder
-I WANT      the word TARGET to reconfigure the host Forth environment to compile to the J1 space
-SO THAT     I can control when : compiles to the target or to the host.
-===
-AS A        compiler
-I WANT      some mechanism to know when I've exhausted the vocabulary's wordlist
-SO THAT     I don't crash when the user asks me to compile or execute a word which hasn't been defined yet.
 ===
 AS A        symbol table
 I WANT      to let the compiler alter the immediacy flag
@@ -33,6 +14,7 @@ SO THAT     the word "IMMEDIATE" has the effect specified by ANS Forth.
 ===
 
 *** IN PROGRESS ***
+
 *** DONE ***
 
 AS A        coder
@@ -78,5 +60,106 @@ SO THAT     I can alter the semantics of foo at run-time, or implement interrupt
 AS A        compiler
 I WANT      "is foo" to alter foo's first instruction to jump to another word whose execution token is taken from the stack
 SO THAT     I can implement vectors without having to manually compute addresses to poke.
+---
+AS A        compiler
+I WANT      some mechanism to know when I've exhausted the vocabulary's wordlist
+SO THAT     I don't crash when the user asks me to compile or execute a word which hasn't been defined yet.
+---
+AS A        compiler
+I WANT      ":" to create an unrevealed dictionary entry
+SO THAT     ";" can reveal it at the right time.
+TEST:       After : foo, a dictionary entry named foo must exist.
+TEST:       After : foo, the foo entry must not be revealed.
+---
+AS A        coder
+I WANT      ";" to terminate a colon definition in progress
+SO THAT     I can define more than one word.
+TEST:       After : foo ;, the foo entry must be revealed.
+---
+AS A        coder
+I WANT      ":" to begin compiling a new Forth word with ANS Forth semantics followed as closely as possible
+SO THAT     I don't have to hand-assemble code myself.
+TEST:       After : foo ;, ', foo definition t@ should equal $700C, and THERE = old_THERE+2.
+---
+AS A        coder
+I WANT      non-immediate words to be compiled as CALLs
+SO THAT     I can compose functionality by name in the tightest space possible.
+TEST:       defer foo
+            : bar foo foo ;
+            ', bar definition t@ should be a CALL instruction
+---
+AS A        coder
+I WANT      host-defined "target immediate" words to be invoked at compile-time
+SO THAT     I can implement primitives, loops, and other syntax.
+TEST:       Define a host word xyz
+            : foo xyz ;
+            somehow check to see if xyz executes.
+---
+AS A        compiler
+I WANT      ";" and "EXIT" to convert a previous CALL to a JMP
+SO THAT     return stack resources are conserved to the greatest extent.
+TEST:       defer foo
+            : bar foo exit foo ;
+            ', bar definition 0 + t@ should be a JMP instruction
+            ', bar definition 2 + t@ should be a JMP instruction
+---
+AS A        compiler
+I WANT      ";" to implicitly compile "EXIT"
+SO THAT     I don't have to explicitly return from each definition.
+TEST:       : foo + ;
+            ', foo definition 2 + t@ should be the opcode for a return ($700C)
+---
+AS A        compiler
+I WANT      RECURSE to compile a call to the current definition
+SO THAT     I can write recursive routines and TCO'ed loops.
+TEST:       : foo recurse ;
+            ', foo definition t@ should be a JMP or CALL to itself
+---
+AS A        coder
+I WANT      IF and THEN implemented
+SO THAT     I can write code which reacts to its runtime environment.
+TEST:       : foo if recurse then ;
+            ', foo definition t@ should be a 0BRANCH instruction to definition+2.
+---
+AS A        compiler
+I WANT      tail-call optimization to not cross basic block boundaries
+SO THAT     forward-references resolve to proper instruction sequences.
+OTHERWISE   instruction semantics will work only for the consequent of an IF,
+            but not for the alternate.
+TEST:       : foo if recurse then ;
+            ', foo definition 2 + t@ should be a CALL instruction, while
+            definition 4 + t@ should be an explicit RETURN instruction.
+---
+AS A        coder trying to compile the first milestone
+I WANT      the primitives implemented: + xor ! drop @ dup over recurse exit if then
+SO THAT     I can compile a high-level representation of the first program ks ever ran correctly.
+TEST:       Compiles img.f correctly.  Manual testing OK.
+---
+AS A        coder
+I WANT      words not found in the dictionary to be treated as a number
+SO THAT     I can specify numeric literals easily.
+---
+AS A        coder
+I WANT      words not found in the dictionary AND not interpretable as a valid number to throw a compile-time error
+SO THAT     I don't waste time discovering typos and thinkos at run-time.
+TEST:       16 base ! : foo 0Z ;  should throw an exception.  Make sure to restore BASE.
+---
+AS A        coder
+I WANT      the word TARGET to reconfigure the host Forth environment to compile to the J1 space
+SO THAT     I can control when : compiles to the target or to the host.
+TEST:       Incomplete, open-ended test.
+            TARGET : foo ; should bump THERE by one instruction, while
+            HOST   : foo ; on its own should not.
+---
+AS A        coder
+I WANT      the word HOST to revert back to host-mode Forth.
+SO THAT     after target compilation, I can invoke other functions and scripts in the context of the host.
+TEST:       (see above)
+---
+AS A        coder
+I WANT      numbers starting with $ to be treated as hexadecimal, regardless of BASE
+SO THAT     I don't have to futz with BASE, an error-prone operation.
+TEST:       : foo $0A ;
+            ', foo definition t@ 10 =
 ---
 
