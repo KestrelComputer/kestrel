@@ -18,11 +18,12 @@ typedef struct k_state {
     L       ds[32], _n, _t, _dsp, t, dsp;
     L       rs[32], _rsp, rsp;
     /* Memory */
-    L       ram[49151];
+    L       ram[32768];
     /* Emulator Condition */
     B       stop_emulation;
 } k_state, *K;
 
+const int VB=0x4000;    /* Video base address */
 
 #define DB(f,args...)           fprintf(stderr, f, ##args);
 #define N                       kk->ds[31&(kk->dsp-1)]
@@ -67,7 +68,7 @@ void expand(L **s, L **d) {
 }
 
 void transcribe_line(K kk, S fb, int line) {
-    L i, l=line-125, *d = _L(fb->pixels+fb->pitch*l), *s = _L(kk->ram+40*(l>>1));
+    L i, l=line-125, *d = _L(fb->pixels+fb->pitch*l), *s = _L(kk->ram+VB+40*(l>>1));
     RT(line<125); RT(line&1);
     TIMES(i,40,expand(&s,&d););
 }

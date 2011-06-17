@@ -299,11 +299,11 @@ also target-primitives definitions previous
 : drop          drop, ;
 : '             ', ;
 : is            is, ;
-
 : [             [, ;
 : ]             ], ;
 : >body         definition ;
 : invert        invert, ;
+: ,             ,, ;
 
 host definitions
 
