@@ -12,6 +12,10 @@ AS A        symbol table
 I WANT      to let the compiler alter the immediacy flag
 SO THAT     we can compile primitives and other syntax into the target run-time image.
 ---
+AS A        coder
+I WANT      negative numbers to be supported
+SO THAT     I don't have to convert everything to unsigned hexadecimal form myself.
+---
 
 *** IN PROGRESS ***
 
