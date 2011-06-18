@@ -103,7 +103,7 @@ nV(aluNultT) { return -1*(_UL(N)<_UL(T)); }
 typedef L ALUOP(K);
 ALUOP *aluOp[16] = {aluT, aluN, aluTplN, aluTandN, aluTorN, aluTxorN, aluTnot, aluNeqT, aluNltT, aluNrshT, aluTm1, aluR, aluFetch, aluNlshT, aluDepth, aluNultT};
 
-V(dbg) { DB("N:%04X T:%04X DSP:%d R: %04X RSP: %d NIP: %04X IN:%04X\n", N, T, kk->dsp, R, kk->rsp, kk->nip, kk->ram[kk->nip]); }
+V(dbg) { DB("N:%04X T:%04X DSP:%d R: %04X RSP: %d NIP: %04X IN:%04X RA:%04X RD:%04X %s:%04X\n", N, T, kk->dsp, R, kk->rsp, kk->nip, kk->ram[kk->nip], kk->d_adr_o, kk->d_dat_i, (kk->d_we_o?"wr":"WR"), kk->d_dat_o); }
 
 Vn(jump) { kk->_nip = n; }
 Vn(call) { kk->_pc_r = YES; jump(kk, n); }
@@ -117,8 +117,6 @@ Vn(alu) {
     if(n&0x0080) kk->ds[kk->_dsp] = kk->t;
     if(n&0x0040) kk->rs[kk->_rsp] = kk->t;
     kk->d_we_o = (n&0x0020) != 0;
-    kk->d_dat_o = N;
-    kk->d_adr_o = (T>>1);
     if(n&0x0010) dbg(kk);
     switch((n&0x000C)>>2) {
         case 0: break;
@@ -133,12 +131,17 @@ Vn(alu) {
         case 3: kk->_dsp = (kk->dsp-1); break;
     }
 }
-
+Vn(all) {
+    kk->d_dat_o = N;
+    kk->d_adr_o = (T>>1);
+}
 V(cpu_sample) {
     L i15_13 = (kk->i_dat_i & 0xE000)>>13;
     L i12_0 = kk->i_dat_i & 0x1FFF;
 
     kk->_rst_i = (kk->rst_i)?(kk->rst_i-1):0;
+    kk->d_we_o = 0;
+    all(kk,i12_0);
     switch(i15_13) {
         case 0:     jump(kk, i12_0); break;
         case 1:     jumpT0(kk, i12_0); break;
