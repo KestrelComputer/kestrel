@@ -230,7 +230,7 @@ variable bb ( true if inside a basic block )
 [then]
 
 variable        nn
-: -eoi          dup 0= if r> drop then ;
+: -eoi          dup 0= if 2drop 2drop r> drop then ;
 : ucase         dup [char] a [char] z 1+ within $20 and xor ;
 : >bin          [char] 0 - dup 10 u< 0= 7 and - ;
 : +hex          dup 0 16 within 0= if 2r> 2drop r> drop then ;
@@ -247,7 +247,6 @@ variable        nn
 : declit        begin -eoi over c@ accum 1 /string again ;
 : -dec          over c@ is0-9? if declit nn @ ['] lit, 2r> 2drop then ;
 : -number       0 nn ! 2dup -dec -hex 2drop ;
-
 : classify      -compiled -immediate -number ." Error: " type -2 abort" Undefined" ;
 : ],            begin token classify execute again ;
 : [,            r> r> drop >r ;  ( break out of the infinite loop set up by ] )
@@ -265,6 +264,7 @@ variable        nn
 : drop,         $6103 i, ;
 : !,            $6123 i, drop, ;
 : @,            $6C00 i, ;
+: nop,          $6000 i, ;
 : dup,          $6081 i, ;
 : over,         $6181 i, ;
 
@@ -283,12 +283,62 @@ vocabulary target-primitives
 
 also target-primitives definitions previous
 
+0 [if]  NOTE:
+        Due to how the J1 processor interacts with synchronous RAM,
+        both @ and ! need to take two cycles to complete.  The timing
+        for fetch is as follows:
+
+                J1                          RAM
+                -------------------------   ----------------------
+        T0:     (something places           When T updates, RAM address
+                address in T)               changes.
+
+        T1:     no-operation                RAM data outputs become valid
+
+        T2:     "Fetch" latches data into   RAM address changes because T
+                T.                          changes.
+
+        Hence, to properly implement @ for the J1, you need to wait a cycle
+        before latching the data.  This can be achieved using a non-immediate
+        word, like so:
+
+        : @  @, ;
+
+        The CALL to @ will delay the extra cycle needed for the synchronous
+        RAMs to present valid data on the bus.  The @, ; sequence will latch
+        the data and resume operation in a single cycle.  Thus, CALL @ will
+        consume exactly two cycles.
+
+        Stores work similarly, but their timing is on opposite clocks:
+
+                J1                          RAM
+                -------------------------   ----------------------
+        T0:     (something places address   When T updates, RAM address
+                in T, data in S)            changes.  Likewise, when S
+                                            changes, data input pins change.
+
+        T1:     "Store" strobe asserted.    RAM latches data and writes it
+                                            to the specified address
+
+        T2:     2DROP or its equivalent
+                is executed to dispose of
+                the stack frame.
+
+        Hence, ! is best implemented as an immediate word which compiles
+        two DROPs as follows:
+
+        : !  postpone drop_w  postpone drop ; immediate
+
+        where drop_w is a primitive which combines DROP with the write
+        strobe.  In doing this, we take two cycles to write a word to
+        RAM.  Note that RAM doesn't actully update until time T2!
+[then]
+
 : defer         defer, ;
 : :             :, ;
 : +             +, ;
 : ;             ;, ;
 : dup           dup, ;
-: @             @, ;
 : xor           xor, ;
 : over          over, ;
 : !             !, ;
@@ -304,6 +354,7 @@ also target-primitives definitions previous
 : >body         definition ;
 : invert        invert, ;
 : ,             ,, ;
+: nop           nop, ;
 
 host definitions
 
