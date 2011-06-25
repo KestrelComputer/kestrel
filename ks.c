@@ -21,6 +21,7 @@ typedef struct k_state {
     L       ram[32768];
     /* Emulator Condition */
     B       stop_emulation;
+    L       dbg;
 } k_state, *K;
 
 const int VB=0x4000;    /* Video base address */
@@ -92,11 +93,11 @@ nV(aluTxorN) { return T^N; }
 nV(aluTnot) { return ~T; }
 nV(aluNeqT) { return -1*(N==T); }
 nV(aluNltT) { return -1*(_SL(N) < _SL(T)); }
-nV(aluNrshT) { return N<<T; }
+nV(aluNrshT) { return N>>T; }
 nV(aluTm1) { return T-1; }
 nV(aluR) { return R; }
 nV(aluFetch) { return kk->d_dat_i; }
-nV(aluNlshT) { return N>>T; }
+nV(aluNlshT) { return N<<T; }
 nV(aluDepth) { DB("depth not implemented at address %04X\n", kk->nip); return 0; }
 nV(aluNultT) { return -1*(_UL(N)<_UL(T)); }
 
@@ -117,7 +118,7 @@ Vn(alu) {
     if(n&0x0080) kk->ds[kk->_dsp] = kk->t;
     if(n&0x0040) kk->rs[kk->_rsp] = kk->t;
     kk->d_we_o = (n&0x0020) != 0;
-    if(n&0x0010) dbg(kk);
+    kk->dbg^=n&0x0010;
     switch((n&0x000C)>>2) {
         case 0: break;
         case 1: kk->_rsp = (kk->rsp+1); break;
@@ -166,6 +167,8 @@ V(cpu_latch) {
     kk->i_adr_o = kk->nip;
     kk->dsp = 31&kk->_dsp;
     kk->rsp = 31&kk->_rsp;
+
+    if(kk->dbg) dbg(kk);
 }
 
 V(tt) {
