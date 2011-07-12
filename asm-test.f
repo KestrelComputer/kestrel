@@ -170,6 +170,14 @@ t60
 : t61       t61.1 t61.2 t61.3 ;
 t61
 
+: s         0symtab S" 10 org target create foo host"  evaluate ;
+: t70.1     s s" foo" isDefined? 0= abort" t70.1 : CREATE FOO should define foo" ;
+: t70.2     s s" ', foo definition 4 +" evaluate there xor abort" t70.2 : FOO should compile no more than 2 words." ;
+: t70.3     s s" ', foo definition t@ there $8000 or xor" evaluate abort" t70.3 : create should return the correct address" ;
+: t70.4     s s" ', foo definition 2 + t@" evaluate $700C xor abort" t70.4 : create should return" ;
+: t70       t70.1 t70.2 t70.3 t70.4 ;
+t70
+
 order
 
 ==end==

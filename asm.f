@@ -252,6 +252,7 @@ variable        nn
 : [,            r> r> drop >r ;  ( break out of the infinite loop set up by ] )
 : :,            (:) ], ;
 : ;,            [, (;) ;
+: create,       (:) there 4 + lit, (;) ;
 
   ( Control Flow )
 : if,           there $2000 p, ;
@@ -259,12 +260,19 @@ variable        nn
 : recurse,      #syms 1- definition call, ;
 
   ( Basic Primitives )
-: +,            $6203 i, ;
-: xor,          $6503 i, ;
+: 2drop,        $6102 i, ;
 : drop,         $6103 i, ;
+: +,            $6203 i, ;
+: and,          $6303 i, ;
+: or,           $6403 i, ;
+: xor,          $6503 i, ;
+: rshift,       $6903 i, ;
+: lshift,       $6D03 i, ;
 : !,            $6123 i, drop, ;
-: @,            $6C00 i, ;
 : nop,          $6000 i, ;
+: dbg,          $6010 i, ;
+: swap,         $6180 i, ;
+: @,            $6C00 i, ;
 : dup,          $6081 i, ;
 : over,         $6181 i, ;
 
@@ -355,6 +363,15 @@ also target-primitives definitions previous
 : invert        invert, ;
 : ,             ,, ;
 : nop           nop, ;
+: create        create, ;
+: rshift        rshift, ;
+: lshift        lshift, ;
+: 2drop         2drop, ;
+: and           and, ;
+: or            or, ;
+: xor           xor, ;
+: swap          swap, ;
+: ,             ,, ;
 
 host definitions
 

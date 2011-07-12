@@ -115,8 +115,6 @@ Vn(alu) {
     walk(kk,n);
     if(n&0x1000) kk->_nip = R;
     kk->_t = aluOp[(n&0x0F00)>>8](kk);
-    if(n&0x0080) kk->ds[kk->_dsp] = kk->t;
-    if(n&0x0040) kk->rs[kk->_rsp] = kk->t;
     kk->d_we_o = (n&0x0020) != 0;
     kk->dbg^=n&0x0010;
     switch((n&0x000C)>>2) {
@@ -131,6 +129,8 @@ Vn(alu) {
         case 2: kk->_dsp = (kk->dsp-2); break;
         case 3: kk->_dsp = (kk->dsp-1); break;
     }
+    if(n&0x0080) kk->ds[kk->_dsp-1] = kk->t;
+    if(n&0x0040) kk->rs[kk->_rsp] = kk->t;
 }
 Vn(all) {
     kk->d_dat_o = N;
