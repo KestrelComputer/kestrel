@@ -1,30 +1,40 @@
 include asm.f
 0symtab
 0 org target
+
+0 [if]  The J1 program counter starts at $0000 after reset.  Therefore, we
+        need a vector to our actual system software entry point.
+[then]
+
 defer _main
-: @   @, ;
 
-0 [if]
-: plhm      $3CFF $8000 ! $66FF $8050 ! $6EFF $80A0 ! $6EFF $80F0 ! $60FF $8140 ! $66FF $8190 ! $3CFF $81E0 ! $00FF $8230 ! recurse ;
+0 [if]  The J1's @ instruction is too fast for use with synchronous RAM
+        blocks in the Xilinx FPGA.  The synchronous RAM introduces a one-
+        cycle latency to the data.  Fortunately, wrapping the @ instruction
+        inside a subroutine introduces a one-cycle latency in software.
 [then]
 
-0 [if]
-: plrw      over ! 80 + ;
-: plhm      $8000  $3C plrw $66 plrw $6E plrw $6E plrw $60 plrw $66 plrw $3C plrw $00 plrw drop   recurse ;
+: @     @, ;
+
+0 [if]  A text buffer comprises a matrix of character glyphs.  An octet
+        identifies each glyph, providing up to 256 glyphs in a font.  With
+        each glyph consuming 8 bits horizontally and 8 rows on the screen,
+        a font consumes 2KiB of ROM allotment.
 [then]
 
-0 [if]
-create atsign
-    $3C , $66 , $6E , $6E , $60 , $66 , $3C , $00 ,
-
-: plrw      over @ over ! 80 + swap 2 + swap ;
-: plhm      atsign $8000 plrw plrw plrw plrw  plrw plrw plrw plrw 2drop recurse ;
-' plhm is _main
-[then]
-
-\ 0 [if]
-create font
+create  font
 include font.inc
+
+0 [if]  The J1/Ace provides a bitmapped, 640x200, monochrome display.
+        With each glyph of a textual display consuming eight pixels, we
+        have enough space for 80 columns of text.  With eight pixel tall
+        glyphs, we have enough vertical space for 25 rows of text.  Thus,
+        a text buffer consumes 2000 octets of memory, while the bitmapped
+        display consumes 16000 octets.
+
+        The video display in J1/Ace is hard-wired to appear at $8000.
+[then]
+
 
 : -1        $FFFF ;
 : cyc       dup if -1 + recurse exit then drop ;
@@ -40,13 +50,14 @@ include font.inc
 : chrs      dup 256 xor if dup pl 1 + recurse exit then drop ;
 : main      35 chrs recurse ;
 
-' main is _main
-\ [then]
+0 [if]  Having defined the system software, we now point the J1's boot
+        vector to our entry point.
+[then]
 
-0 [if]
-: k         $FFFE @ $8000 !  $FFFC @ $8002 !  $FFFA @ $8008 !  $80A0 @ 1 + $80A0 ! ;
-: main      k recurse ;
 ' main is _main
+
+0 [if]  Create the ROM file, to be used by both the emulator and the Verilog
+        J1/Ace circuit description.
 [then]
 
 host

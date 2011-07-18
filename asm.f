@@ -371,6 +371,7 @@ also target-primitives definitions previous
 : xor           xor, ;
 : swap          swap, ;
 : ,             ,, ;
+: 2dup          over, over, ;
 
 host definitions
 
