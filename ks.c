@@ -73,12 +73,23 @@ void transcribe_line(K kk, S fb, int line) {
     TIMES(i,40,expand(&s,&d););
 }
 
+/* Keyboard controller I/O registers */
+static long kbqu=0; /* $FFFC-$FFFF */
+static int kbct=0;  /* $FFFA */
+
 V(ram_sample) {
 }
 
 V(ram_latch) {
     kk->i_dat_i = kk->ram[kk->i_adr_o];
-    kk->d_dat_i = kk->ram[kk->d_adr_o];
+    switch(kk->d_adr_o){
+        case 0x7FFF:    kk->d_dat_i=(kbqu&0xFFFF0000)>>16; break;
+        case 0x7FFE:    kk->d_dat_i=kbqu&0x0000FFFF; break;
+        case 0x7FFD:    kk->d_dat_i=kbct; break;
+        case 0x7FFC:    kk->d_dat_i=0x0000; break;  /* Unused hardware register at this time. */
+
+        default:        kk->d_dat_i=kk->ram[kk->d_adr_o];
+    }
     RF(kk->d_we_o);
     kk->ram[kk->d_adr_o] = kk->d_dat_o;
 }
@@ -216,14 +227,10 @@ static int kbd2PS2[]={
     0xE075, 0xE072, 0xE074, 0xE06B,     /* Cursor up, down, right, left */
 };
 
-static long kbqu=0; /* $FFFC-$FFFF */
-static int kbct=0;  /* $FFFA */
-
-void enqu(int c) {DB("Enqueueing %04X -- ", c); kbqu=(kbqu<<8)|(c&0xFF); DB("KBQU=$%08lX\n",kbqu);}
+void enqu(int c) {kbqu=(kbqu<<8)|(c&0xFF); kbct++;}
 void keypress(int up, SDL_Event *e, K kk) {
     int i,c,ext;
 
-    DB("SYM=0x%04X\n", e->key.keysym.sym);
     for(i=0;i<512;i++){if(SDL2kbd[i]==e->key.keysym.sym)break;}
     c=kbd2PS2[i];
     ext=2*((c&0xFF00)==0xE000);

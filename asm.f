@@ -260,7 +260,6 @@ variable        nn
 : recurse,      #syms 1- definition call, ;
 
   ( Basic Primitives )
-: 2drop,        $6102 i, ;
 : drop,         $6103 i, ;
 : +,            $6203 i, ;
 : and,          $6303 i, ;
@@ -366,7 +365,7 @@ also target-primitives definitions previous
 : create        create, ;
 : rshift        rshift, ;
 : lshift        lshift, ;
-: 2drop         2drop, ;
+: 2drop         drop, drop, ;
 : and           and, ;
 : or            or, ;
 : xor           xor, ;
