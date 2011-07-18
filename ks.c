@@ -40,7 +40,6 @@ const int VB=0x4000;    /* Video base address */
 #define _L(x)                   ((L*)((x)))
 #define _UL(x)                  ((unsigned long)((x)))
 
-
 void with_sdl(void(*f)()) {
     if(SDL_Init(SDL_INIT_VIDEO)) {
         fprintf(stderr, "SDL_Init: %s\n", SDL_GetError());
@@ -183,11 +182,67 @@ V(tt) {
 V(sample) {cpu_sample(kk); ram_sample(kk); }
 V(latch)  {cpu_latch(kk); ram_latch(kk); tt(kk);}
 
+static int SDL2kbd[]={
+    '`', '1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-', '=', 0x08,
+    0x09, 'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', '[', ']', '\\',
+    'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', ';', '\'', 0x0D,
+    'z', 'x', 'c', 'v', 'b', 'n', 'm', ',', '.', '/', ' ',
+
+    0x0130, 0x012F,                     /* Left, Right shift */
+    0x0132, 0x0131,                     /* Left, Right control */
+    0x0134, 0x0133,                     /* Left, Right Alt */
+    0x012D,                             /* CAPS Lock */
+    0x001B,                             /* ESC */
+    0x011A, 0x011B, 0x011C, 0x011D,     /* F1...  */
+    0x011E, 0x011F, 0x0120, 0x0121,
+    0x0122, 0x0123, 0x0124, 0x0125,     /* ...F12 */
+    0x0111, 0x0112, 0x0113, 0x0114,     /* Cursor up, down, right, left */
+};
+
+static int kbd2PS2[]={
+    0x0E, 0x16, 0x1E, 0x26, 0x25, 0x2E, 0x36, 0x3D, 0x3E, 0x46, 0x45, 0x4E, 0x55, 0x66,
+    0x0D, 0x15, 0x1D, 0x24, 0x2D, 0x2C, 0x35, 0x3C, 0x43, 0x44, 0x4D, 0x54, 0x5B, 0x5D,
+    0x1C, 0x1B, 0x23, 0x2B, 0x34, 0x33, 0x3B, 0x42, 0x4B, 0x4C, 0x52, 0x5A,
+    0x12, 0x22, 0x21, 0x2A, 0x32, 0x31, 0x3A, 0x41, 0x49, 0x4A, 0x29,
+
+    0x12, 0x59,                         /* Left, right shift */
+    0x14, 0xE014,                       /* Left, right control */
+    0x11, 0xE011,                       /* Left, right Alt */
+    0x58,                               /* CAPS Lock */
+    0x76,                               /* ESC */
+    0x05, 0x06, 0x04, 0x0C,             /* F1...  */
+    0x03, 0x0B, 0x83, 0x0A,
+    0x01, 0x09, 0x78, 0x07,             /* ...F12 */
+    0xE075, 0xE072, 0xE074, 0xE06B,     /* Cursor up, down, right, left */
+};
+
+static long kbqu=0; /* $FFFC-$FFFF */
+static int kbct=0;  /* $FFFA */
+
+void enqu(int c) {DB("Enqueueing %04X -- ", c); kbqu=(kbqu<<8)|(c&0xFF); DB("KBQU=$%08lX\n",kbqu);}
+void keypress(int up, SDL_Event *e, K kk) {
+    int i,c,ext;
+
+    DB("SYM=0x%04X\n", e->key.keysym.sym);
+    for(i=0;i<512;i++){if(SDL2kbd[i]==e->key.keysym.sym)break;}
+    c=kbd2PS2[i];
+    ext=2*((c&0xFF00)==0xE000);
+    switch(ext+up) {
+        case 0:     break;
+        case 1:     enqu(0xF0); break;
+        case 2:     enqu(0xE0); break;
+        case 3:     enqu(0xE0); enqu(0xF0); break;
+    }
+    enqu(c);
+}
+
 void react(K kk) {
     SDL_Event e;
     while(SDL_PollEvent(&e)){
         switch(e.type){
             case SDL_QUIT:      kk->stop_emulation=YES; break;
+            case SDL_KEYDOWN:   keypress(0, &e, kk); break;
+            case SDL_KEYUP:     keypress(1, &e, kk); break;
         }
     }
 }
