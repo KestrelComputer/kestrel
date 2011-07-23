@@ -1,6 +1,6 @@
 @ <p>The simulator's top-level code layout follows.</p>
 
-<<ks2.c>>=
+<<ks.c>>=
 <<General C Headers>>
 <<SDL Headers>>
 <<Convenience type definitions>>

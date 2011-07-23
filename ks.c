@@ -8,37 +8,55 @@ typedef enum { NO, YES }        B;
 typedef SDL_Surface *           S;
 
 typedef struct k_state {
-    /* Buses */
     L       _rst_i, rst_i;
     L       i_adr_o, i_dat_i;
     L       d_adr_o, d_dat_o, d_dat_i, _d_we_o, d_we_o;
-    /* Processor State */
-    L       _nip, nip;
+
+    L       ds[32], rs[32];         /* Data and Return stacks */
+    L       _t, t;                  /* Top of data stack */
+    L       _nip, nip;              /* Next Instruction Pointer */
+    L       _dsp, dsp, _rsp, rsp;   /* Data and Return stack pointers */
+
+    L       _n;
+
     L       _pc_r;
-    L       ds[32], _n, _t, _dsp, t, dsp;
-    L       rs[32], _rsp, rsp;
-    /* Memory */
+
     L       ram[32768];
-    /* Emulator Condition */
+
     B       stop_emulation;
+
     L       dbg;
+
+    long kbqu;
+
+    int kbct;
+
 } k_state, *K;
 
 const int VB=0x4000;    /* Video base address */
+const int KB=0x7FFC;    /* Keyboard I/O registers */
 
 #define DB(f,args...)           fprintf(stderr, f, ##args);
+
 #define N                       kk->ds[31&(kk->dsp-1)]
-#define nV(x)                   L x(K kk)
 #define R                       kk->rs[31&(kk->rsp-1)]
-#define RT(x)                   if((x))return;
-#define RF(x)                   RT(!(x))
-#define _SL(x)                  ((signed long)((x)))
 #define T                       kk->t
-#define TIMES(x,y,z)            for(x=0;x<(y);x++){z}
+
+#define nV(x)                   L x(K kk)
 #define V(x)                    void x (K kk)
 #define Vn(x)                   void x (K kk, L n)
+
+#define RT(x)                   if((x))return;
+#define RF(x)                   RT(!(x))
+
+#define _SL(x)                  ((signed long)((x)))
 #define _L(x)                   ((L*)((x)))
 #define _UL(x)                  ((unsigned long)((x)))
+
+#define TIMES(x,y,z)            for(x=0;x<(y);x++){z}
+
+
+V(dbg) { DB("N:%04X T:%04X DSP:%d R: %04X RSP: %d NIP: %04X IN:%04X RA:%04X RD:%04X %s:%04X\n", N, T, kk->dsp, R, kk->rsp, kk->nip, kk->ram[kk->nip], kk->d_adr_o, kk->d_dat_i, (kk->d_we_o?"wr":"WR"), kk->d_dat_o); }
 
 void with_sdl(void(*f)()) {
     if(SDL_Init(SDL_INIT_VIDEO)) {
@@ -61,7 +79,6 @@ void with_framebuffer(void(*f)(S)) {
     }
 }
 
-
 void expand(L **s, L **d) {
     L i,j=**s; (*s)++;
     TIMES(i,16,**d=(((j&0x8000)!=0)*0xFFFFFF); j<<=1; (*d)++;);
@@ -73,26 +90,13 @@ void transcribe_line(K kk, S fb, int line) {
     TIMES(i,40,expand(&s,&d););
 }
 
-/* Keyboard controller I/O registers */
-static long kbqu=0; /* $FFFC-$FFFF */
-static int kbct=0;  /* $FFFA */
+Vn(walk) { kk->_nip = kk->nip+1; }
 
-V(ram_sample) {
-}
+Vn(jump) { kk->_nip = n; }
+Vn(call) { kk->_pc_r = YES; jump(kk, n); }
+Vn(jumpT0) { kk->_dsp = kk->_dsp-1; kk->_t = N; if(kk->t) walk(kk,n); else jump(kk,n); }
 
-V(ram_latch) {
-    kk->i_dat_i = kk->ram[kk->i_adr_o];
-    switch(kk->d_adr_o){
-        case 0x7FFF:    kk->d_dat_i=(kbqu&0xFFFF0000)>>16; break;
-        case 0x7FFE:    kk->d_dat_i=kbqu&0x0000FFFF; break;
-        case 0x7FFD:    kk->d_dat_i=kbct; break;
-        case 0x7FFC:    kk->d_dat_i=0x0000; break;  /* Unused hardware register at this time. */
-
-        default:        kk->d_dat_i=kk->ram[kk->d_adr_o];
-    }
-    RF(kk->d_we_o);
-    kk->ram[kk->d_adr_o] = kk->d_dat_o;
-}
+Vn(literal) { kk->ds[kk->dsp] = kk->t; kk->_t = n; kk->_dsp = 31&(kk->dsp+1); walk(kk,n); }
 
 nV(aluT) { return T; }
 nV(aluN) { return N; }
@@ -114,13 +118,6 @@ nV(aluNultT) { return -1*(_UL(N)<_UL(T)); }
 typedef L ALUOP(K);
 ALUOP *aluOp[16] = {aluT, aluN, aluTplN, aluTandN, aluTorN, aluTxorN, aluTnot, aluNeqT, aluNltT, aluNrshT, aluTm1, aluR, aluFetch, aluNlshT, aluDepth, aluNultT};
 
-V(dbg) { DB("N:%04X T:%04X DSP:%d R: %04X RSP: %d NIP: %04X IN:%04X RA:%04X RD:%04X %s:%04X\n", N, T, kk->dsp, R, kk->rsp, kk->nip, kk->ram[kk->nip], kk->d_adr_o, kk->d_dat_i, (kk->d_we_o?"wr":"WR"), kk->d_dat_o); }
-
-Vn(jump) { kk->_nip = n; }
-Vn(call) { kk->_pc_r = YES; jump(kk, n); }
-Vn(walk) { kk->_nip = kk->nip+1; }
-Vn(jumpT0) { kk->_dsp = kk->_dsp-1; kk->_t = N; if(kk->t) walk(kk,n); else jump(kk,n); }
-Vn(literal) { kk->ds[kk->dsp] = kk->t; kk->_t = n; kk->_dsp = 31&(kk->dsp+1); walk(kk,n); }
 Vn(alu) {
     walk(kk,n);
     if(n&0x1000) kk->_nip = R;
@@ -142,10 +139,12 @@ Vn(alu) {
     if(n&0x0080) kk->ds[kk->_dsp-1] = kk->t;
     if(n&0x0040) kk->rs[kk->_rsp] = kk->t;
 }
+
 Vn(all) {
     kk->d_dat_o = N;
     kk->d_adr_o = (T>>1);
 }
+
 V(cpu_sample) {
     L i15_13 = (kk->i_dat_i & 0xE000)>>13;
     L i12_0 = kk->i_dat_i & 0x1FFF;
@@ -162,6 +161,10 @@ V(cpu_sample) {
     }
     kk->_nip &= 0x1FFF;
 }
+
+V(ram_sample) {}
+
+V(sample) {cpu_sample(kk); ram_sample(kk); }
 
 V(cpu_latch) {
     kk->rst_i = kk->_rst_i;
@@ -181,6 +184,24 @@ V(cpu_latch) {
     if(kk->dbg) dbg(kk);
 }
 
+V(ram_latch) {
+    kk->i_dat_i = kk->ram[kk->i_adr_o];
+
+    switch(kk->d_adr_o){
+        case 0x7FFF:    kk->d_dat_i=(kk->kbqu&0xFFFF0000)>>16; break;
+        case 0x7FFE:    kk->d_dat_i=kk->kbqu&0x0000FFFF; break;
+        case 0x7FFD:    kk->d_dat_i=kk->kbct; break;
+        case 0x7FFC:    kk->d_dat_i=0x0000; break;  /* Unused hardware register at this time. */
+
+        default:        kk->d_dat_i=kk->ram[kk->d_adr_o];
+    }
+
+    RF(kk->d_we_o);
+    kk->ram[kk->d_adr_o] = kk->d_dat_o;
+
+
+}
+
 V(tt) {
     static time_t m, n;
     static long freq;
@@ -190,7 +211,6 @@ V(tt) {
     else{freq++;}
 }
 
-V(sample) {cpu_sample(kk); ram_sample(kk); }
 V(latch)  {cpu_latch(kk); ram_latch(kk); tt(kk);}
 
 static int SDL2kbd[]={
@@ -227,20 +247,24 @@ static int kbd2PS2[]={
     0xE075, 0xE072, 0xE074, 0xE06B,     /* Cursor up, down, right, left */
 };
 
-void enqu(int c) {kbqu=(kbqu<<8)|(c&0xFF); kbct++;}
+void enqu(K kk, int c) {kk->kbqu=(kk->kbqu<<8)|(c&0xFF); kk->kbct++;}
+
 void keypress(int up, SDL_Event *e, K kk) {
     int i,c,ext;
 
     for(i=0;i<512;i++){if(SDL2kbd[i]==e->key.keysym.sym)break;}
+
     c=kbd2PS2[i];
+
     ext=2*((c&0xFF00)==0xE000);
     switch(ext+up) {
         case 0:     break;
-        case 1:     enqu(0xF0); break;
-        case 2:     enqu(0xE0); break;
-        case 3:     enqu(0xE0); enqu(0xF0); break;
+        case 1:     enqu(kk, 0xF0); break;
+        case 2:     enqu(kk, 0xE0); break;
+        case 3:     enqu(kk, 0xE0); enqu(kk, 0xF0); break;
     }
-    enqu(c);
+    enqu(kk, c);
+
 }
 
 void react(K kk) {
@@ -256,8 +280,10 @@ void react(K kk) {
 
 void emulate(S fb) {
     k_state kk = {1,1,};
-    int h, v;
+
     FILE *romFile;
+
+    int h, v;
 
     romFile = fopen("romfile", "rb");
     if(romFile){
@@ -280,8 +306,11 @@ void emulate(S fb) {
         SDL_Flip(fb);
         react(&kk);
     }
+
 }
 
 void show_monitor(void)             { with_framebuffer(emulate); }
+
 int  main(int argc, char *argv[])   { with_sdl(show_monitor); return 0; }
+
 
