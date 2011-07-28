@@ -8,7 +8,7 @@
 <<Reset vector>>
 <<Primitives>>
 <<Text Display Facility>>
-<<undocumented>>
+<<TDF Example Code>>
 <<Patch reset vector>>
 <<Emit binary file>>
 
@@ -72,26 +72,108 @@ target
 
 <p>The Kestrel-2 lacks a hardware character matrix display mode; instead, the video circuitry fetches bytes from memory starting at address [[$8000]] and displays them as a raw bitmap.  We cannot simply poke bytes into memory and expect fully-formed characters to appear on the screen.  The Kestrel-2 firmware provides a facility to emulate character matrix displays in software.  This results in a simpler hardware implementation and graphics when you need it, while incurring only modest software costs.</p>
 
-<p>The 640&times;200 display resolution requires (640&div;16)&times;200=8 000 words of memory.  Using an 8&times;8 pixel font, that allows us to pack 80 columns by 25 rows of text on the screen.  The Kestrel-2 expects a single word of memory to hold two characters, so (80&div;2)&times;25=1 000 words hold a complete character matrix.  Software maintains this character matrix just like it would if the video display hardware had a native character matrix mode.  Only one difference exists between a hardware character matrix and software character matrix implementation: the software must remember to <q>commit</q> its changes to the screen when it's finished updating the screen.</p>
-
 <<Text Display Facility>>=
-<<System Font>>
-@ </p>
+<<TDF global state>>
 
-<h3>B.3.1  Character Font</h3>
+@ </p><h3>B.3.1  Character Font</h3>
 
-<p>Displaying text requires we provide a number of small, 8&times;8 images, each representing some character on the screen.  Eight bits constitutes a character code, thus letting us represent up to 256 characters in a single character matrix.  The Kestrel-2 expects the font to exist as a 2 048&times;8 bitmap in memory, for 8&times;256=2 048.  Thus, the first 128 words constitutes row 0 pixels for all 256 characters, the next 128 words row 1 pixels, and so on.  Arranging the font data this way allows a developer to use an image editing tool of his or her choice to create a font, then extract the raw bitmap data for direct use with the Kestrel-2.</p>
+<p>The 640&times;200 display resolution requires (640&div;16)&times;200=8 000 words of memory.  Using an 8&times;8 pixel font, that allows us to pack 80 columns by 25 rows of text on the screen.  The Kestrel-2 expects a single word of memory to hold two characters (or, put another way, one character consumes eight bits of storage), so (80&div;2)&times;25=1 000 words hold a complete character matrix.  This allows up to 256 characters to be represented by a single character matrix.</p>
+
+<p>Displaying text requires we provide a number of small, 8&times;8 images, each representing some character on the screen.  Each image is known as a <i>glyph</i>.  The <i>font</i> contains the set of glyphs corresponding to each character.  The Kestrel-2 expects the font to exist as a 2 048&times;8 bitmap in memory, for 256 possible characters times 8 pixels per glyph row comes out to 2 048 total pixels.  Thus, the first 128 words (256 bytes) constitutes row 0 pixels for all 256 characters, the next 128 words row 1 pixels, and so on.  Arranging the font data this way allows a developer to use an image editing tool of his or her choice to create a font, then extract the raw bitmap data for direct use with the Kestrel-2.</p>
 
 <p>The Kestrel-2 firmware references the font data via an ancillary Forth source file.
-<<System Font>>=
+<<Text Display Facility>>=
+<<TDF System Font>>
+
+<<TDF System Font>>=
 create font
 include font.inc
 @
 
 <h3>B.3.2  Committing a Character Matrix</h3>
 
-<<undocumented>>=
-create chrmtx
+<p>In a perfect world, we would somehow convince the hardware to monitor some region of memory which we call the <i>character matrix</i> for updates.  Whenever we update memory in the matrix, the hardware would somehow recognize this event, and adjust the display accordingly.  As it happens, this is hard to do.  Not impossible, mind you.  There exists two ways to approach the problem&mdash;you could either poll memory at periodic intervals, which is what the video hardware already is designed to do, or you can maintain what's called a <q>write queue</q> to trap writes into the character matrix, where a processor on the other end of the queue discovers these writes and acts accordingly.  As you can imagine, the latter solution is the hardest approach to take of them all, and won't be discussed further here.  The former technique, widely used in such hardware platforms as the VGA-compatible chipsets and the Commodore 64's VIC-II chip, works by accessing memory <i>twice</i>; once to read the character, and once to grab the font data corresponding to that character.  I could have implemented this in the Kestrel-2's video circuitry, but since it roughly doubled the complexity of the hardware involved, I decided to just keep things as simple as possible, and stick with a pure bitmapped display interface.</p>
+
+<p>The problem is, updating the bitmapped display takes eight times the effort than updating a simple character matrix.  Therefore, we want to minimize how often we actually push updates to the bitmapped display.  It's better to compute what we want the finished display to look like first, in the form of the character matrix, <i>then</i> perform a bulk update of the whole screen.  When we talk of <q>committing</q> a character matrix, we're talking about that final act of bulk-updating the bitmapped display.  The term comes from the field of transactions, where updates to a resource occurs when the transaction completes.</p>
+
+<p>I implement a relatively slow algorithm below, but one which is known to work.  It takes the overall form:</p>
+<<Text Display Facility>>=
+<<TDF address computation logic>>
+<<TDF commit glyph logic>>
+<<TDF commit row logic>>
+<<TDF commit screen-wide logic>>
+<<TDF character matrix commit logic>>
+
+@ We commit the display character by character, one glyph at a time, starting in the upper-lefthand corner of the display.  We know we need to update 25 rows of text.</p>
+
+<<TDF character matrix commit logic>>=
+: commit    0 x !  0 y !  25r ;
+
+@ We address each character through the [[x]] and [[y]] state variables.  Note that these variables <i>do not</i> refer to any kind of cursor position; they're used only while committing the display, keeping track of which glyph we're painting into the bitmap.  They conform to the invariant that (0&le;<i>x</i>&lt;80)&and;(0&le;<i>y</i>&lt;25) while the screen update continues to proceed.</p>
+
+<<TDF global state>>=
+variable x
+variable y
+
+@ A screen consists of 25 rows, as established above.  If each execution of [[r]] bumps the [[y]] variable by one, then we can clearly see that upon completion of the operation, [[y]] will be set to 25.  While the update proceeds, we see that 0&le;<i>y</i>&lt;25, thus satisfying the invariant.</p>
+
+<<TDF commit screen-wide logic>>=
+: 8r        r r r r  r r r r ;
+: 25r       8r 8r 8r r ;
+
+@ Each row consists of 80 characters apiece.  As each row completes, we make sure to reset our (x,y) coordinates to keep track of where the next row begins.  During the update of a single row, 0&le;<i>x</i>&le;80.  However, because [[r]] resets the [[x]] variable back to zero upon finishing each row, and because we know that 0&le;<i>y</i>&lt;25 while the commit progresses, the global invariants hold.</p>
+
+<<TDF commit row logic>>=
+: 10c       c c c c c  c c c c c ;
+: 80c       10c 10c 10c 10c  10c 10c 10c 10c ;
+: r         80c  0 x ! 1 y @ + y ! ;
+
+@ We draw each character by cycling through all eight raster lines of its shape, copying data from the font data to the bitmap along the way.  After we're done copying the glyph, we update our (x,y) state to prepare for the next character to be copied.</p>
+
+<<TDF commit glyph logic>>=
+: s         chradr c@ glyph c@ bmadr c!  1 raster @ + raster ! ;
+: c         0 raster !  s s s s  s s s s  1 x @ + x ! ;
+
+@ When updating the bitmap, we need to know which character to draw.  We address a character in the character matrix based on the current (valid) values of the [[x]] and [[y]] variables.  The equation to compute an address for any character in the matrix is <i>a</i> = <i>character_matrix_base</i> + <i>x</i> + 80<i>y</i>.</p>
+
+<<TDF address computation logic>>=
+: chradr    y @ 80* x @ + TdfChrMtx @ + ;
+
+<<TDF global state>>=
+variable TdfChrMtx
+
+@ The TDF user must initialize the [[TdfChrMtx]] variable prior to invoking [[commit]], lest garbage be rendered on the screen.  Further, make sure the 1 000 cells referenced by [[TdfChrMtx]] never overlaps read-triggered I/O space, as the screen update will fire the I/O triggers.</p>
+
+<b>ISSUE: we need a better name for [[TdfChrMtx]].</b>
+
+<p>Next, we need to resolve which row of the glyph's picture to use.  We calculate the glyph's bitmap byte address using the character code (on the data stack) and knowledge of which [[raster]] we're drawing.  Its formula is, <i>a</i> = <i>font_base</i> + <i>c</i> + 256<i>s</i>, where 0&le;<i>c</i>&lt;256 contains the character code, and 0&le;<i>s</i>&lt;8 contains the current raster scanline.
+
+<<TDF address computation logic>>=
+: glyph     font + raster @ 256* + ;
+
+<<TDF global state>>=
+variable raster
+
+@ Finally, we just place the glyph image data in the destination bitmap.  The correct row of pixels in the target bitmap is computed using a formula similar to that used to determine the character matrix byte address, but adjusted to compensate for the bitmapped nature: <i>a</i> = <i>bitmap_base</i> + <i>x</i> + 80<i>s</i> + 640<i>y</i>, where 0&le;<i>s</i>&lt;8 refers to the specific scanline of the glyph.  Remember, we defined the system font height as eight.</p>
+
+<<TDF address computation logic>>=
+: bmadr     y @ 640* raster @ 80* + x @ + $8000 + ;
+
+@ </p><h3>B.3.3  Miscellaneous</h3>
+
+@ You might have noticed a few multiplications going on, expressed as single words instead of separate calls to [[*]].  The J1, not being a terribly sophisticated processor, lacks hardware multiplication support.  This means that we'd need to implement [[*]], a non-trivial task, if we wanted to perform general purpose multiplication.  As it happens, we always multiply by a constant factor, which allows us to create words which computes the desired results using <i>shifts and additions</i> instead.  This also has the benefit of isolating the Text Display Facility from the rest of the system firmware, useful for debugging purposes.</p>
+
+<<Primitives>>=
+: 8*        3 lshift ;
+: 16*       4 lshift ;
+: 80*       4 lshift dup 2 lshift + ;
+: 256*      8 lshift ;
+: 640*      80* 8* ;
+
+@ </p><h3>B.3.4  Example</h3>
+
+<<TDF Example Code>>=
+create myChrmtx
     2048 allot
 
 : c         over over c!  1 + swap 1 + swap ;
@@ -105,41 +187,8 @@ create chrmtx
 : 10d       d d d d d  d d d d d ;
 : r         10d 10d 10d 10d  10d 10d 10d 10d ;
 : 9rows     r r r r  r r r r  r ;
-: chrmtx0   0 chrmtx 16rows 9rows 2drop ;
+: chrmtx0   0 myChrmtx 16rows 9rows 2drop ;
 
-variable x
-variable y
-variable raster
-
-: 8*        3 lshift ;
-: 16*       4 lshift ;
-: 80*       4 lshift dup 2 lshift + ;
-: 256*      8 lshift ;
-: 640*      80* 8* ;
-: bmadr     y @ 640* raster @ 80* + x @ + $8000 + ;
-: glyph     font + raster @ 256* + ;
-: chradr    y @ 80* x @ + chrmtx + ;
-: s         chradr c@ glyph c@ bmadr c!  1 raster @ + raster ! ;
-: c         0 raster !  s s s s  s s s s  1 x @ + x ! ;
-: 10c       c c c c c  c c c c c ;
-: r         10c 10c 10c 10c  10c 10c 10c 10c  0 x ! 1 y @ + y ! ;
-: 8r        r r r r  r r r r ;
-: 25r       8r 8r 8r r ;
-: commit    0 x !  0 y !  25r ;
 : halt      $8100 @ invert $8100 !  recurse ;
-: main      chrmtx0 commit halt ;
-
-: -1        $FFFF ;
-: cyc       dup if -1 + recurse exit then drop ;
-: 64kcyc    dup if -1 + $FFFF cyc recurse exit then drop ;
-: 1sec      8 64kcyc ;
-: c@        dup 1 and if @ 255 and exit then @ 8 rshift 255 and ;
-: even!     swap 8 lshift over @ 255 and or swap ! ;
-: odd!      swap 255 and over @ $FF00 and or swap ! ;
-: c!        dup 1 and if odd! exit then even! ;
-: r         over c@ over c! 80 + swap 256 + swap ;
-: plch      font + $8000 r r r r r r r r 2drop ;
-: pl        plch 1sec ;
-: chrs      dup 256 xor if dup pl 1 + recurse exit then drop ;
-: ___main      35 chrs recurse ;
+: main      chrmtx0  myChrmtx TdfChrMtx !  commit  halt ;
 
