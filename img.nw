@@ -101,7 +101,11 @@ create chrmtx
 : 64spcs    16s 16s 16s 16s ;
 : r         16cols  64spcs ;
 : 16rows    r r r r  r r r r  r r r r  r r r r ;
-: chrmtx0   0 chrmtx 16rows 2drop ;
+: d         $2E over c!  1 + ;
+: 10d       d d d d d  d d d d d ;
+: r         10d 10d 10d 10d  10d 10d 10d 10d ;
+: 9rows     r r r r  r r r r  r ;
+: chrmtx0   0 chrmtx 16rows 9rows 2drop ;
 
 variable x
 variable y
