@@ -372,6 +372,10 @@ also target-primitives definitions previous
 : swap          swap, ;
 : ,             ,, ;
 : 2dup          over, over, ;
+: allot         tallot ;
+: variable      create, 0 ,, ;
+: 2*            1 lshift ;
+: 2/            1 rshift ;
 
 host definitions
 
