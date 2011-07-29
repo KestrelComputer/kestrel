@@ -13,3 +13,9 @@ ks: ks.o
 img.f: img.nw
 	notangle -Rimg.f img.nw >img.f
 
+ks.html: ks.nw
+	noweave -html -index ks.nw >ks.html
+
+img.html: img.nw
+	noweave -html -index img.nw >img.html
+

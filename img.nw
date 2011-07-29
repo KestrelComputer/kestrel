@@ -172,10 +172,15 @@ variable raster
 
 @ </p><h3>B.3.4  Example</h3>
 
+<p>First, we create our character matrix.  To be safe, we'll allot 2KiB of memory to the character matrix, but we'll only use 2KB.</p>
+
 <<TDF Example Code>>=
 create myChrmtx
     2048 allot
 
+@ Next, we'll populate our character matrix with all 256 characters, arranged as a 16&times;16 matrix of characters, along the left-edge of the screen.  The right-hand side will be blank.  However, this populates only 16 of the 25 rows on the screen, so we'll fill the nine remaining rows with dots.</p>
+
+<<TDF Example Code>>=
 : c         over over c!  1 + swap 1 + swap ;
 : 16cols    c c c c  c c c c  c c c c  c c c c ;
 : s         32 over c!  1 + ;
@@ -189,6 +194,9 @@ create myChrmtx
 : 9rows     r r r r  r r r r  r ;
 : chrmtx0   0 myChrmtx 16rows 9rows 2drop ;
 
+@ As our main program, we'll initialize the character matrix with the above code, configure [[TdfChrMtx]] to point to our matrix, and commit the display.  We'll then busy-wait forever, so that the user can see the results.</p>
+
+<<TDF Example Code>>=
 : halt      $8100 @ invert $8100 !  recurse ;
 : main      chrmtx0  myChrmtx TdfChrMtx !  commit  halt ;
 
