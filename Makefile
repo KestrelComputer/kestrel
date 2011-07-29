@@ -10,3 +10,6 @@ ks.c: ks.nw
 ks: ks.o
 	gcc -o $@ $< ${LDFLAGS}
 
+img.f: img.nw
+	notangle -Rimg.f img.nw >img.f
+
