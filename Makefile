@@ -19,3 +19,6 @@ ks.html: ks.nw
 img.html: img.nw
 	noweave -html -index img.nw >img.html
 
+clean:
+	rm -f img.f img.html ks ks.c ks.html ks.o romfile
+
