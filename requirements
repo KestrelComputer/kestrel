@@ -1,10 +1,6 @@
 *** TO DO ***
 ---
 AS A        coder
-I WANT      an assembler which translates the source code in a file img.f into a raw binary image in a file namd img
-SO THAT     I can launch ks without having to translate initial programming into C statements by hand.
----
-AS A        coder
 I WANT      the ability to prune away the names belonging to internal/implementation-specific words
 SO THAT     we don't waste precious memory space with unnecessary word names.
 ---
@@ -166,4 +162,6 @@ SO THAT     I don't have to futz with BASE, an error-prone operation.
 TEST:       : foo $0A ;
             ', foo definition t@ 10 =
 ---
-
+AS A        coder
+I WANT      an assembler which translates the source code in a file img.f into a raw binary image in a file namd img
+SO THAT     I can launch ks without having to translate initial programming into C statements by hand.
