@@ -26,5 +26,5 @@ asm.html: asm.nw
 	noweave -html -index asm.nw >asm.html
 
 clean:
-	rm -f img.f img.html ks ks.c ks.html ks.o romfile
+	rm -f asm2.f asm.html img.f img.html ks ks.c ks.html ks.o romfile
 

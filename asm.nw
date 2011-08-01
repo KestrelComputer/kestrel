@@ -1,0 +1,406 @@
+<h1>C.  J1 Machine Forth Compiler/Assembler</h1>
+<p>Most commonly known microprocessors utilize random-access registers to hold onto data currently being worked on.  Thus, to realize a Forth programming environment, a virtual machine must be programmed implementing the desired Forth machine characteristics.  This may take the form of a rather complex compiler able to convert stack machine instructions into well-optimized host machine code, or it might function more-or-less as a dumb macro assembler of sorts, stringing together pieces of code known to function in a desired stack-machine manner.  The former case trades in complexity of implementation to deliver speed of execution, while the latter trades in runtime performance for implementation simplicity.  Finding a solution which allows both implementation simplicity and good run-time performance seems impossible with traditionally known processor architectures.</p>
+<p>The J1 microprocessor, however, interprets an instruction set that implements a physical Forth machine.  In essence, one J1 instruction corresponds to one Forth instruction, with only a small set of exceptions.  Because of this, the machine language of the processor is known as <i>machine Forth.</i>  The sections that follow documents the assembler/compiler's implementation.</p>
+
+<<asm.f>>=
+<<Target Dictionary>>
+<<Comma Compiler>>
+<<Symbol Table>>
+<<undocumented>>
+@ </p>
+
+<h2>C.1  Target Dictionary Space</h2>
+<p>When compiling to the J1, we need some place to put the instructions.  Although the J1 processor can address 64KiB of memory, the instruction pointer register contains only 13 changeable bits (bit 0 is always 0).  Thus, the J1 can only execute instructions from the first 16KiB of space.  This imposes a convenient upper limit on the target image.  Most computers contain significantly more than 64KiB of memory, so we can just embed the entirety of the image in the host Forth dictionary.</p>
+
+<<Target Dictionary>>=
+16384 constant /image
+create image
+/image allot
+
+@ During the course of compiling software, we make frequent references into target memory space.  We want to ensure that we don't spill over into host memory when doing so.  Accessing any cell or byte not belonging to the target is strictly an error, and will result in immediate termination of the compiler.  We catch errors during target address to host address translation.</p>
+
+<<Target Dictionary>>=
+: -small    dup 0< abort" Target address out of range." ;
+: -big      dup /image >= abort" Target address out of range." ;
+<<Odd address check>>
+: >host     -small -big -odd image + ;
+
+@ The J1, when presented with an odd address, continues to fetch or store from/to the word as though bit 0 of the address is clear.  In other words, the J1 <i>ignores</i> bit 0 of any memory address.  However, while compiling, we want to catch references to odd addresses as errors, to ensure proper compiler function.</p>
+
+<<Odd address check>>=
+: -odd      dup 1 and abort" Attempt to access cell with an unaligned address." ;
+
+@ Most host computers will have at least 32-bit wide data buses and register widths.  Many, as I type this, may even have 64-bit wide registers.  However, the J1 processor works with 16-bit words.  Thus, to better emulate how the J1 will be referencing memory, we would like to use a variant of [[@]] and [[!]] that constrains its data to 16 bits.  ANS Forth provides no such support, so we synthesize our own using [[C@]], [[C!]], and a bit of bit-shifting logic.  Note, for this code to work, we must assume that [[C@]] and [[C!]] works with 8-bit bytes.  Thus, this code will break on ANS Forth systems with a 16-bit wide character.</p>
+
+<<Target Dictionary>>=
+: w@        dup c@ 8 lshift swap 1+ c@ 255 and or ;
+: w!        over 8 rshift over c! 1+ c! ;
+: t@        >host w@ ;
+: t!        >host w! ;
+
+@ </p>
+<h2>C.2  Comma Compiler</h2>
+<p>Compilation involves laying down words corresponding to the source text in target space in the order they're found.  Words can be determined by the compiler (in the case of calls to other words or optimizations to control flow), or they may be explicitly specified by the user (in the case of statically declared data structures or literals).  In Forth, all forms of compilation ultimately builds on [[,]], the lowest-level compiler.  For [[,]] to work, we need to maintain a pointer, sometimes called a <i>compilation pointer</i>, in a variable [[cp]].</p>
+
+<<Comma Compiler>>=
+variable cp
+
+@ When compiling a program, we need to know where to start compilation.  The [[org]] directive informs the assembler where the next instruction should be placed in target memory.</p>
+
+<<Comma Compiler>>=
+: org       cp ! ;
+
+@ While [[org]] has its place, usually at the beginning of the source listing, querying the compilation pointer occurs frequently enough to deserve its own name.  [[here]] serves this purpose in the host Forth environment; however, we need a different word to describe the same concept in the context of the target.  Somewhat amusingly, English has just such a word, [[there]], which can be read either as <i>there</i> or as <i>target-here</i>.</p>
+
+<<Comma Compiler>>=
+: there     cp @ ;
+
+@ Which now brings us to the lowest level compilation primitives.  In a host Forth environment, [[allot]] adjusts the compilation pointer so as to either reserve or free dictionary space.  We define [[tallot]] to serve the corresponding role in target-space.</p>
+
+<<Comma Compiler>>=
+: tallot    cp +! ;
+
+@ Placing data in the target image then becomes a matter of stuffing a word into target space, and reserving the space consumed.  We use the symbol [[,,]] instead of [[t,]], which I suppose is what most would expect of a primitive affecting target space, because it's more convenient to type.  Later, when we implement the [[host]] and [[target]] words, we'll see how we cover this up, so that the user of the compiler never needs to know when to use [[,]] versus [[,,]].  To the user, it's always [[,]].</p>
+
+<<Comma Compiler>>=
+: ,,        there t!  2 tallot ;
+
+@ </p>
+<h2>C.3  Symbol Table</h2>
+<p>While compiling a word, we refer to other previously compiled words or to primitives.  To compile references to previously compiled words, we need to know their target addresses.  Therefore, we need a <i>symbol table</i>, a database of (name, address) pairs.</p>
+<<Symbol Table>>=
+<<Symbol Table Name String Buffer>>
+<<Symbol Table Name String Buffer Invariant Check>>
+<<Symbol Table Name Intern Logic>>
+
+@ The symbol table consists of two aggregate components.  First, we have a chunk of storage space reserved for storing the names we encounter.  As the compiler finds new names to define, the bytes comprising the names are stored one after the other in this string buffer.  Since the J1 can execute instructions only from the first 16KiB of memory, and I doubt any reasonable firmware image will have an <i>average</i> definition length less than 8 words or primitives (estimated at 16 bytes), we need enough space to hold at most (16 384&div;16)=1 024 definition names.  Due to my particular coding style, I predict the average name length to fall between two and three characters, so to start with, I'll make the string buffer 2&times;1 024=2 048 bytes, and increase it only if I need to.</p>
+
+<<Symbol Table Name String Buffer>>=
+2048 constant /buffer
+create strs     /buffer allot
+
+@ When we want to remember a name, we need to make sure that we store the data inside our [[strs]] buffer.  But, it's possible to use so many names that we overflow the buffer.  We need to maintain and enforce some invariants to protect the surrounding host memory, thus preventing the program from crashing in non-obvious ways.  Instead, we make the issue patently known to the user, and abort compilation immediately.</p>
+
+<<Symbol Table Name String Buffer>>=
+strs /buffer + constant strs)
+
+<<Symbol Table Name String Buffer Invariant Check>>=
+: invariant     sp @ strs u< abort" String pointer too small"
+                sp @ strs) u< 0= abort" String pointer out of bounds" ;
+
+@ We see our first use of a pointer into our string name space, [[sp]].  Initially, [[sp]] points at the base of [[strs]], but as the compiler remembers names, it increases towards [[str)]].  If a string is too big to remember, we inform the user and abort the compilation, again with the intent to protect our memory resources.</p>
+
+<<Symbol Table Name String Buffer>>=
+variable sp
+
+<<Symbol Table Name String Buffer Invariant Check>>=
+: +fits         sp @ over + strs) u< 0= abort" String too big to intern" ;
+
+@ As you might imagine, remembering a string involves copying it into the [[strs]] buffer.</p>
+<<Symbol Table Name Intern Logic>>=
+: remembered    invariant +fits sp @ swap dup sp +! move invariant ;
+
+<<undocumented>>=
+0 [if]  After compilation is complete, we want to output the binary image
+        so the Kestrel emulator can import it upon startup.
+[then]
+
+variable        h
+: open          S" romfile" r/w bin create-file throw h ! ;
+: close         h @ close-file throw ;
+: write         image 16384 h @ write-file throw ;
+: romfile       open write close ." romfile created/updated." cr ;
+
+0 [if]  The second component refers to spans within the string buffer,
+        plus any other data associations.  We keep our data arranged in
+        a column-order relational table for convenience.
+[then]
+
+/buffer cells constant /column
+create names        /column allot
+create lengths      /column allot
+create addresses    /column allot
+create immediacies  /column allot
+variable >symtab
+variable >visible
+
+: 0symtab       0 >symtab !  0 >visible !  strs sp ! ;
+
+0 [if]  Creating a definition requires associating a name with some datum,
+        specifically a definition's address.  However, because we cannot
+        trust the calling program to keep its string memory around for the
+        lifetime of the definition, we must copy it into a temporary lo-
+        cation.  This creates the invariant that all pointers in the names
+        column point into the strs buffer.
+
+        When creating a new definition, we assume the immediacy flag is
+        clear.  This preserves ANS Forth semantics.  Further, we assume
+        the definition will equal the current compilation pointer.
+[then]
+
+: #syms         >symtab @ ;
+: ofs           #syms cells ;
+: +opening      ofs /column u< 0= abort" Too many symbols" ;
+: l!            ofs lengths + ! ;
+: n!            ofs names + ! ;
+: a!            ofs addresses + ! ;
+: i!            ofs immediacies + ! ;
+: defined       +opening dup l! sp @ n! remembered there a! 0 i! 1 >symtab +! ;
+
+\       Miscellanious attribute getters and setters.
+
+: l@            lengths + @ ;
+: n@            names + @ ;
+: length        cells l@ ;
+: name          cells dup n@ swap l@ ;
+: definition    cells addresses + @ ;
+: isImmediate?  cells immediacies + @ ;
+: #visible      >visible @ ;
+: isVisible?    #visible u< ;
+: revealed      #syms >visible ! ;
+
+0 [if]  We also need some mechanism to determine if a label is defined.  Forth
+        actually doesn't use this functionality as such; rather, this word is
+        used by the unit tests to ensure we're doing the right thing.
+
+        Forth does use sfind, however, to determine the index into the symbol
+        table corresponding to a given name.  This index is considered the
+        "execution token" for the word.
+[then]
+
+: cell-         [ -1 cells ] literal + ;
+: rows          2/ 2/ ;     ( MACHINE SPECIFIC )
+: -end          dup 0 >= if exit then  drop r> drop ;
+: differs?      >r 2dup r@ n@ r@ l@ compare r> swap ;
+: -match        differs? if exit then  nip nip rows -1 2r> 2drop ;
+: -exist        1- cells begin -end -match cell- again ;
+: sfindAll,     #syms -exist 0 ;
+: sfind,        #visible -exist 0 ;
+: isDefined?    sfindAll, dup 0= if nip then nip ;
+
+0 [if]  One of the best features of GForth which is lacking in SwiftForth
+        is an implementation of sfind.  SFIND is a variant of FIND which
+        works with an explicit string on the stack, rather than a counted
+        string.  We can fake it, though, by building a temporary counted
+        string in PAD.
+[then]
+
+: sfind         dup pad c!  pad 1+ swap move  pad find dup 0= if >r count r> then ;
+
+0 [if]  The first instruction executed by the J1 processor is going to be
+        a JMP to the actual start-up code.  However, Forth doesn't work
+        well compiling forward references.  To implement said forward
+        reference, we use DEFER to compile a vectored word.  Thus, we can
+        use DEFER to make our interrupt vector tables, like so:
+
+            0 org
+            defer   _reset
+            ( ... )
+
+            : reset         blah blah blah ;
+            ' reset is _reset
+
+            ( ... )
+[then]
+
+: token         32 word count ;
+: defer,        token defined revealed 0 ,, ;
+: ',            token sfind, 0= abort" Undefined" ;
+: +even         dup 1 and abort" Odd address" ;
+: +range        dup $4000 u< 0= abort" Address outside of range CPU can execute" ;
+: +address      +even +range ;
+: is,           definition +address 2/ ', definition t! ;
+
+0 [if]  Once we have the ability to populate vectors, we need to point
+        those vectors somewhere.  Thus, the colon compiler, which lets
+        us define new Forth procedures to be executed in the target
+        environment.
+[then]
+
+variable bb ( true if inside a basic block )
+: p,            ,, bb off ;  ( program flow appendage )
+: i,            ,, bb on ; ( anything else appendage )
+: return,       $700C p, ;
+: +bb           bb @ if exit then return, r> drop ;
+: pInsn         there 2 - t@ ;
+: -call?        $E000 and $4000 xor ;
+: tweak         there 2 - t! bb off ;
+: >jmp          pInsn $4000 xor tweak ;
+: +here>=2      there 2 u< if r> drop then ;
+: -call         +here>=2 pInsn -call? if exit then >jmp r> drop ;
+: -alu?         $F000 and $6000 xor ; ( check top 4 bits to verify r->PC bit is clear too )
+: +r            pInsn $100C or tweak ;
+: -alu          +here>=2 pInsn -alu? if exit then +r r> drop ;
+: exit,         +bb -call -alu return, ;
+: (:)           token defined ;
+: (;)           exit, revealed ;
+: +even         dup 1 and abort" Odd address" ;
+: +range        dup $4000 u< 0= abort" Attempt to call word outside of CPU executable space" ;
+: +address      +even +range ;
+: call,         +address 2/ $4000 or i, ;
+: -immediate    2dup sfind if nip nip r> drop exit then 2drop ;
+: -compiled     2dup sfind, if nip nip definition ['] call, r> drop exit then 2drop ;
+
+0 [if]  I was completely unsuccessful in making a Forth routine
+        to abide by BASE when converting numbers from string form
+        to binary.  Instead of spending two days debugging why, I just
+        decided to say "Screw it" and just treat all numbers as decimal
+        by default, unless prefixed with a dollar-sign.  Invalid numbers
+        are flagged appropriately.
+
+        The following code is a total and utter mess.  It must be rewritten
+        at the earliest possible convenience, after studying why a more
+        obvious implementation simply doesn't work.  (I'm actually quite
+        upset as I write this.  Can't you tell?)
+[then]
+
+variable        nn
+: -eoi          dup 0= if 2drop 2drop r> drop then ;
+: ucase         dup [char] a [char] z 1+ within $20 and xor ;
+: >bin          [char] 0 - dup 10 u< 0= 7 and - ;
+: +hex          dup 0 16 within 0= if 2r> 2drop r> drop then ;
+: accum         ucase >bin +hex nn @ 16 * + nn ! ;
+: hexlit        begin -eoi over c@ accum 1 /string again ;
+: bits14:0,     $8000 or i, ;
+: invert,       $6600 i, ;
+: +ve           dup $8000 and if invert bits14:0, invert, r> drop then ;
+: lit,          +ve bits14:0, ;
+: -hex          over c@ [char] $ = if 1 /string hexlit nn @ ['] lit, 2r> 2drop then ;
+: is0-9?        [char] 0 [char] 9 1+ within ;
+: +dec          dup 0 10 within 0= if 2r> 2drop r> drop then ;
+: accum         >bin +dec nn @ 10 * + nn ! ;
+: declit        begin -eoi over c@ accum 1 /string again ;
+: -dec          over c@ is0-9? if declit nn @ ['] lit, 2r> 2drop then ;
+: -number       0 nn ! 2dup -dec -hex 2drop ;
+: classify      -compiled -immediate -number ." Error: " type -2 abort" Undefined" ;
+: ],            begin token classify execute again ;
+: [,            r> r> drop >r ;  ( break out of the infinite loop set up by ] )
+: :,            (:) ], ;
+: ;,            [, (;) ;
+: create,       (:) there 4 + lit, (;) ;
+
+  ( Control Flow )
+: if,           there $2000 p, ;
+: then,         there 2/ $2000 or swap t! bb off ;
+: recurse,      #syms 1- definition call, ;
+
+  ( Basic Primitives )
+: drop,         $6103 i, ;
+: +,            $6203 i, ;
+: and,          $6303 i, ;
+: or,           $6403 i, ;
+: xor,          $6503 i, ;
+: rshift,       $6903 i, ;
+: lshift,       $6D03 i, ;
+: !,            $6123 i, drop, ;
+: nop,          $6000 i, ;
+: dbg,          $6010 i, ;
+: swap,         $6180 i, ;
+: @,            $6C00 i, ;
+: dup,          $6081 i, ;
+: over,         $6181 i, ;
+
+0 [if]  It's really inconvenient to have to constantly type commas after
+        primitives and immediate words.  Therefore, we need a way of
+        conveniently alternating between target-specific and host-specific
+        meanings of various words.  We'll exploit SwiftForth's support for
+        vocabularies to achieve this magic.
+[then]
+
+only forth definitions
+vocabulary target-primitives
+
+: target        only forth also target-primitives ;
+: host          only forth ;
+
+also target-primitives definitions previous
+
+0 [if]  NOTE:
+        Due to how the J1 processor interacts with synchronous RAM,
+        both @ and ! need to take two cycles to complete.  The timing
+        for fetch is as follows:
+
+                J1                          RAM
+                -------------------------   ----------------------
+        T0:     (something places           When T updates, RAM address
+                address in T)               changes.
+
+        T1:     no-operation                RAM data outputs become valid
+
+        T2:     "Fetch" latches data into   RAM address changes because T
+                T.                          changes.
+
+        Hence, to properly implement @ for the J1, you need to wait a cycle
+        before latching the data.  This can be achieved using a non-immediate
+        word, like so:
+
+        : @  @, ;
+
+        The CALL to @ will delay the extra cycle needed for the synchronous
+        RAMs to present valid data on the bus.  The @, ; sequence will latch
+        the data and resume operation in a single cycle.  Thus, CALL @ will
+        consume exactly two cycles.
+
+        Stores work similarly, but their timing is on opposite clocks:
+
+                J1                          RAM
+                -------------------------   ----------------------
+        T0:     (something places address   When T updates, RAM address
+                in T, data in S)            changes.  Likewise, when S
+                                            changes, data input pins change.
+
+        T1:     "Store" strobe asserted.    RAM latches data and writes it
+                                            to the specified address
+
+        T2:     2DROP or its equivalent
+                is executed to dispose of
+                the stack frame.
+
+        Hence, ! is best implemented as an immediate word which compiles
+        two DROPs as follows:
+
+        : !  postpone drop_w  postpone drop ; immediate
+
+        where drop_w is a primitive which combines DROP with the write
+        strobe.  In doing this, we take two cycles to write a word to
+        RAM.  Note that RAM doesn't actully update until time T2!
+[then]
+
+: defer         defer, ;
+: :             :, ;
+: +             +, ;
+: ;             ;, ;
+: dup           dup, ;
+: xor           xor, ;
+: over          over, ;
+: !             !, ;
+: if            if, ;
+: recurse       recurse, ;
+: exit          exit, ;
+: then          then, ;
+: drop          drop, ;
+: '             ', ;
+: is            is, ;
+: [             [, ;
+: ]             ], ;
+: >body         definition ;
+: invert        invert, ;
+: ,             ,, ;
+: nop           nop, ;
+: create        create, ;
+: rshift        rshift, ;
+: lshift        lshift, ;
+: 2drop         drop, drop, ;
+: and           and, ;
+: or            or, ;
+: xor           xor, ;
+: swap          swap, ;
+: ,             ,, ;
+: 2dup          over, over, ;
+: allot         tallot ;
+: variable      create, 0 ,, ;
+: 2*            1 lshift ;
+: 2/            1 rshift ;
+
+host definitions
+
