@@ -38,6 +38,15 @@ create image
 : t@        >host w@ ;
 : t!        >host w! ;
 
+@ After compilation is complete, we want to output the binary image so the Kestrel emulator can import it upon startup.  Note that we emit the data to a file named [[romfile]]; altering the filename requires changing the definition of [[open]], below.  However, notice that the Kestrel-2 emulator software expects the ROM image to appear in a file called [[romfile]], so it's probably better to just use shell tools to rename your images as appropriate.</p>
+
+<<Target Dictionary>>=
+variable        h
+: open          S" romfile" r/w bin create-file throw h ! ;
+: close         h @ close-file throw ;
+: write         image 16384 h @ write-file throw ;
+: romfile       open write close ." romfile created/updated." cr ;
+
 @ </p>
 <h2>C.2  Comma Compiler</h2>
 <p>Compilation involves laying down words corresponding to the source text in target space in the order they're found.  Words can be determined by the compiler (in the case of calls to other words or optimizations to control flow), or they may be explicitly specified by the user (in the case of statically declared data structures or literals).  In Forth, all forms of compilation ultimately builds on [[,]], the lowest-level compiler.  For [[,]] to work, we need to maintain a pointer, sometimes called a <i>compilation pointer</i>, in a variable [[cp]].</p>
@@ -66,14 +75,25 @@ variable cp
 : ,,        there t!  2 tallot ;
 
 @ </p>
+
 <h2>C.3  Symbol Table</h2>
 <p>While compiling a word, we refer to other previously compiled words or to primitives.  To compile references to previously compiled words, we need to know their target addresses.  Therefore, we need a <i>symbol table</i>, a database of (name, address) pairs.</p>
 <<Symbol Table>>=
 <<Symbol Table Name String Buffer>>
 <<Symbol Table Name String Buffer Invariant Check>>
 <<Symbol Table Name Intern Logic>>
+<<Symbol Database Table>>
+<<Symbol Database Table Reset Logic>>
+<<Symbol Table Definition Support>>
+<<Symbol Table Definition Logic>>
+<<Symbol Table Attribute Accessors>>
+<<Symbol Table Query Support>>
+<<Symbol Table Query Logic>>
 
-@ The symbol table consists of two aggregate components.  First, we have a chunk of storage space reserved for storing the names we encounter.  As the compiler finds new names to define, the bytes comprising the names are stored one after the other in this string buffer.  Since the J1 can execute instructions only from the first 16KiB of memory, and I doubt any reasonable firmware image will have an <i>average</i> definition length less than 8 words or primitives (estimated at 16 bytes), we need enough space to hold at most (16 384&div;16)=1 024 definition names.  Due to my particular coding style, I predict the average name length to fall between two and three characters, so to start with, I'll make the string buffer 2&times;1 024=2 048 bytes, and increase it only if I need to.</p>
+@ The symbol table consists of two aggregate components.  First, we have a chunk of storage space reserved for storing the names we encounter.  We need this because Forth lacks any support for strings out of the box.  Second, we need the database table itself.</p>
+
+<h3>C.3.1  Name String Buffer</h3>
+<p>As the compiler finds new names to define, the bytes comprising the names are stored one after the other in this string buffer.  Since the J1 can execute instructions only from the first 16KiB of memory, and I doubt any reasonable firmware image will have an <i>average</i> definition length less than 8 words or primitives (estimated at 16 bytes), we need enough space to hold at most (16 384&div;16)=1 024 definition names.  Due to my particular coding style, I predict the average name length to fall between two and three characters, so to start with, I'll make the string buffer 2&times;1 024=2 048 bytes, and increase it only if I need to.</p>
 
 <<Symbol Table Name String Buffer>>=
 2048 constant /buffer
@@ -100,84 +120,112 @@ variable sp
 <<Symbol Table Name Intern Logic>>=
 : remembered    invariant +fits sp @ swap dup sp +! move invariant ;
 
-<<undocumented>>=
-0 [if]  After compilation is complete, we want to output the binary image
-        so the Kestrel emulator can import it upon startup.
-[then]
+@ </p>
+<h3>C.3.2  Symbol Database Table</h3>
+<p>We use a set of parallel arrays to store our symbol relations, including name addresses and lengths, whether or not a word is flagged as <q>immediate</q>, etc.  Notice that I size [[/column]] according to the worst-possible case, namely all one-character names, by reserving one array slot per byte of the name string buffer.  This guarantees that, as long as [[strs]]&le;[[sp]]&lt;[[strs)]], then we can never overflow the symbol database table either.</p>
 
-variable        h
-: open          S" romfile" r/w bin create-file throw h ! ;
-: close         h @ close-file throw ;
-: write         image 16384 h @ write-file throw ;
-: romfile       open write close ." romfile created/updated." cr ;
-
-0 [if]  The second component refers to spans within the string buffer,
-        plus any other data associations.  We keep our data arranged in
-        a column-order relational table for convenience.
-[then]
-
+<<Symbol Database Table>>=
 /buffer cells constant /column
 create names        /column allot
 create lengths      /column allot
 create addresses    /column allot
 create immediacies  /column allot
-variable >symtab
-variable >visible
 
+@ When the target compiler first compiles on the host, we cannot be sure of its initial state.  The user's program listing must reset the symbol table state explicitly as part of its boiler-plate procedures.  After resetting the symbol table, the compiler will not be aware of any symbols at all, so make sure you invoke it only at the start of your program listing.</p>
+
+<<Symbol Database Table Reset Logic>>=
 : 0symtab       0 >symtab !  0 >visible !  strs sp ! ;
 
-0 [if]  Creating a definition requires associating a name with some datum,
-        specifically a definition's address.  However, because we cannot
-        trust the calling program to keep its string memory around for the
-        lifetime of the definition, we must copy it into a temporary lo-
-        cation.  This creates the invariant that all pointers in the names
-        column point into the strs buffer.
+@ The [[>symtab]] variable knows the next row in which to start filling in data.  [[>visible]] always lags behind [[>symtab]], indicating the most recently defined word which is visible to the compiler.  Remember that Forth allows redefinition of words, a la:</p>
+<pre>: foo  ." Hello " ;
+: foo  cr foo ." World!" cr ;
+</pre>
+<p>In order to compile the second instance of [[foo]], Forth must somehow <q>know</q> that the [[foo]] after the [[cr]] instruction refers to the preceding definition, not the current definition.  The target compiler supports this by always ensuring that [[>symtab]]&ge;[[>visible]] at all times.  That way, [[>symtab]] might point to the second definition of [[foo]], while [[>visible]] refers to a set of words containing only the first.</p>
 
-        When creating a new definition, we assume the immediacy flag is
-        clear.  This preserves ANS Forth semantics.  Further, we assume
-        the definition will equal the current compilation pointer.
-[then]
+<<Symbol Database Table>>=
+variable >symtab
+variable >visible
+@ </p>
 
+<h3>C.3.3  Defining Symbols</h3>
+@ Creating a definition requires associating a name with some datum, specifically a definition's address.  However, because we cannot trust the calling program to keep its string memory around for the lifetime of the definition, we must copy it into a temporary location.  This creates the invariant that all pointers in the names column point into the [[strs]] buffer.  When creating a new definition, we assume the immediacy flag is clear.  This preserves ANS Forth semantics.  Further, we assume the definition will equal the current compilation pointer.</p>
+
+<<Symbol Table Definition Logic>>=
+: defined       +opening dup l! sp @ n! remembered there a! 0 i! 1 >symtab +! ;
+
+@ Definitions can be made only if we have enough room in the table to store the association.</p>
+
+<<Symbol Table Definition Support>>=
 : #syms         >symtab @ ;
 : ofs           #syms cells ;
 : +opening      ofs /column u< 0= abort" Too many symbols" ;
+
+@ Assuming that's the case, we store the location of the name in the [[strs]] buffer that the name appears at.</p>
+
+<<Symbol Table Definition Support>>=
 : l!            ofs lengths + ! ;
 : n!            ofs names + ! ;
+
+@ We store the address where the definition appears.</p>
+
+<<Symbol Table Definition Support>>=
 : a!            ofs addresses + ! ;
+
+@ Finally, we store the immediate flag, which defaults to [[0]] (false) per the definition of [[defined]].</p>
+
+<<Symbol Table Definition Support>>=
 : i!            ofs immediacies + ! ;
-: defined       +opening dup l! sp @ n! remembered there a! 0 i! 1 >symtab +! ;
 
-\       Miscellanious attribute getters and setters.
+@ Notice that [[ofs]] evaluates to the byte offset inside any table column where the next cell will be placed.</p>
 
-: l@            lengths + @ ;
-: n@            names + @ ;
-: length        cells l@ ;
-: name          cells dup n@ swap l@ ;
-: definition    cells addresses + @ ;
-: isImmediate?  cells immediacies + @ ;
-: #visible      >visible @ ;
-: isVisible?    #visible u< ;
-: revealed      #syms >visible ! ;
+<h3>C.3.4  Querying Symbols</h3>
 
-0 [if]  We also need some mechanism to determine if a label is defined.  Forth
-        actually doesn't use this functionality as such; rather, this word is
-        used by the unit tests to ensure we're doing the right thing.
+<p>Given a name on the stack, we'd like to find out if it's defined.  We define a word as <q>defined</q> if it has an associated <i>execution token</i>.  In our compiler, we let the row index serve as the execution token.  But, if it's not found, we expect a [[0]] result.  [[sfind,]] searches through all unsmudged words, while [[sfindAll,]] includes smudged words as well.</p>
 
-        Forth does use sfind, however, to determine the index into the symbol
-        table corresponding to a given name.  This index is considered the
-        "execution token" for the word.
-[then]
+<<Symbol Table Query Logic>>=
+: sfind,        #visible -exist 0 ;
+: sfindAll,     #syms -exist 0 ;
 
+@ Only the starting row in the symbol table distinguishes the two.</p>
+
+<p>Often, we only care about whether or not a symbol actually exists, not what its corresponding attributes are.  We can define a boolean predicate, checking for the existence of a corresponding execution token.</p>
+<<Symbol Table Query Logic>>=
+: isDefined?    sfindAll, dup 0= if nip then nip ;
+
+@ We search for a word starting at the most recently defined word and work our way backwards through the table, towards the first-defined word.  [[-exist]] asserts that our desired word doesn't exist.  However, if we discover the word, we return its execution token (table row index) in [[-match]].  Note that we require some address arithmetic, which is factored into [[rows]].  Anyone porting this software to a different architecture must adjust [[rows]] for his/her machine.</p>
+
+<<Symbol Table Query Support>>=
 : cell-         [ -1 cells ] literal + ;
 : rows          2/ 2/ ;     ( MACHINE SPECIFIC )
 : -end          dup 0 >= if exit then  drop r> drop ;
 : differs?      >r 2dup r@ n@ r@ l@ compare r> swap ;
 : -match        differs? if exit then  nip nip rows -1 2r> 2drop ;
 : -exist        1- cells begin -end -match cell- again ;
-: sfindAll,     #syms -exist 0 ;
-: sfind,        #visible -exist 0 ;
-: isDefined?    sfindAll, dup 0= if nip then nip ;
 
+@ [[differs?]] and other words often query certain attributes of words previously defined.  For example, the word's name:</p>
+
+<<Symbol Table Attribute Accessors>>=
+: l@            lengths + @ ;
+: n@            names + @ ;
+
+@ Individual fields of a row can be queried as well.</p>
+
+<<Symbol Table Attribute Accessors>>=
+: length        cells l@ ;
+: name          cells dup n@ swap l@ ;
+: definition    cells addresses + @ ;
+: isImmediate?  cells immediacies + @ ;
+
+@ Unsmudging a word involves exposing it to the world, which we do by adjusting the fence-post behind which all words are considered defined.</p>
+
+<<Symbol Table Attribute Accessors>>=
+: #visible      >visible @ ;
+: isVisible?    #visible u< ;
+: revealed      #syms >visible ! ;
+
+@ </p>
+
+<<undocumented>>=
 0 [if]  One of the best features of GForth which is lacking in SwiftForth
         is an implementation of sfind.  SFIND is a variant of FIND which
         works with an explicit string on the stack, rather than a counted
