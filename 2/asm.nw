@@ -3,9 +3,11 @@
 <p>The J1 microprocessor, however, interprets an instruction set that implements a physical Forth machine.  In essence, one J1 instruction corresponds to one Forth instruction, with only a small set of exceptions.  Because of this, the machine language of the processor is known as <i>machine Forth.</i>  The sections that follow documents the assembler/compiler's implementation.</p>
 
 <<asm.f>>=
+<<GForth compatibility layer>>
 <<Target Dictionary>>
 <<Comma Compiler>>
 <<Symbol Table>>
+<<Deferred words>>
 <<undocumented>>
 @ </p>
 
@@ -93,7 +95,7 @@ variable cp
 @ The symbol table consists of two aggregate components.  First, we have a chunk of storage space reserved for storing the names we encounter.  We need this because Forth lacks any support for strings out of the box.  Second, we need the database table itself.</p>
 
 <h3>C.3.1  Name String Buffer</h3>
-<p>As the compiler finds new names to define, the bytes comprising the names are stored one after the other in this string buffer.  Since the J1 can execute instructions only from the first 16KiB of memory, and I doubt any reasonable firmware image will have an <i>average</i> definition length less than 8 words or primitives (estimated at 16 bytes), we need enough space to hold at most (16 384&div;16)=1 024 definition names.  Due to my particular coding style, I predict the average name length to fall between two and three characters, so to start with, I'll make the string buffer 2&times;1 024=2 048 bytes, and increase it only if I need to.</p>
+<p>As the compiler finds new names to define, the bytes comprising the names are stored one after the other in this string buffer.  Since the J1 can execute instructions only from the first 16KiB of memory, and considering most Forth applications have an <i>average</i> word definition length of eight words (16 bytes), we need enough space to hold at most (16 384&div;16)=1 024 definition names.  Due to my particular coding style, I predict the average name length to fall between two and three characters, so to start with, I'll make the string buffer 2&times;1 024=2 048 bytes, and increase it only if I need to.</p>
 
 <<Symbol Table Name String Buffer>>=
 2048 constant /buffer
@@ -192,6 +194,12 @@ variable >visible
 <<Symbol Table Query Logic>>=
 : isDefined?    sfindAll, dup 0= if nip then nip ;
 
+@ The most common query developers make involves asking the compiler for a target word's execution token at compile-time.  It's not so convenient to invoke [[sfind,]] directly, and moreover dangerous, for [[sfind,]] remains an implementation detail subject to change in a future release of the software, so a parsing word encapsulates the desired behavior.</p>
+
+<<Symbol Table Query Logic>>=
+: token         32 word count ;
+: ',            token sfind, 0= abort" Undefined" ;
+
 @ We search for a word starting at the most recently defined word and work our way backwards through the table, towards the first-defined word.  [[-exist]] asserts that our desired word doesn't exist.  However, if we discover the word, we return its execution token (table row index) in [[-match]].  Note that we require some address arithmetic, which is factored into [[rows]].  Anyone porting this software to a different architecture must adjust [[rows]] for his/her machine.</p>
 
 <<Symbol Table Query Support>>=
@@ -224,41 +232,52 @@ variable >visible
 : revealed      #syms >visible ! ;
 
 @ </p>
+<h2>C.4  Deferred Words</h2>
+<p>When the J1 commences instruction execution for the first time, it assumes that the first instruction appears at address [[$0000]].  Forth, however, requires subroutines, constants, and variables to be defined prior to their use, leading to higher-level code coming <i>later</i> in the instruction stream, rather than before.  Therefore, first instruction executed by the J1 processor must be a JMP to the actual start-up code.  This permits an arbitrarily complex program to be compiled, while presenting a consistent interface to the hardware.</p>
+<p>Forth strongly prefers early binding, meaning it tries hard to resolve addresses as soon in the development cycle as possible.  To implement the intended forward reference while still preserving Forth's early binding semantics, we need to trick it.  [[DEFER]] is a Forth constructor that binds a name to word consisting exclusively of a single jump instruction.  When subsequent Forth code wants to invoke the services of the deferred word, we invoke by name, like any other.  This satisfies Forth's early-binding behavior while providing the flexibility of defining behavior at some point later in the code.</p>
 
-<<undocumented>>=
-0 [if]  One of the best features of GForth which is lacking in SwiftForth
-        is an implementation of sfind.  SFIND is a variant of FIND which
-        works with an explicit string on the stack, rather than a counted
-        string.  We can fake it, though, by building a temporary counted
-        string in PAD.
-[then]
-
-: sfind         dup pad c!  pad 1+ swap move  pad find dup 0= if >r count r> then ;
-
-0 [if]  The first instruction executed by the J1 processor is going to be
-        a JMP to the actual start-up code.  However, Forth doesn't work
-        well compiling forward references.  To implement said forward
-        reference, we use DEFER to compile a vectored word.  Thus, we can
-        use DEFER to make our interrupt vector tables, like so:
-
-            0 org
-            defer   _reset
-            ( ... )
-
-            : reset         blah blah blah ;
-            ' reset is _reset
-
-            ( ... )
-[then]
-
-: token         32 word count ;
+<<Deferred words>>=
 : defer,        token defined revealed 0 ,, ;
-: ',            token sfind, 0= abort" Undefined" ;
+
+@ Calling a deferred word incurs only one level of indirection in run-time overhead (1 cycle on the J1 CPU).  Using deferred words, we can actually create vector tables in memory, like so:</p>
+<pre>0 org
+defer   _reset
+defer   _timerIRQ
+defer   _illegalInstruction
+</pre>
+
+<p>We would define implementations for these handlers as any other Forth word.</p>
+<pre>
+: irqHandler    blort blort blort ;
+: reset         blah blah blah ;
+</pre>
+
+<p>However, the compiler remains unaware that [[reset]] is intended to fill the [[_reset]] vector, or that [[irqHandler]] should be invoked when the hardware's [[_timerIRQ]] vector is invoked.  The compiler provides compile-time binding of the vector's name to its jump instruction; however, we must explicitly provide the semantics of these deferred words using the [[IS]] word.</p>
+<pre>
+' reset is _reset
+' irqHandler is _timerIRQ
+' reset is _illegalInstruction
+</pre>
+<p>[[IS]] works by <i>patching</i> the image of the deferred word so that its jump target points to the correct program code.</p>
+
+<<Deferred words>>=
 : +even         dup 1 and abort" Odd address" ;
 : +range        dup $4000 u< 0= abort" Address outside of range CPU can execute" ;
 : +address      +even +range ;
 : is,           definition +address 2/ ', definition t! ;
 
+@ </p>
+<h2>C.Z  Miscellaneous</h2>
+@ The Machine Forth compiler was designed to run under the SwiftForth environment.  However, I find its general lack of a word to find a word in the dictionary given an explicit counted string on the stack rather burdensome.  GForth provides this facility through [[sfind]], whose behavior I replicate below.</p>
+
+<<GForth compatibility layer>>=
+: sfind         dup pad c!  pad 1+ swap move  pad find dup 0= if >r count r> then ;
+
+@ Note that if you move this software to GForth, you'll want to remove or otherwise comment the above definition out.</p>
+
+
+
+<<undocumented>>=
 0 [if]  Once we have the ability to populate vectors, we need to point
         those vectors somewhere.  Thus, the colon compiler, which lets
         us define new Forth procedures to be executed in the target

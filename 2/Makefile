@@ -1,6 +1,9 @@
 CFLAGS=`sdl-config --cflags`
 LDFLAGS=`sdl-config --libs`
 
+help:
+	cat Makefile | grep :
+
 .c.o:
 	gcc ${CFLAGS} -O4 -fomit-frame-pointer -c -o $@ $<
 
