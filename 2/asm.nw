@@ -8,6 +8,7 @@
 <<Comma Compiler>>
 <<Symbol Table>>
 <<Deferred words>>
+<<Colon Compiler>>
 <<undocumented>>
 @ </p>
 
@@ -267,6 +268,68 @@ defer   _illegalInstruction
 : is,           definition +address 2/ ', definition t! ;
 
 @ </p>
+<h2>C.5  Colon Compiler</h2>
+<p>Forth programs consist of references to smaller and/or lower-level Forth programs, in some way or another.  The [[:]] word exists to let a programmer define new functionality in terms of existing code.  Such definitions are known as <i>colon definitions.</i></p>
+<p>The colon compiler is actually an interpreter unto itself, albeit a specialized one.</p>
+<<Colon compiler>>=
+<<Definition of [[(:)]]>>
+<<Definition of [[-compiled]]>>
+<<Definition of [[-immediate]]>>
+<<Definition of [[-number]]>>
+<<Definition of [[classify]]>>
+<<Definition of [[],]]>>
+<<Definition of [[:,]]>>
+<<Definition of [[[,]]>>
+<<Definition of [[(;)]]>>
+<<Definition of [[;,]]>>
+@ </p>
+<h2>C.5.1  Main Loop</h2>
+<p>The colon compiler works by associating the current compilation pointer with a new symbol, and then enters the compiling loop.</p>
+<<Definition of [[:,]]>>=
+: :,            (:) ], ;
+
+@ We bind the new definition name.</p>
+<<Definition of [[(:)]]>>=
+: (:)           token defined ;
+
+@ The main compiling loop resembles the Forth outer interpreter in many respects.</p>
+<<Definition of [[],]]>>=
+: ],            begin token classify execute again ;
+
+@ After parsing a token, the compiler works to classify the kind of word it's dealing with.  If it's not anything the compiler can recognize, we abort the compilation with an error message.</p>
+<<Definition of [[classify]]>>=
+: classify      -compiled -immediate -number ." Error: " type -2 abort" Undefined" ;
+
+@ If the word is a previously compiled colon definition, then we need to compile a subroutine call to that word's definition.  We don't actually do the job here; rather, we prep the data stack so that [[],]]'s [[execute]] can do the heavy lifting for us.</p>
+<<Definition of [[-compiled]]>>=
+: -compiled     2dup sfind, if nip nip definition ['] call, r> drop exit then 2drop ;
+
+@ If the word is an immediate word, such as a host-defined primitive, then we need to invoke the word right away, before moving on through the source.  We express this by making each immediate word its own classification.</p>
+<<Definition of [[-immediate]]>>=
+: -immediate    2dup sfind if nip nip r> drop exit then 2drop ;
+
+@ If the word is a number, such as a literal like [[42]] or a hexadecimal literal like [[$0C]], it should be translated to some canonical form and compiled as a numeric literal.</p>
+<<Definition of [[-number]]>>=
+: -number       0 nn ! 2dup -dec -hex 2drop ;
+@ You can add your own kinds of words to look for by altering the definition of [[classify]].</p>
+<p>After you've completed the definition, terminating the compiler may be done with the [[;,]] word.</p>
+<<Definition of [[;,]]>>=
+: ;,            [, (;) ;
+
+@ This works just the opposite of [[:,]]; we abort from the compiler loop by breaking its return stack frame,</p>
+<<Definition of [[[,]]>>=
+: [,            r> r> drop >r ;  ( break out of the infinite loop set up by ] )
+
+@ and then tieing up any loose-ends that remain with the word's definition.  In particular, we want to ensure that we compile a return-from-subroutine call, and unsmudge the word's name.</p>
+<<Definition of [[(;)]]>>=
+: (;)           exit, revealed ;
+
+@
+
+
+<h2>C.5.2  Handling Numeric Literals</h2>
+<p>As I write this document, only decimal and hexadecimal literals work.</p>
+
 <h2>C.Z  Miscellaneous</h2>
 @ The Machine Forth compiler was designed to run under the SwiftForth environment.  However, I find its general lack of a word to find a word in the dictionary given an explicit counted string on the stack rather burdensome.  GForth provides this facility through [[sfind]], whose behavior I replicate below.</p>
 
@@ -299,14 +362,10 @@ variable bb ( true if inside a basic block )
 : +r            pInsn $100C or tweak ;
 : -alu          +here>=2 pInsn -alu? if exit then +r r> drop ;
 : exit,         +bb -call -alu return, ;
-: (:)           token defined ;
-: (;)           exit, revealed ;
 : +even         dup 1 and abort" Odd address" ;
 : +range        dup $4000 u< 0= abort" Attempt to call word outside of CPU executable space" ;
 : +address      +even +range ;
 : call,         +address 2/ $4000 or i, ;
-: -immediate    2dup sfind if nip nip r> drop exit then 2drop ;
-: -compiled     2dup sfind, if nip nip definition ['] call, r> drop exit then 2drop ;
 
 0 [if]  I was completely unsuccessful in making a Forth routine
         to abide by BASE when converting numbers from string form
@@ -338,12 +397,6 @@ variable        nn
 : accum         >bin +dec nn @ 10 * + nn ! ;
 : declit        begin -eoi over c@ accum 1 /string again ;
 : -dec          over c@ is0-9? if declit nn @ ['] lit, 2r> 2drop then ;
-: -number       0 nn ! 2dup -dec -hex 2drop ;
-: classify      -compiled -immediate -number ." Error: " type -2 abort" Undefined" ;
-: ],            begin token classify execute again ;
-: [,            r> r> drop >r ;  ( break out of the infinite loop set up by ] )
-: :,            (:) ], ;
-: ;,            [, (;) ;
 : create,       (:) there 4 + lit, (;) ;
 
   ( Control Flow )
