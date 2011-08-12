@@ -271,48 +271,36 @@ defer   _illegalInstruction
 <h2>C.5  Colon Compiler</h2>
 <p>Forth programs consist of references to smaller and/or lower-level Forth programs, in some way or another.  The [[:]] word exists to let a programmer define new functionality in terms of existing code.  Such definitions are known as <i>colon definitions.</i></p>
 <p>The colon compiler is actually an interpreter unto itself, albeit a specialized one.</p>
-<<Colon compiler>>=
-<<Definition of [[(:)]]>>
-<<Definition of [[-compiled]]>>
-<<Definition of [[-immediate]]>>
-<<Definition of [[-number]]>>
-<<Definition of [[classify]]>>
+<<Colon Compiler>>=
+<<Name Definition Logic>>
+<<Subroutine Assembler>>
+<<Numeric Literal Conversion Logic>>
+<<Word Classification Logic>>
+<<Compiler Loop Control>>
+
+@ </p>
+<h2>C.5.1  Main Loop</h2>
+
+<<Compiler Loop Control>>=
 <<Definition of [[],]]>>
 <<Definition of [[:,]]>>
 <<Definition of [[[,]]>>
 <<Definition of [[(;)]]>>
 <<Definition of [[;,]]>>
-@ </p>
-<h2>C.5.1  Main Loop</h2>
-<p>The colon compiler works by associating the current compilation pointer with a new symbol, and then enters the compiling loop.</p>
+
+@ The colon compiler works by associating the current compilation pointer with a new symbol, and then enters the compiling loop.</p>
 <<Definition of [[:,]]>>=
 : :,            (:) ], ;
 
 @ We bind the new definition name.</p>
-<<Definition of [[(:)]]>>=
+<<Name Definition Logic>>=
 : (:)           token defined ;
 
-@ The main compiling loop resembles the Forth outer interpreter in many respects.</p>
+@ The main compiling loop resembles the Forth outer interpreter in many respects.  It will attempt to compile words forever, until something outside the loop breaks the control flow.</p>
 <<Definition of [[],]]>>=
 : ],            begin token classify execute again ;
 
-@ After parsing a token, the compiler works to classify the kind of word it's dealing with.  If it's not anything the compiler can recognize, we abort the compilation with an error message.</p>
-<<Definition of [[classify]]>>=
-: classify      -compiled -immediate -number ." Error: " type -2 abort" Undefined" ;
-
-@ If the word is a previously compiled colon definition, then we need to compile a subroutine call to that word's definition.  We don't actually do the job here; rather, we prep the data stack so that [[],]]'s [[execute]] can do the heavy lifting for us.</p>
-<<Definition of [[-compiled]]>>=
-: -compiled     2dup sfind, if nip nip definition ['] call, r> drop exit then 2drop ;
-
-@ If the word is an immediate word, such as a host-defined primitive, then we need to invoke the word right away, before moving on through the source.  We express this by making each immediate word its own classification.</p>
-<<Definition of [[-immediate]]>>=
-: -immediate    2dup sfind if nip nip r> drop exit then 2drop ;
-
-@ If the word is a number, such as a literal like [[42]] or a hexadecimal literal like [[$0C]], it should be translated to some canonical form and compiled as a numeric literal.</p>
-<<Definition of [[-number]]>>=
-: -number       0 nn ! 2dup -dec -hex 2drop ;
-@ You can add your own kinds of words to look for by altering the definition of [[classify]].</p>
-<p>After you've completed the definition, terminating the compiler may be done with the [[;,]] word.</p>
+@ After you've completed the definition, terminating the compiler may be done with the [[;,]] word.</p>
 <<Definition of [[;,]]>>=
 : ;,            [, (;) ;
 
@@ -324,11 +312,224 @@ defer   _illegalInstruction
 <<Definition of [[(;)]]>>=
 : (;)           exit, revealed ;
 
-@
+@ </p>
+<h2>C.5.2  Classifying Words</h2>
+<<Word Classification Logic>>=
+<<Definition of [[-compiled]]>>
+<<Definition of [[-immediate]]>>
+<<Definition of [[-number]]>>
+<<Definition of [[classify]]>>
+
+@ The compiler needs to take some kind of action for every word it sees.  The [[classify]] word ultimately decides how to handle each kind of word it sees.  When it finishes, [[classify]] needs to leave the execution token of the word's handler on the top of the data stack (whatever parameters are necessary should be placed below the execution token, of course).  As I write this, the compiler can work with three different kinds of words.  If more types of words are needed, altering [[classify]] and adding additional predicates, such as those shown below, should be sufficient to extend the cross-compiler arbitrarily.</p>
+
+@ After grabbing the next input token, the compiler works to classify the kind of word it's dealing with.  If it's not anything the compiler can recognize, we abort the compilation with an error message.</p>
+<<Definition of [[classify]]>>=
+: classify      -compiled -immediate -number ." Error: " type -2 abort" Undefined" ;
+
+@ If the word is a previously compiled colon definition, then we need to compile a subroutine call to that word's definition.</p>
+<<Definition of [[-compiled]]>>=
+: -compiled     2dup sfind, if nip nip definition ['] call, r> drop exit then 2drop ;
+
+@ If the word is an immediate word, such as a host-defined primitive like [[IF]] or [[WHILE]], then we need to invoke the word right away, before moving on through the source.  We express this by making each immediate word its own handler.  Note that immediate word handlers generally take no parameters on the data stack.  I can think only of [[lit,]] as the sole exception to this rule of thumb.</p>
+<<Definition of [[-immediate]]>>=
+: -immediate    2dup sfind if nip nip r> drop exit then 2drop ;
+
+@ If the word is a number, such as a literal like [[42]] or a hexadecimal literal like [[$0C]], it should be translated to some canonical form and compiled as a numeric literal.</p>
+<<Definition of [[-number]]>>=
+: -number       0 nn ! 2dup -dec -hex 2drop ;
+
+@ </p>
+
+<h2>C.5.3  Numeric Literals</h2>
+@ As I write this document, only decimal and hexadecimal literals work.</p>
+<<Numeric Literal Conversion Logic>>=
+<<Definition of [[nn]]>>
+<<Definition of [[invert,]]>>
+<<Definition of [[bits14:0,]]>>
+<<Definition of [[+ve]]>>
+<<Definition of [[lit,]]>>
+<<Decimal Number Conversion>>
+<<Hexadecimal Number Conversion>>
+
+@ We'll consider decimal numbers first,</p>
+<<Decimal Number Conversion>>=
+<<Definition of [[>bin]]>>
+<<Definition of [[-eoi]]>>
+<<Definition of [[accum]] (decimal)>>
+<<Definition of [[declit]]>>
+<<Definition of [[-dec]]>>
+
+@ followed by hexadecimal numbers later.</p>
+<<Hexadecimal Number Conversion>>=
+<<Definition of [[+hex]]>>
+<<Definition of [[accum]] (hexadecimal)>>
+<<Definition of [[hexlit]]>>
+<<Definition of [[-hex]]>>
+
+@ </p>
+<h3>C.5.3.1  Decimal Literals</h3>
+@ If a word starts with a character between 0 and 9, heuristically, there's a great chance that it will be a decimal literal.</p>
+<<Definition of [[-dec]]>>=
+: is0-9?        [char] 0 [char] 9 1+ within ;
+: -dec          over c@ is0-9? if declit nn @ ['] lit, 2r> 2drop then ;
+
+@ We need an accumulator variable to hold onto the number we just converted.</p>
+<<Definition of [[nn]]>>=
+variable        nn
+
+@ Conversion of a number proceeds character-by-character until we've finished the symbol.</p>
+<<Definition of [[declit]]>>=
+: declit        begin -eoi over c@ accum 1 /string again ;
+
+@ We know we're at the end of input when we've reached the token's maximum length, and that means zero characters left in the input string.</p>
+<<Definition of [[-eoi]]>>=
+: -eoi          dup 0= if 2drop 2drop r> drop then ;
+
+@ We accumulate each character we find, provided it's a valid digit.  With each new digit, we multiply our current knowledge of the literal by ten, and add in the current digit.</p>
+<<Definition of [[accum]] (decimal)>>=
+: +dec          dup 0 10 within 0= if 2r> 2drop r> drop then ;
+: accum         >bin +dec nn @ 10 * + nn ! ;
+
+@ Each digit comes in via a character code, which we need to convert to binary for accumulation to work correctly.</p>
+<<Definition of [[>bin]]>>=
+: >bin          [char] 0 - dup 10 u< 0= 7 and - ;
+
+@ Although we're discussing conversion of decimal numbers right now, observe that [[>bin]]'s definition will actually work for numeric bases as large as 36, provided we use the ASCII character set.  Observe that it ignores case completely, though.  A hexadecimal number such as [[$0c]] will yield a value markedly different than [[$0C]], because the character code for <q>c</q> will differ from the character code for <q>C</q>.  That's OK, though; the [[+dec]] word ensures we never pass a non-decimal digit into [[>bin]].  Below, you'll see that the hexadecimal conversion code similarly filters its input so that all hexadecimal symbols are consistently uppercase before calling [[>bin]] as well.  Thus, [[>bin]] need not concern itself with error handling.</p>
+
+@ After the compiler translates the number into a binary form it can work with, it must be placed into the current program's instruction stream.  The J1 can load a 15-bit positive constant in a single instruction, and a 16-bit signed value in two (the 15-bit 1's compliment, followed by an instruction to invert all the bits).  Assuming we've accumulated a positive number, we simply drop the load-constant instruction.</p>
+<<Definition of [[lit,]]>>=
+: lit,          +ve bits14:0, ;
+
+@ If it's not positive, however, we need to emit a two-instruction sequence, as described above.</p>
+<<Definition of [[+ve]]>>=
+: +ve           dup $8000 and if invert bits14:0, invert, r> drop then ;
+
+@ The J1 instruction to load an immediate value has the top bit set, with bits 14...0 containing the lower 15-bits of the value to load.</p>
+<<Definition of [[bits14:0,]]>>=
+: bits14:0,     $8000 or i, ;
+
+@ If necessary, a second instruction to invert the bits of the top of stack is emitted.</p>
+<<Definition of [[invert,]]>>=
+: invert,       $6600 i, ;
 
 
-<h2>C.5.2  Handling Numeric Literals</h2>
-<p>As I write this document, only decimal and hexadecimal literals work.</p>
+@ </p>
+<h3>C.5.3.2  Hexadecimal Literals</h3>
+
+@ The target compiler presently lacks the typical Forth variable [[BASE]] to indicate how it should convert numbers.  Therefore, we rely on prefixes to provide this information.  It turns out to be more convenient anyway.  Borrowing from the PDP-11, Motorola, and Western Design Center conventions, we identify hexadecimal numbers with a [[$]] prefix.</p>
+<<Definition of [[-hex]]>>=
+: -hex          over c@ [char] $ = if 1 /string hexlit nn @ ['] lit, 2r> 2drop then ;
+
+@ Once we're satisfied we've identified a hexadecimal numeric literal, we consume it character-by-character, just as with decimal numbers.</p>
+<<Definition of [[hexlit]]>>=
+: hexlit        begin -eoi over c@ accum 1 /string again ;
+
+@ When accumulating hexadecimal digits, we need to convert them to uppercase first, making the characters [[a b c d e f]] and [[A B C D E F]] consistent.  This lets the programmer write a number either as [[$deadbeef]], [[$DEADbeef]], [[$dEaDbEeF]], or [[$DEADBEEF]], all referring to the same number.</p>
+<<Definition of [[accum]] (hexadecimal)>>=
+: ucase         dup [char] a [char] z 1+ within $20 and xor ;
+: accum         ucase >bin +hex nn @ 16 * + nn ! ;
+
+@ The moment we find a character which <i>isn't</i> a hexadecimal number, return whatever value is left in [[nn]], which you'll recall from the previous section is the binary form of the number we're translating.</p>
+<<Definition of [[+hex]]>>=
+: +hex          dup 0 16 within 0= if 2r> 2drop r> drop then ;
+
+
+
+
+@ </p>
+<h2>C.5.4  Compiling Subroutine Calls and Returns</h2>
+<p>Nothing can happen in a Forth environment without subroutines.  Coded as words, subroutines form the basic unit of code re-use.  Indeed, it is the subroutine which truly distinguishes software from hardware.</p>
+<<Subroutine Assembler>>=
+<<Instruction placement>>
+<<Definition of [[return,]]>>
+<<Definition of [[+bb]]>>
+<<Definition of [[+here>=2]]>>
+<<Definition of [[pInsn]]>>
+<<Definition of [[-call?]]>>
+<<Definition of [[tweak]]>>
+<<Definition of [[>jmp]]>>
+<<Definition of [[-call]]>>
+<<Definition of [[-alu?]]>>
+<<Definition of [[-alu]]>>
+<<Definition of [[exit,]]>>
+<<Definition of [[+address]]>>
+<<Definition of [[call,]]>>
+
+@ The J1 encodes calls to other Forth words by setting the top-most three bits of the instruction to [[010]], leaving the remaining 13 bits to hold the <i>word address</i> of the subroutine's definition.</p>
+<<Definition of [[call,]]>>=
+: call,         +address 2/ $4000 or i, ;
+
+@ It follows that we should issue an error to the user if the compiler discovers we're trying to call a Forth word ostensibly outside of the J1's allowable program space.</p>
+<<Definition of [[+address]]>>=
+: +even         dup 1 and abort" Odd address" ;
+: +range        dup $4000 u< 0= abort" Attempt to call word outside of CPU executable space" ;
+: +address      +even +range ;
+
+@ Subroutines terminate with the [[EXIT]] primitive.  We could naively compile a return-from-subroutine instruction; however, it won't run as fast.  The J1 instruction set has special support for same-cycle subroutine returns, which the Kestrel exploits to ensure deeply-nested colon definitions consume as little time as possible managing the return stack.  However, not all instructions have this support.  For instance, if we're inside a basic block, and the previous instruction compiled is not a [[call]] or some ALU instruction, then we need to compile an explicit subroutine return instruction.</p>
+<<Definition of [[exit,]]>>=
+: exit,         +bb -call -alu return, ;
+
+@ Return instructions are encoded as no-operation ALU instructions which adjust the return stack properly, and with the subroutine-return bit set.</p>
+<<Definition of [[return,]]>>=
+: return,       $700C p, ;
+
+@ The compiler maintains a flag variable to record whether or not it's presently working with a basic block.
+<<Instruction placement>>=
+variable bb ( true if inside a basic block )
+
+@ Regardless of what state we're in, if we're not compiling inside a basic block, then we <i>always</i> compile a subroutine return instruction.  This condition most likely occurs when the subroutine return instruction is itself a target for another branch instruction.</p>
+<<Definition of [[+bb]]>>=
+: +bb           bb @ if exit then return, r> drop ;
+
+@ We know whether we're in a basic block or not based on the kind of CPU instruction we just placed in the image.  [[i,]] places an instruction of some kind with the knowledge that we're in a basic block, while [[p,]] does the same but terminates any currently open basic block.  Think of [[p,]] as a <i>program flow</i> placement primitive, while [[i,]] works for all other instructions.</p>
+<<Instruction placement>>=
+: p,            ,, bb off ;  ( program flow appendage )
+: i,            ,, bb on ; ( anything else appendage )
+
+@ Although we discuss [[p,]] and [[i,]] in the context of compiling subroutines, these words will be used elsewhere in various other contexts.</p>
+
+@ When compiling [[EXIT]], we can convert a previously occuring subroutine call into an unconditional jump.  This conserves return stack resources, permitting tail-call optimization, and the looping constructs it enables.</p>
+<<Definition of [[-call]]>>=
+: -call         +here>=2 pInsn -call? if exit then >jmp r> drop ;
+
+@ If we're compiling code at location [[$0000]], what does <i>previous instruction</i> mean?  One solution simply would wrap the inspection to [[$3FFE]], but the value stored in that location could well be garbage at the time compilation begins.  I prefer to take a safer route; instead of wrapping, we just <i>arbitrarily assume</i> a previous instruction to whatever is placed in location [[$0000]] can <i>never</i> be a call instruction.</p>
+<<Definition of [[+here>=2]]>>=
+: +here>=2      there 2 u< if r> drop then ;
+
+@ The previous instruction, then, is whatever appears in memory just one word before the current compilation pointer.</p>
+<<Definition of [[pInsn]]>>=
+: pInsn         there 2 - t@ ;
+
+@ It's a [[CALL]] instruction if the top three bits are [[010]], as discussed earlier.</p>
+
+<<Definition of [[-call?]]>>=
+: -call?        $E000 and $4000 xor ;
+
+@ If a previous instruction does turn out to be a subroutine call, we can convert it to an unconditional jump by clearing bit 14 of the instruction.</p>
+
+<<Definition of [[>jmp]]>>=
+: >jmp          pInsn $4000 xor tweak ;
+
+@ Observe that if we just compiled a return instruction, we cannot possibly in a basic block.  Thus, after adjusting the image, we clear the [[bb]] flag.</p>
+<<Definition of [[tweak]]>>=
+: tweak         there 2 - t! bb off ;
+
+@ What happens if we try compiling an [[EXIT]] immediately after some ALU operation?  It turns out all ALU operations include a bit (12) to signal the processor to return from the current subroutine.  It also includes two bits (2 and 3) telling the CPU how to adjust the return stack pointer.  If we set bits 12, 3, and 2, leaving all other bits alone, then whatever ALU operation is selected should proceed in parallel with a subroutine return.</p>
+
+<<Definition of [[-alu]]>>=
+: +r            pInsn $100C or tweak ;
+: -alu          +here>=2 pInsn -alu? if exit then +r r> drop ;
+
+@ All ALU instructions have the topmost three opcode bits set to [[011]].  However, we also want to confirm that bit 12 is clear as well; compiling two EXITs in a row really should produce one adjusted ALU instruction followed by an explicit return (again, remember that the second instruction could be a branch target from somewhere else).</p>
+
+<<Definition of [[-alu?]]>>=
+: -alu?         $F000 and $6000 xor ; ( check top 4 bits to verify r->PC bit is clear too )
+
+
+
+
+@ </p>
+<h2>C.5.5  ASDFGHJKL</h2>
 
 <h2>C.Z  Miscellaneous</h2>
 @ The Machine Forth compiler was designed to run under the SwiftForth environment.  However, I find its general lack of a word to find a word in the dictionary given an explicit counted string on the stack rather burdensome.  GForth provides this facility through [[sfind]], whose behavior I replicate below.</p>
@@ -347,56 +548,6 @@ defer   _illegalInstruction
         environment.
 [then]
 
-variable bb ( true if inside a basic block )
-: p,            ,, bb off ;  ( program flow appendage )
-: i,            ,, bb on ; ( anything else appendage )
-: return,       $700C p, ;
-: +bb           bb @ if exit then return, r> drop ;
-: pInsn         there 2 - t@ ;
-: -call?        $E000 and $4000 xor ;
-: tweak         there 2 - t! bb off ;
-: >jmp          pInsn $4000 xor tweak ;
-: +here>=2      there 2 u< if r> drop then ;
-: -call         +here>=2 pInsn -call? if exit then >jmp r> drop ;
-: -alu?         $F000 and $6000 xor ; ( check top 4 bits to verify r->PC bit is clear too )
-: +r            pInsn $100C or tweak ;
-: -alu          +here>=2 pInsn -alu? if exit then +r r> drop ;
-: exit,         +bb -call -alu return, ;
-: +even         dup 1 and abort" Odd address" ;
-: +range        dup $4000 u< 0= abort" Attempt to call word outside of CPU executable space" ;
-: +address      +even +range ;
-: call,         +address 2/ $4000 or i, ;
-
-0 [if]  I was completely unsuccessful in making a Forth routine
-        to abide by BASE when converting numbers from string form
-        to binary.  Instead of spending two days debugging why, I just
-        decided to say "Screw it" and just treat all numbers as decimal
-        by default, unless prefixed with a dollar-sign.  Invalid numbers
-        are flagged appropriately.
-
-        The following code is a total and utter mess.  It must be rewritten
-        at the earliest possible convenience, after studying why a more
-        obvious implementation simply doesn't work.  (I'm actually quite
-        upset as I write this.  Can't you tell?)
-[then]
-
-variable        nn
-: -eoi          dup 0= if 2drop 2drop r> drop then ;
-: ucase         dup [char] a [char] z 1+ within $20 and xor ;
-: >bin          [char] 0 - dup 10 u< 0= 7 and - ;
-: +hex          dup 0 16 within 0= if 2r> 2drop r> drop then ;
-: accum         ucase >bin +hex nn @ 16 * + nn ! ;
-: hexlit        begin -eoi over c@ accum 1 /string again ;
-: bits14:0,     $8000 or i, ;
-: invert,       $6600 i, ;
-: +ve           dup $8000 and if invert bits14:0, invert, r> drop then ;
-: lit,          +ve bits14:0, ;
-: -hex          over c@ [char] $ = if 1 /string hexlit nn @ ['] lit, 2r> 2drop then ;
-: is0-9?        [char] 0 [char] 9 1+ within ;
-: +dec          dup 0 10 within 0= if 2r> 2drop r> drop then ;
-: accum         >bin +dec nn @ 10 * + nn ! ;
-: declit        begin -eoi over c@ accum 1 /string again ;
-: -dec          over c@ is0-9? if declit nn @ ['] lit, 2r> 2drop then ;
 : create,       (:) there 4 + lit, (;) ;
 
   ( Control Flow )
