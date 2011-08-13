@@ -329,17 +329,23 @@ long kbqu;
 <<Keyboard I/O State>>=
 int kbct;
 
-@ Periodically, I display the simulated clock frequency on the console.</p>
+@ Periodically, I display the simulated clock frequency on the console.  Every ten million simulated cycles, we look at the wall-clock to see how much time has elapsed, measured in <i>microseconds</i>.  Dividing 10 000 000 by this span of time will yield an estimate of the equivalent processor performance, in <i>megahertz</i>.</p>
 
 <<Definition of [[tt]]>>=
 V(tt) {
-    static time_t m, n;
-    static long freq;
-    n = m;
-    time(&m);
-    if(n!=m){fprintf(stderr,"\rClk: %ld Hz", freq);freq=0;}
-    else{freq++;}
+    static long cycles=0;
+    static long n,m;
+    static struct timeval tv;
+
+    if(cycles!=10000000){cycles++; return;}
+    n=m;
+    gettimeofday(&tv,0L);
+    m=tv.tv_sec*1000000+tv.tv_usec;
+    DB("\rClk: %g MHz   ", ((float)cycles/((m-n)?(m-n):1)));
+    cycles=0;
 }
+
+@ You might be wondering about the bizarre denominator of the fraction above.  It's intended to prevent any divide-by-zero errors in the unlikely event that both [[n]] and [[m]] equal each other.</p>
 
 @ The J1 microprocessor uses a horizontally-encoded microcode format.  One field of the instruction encodes what the new top of data stack should evaluate to in the next cycle.  It's a 4-bit field, so there exists sixteen different possibilities.</p>
 
