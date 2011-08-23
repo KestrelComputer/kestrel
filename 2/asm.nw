@@ -10,7 +10,8 @@
 <<Deferred words>>
 <<Colon Compiler>>
 <<Macros>>
-<<undocumented>>
+<<[[TARGET]] and [[HOST]]>>
+host definitions
 @ </p>
 
 <h2>C.1  Target Dictionary Space</h2>
@@ -72,11 +73,15 @@ variable cp
 
 <<Comma Compiler>>=
 : tallot    cp +! ;
+<<Target names>>=
+: allot         tallot ;
 
 @ Placing data in the target image then becomes a matter of stuffing a word into target space, and reserving the space consumed.  We use the symbol [[,,]] instead of [[t,]], which I suppose is what most would expect of a primitive affecting target space, because it's more convenient to type.  Later, when we implement the [[host]] and [[target]] words, we'll see how we cover this up, so that the user of the compiler never needs to know when to use [[,]] versus [[,,]].  To the user, it's always [[,]].</p>
 
 <<Comma Compiler>>=
 : ,,        there t!  2 tallot ;
+<<Target names>>=
+: ,             ,, ;
 
 @ </p>
 
@@ -201,6 +206,8 @@ variable >visible
 <<Symbol Table Query Logic>>=
 : token         32 word count ;
 : ',            token sfind, 0= abort" Undefined" ;
+<<Target names>>=
+: '             ', ;
 
 @ We search for a word starting at the most recently defined word and work our way backwards through the table, towards the first-defined word.  [[-exist]] asserts that our desired word doesn't exist.  However, if we discover the word, we return its execution token (table row index) in [[-match]].  Note that we require some address arithmetic, which is factored into [[rows]].  Anyone porting this software to a different architecture must adjust [[rows]] for his/her machine.</p>
 
@@ -225,6 +232,8 @@ variable >visible
 : name          cells dup n@ swap l@ ;
 : definition    cells addresses + @ ;
 : isImmediate?  cells immediacies + @ ;
+<<Target names>>=
+: >body         definition ;
 
 @ Unsmudging a word involves exposing it to the world, which we do by adjusting the fence-post behind which all words are considered defined.</p>
 
@@ -240,6 +249,9 @@ variable >visible
 
 <<Deferred words>>=
 : defer,        token defined revealed 0 ,, ;
+
+<<Target names>>=
+: defer         defer, ;
 
 @ Calling a deferred word incurs only one level of indirection in run-time overhead (1 cycle on the J1 CPU).  Using deferred words, we can actually create vector tables in memory, like so:</p>
 <pre>0 org
@@ -267,6 +279,8 @@ defer   _illegalInstruction
 : +range        dup $4000 u< 0= abort" Address outside of range CPU can execute" ;
 : +address      +even +range ;
 : is,           definition +address 2/ ', definition t! ;
+<<Target names>>=
+: is            is, ;
 
 @ </p>
 <h2>C.5  Colon Compiler</h2>
@@ -293,6 +307,9 @@ defer   _illegalInstruction
 <<Definition of [[:,]]>>=
 : :,            (:) ], ;
 
+<<Target names>>=
+: :             :, ;
+
 @ We bind the new definition name.</p>
 <<Name Definition Logic>>=
 : (:)           token defined ;
@@ -300,14 +317,21 @@ defer   _illegalInstruction
 @ The main compiling loop resembles the Forth outer interpreter in many respects.  It will attempt to compile words forever, until something outside the loop breaks the control flow.</p>
 <<Definition of [[],]]>>=
 : ],            begin token classify execute again ;
+<<Target names>>=
+: ]             ], ;
 
 @ After you've completed the definition, terminating the compiler may be done with the [[;,]] word.</p>
 <<Definition of [[;,]]>>=
 : ;,            [, (;) ;
 
+<<Target names>>=
+: ;             ;, ;
+
 @ This works just the opposite of [[:,]]; we abort from the compiler loop by breaking its return stack frame,</p>
 <<Definition of [[[,]]>>=
 : [,            r> r> drop >r ;  ( break out of the infinite loop set up by ] )
+<<Target names>>=
+: [             [, ;
 
 @ and then tieing up any loose-ends that remain with the word's definition.  In particular, we want to ensure that we compile a return-from-subroutine call, and unsmudge the word's name.</p>
 <<Definition of [[(;)]]>>=
@@ -412,6 +436,8 @@ variable        nn
 @ If necessary, a second instruction to invert the bits of the top of stack is emitted.</p>
 <<Definition of [[invert,]]>>=
 : invert,       $6600 i, ;
+<<Target names>>=
+: invert        invert, ;
 
 
 @ </p>
@@ -469,6 +495,8 @@ variable        nn
 @ Subroutines terminate with the [[EXIT]] primitive.  We could naively compile a return-from-subroutine instruction; however, it won't run as fast.  The J1 instruction set has special support for same-cycle subroutine returns, which the Kestrel exploits to ensure deeply-nested colon definitions consume as little time as possible managing the return stack.  However, not all instructions have this support.  For instance, if we're inside a basic block, and the previous instruction compiled is not a [[call]] or some ALU instruction, then we need to compile an explicit subroutine return instruction.</p>
 <<Definition of [[exit,]]>>=
 : exit,         +bb -call -alu return, ;
+<<Target names>>=
+: exit          exit, ;
 
 @ Return instructions are encoded as no-operation ALU instructions which adjust the return stack properly, and with the subroutine-return bit set.</p>
 <<Definition of [[return,]]>>=
@@ -545,6 +573,8 @@ CONSTANT bufferAddress</pre>
 
 <<Macros>>=
 : create,       (:) there 4 + lit, (;) ;
+<<Target names>>=
+: create        create, ;
 @ </p>
 
 <h3>C.5.5.2  Control Flow</h3>
@@ -554,32 +584,26 @@ CONSTANT bufferAddress</pre>
 
 <<Macros>>=
 : if,           there $2000 p, ;
+<<Target names>>=
+: if            if, ;
 
 @ The [[THEN]] word resolves an outstanding [[IF]]-created lexical block.  It works by patching the branch instruction compiled by [[IF]] to point to the first instruction past the consequent.  As with all program flow instructions, [[THEN]] terminates a basic block, and starts a new one.</p>
 
 <<Macros>>=
 : then,         there 2/ $2000 or swap t! bb off ;
+<<Target names>>=
+: then          then, ;
 
 @ This Machine Forth compiler supports the most basic form of loop &mdash; tail-call-optimized recursion.  A program, knowing how to make a yes-or-no decision, may elect to invoke itself on a subset of its input based on some condition determining whether or not to continue.  This implies that loop bodies need to be separated into their own colon-definitions.  While this seems like a bit of a burden, it's actually a good practice to do anyway, even in systems supporting more Algol-inspired control structures.</p>
 <p>In order to find the address of the current definition, we need to consult the symbol table explicitly.  Recall that the current definition is <i>smudged</i>, meaning its name doesn't appear in the programmer-visible symbol table.  Since Forth builds its program image sequentially, we always know that the currently defined word always appears as the most recent symbol to have been defined.</p>
 <<Macros>>=
 : recurse,      #syms 1- definition call, ;
+<<Target names>>=
+: recurse       recurse, ;
 @ </p>
-
-<h2>C.5.6  ASDFGHJKL</h2>
-
-<h2>C.Z  Miscellaneous</h2>
-@ The Machine Forth compiler was designed to run under the SwiftForth environment.  However, I find its general lack of a word to find a word in the dictionary given an explicit counted string on the stack rather burdensome.  GForth provides this facility through [[sfind]], whose behavior I replicate below.</p>
-
-<<GForth compatibility layer>>=
-: sfind         dup pad c!  pad 1+ swap move  pad find dup 0= if >r count r> then ;
-
-@ Note that if you move this software to GForth, you'll want to remove or otherwise comment the above definition out.</p>
-
-
-
-<<undocumented>>=
-  ( Basic Primitives )
+<h3>C.5.5.3  Machine Primitives</h3>
+<p>The J1 microprocessor provides a 1-to-1 mapping from many Forth primitives to single instructions, many of which executes in a single clock cycle.  Below, I list a number of primitives in no particular order.  Unless otherwise documented, the semantics of these primitives match those of eponymously named ANS Forth words.</p>
+<<Macros>>=
 : drop,         $6103 i, ;
 : +,            $6203 i, ;
 : and,          $6303 i, ;
@@ -587,115 +611,124 @@ CONSTANT bufferAddress</pre>
 : xor,          $6503 i, ;
 : rshift,       $6903 i, ;
 : lshift,       $6D03 i, ;
-: !,            $6123 i, drop, ;
 : nop,          $6000 i, ;
 : dbg,          $6010 i, ;
 : swap,         $6180 i, ;
-: @,            $6C00 i, ;
 : dup,          $6081 i, ;
 : over,         $6181 i, ;
 
-0 [if]  It's really inconvenient to have to constantly type commas after
-        primitives and immediate words.  Therefore, we need a way of
-        conveniently alternating between target-specific and host-specific
-        meanings of various words.  We'll exploit SwiftForth's support for
-        vocabularies to achieve this magic.
-[then]
+<<Target names>>=
+: +             +, ;
+: dup           dup, ;
+: xor           xor, ;
+: over          over, ;
+: drop          drop, ;
+: nop           nop, ;
+: rshift        rshift, ;
+: lshift        lshift, ;
+: and           and, ;
+: or            or, ;
+: swap          swap, ;
 
+@ The J1 provides the programmer with two memory accessors, fetch and store.  Due to how the J1 processor interacts with the Xilinx synchronous RAM in the Kestrel-2 computer, both @ and ! need to take two cycles to complete.  The timing for a store operation follows:</p>
+<table width="100%" border="1px">
+ <thead>
+  <th>Cycle</th>
+  <th>J1</th>
+  <th>RAM</th>
+ </thead>
+ <tr>
+  <td>0</td>
+  <td><i>(something places address in T, data in S)</i></td>
+  <td>When T updates, RAM address bus changes.  Additionally, when S changes, RAM data input pins change.</td>
+ </tr>
+ <tr>
+  <td>1</td>
+  <td><q>Store</q> strobe asserted, while dropping the data stack.</td>
+  <td>RAM latches both data and address information, writing the latched data into the specified address.  Meanwhile, the address is removed from the data stack, thus causing the RAM's address bus pins to change state.  Since the Xilinx RAMs are synchronous, this doesn't cause any problems, for the RAM already captured the original address and data bus states.</td>
+ </tr>
+ <tr>
+  <td>2</td>
+  <td><q>Store</q> strobe negated, while dropping the data stack.</td>
+  <td>This removes the datum stored from the data stack as well.</td>
+ </tr>
+</table>
+<p>Hence, [[!]] is best implemented as an immediate word which compiles two DROPs, one with its write strobe asserted, as follows:</p>
+<<Macros>>=
+: !,            $6123 i, drop, ;
+<<Target names>>=
+: !             !, ;
+@ Fetching proves slightly more involved.  For starters, its activities occur on opposite clock cycles:</p>
+<table width="100%" border="1px">
+ <thead>
+  <th>Cycle</th>
+  <th>J1</th>
+  <th>RAM</th>
+ </thead>
+ <tr>
+  <td>0</td>
+  <td><i>(something places address in T)</i></td>
+  <td>When T updates, RAM address bus changes.</td>
+ </tr>
+ <tr>
+  <td>1</td>
+  <td>No operation.</td>
+  <td>RAM data outputs become valid during this cycle.</td>
+ </tr>
+ <tr>
+  <td>2</td>
+  <td><q>Fetch</q> latches data into T.</td>
+  <td>RAM address changes because T changes; however, since the RAMs are synchronous, data remains valid until the following cycle.</td>
+ </tr>
+</table>
+<p>Hence, to properly implement [[@]] for the J1, you need to wait a cycle before latching the data.  This can be achieved using a <i>non-immediate</i> word, like so:</p>
+<pre>: @  @, ;</pre>
+<p>The [[CALL]] to [[@]] will delay the extra cycle needed for the synchronous RAMs to present valid data on the bus.  The [[@, ;]] sequence will latch the data and resume operation in a single cycle.  Thus, [[CALL @]] will consume exactly two cycles, just what we need to ensure proper RAM timing.</p>
+<<Macros>>=
+: @,            $6C00 i, ;
+@ </p>
+
+<h2>C.6  Vocabulary Selection</h2>
+@ It's really inconvenient to have to constantly type commas after primitives and immediate words.  Therefore, we need a way of conveniently alternating between target-specific and host-specific meanings of various words.  We'll exploit vocabularies to achieve this magic.</p>
+<<[[TARGET]] and [[HOST]]>>=
 only forth definitions
 vocabulary target-primitives
 
 : target        only forth also target-primitives ;
 : host          only forth ;
 
+@ When the programmer desires to work with the host-defined Forth semantics, he invokes [[HOST]].  When compiling software for the target, [[TARGET]] is used.  For example,</p>
+<pre>
+HOST
+: foo   ." Hello world!" cr ;
+TARGET
+: foo   ." foo was called" cr ;
+: bar   foo ;
+HOST
+: bar   foo ;
+bar  <b>Hello world!</b>
+ok
+_</pre>
+<p>For this to work, the target-specific vocabulary needs separate definitions for the commonly used Forth primitives and macros.  Many of these primitives have already been defined earlier in this document.</p>
+<<[[TARGET]] and [[HOST]]>>=
 also target-primitives definitions previous
+<<Target names>>
 
-0 [if]  NOTE:
-        Due to how the J1 processor interacts with synchronous RAM,
-        both @ and ! need to take two cycles to complete.  The timing
-        for fetch is as follows:
+@ Some of the <q>primitives</q> are macros, though.</p>
 
-                J1                          RAM
-                -------------------------   ----------------------
-        T0:     (something places           When T updates, RAM address
-                address in T)               changes.
-
-        T1:     no-operation                RAM data outputs become valid
-
-        T2:     "Fetch" latches data into   RAM address changes because T
-                T.                          changes.
-
-        Hence, to properly implement @ for the J1, you need to wait a cycle
-        before latching the data.  This can be achieved using a non-immediate
-        word, like so:
-
-        : @  @, ;
-
-        The CALL to @ will delay the extra cycle needed for the synchronous
-        RAMs to present valid data on the bus.  The @, ; sequence will latch
-        the data and resume operation in a single cycle.  Thus, CALL @ will
-        consume exactly two cycles.
-
-        Stores work similarly, but their timing is on opposite clocks:
-
-                J1                          RAM
-                -------------------------   ----------------------
-        T0:     (something places address   When T updates, RAM address
-                in T, data in S)            changes.  Likewise, when S
-                                            changes, data input pins change.
-
-        T1:     "Store" strobe asserted.    RAM latches data and writes it
-                                            to the specified address
-
-        T2:     2DROP or its equivalent
-                is executed to dispose of
-                the stack frame.
-
-        Hence, ! is best implemented as an immediate word which compiles
-        two DROPs as follows:
-
-        : !  postpone drop_w  postpone drop ; immediate
-
-        where drop_w is a primitive which combines DROP with the write
-        strobe.  In doing this, we take two cycles to write a word to
-        RAM.  Note that RAM doesn't actully update until time T2!
-[then]
-
-: defer         defer, ;
-: :             :, ;
-: +             +, ;
-: ;             ;, ;
-: dup           dup, ;
-: xor           xor, ;
-: over          over, ;
-: !             !, ;
-: if            if, ;
-: recurse       recurse, ;
-: exit          exit, ;
-: then          then, ;
-: drop          drop, ;
-: '             ', ;
-: is            is, ;
-: [             [, ;
-: ]             ], ;
-: >body         definition ;
-: invert        invert, ;
-: ,             ,, ;
-: nop           nop, ;
-: create        create, ;
-: rshift        rshift, ;
-: lshift        lshift, ;
-: 2drop         drop, drop, ;
-: and           and, ;
-: or            or, ;
-: xor           xor, ;
-: swap          swap, ;
-: ,             ,, ;
+<<[[TARGET]] and [[HOST]]>>=
 : 2dup          over, over, ;
-: allot         tallot ;
+: 2drop         drop, drop, ;
 : variable      create, 0 ,, ;
 : 2*            1 lshift ;
 : 2/            1 rshift ;
+@ </p>
 
-host definitions
+<h2>C.7  Miscellaneous</h2>
+@ The Machine Forth compiler was designed to run under the SwiftForth environment.  However, I find its general lack of a word to find a word in the dictionary given an explicit counted string on the stack rather burdensome.  GForth provides this facility through [[sfind]], whose behavior I replicate below.</p>
+
+<<GForth compatibility layer>>=
+: sfind         dup pad c!  pad 1+ swap move  pad find dup 0= if >r count r> then ;
+
+@ Note that if you move this software to GForth, you'll want to remove or otherwise comment the above definition out.</p>
 
