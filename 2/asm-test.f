@@ -1,7 +1,6 @@
 warning off
 marker ==end==
-\ include asm.f
-  include asm2.f
+include asm.f
 
 ( Target Image Memory and its Accessors )
 
