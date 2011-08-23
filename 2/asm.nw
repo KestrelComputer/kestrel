@@ -9,6 +9,7 @@
 <<Symbol Table>>
 <<Deferred words>>
 <<Colon Compiler>>
+<<Macros>>
 <<undocumented>>
 @ </p>
 
@@ -529,7 +530,43 @@ variable bb ( true if inside a basic block )
 
 
 @ </p>
-<h2>C.5.5  ASDFGHJKL</h2>
+<h2>C.5.5  Macros</h2>
+
+Once the colon compiler and support for literals work, much of what one thinks of as <q>Forth</q> ends up simply as <i>macros</i> defined in terms of these primitives.  We only think of these resources as primitives because they often ship out of the box with most Forth environments, in some capacity or another.
+
+<h3>C.5.5.1  Buffers</h3>
+
+@ Often, one wants to instantiate a statically-initialized or dynamically managed buffer in the Forth dictionary.  The simplest method involves allocating a chunk of dictionary space, then assigning its starting address to a constant somehow, kind of like this:</p>
+<pre>HERE
+   /buffer ALLOT
+CONSTANT bufferAddress</pre>
+<p>While this technique works, it's verbose and incapable of supporting so-called defining words.  However, for our target compiler, it will work nicely, since its static output isn't able to support defining words anyway.</p>
+<p>Addressing the verbosity issue, we create a new word [[CREATE]], which encapsulates the above process nicely.  First, we create a new colon definition with whatever name the programmer chooses.  Then, we compile a numeric literal, specifically the address immediately <i>following</i> the full definition.  Then, we terminate the definition, for all we want is the address.  When we're finished, [[there]] will point right after the definition, where the programmer can either allot or place in static literals using [[,]].</p>
+
+<<Macros>>=
+: create,       (:) there 4 + lit, (;) ;
+@ </p>
+
+<h3>C.5.5.2  Control Flow</h3>
+<p>A computer which couldn't react to its environment wouldn't be very interesting.  Sometimes, things go wrong which the computer needs to detect.  Other times, a program will need to react to some user input.  Still other times, a program will need to determine if a certain probability has been met.  Each of these cases requires some means of distinguishing between some yes/no situation.  The Machine Forth compiler uses the [[IF]] statement to make these determinations.</p>
+
+<p>The [[IF]] word opens a lexical block, and thus separates two basic blocks in the compiled output.  Since we want the processor to skip over code comprising the consequent, we compile a <i>branch if zero</i> instruction.  However, since we don't yet know where this instruction will point, for we don't yet know how long the consequent will be, we'll preserve the address of the branch instruction on the compiler's data stack.</p>
+
+<<Macros>>=
+: if,           there $2000 p, ;
+
+@ The [[THEN]] word resolves an outstanding [[IF]]-created lexical block.  It works by patching the branch instruction compiled by [[IF]] to point to the first instruction past the consequent.  As with all program flow instructions, [[THEN]] terminates a basic block, and starts a new one.</p>
+
+<<Macros>>=
+: then,         there 2/ $2000 or swap t! bb off ;
+
+@ This Machine Forth compiler supports the most basic form of loop &mdash; tail-call-optimized recursion.  A program, knowing how to make a yes-or-no decision, may elect to invoke itself on a subset of its input based on some condition determining whether or not to continue.  This implies that loop bodies need to be separated into their own colon-definitions.  While this seems like a bit of a burden, it's actually a good practice to do anyway, even in systems supporting more Algol-inspired control structures.</p>
+<p>In order to find the address of the current definition, we need to consult the symbol table explicitly.  Recall that the current definition is <i>smudged</i>, meaning its name doesn't appear in the programmer-visible symbol table.  Since Forth builds its program image sequentially, we always know that the currently defined word always appears as the most recent symbol to have been defined.</p>
+<<Macros>>=
+: recurse,      #syms 1- definition call, ;
+@ </p>
+
+<h2>C.5.6  ASDFGHJKL</h2>
 
 <h2>C.Z  Miscellaneous</h2>
 @ The Machine Forth compiler was designed to run under the SwiftForth environment.  However, I find its general lack of a word to find a word in the dictionary given an explicit counted string on the stack rather burdensome.  GForth provides this facility through [[sfind]], whose behavior I replicate below.</p>
@@ -542,19 +579,6 @@ variable bb ( true if inside a basic block )
 
 
 <<undocumented>>=
-0 [if]  Once we have the ability to populate vectors, we need to point
-        those vectors somewhere.  Thus, the colon compiler, which lets
-        us define new Forth procedures to be executed in the target
-        environment.
-[then]
-
-: create,       (:) there 4 + lit, (;) ;
-
-  ( Control Flow )
-: if,           there $2000 p, ;
-: then,         there 2/ $2000 or swap t! bb off ;
-: recurse,      #syms 1- definition call, ;
-
   ( Basic Primitives )
 : drop,         $6103 i, ;
 : +,            $6203 i, ;
