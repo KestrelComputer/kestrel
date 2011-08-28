@@ -1,8 +1,25 @@
-<h1>B.  Kestrel-2 ROM Image</h1>
+<div class="blogArticleTitle">
+ Preen Release 1A: a Kestrel-2 Monitor
+</div>
+<div class="blogArticleTimestampAuthor">
+ <div class="blogArticleAuthor">Samuel A. Falvo II<br>kc5tja -at- arrl.net</div>
+ <div class="blogArticleTimestamp">2011 Aug 27 17:34 PDT</div>
+</div>
+<div class="blogArticleLead">
+ <p>
+  Bringing up a new computer from scratch poses a chicken-and-egg problem.  When the system software under development unexpectedly fails, no extant means exists to determine hardware or software culpability.  A reference program written to run under both an emulator and physical hardware can help isolate causes of failure.  Software which fails on physical hardware but not in an emulated environment justifies further investment in debugging the hardware.
+ </p>
+ <p>
+  Ideally, the reference program should exercise, at a minimum, all peripherals required to support an interactive user experience.  A personal computer without a user interface serves no useful purpose.  A simple monitor program provides a means to exercise a video display output, keyboard input, and some more esoteric properties of the host CPU.  Further, a monitor may provide a useful debugging aid for diagnosing problems when higher-level software or hardware components fail.
+ </p>
+</div>
+
+<h1>1.  Introduction</h1>
+@ Preen provides the Kestrel-2 with a simple monitor application.  Intended to provide the user with an interactive interface with which to affect and inspect memory and to invoke machine-language programs, it serves as an ideal program with which to validate the absolute minimum level of hardware capability.  If a computer can't even run a monitor for its own architecture, then no hope exists for tasking it with more sophisticated applications.</p>
 
 @ The top-level layout of the image file follows:</p>
 
-<<img.f>>=
+<<preen.f>>=
 <<Load target development>>
 <<Origin directive>>
 <<Reset vector>>
@@ -15,7 +32,7 @@
 @
 <h2>B.1  Using the Target Assembler</h2>
 
-@ Each ROM image source file is a regular Forth script.  We start Forth using something like <q>gforth [[img.f]]</q>, and rely on the implementation of [[img.f]] to do the right thing.  Since we're going to be assembling code for the target processor, we need to load the assembler into the host's dictionary.</p>
+@ Each ROM image source file is a regular Forth script.  We start Forth using something like <q>gforth [[preen.f]]</q>, and rely on the implementation of [[preen.f]] to do the right thing.  Since we're going to be assembling code for the target processor, we need to load the assembler into the host's dictionary.</p>
 
 <<Load target development>>=
 include asm.f

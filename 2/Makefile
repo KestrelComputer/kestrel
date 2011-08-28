@@ -13,8 +13,8 @@ ks.c: ks.nw
 ks: ks.o
 	gcc -o $@ $< ${LDFLAGS}
 
-img.f: img.nw
-	notangle -Rimg.f img.nw >img.f
+preen.f: preen.nw
+	notangle -Rpreen.f preen.nw >preen.f
 
 asm.f: asm.nw
 	notangle -Rasm.f asm.nw >asm.f
@@ -22,12 +22,12 @@ asm.f: asm.nw
 ks.html: ks.nw
 	noweave -html -index ks.nw >ks.html
 
-img.html: img.nw
-	noweave -html -index img.nw >img.html
+preen.html: preen.nw
+	noweave -html -index preen.nw >preen.html
 
 asm.html: asm.nw
 	noweave -html -index asm.nw >asm.html
 
 clean:
-	rm -f asm.f asm.html img.f img.html ks ks.c ks.html ks.o romfile
+	rm -f asm.f asm.html preen.f preen.html ks ks.c ks.html ks.o romfile
 
