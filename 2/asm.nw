@@ -297,6 +297,7 @@ defer   _illegalInstruction
 <h2>C.5.1  Main Loop</h2>
 
 <<Compiler Loop Control>>=
+<<Definition of [[?refill]]>>
 <<Definition of [[],]]>>
 <<Definition of [[:,]]>>
 <<Definition of [[[,]]>>
@@ -316,9 +317,16 @@ defer   _illegalInstruction
 
 @ The main compiling loop resembles the Forth outer interpreter in many respects.  It will attempt to compile words forever, until something outside the loop breaks the control flow.</p>
 <<Definition of [[],]]>>=
-: ],            begin token classify execute again ;
+: ],            begin ?refill token classify execute again ;
 <<Target names>>=
 : ]             ], ;
+
+@ Without [[?refill]], we couldn't handle multi-line definitions.  We wish to invoke [[REFILL]] when we reach the end of the current input buffer, which causes Forth to read in the next chunk of source input.</p>
+
+<<Definition of [[?refill]]>>=
+: +eotib        >in @ source nip < if r> drop then ;
+: +successful   0= abort" Unexpected end of input" ;
+: ?refill       +eotib refill +successful ;
 
 @ After you've completed the definition, terminating the compiler may be done with the [[;,]] word.</p>
 <<Definition of [[;,]]>>=
@@ -616,6 +624,9 @@ CONSTANT bufferAddress</pre>
 : swap,         $6180 i, ;
 : dup,          $6081 i, ;
 : over,         $6181 i, ;
+: nip,          swap, drop, ;
+: >r,           $6143 i, ;
+: r>,           $6B01 i, ;
 
 <<Target names>>=
 : +             +, ;
@@ -629,6 +640,9 @@ CONSTANT bufferAddress</pre>
 : and           and, ;
 : or            or, ;
 : swap          swap, ;
+: nip           nip, ;
+: >r            >r, ;
+: r>            r>, ;
 
 @ The J1 provides the programmer with two memory accessors, fetch and store.  Due to how the J1 processor interacts with the Xilinx synchronous RAM in the Kestrel-2 computer, both @ and ! need to take two cycles to complete.  The timing for a store operation follows:</p>
 <table width="100%" border="1px">
