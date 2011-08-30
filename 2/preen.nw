@@ -36,7 +36,7 @@ The J1 processor begins its execution at address zero in its memory map.  Since 
 defer _main
 @ %def _main
 <<Patch reset vector>>=
-' main is _main
+' breakpoint is _main
 @
 
 Once everything's been assembled, we create the ROM file on the host computer, and terminate the Forth session.</p>
@@ -59,7 +59,8 @@ In summary, the top-level layout of the program follows:</p>
 <<Reset vector>>
 <<Primitives>>
 
-<<Monitor state>>
+<<System software state>>
+<<Screen Editor>>
 <<Breakpoint handler>>
 
 <<Text Display Facility>>
@@ -73,7 +74,7 @@ In summary, the top-level layout of the program follows:</p>
 
 @ A breakpoint behaves like a software-defined interrupt.  The application containing a breakpoint instruction <i>trusts</i> the processor state will remain unaltered before and afterwards.  (Of course, the user has the option of altering the state of the running program.)  In order to display the machine state to the user, it must be preserved in memory somewhere, so we'll need some storage space.</p>
 
-<<Monitor state>>=
+<<System software state>>=
 : dstack        $4000 ;
 : rstack        dstack 64 + ;
 @ %def dstack rstack
@@ -145,6 +146,34 @@ Once both the data and return stacks have been committed to memory, the entire s
 <h1>30  Displaying the Program State</h1>
 
 @ Before the user can interact with the debugger, the user needs to see what the program's state is.</p>
+
+<h1>40  Screen Editor Interface</h1>
+
+@ We implement the text cursor by reversing the video of a given character glyph in the bitmap.  At present, we hard-code the cursor location to the upper, left-hand corner of the screen, corresponding to address [[$8000]] in the memory map.</p>
+
+<<Screen Editor>>=
+: b             dup dup c@ invert swap c! 80 + ;
+: blink         $8000 b b b b b b b b drop ;
+@
+
+The processor will run at 12.5MHz more or less, so if we want the cursor to blink with period of a quarter second, we need to wait close to three million cycles between each blink state change.  A typical delay loop looks like this:
+
+<<Screen Editor>>=
+: wait1         1 + dup if recurse exit then ;
+@
+
+If we pass zero as a parameter to [[wait1]], it will stall for 65536 complete loop iterations.  Each iteration consumes 5&times;65536+6 or 327 686 machine cycles.  To get close to three million cycles to elapse, we need to invoke [[0 wait1 drop]] approximately 3 000 000&div;327 686, or just about 9 times.</p>
+
+<<Screen Editor>>=
+: wait0         0 wait1 drop  $FFFF + dup if recurse exit then ;
+: wait          9 wait0 drop ;
+@
+
+This is a temporary definition for [[ui]].  Eventually, we want this to be the main loop for the monitor.</p>
+
+<<Screen Editor>>=
+: ui            blink wait blink wait recurse ;
+@ </p>
 
 <h1>100  Memory Access Primitives</h1>
 @ Until now, we haven't addressed some of the more fundamental aspects of the J1 as it works with the Kestrel-2 hardware.  We start with the fetch operator, where we rely on software to extend the operation to two instruction cycles.  This provides the block RAMs on the Xilinx FPGA I'm using enough time to set up their address bus and deliver the data.  The J1, implementing an essentially asynchronous memory bus architecture, would work great as-is if we were talking to, say, a 62256 static RAM chip.  In this case, as soon as the address bus changes, the 62256 would take, say, 100ns to update its data bus.  Provided the J1 were clocked with a period at least as long as 100ns, the J1 could realize single-cycle read performance.  However, the RAMs used in the FPGA are <i>synchronous</i> RAMs, and are clocked off the processor clock for simplicity.  Therefore, as soon as the address bus changes, we need to wait at least one cycle for the block RAMs to catch up.</p>
