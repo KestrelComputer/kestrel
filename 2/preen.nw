@@ -169,7 +169,7 @@ We implement the text cursor by reversing the video of a given character glyph i
 : blink         address b b b b b b b b drop ;
 @
 
-The Kestrel-2 runs its J1 processor at 12.5MHz more or less, so if we want the cursor to blink with period of a quarter second, we need to wait close to (12.5&div;4)=3.125 million cycles between each blink state change.  Since a typical delay loop looks like this,</p>
+The Kestrel-2 runs its J1 processor at 12.5MHz more or less, so if we want the cursor to blink with a period of a quarter second, we need to wait close to (12.5&div;4)=3.125 million cycles between each blink state change.  Since a typical delay loop looks like this,</p>
 
 <<Screen Editor>>=
 : wait1         1 + dup if recurse exit then ;
