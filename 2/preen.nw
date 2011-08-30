@@ -149,20 +149,33 @@ Once both the data and return stacks have been committed to memory, the entire s
 
 <h1>40  Screen Editor Interface</h1>
 
-@ We implement the text cursor by reversing the video of a given character glyph in the bitmap.  At present, we hard-code the cursor location to the upper, left-hand corner of the screen, corresponding to address [[$8000]] in the memory map.</p>
+@ The text cursor resides somewhere on the character matrix.  These variables record where.  Note that many address calculations depend on the values of [[x]] and [[y]], so we require the invariants 0&le;[[x]]&lt;80 &and; 0&le;[[y]]&lt;25, lest some part of the screen editor ends up corrupting memory.</p>
+
+<<Screen Editor>>=
+variable x
+variable y
+@
+
+We calculate the bitmap address of the glyph under the cursor by considering the cursor's current values.</p>
+
+<<Screen Editor>>=
+: address       y @ 640* x @ + $8000 + ;
+@
+
+We implement the text cursor by reversing the video of a given character glyph in the bitmap.</p>
 
 <<Screen Editor>>=
 : b             dup dup c@ invert swap c! 80 + ;
-: blink         $8000 b b b b b b b b drop ;
+: blink         address b b b b b b b b drop ;
 @
 
-The processor will run at 12.5MHz more or less, so if we want the cursor to blink with period of a quarter second, we need to wait close to three million cycles between each blink state change.  A typical delay loop looks like this:
+The Kestrel-2 runs its J1 processor at 12.5MHz more or less, so if we want the cursor to blink with period of a quarter second, we need to wait close to (12.5&div;4)=3.125 million cycles between each blink state change.  Since a typical delay loop looks like this,</p>
 
 <<Screen Editor>>=
 : wait1         1 + dup if recurse exit then ;
 @
 
-If we pass zero as a parameter to [[wait1]], it will stall for 65536 complete loop iterations.  Each iteration consumes 5&times;65536+6 or 327 686 machine cycles.  To get close to three million cycles to elapse, we need to invoke [[0 wait1 drop]] approximately 3 000 000&div;327 686, or just about 9 times.</p>
+we know each loop iteration takes five cycles to complete, except for the last which takes six.  If we pass zero as a parameter to [[wait1]], it will stall for 65536 complete loop iterations, or 5&times;65535+6=327 681 machine cycles.  Getting close to our desired blink rate requires we invoke such a loop 3 125 000&div;327 681=9 (approx.) times.</p>
 
 <<Screen Editor>>=
 : wait0         0 wait1 drop  $FFFF + dup if recurse exit then ;
