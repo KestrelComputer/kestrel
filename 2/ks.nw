@@ -388,7 +388,7 @@ Vn(walk) { kk->_nip = kk->nip+1; }
 <<Literal instruction>>=
 Vn(literal) { kk->ds[kk->dsp] = kk->t; kk->_t = n; kk->_dsp = 31&(kk->dsp+1); walk(kk,n); }
 
-@ Unlike most other CPUs which have discrete opcodes for discrete operations, J1 relies on horizontal micro-encoding for its ALU instruction.  It comprises several fields, all of which are documented in the official J1 paper.</p>
+@ Unlike most other CPUs which have discrete opcodes for discrete operations, J1 relies on horizontal micro-encoding for its ALU instruction.  It comprises several fields, all of which are documented in the official J1 paper.  Note that the order of operations is vitally important; however, I don't actually know <i>why</i>.</p>
 
 <<ALU instruction>>=
 <<T-field choices>>
@@ -398,6 +398,7 @@ Vn(alu) {
     kk->_t = aluOp[(n&0x0F00)>>8](kk);
     kk->d_we_o = (n&0x0020) != 0;
     kk->dbg^=n&0x0010;
+    if(n&0x0040) kk->rs[kk->_rsp] = kk->t;
     switch((n&0x000C)>>2) {
         case 0: break;
         case 1: kk->_rsp = (kk->rsp+1); break;
@@ -411,7 +412,6 @@ Vn(alu) {
         case 3: kk->_dsp = (kk->dsp-1); break;
     }
     if(n&0x0080) kk->ds[kk->_dsp-1] = kk->t;
-    if(n&0x0040) kk->rs[kk->_rsp] = kk->t;
 }
 
 @ If you study the stack layouts of the Forth words [[!]] and [[@]], you'll find that the RAM address always appears in [[T]], and if needed, the data to work with appears in [[N]].  Thus, the J1 passively couples [[T]] and [[N]] to the [[D_ADR_O]] and [[D_DAT_O]] pins, respectively.  We simulate this behavior here.  (The name, [[all]], comes from the fact that this behavior applies to all CPU instructions, including illegal forms.)</p>
