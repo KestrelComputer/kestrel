@@ -1,5 +1,5 @@
-CFLAGS=`sdl-config --cflags`
-LDFLAGS=`sdl-config --libs`
+CFLAGS=`sdl-config --cflags` -g
+LDFLAGS=`sdl-config --libs` -g
 
 help:
 	cat Makefile | grep :
