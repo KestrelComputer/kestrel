@@ -1,11 +1,16 @@
 CFLAGS=`sdl-config --cflags` -g
 LDFLAGS=`sdl-config --libs` -g
-
-help:
-	cat Makefile | grep :
+FORTH=sf
 
 .c.o:
 	gcc ${CFLAGS} -O4 -fomit-frame-pointer -c -o $@ $<
+
+all: ks asm.f romfile
+
+docs: ks.html preen.html asm.html
+
+help:
+	cat Makefile | grep :
 
 ks.c: ks.nw
 	notangle -Rks.c ks.nw >ks.c
@@ -27,6 +32,9 @@ preen.html: preen.nw
 
 asm.html: asm.nw
 	noweave -html -index asm.nw >asm.html
+
+romfile: preen.f
+	${FORTH} preen.f
 
 clean:
 	rm -f asm.f asm.html preen.f preen.html ks ks.c ks.html ks.o romfile
