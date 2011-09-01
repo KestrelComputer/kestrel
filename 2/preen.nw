@@ -185,8 +185,19 @@ we know each loop iteration takes five cycles to complete, except for the last w
 This is a temporary definition for [[ui]].  Eventually, we want this to be the main loop for the monitor.</p>
 
 <<Screen Editor>>=
+variable blst
+: blink         blink  blst @ $FFFF xor blst ! ;
+: coff          blst @ if blink then ;
+
+\ This blink event handler obsoletes wait, wait0, and wait1 above.
+variable blct
+: blinker       1 blct @ + dup 49152 xor if blct ! exit then drop blink 0 blct ! ;
+
+variable kbprct
 : +!            2dup @ + swap ! drop ;
-: ui            blink wait blink wait 1 x +! recurse ;
+: keyboard      $FFFA @ dup kbprct @ xor if kbprct ! coff 1 x +! blink exit then drop ;
+
+: ui            blinker keyboard recurse ;
 @ </p>
 
 <h1>100  Memory Access Primitives</h1>
