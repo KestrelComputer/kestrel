@@ -5,7 +5,7 @@ FORTH=sf
 .c.o:
 	gcc ${CFLAGS} -O4 -fomit-frame-pointer -c -o $@ $<
 
-all: ks asm.f romfile
+all: ks romfile
 
 docs: ks.html preen.html asm.html
 
@@ -33,7 +33,7 @@ preen.html: preen.nw
 asm.html: asm.nw
 	noweave -html -index asm.nw >asm.html
 
-romfile: preen.f
+romfile: asm.f preen.f
 	${FORTH} preen.f
 
 clean:
