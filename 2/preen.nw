@@ -185,7 +185,8 @@ we know each loop iteration takes five cycles to complete, except for the last w
 This is a temporary definition for [[ui]].  Eventually, we want this to be the main loop for the monitor.</p>
 
 <<Screen Editor>>=
-: ui            blink wait blink wait recurse ;
+: +!            2dup @ + swap ! drop ;
+: ui            blink wait blink wait 1 x +! recurse ;
 @ </p>
 
 <h1>100  Memory Access Primitives</h1>
