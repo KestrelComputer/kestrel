@@ -625,8 +625,9 @@ CONSTANT bufferAddress</pre>
 : dup,          $6081 i, ;
 : over,         $6181 i, ;
 : nip,          swap, drop, ;
-: >r,           $6143 i, ;
-: r>,           $6B01 i, ;
+: >r,           $6147 i, ;
+: r>,           $6B8D i, ;
+: r@,           $6B81 i, ;
 
 <<Target names>>=
 : +             +, ;
@@ -643,6 +644,7 @@ CONSTANT bufferAddress</pre>
 : nip           nip, ;
 : >r            >r, ;
 : r>            r>, ;
+: r@            r@, ;
 
 @ The J1 provides the programmer with two memory accessors, fetch and store.  Due to how the J1 processor interacts with the Xilinx synchronous RAM in the Kestrel-2 computer, both @ and ! need to take two cycles to complete.  The timing for a store operation follows:</p>
 <table width="100%" border="1px">
