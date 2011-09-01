@@ -108,10 +108,10 @@ Now that we have some play in the two stacks, we can rely on higher-level defini
 : ds!       7c 7c 7c 7c drop ;
 @ %def ds!
 
-Committing the data stack to memory frees up the data stack &mdash; the monitor may now utilize all 32 cells if it wishes.  We still need to preserve the return stack, however.  We need a somewhat different strategy for the return stack, because invoking [[rs!]] itself uses the return stack.</p>
+Committing the data stack to memory frees up the data stack &mdash; the monitor may now utilize all 32 cells if it wishes.  We still need to preserve the return stack, however.  We need a somewhat different strategy for the return stack, because invoking [[rs!]] itself uses the return stack.  Since [[>r]] is pushing a value onto the R-stack, we cannot invoke [[>r ;]] without crashing.  The [[;]] would try to pop from the R-stack at the same time as [[>r]] is pushing, corrupting the R-stack in the process.  We nullify tail-call optimization using [[nop, ;]]</p>
 
 <<rs!>>=
-: rs!       r> swap <<write 28 cells>> drop >r ;
+: rs!       r> swap <<write 28 cells>> drop >r nop, ;
 @ %def rs!
 
 Regrettably, we cannot rely on subroutine calls while we're manipulating the return stack, so we need to inline 28 cell stores directly.</p>
