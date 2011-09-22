@@ -326,7 +326,7 @@ switch(kk->d_adr_o){
 case KB:    kk->d_dat_i=(kqvalid(kk))<<15|(kqfull(kk))<<14|(kqtop(kk))|0x0300; break;
 
 <<Current Head of Keyboard Queue>>=
-nV(kqtop) { return (L)(kk->kqq[kk->kqtail]);}
+nV(kqtop) { return _UL(kk->kqq[kk->kqtail]);}
 
 @ To pop the queue, the programmer needs to write a value into the keyboard register.  The emulator completely ignores this value.  However, two bits are defined for use with hardware implementations of the Kestrel-2.  The written form of the register contains the following fields:</p>
 
@@ -356,7 +356,7 @@ switch(kk->d_adr_o){
 
 <<Querying Keyboard for Data Availability>>=
 nV(kqvalid) {
-    return (L)(kk->kqhead != kk->kqtail);
+    return _UL(kk->kqhead != kk->kqtail);
 }
 
 <<Keyboard I/O State>>=
@@ -366,7 +366,7 @@ int kqhead, kqtail;
 
 <<Querying Keyboard for Full Queue>>=
 nV(kqfull) {
-    return (L)(kk->kqhead == ((kk->kqtail-1)&(KQSIZE-1)));
+    return _UL(kk->kqhead == ((kk->kqtail-1)&(KQSIZE-1)));
 }
 
 @ We also talked about popping the keyboard queue by writing some value into the keyboard I/O port.  Basically, if the queue has at least one byte in it, we simply bump the tail pointer of the queue.</p>
