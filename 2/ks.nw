@@ -4,10 +4,11 @@
 <<General C Headers>>
 <<SDL Headers>>
 <<Convenience type definitions>>
-<<Kestrel Machine State>>
 <<System Constants>>
+<<Kestrel Machine State>>
 <<Handy Macros>>
 <<Debug report generation>>
+<<Keyboard Emulation>>
 <<Main procedure>>
 
 @ I include [[stdio.h]] to include file and console I/O facilities.</p>
@@ -78,11 +79,11 @@ B       stop_emulation;
 <<Simulator state>>=
 L       dbg;
 
-@ The Kestrel-2 doesn't utilize a lot of I/O resources.  Its keyboard interface appears at address [[$FFF8]] in its memory space, which means word address [[$7FFC]] in the word-addressed world.  At present, no I/O registers exist for controlling the video display; it runs fully autonomously.  However, the bitmap it refreshes the screen with appears at address [[$8000]] to a program ([[$4000]] as a word-address).</p>
+@ The Kestrel-2 doesn't utilize a lot of I/O resources.  Its keyboard interface appears at address [[$FFFE]] in its memory space, which means word address [[$7FFF]] in the word-addressed world.  At present, no I/O registers exist for controlling the video display; it runs fully autonomously.  However, the bitmap it refreshes the screen with appears at address [[$8000]] to a program ([[$4000]] as a word-address).</p>
 
 <<System Constants>>=
-const int VB=0x4000;    /* Video base address */
-const int KB=0x7FFC;    /* Keyboard I/O registers */
+#define VB 0x4000       /* Video base address */
+#define KB 0x7FFF       /* Keyboard I/O register */
 
 @ When I set out to write the simulator, I experimented with a very, very terse form of programming I'd first seen in the J Programming Language community.  Overall, I think it works well.  I found I was able to complete large portions of the program quite quickly and with fewer errors.  Choosing macros carefully suited to the problem you're trying to solve really aids in getting things working quickly.  However, as can be seen below, to the uninitiated, it looks like bogus nonsense.  For example, [[L]] is a data type, while [[_L]] is a macro casting some datum to type [[L]].  Just by looking at the code, without any further explanation, the reader would be completely ignorant of this distinction.</p>
 
@@ -305,29 +306,82 @@ switch(kk->d_adr_o){
     default:        kk->d_dat_i=kk->ram[kk->d_adr_o];
 }
 
-@ At present, all I/O registers are inputs; hence, we don't bother with any special logic for handling writes into the J1 address space.  If writes were to become important, here's where you'd add the relevant logic, most likely taking the form of another switch statement.</p>
+@ The keyboard interface consists of a single register located at address [[$FFFE]], giving the host CPU access to the keyboard's make/break code queue.  When reading from the register, the results appear in the following fields:</p>
+<table width="100%" border="1px">
+ <thead>
+  <th>15</th> <th>14</th> <th>13</th> <th>12</th> <th>11</th> <th>10</th> <th>09</th> <th>08</th>
+  <th>07</th> <th>06</th> <th>05</th> <th>04</th> <th>03</th> <th>02</th> <th>01</th> <th>00</th>
+ </thead>
+ <tr>
+  <td>V</td> <td>F</td> <td colspan="4">&nbsp;</td> <td>C</td> <td>D</td>
+  <td colspan="8">MBC</td>
+ </tr>
+</table>
+
+@ The [[V]] bit is set when <i>at least one</i> make/break code exists in the keyboard's input queue.  It will be clear otherwise.  The [[F]] bit will be set when no further bytes can be accepted into the queue (e.g., the queue is <q>full</q>).  The [[C]] and [[D]] bits allow the host CPU to query the state of the PS/2 clock and data lines, respectively.  They'll be set if their corresponding line has a high voltage, or clear otherwise.  Finally, the [[MBC]] field represents the next byte in the queue, if any.</p>
+
+@ Note that reading from the register doesn't pop the queue; rather, it just returns the value at the head of the queue, assuming [[V]] true.</p>
+
+<<Reading from Keyboard I/O>>=
+case KB:    kk->d_dat_i=(kqvalid(kk))<<15|(kqfull(kk))<<14|(kqtop(kk))|0x0300; break;
+
+<<Current Head of Keyboard Queue>>=
+nV(kqtop) { return (L)(kk->kqq[kk->kqtail]);}
+
+@ To pop the queue, the programmer needs to write a value into the keyboard register.  The emulator completely ignores this value.  However, two bits are defined for use with hardware implementations of the Kestrel-2.  The written form of the register contains the following fields:</p>
+
+<table width="100%" border="1px">
+ <thead>
+  <th>15</th> <th>14</th> <th>13</th> <th>12</th> <th>11</th> <th>10</th> <th>09</th> <th>08</th>
+  <th>07</th> <th>06</th> <th>05</th> <th>04</th> <th>03</th> <th>02</th> <th>01</th> <th>00</th>
+ </thead>
+ <tr>
+  <td colspan="6">&nbsp;</td> <td>C</td> <td>D</td>
+  <td colspan="8">&nbsp;</td>
+ </tr>
+</table>
+
+@ The [[C]] and [[D]] bits control <i>drivers</i> for the respective PS/2 port signal.  If the corresponding value is written as a [[1]], the driver is disabled, and the PS/2 line is allowed to float high, assuming nobody else is pulling the line low.  Otherwise, a [[0]] value will activate the driver, pulling the corresponding PS/2 port signal low by force.</p>
 
 <<Writing to memory>>=
 RF(kk->d_we_o);
-kk->ram[kk->d_adr_o] = kk->d_dat_o;
+switch(kk->d_adr_o){
+ case KB: kqpulse(kk); break;
+ default:     kk->ram[kk->d_adr_o] = kk->d_dat_o;
+}
 
-@ Keyboard input registers are located at word address [[$7FFC]] (J1 byte address [[$FFF8]]).</p>
+@ Note: because the emulator ignores the value written to the keyboard register, the [[C]] and [[D]] bits will always be set (e.g., the PS/2 port will always appear idle) when reading from the register.  One could take advantage of this to detect whether they're running under the [[ks]] emulator software.  Don't depend on this, however, for future versions of [[ks]] <i>may</i> emulate the PS/2 port semantics.</p>
 
-<<Reading from Keyboard I/O>>=
-case 0x7FFF:    kk->d_dat_i=(kk->kbqu&0xFFFF0000)>>16; break;
-case 0x7FFE:    kk->d_dat_i=kk->kbqu&0x0000FFFF; break;
-case 0x7FFD:    kk->d_dat_i=kk->kbct; break;
-case 0x7FFC:    kk->d_dat_i=0x0000; break;  /* Unused hardware register at this time. */
+@ The keyboard port exposes a few bits of status information.  First, we need to know if data exists at all in the queue.  When the queue is empty, the head and tail pointers will be equal to each other.  So, as long as they differ, we know at least one byte exists.</p>
 
-@ Every time a PS/2 scancode comes in over the PS/2 port, the [[KBQU]] register (at [[$FFFC]]-[[$FFFF]]) changes.  This register records the last four PS/2 scancode bytes received over the PS/2 port.  The latest byte appears in bits 0..7 ([[$FFFC]]), and the oldest in bits 24..31 ([[$FFFE]]).
-
-<<Keyboard I/O State>>=
-long kbqu;
-
-@ The J1, without any additional hardware, lacks interrupt support.  Therefore, the host OS must <i>poll</i> hardware devices to see if their states have changed.  The keyboard interface, thus, similarly lacks support for interrupts.  The software can detect when a key has been pressed by looking at a counter which records how many bytes have been received thus far.  If the value hasn't changed since the last time it checked, it knows that no new data appears in [[KBQU]].  If it's off by two, it knows that two bytes have arrived since the last time it checked, and can accomodate them as it sees fit.  It's a very simple, very elegant solution, I think.</p>
+<<Querying Keyboard for Data Availability>>=
+nV(kqvalid) {
+    return (L)(kk->kqhead != kk->kqtail);
+}
 
 <<Keyboard I/O State>>=
-int kbct;
+int kqhead, kqtail;
+
+@ Testing to see if the queue is <i>full</i>, however, requires a bit of modulo arithmetic; when the head pointer is immediately behind the tail pointer (e.g., h=t-1, modulo [[KQSIZE]]), we cannot possibly add any more bytes, for doing so violates the invariant that [[kqvalid()]] depends on.</p>
+
+<<Querying Keyboard for Full Queue>>=
+nV(kqfull) {
+    return (L)(kk->kqhead == ((kk->kqtail-1)&(KQSIZE-1)));
+}
+
+@ We also talked about popping the keyboard queue by writing some value into the keyboard I/O port.  Basically, if the queue has at least one byte in it, we simply bump the tail pointer of the queue.</p>
+
+<<Popping the Keyboard Queue>>=
+V(kqpulse) {
+    if(kqvalid(kk)) {
+        kk->kqtail = (kk->kqtail+1)&(KQSIZE-1);
+    }
+}
+
+@ We used logical ANDs to perform our modular arithmetic, so [[KQSIZE]] must always be a power of two in size.  This actually makes things quite convenient for real-world hardware implementation as well.</p>
+
+<<System Constants>>=
+#define KQSIZE      16
 
 @ Periodically, I display the simulated clock frequency on the console.  Every ten million simulated cycles, we look at the wall-clock to see how much time has elapsed, measured in <i>microseconds</i>.  Dividing 10 000 000 by this span of time will yield an estimate of the equivalent processor performance, in <i>megahertz</i>.</p>
 
@@ -467,12 +521,20 @@ V(cpu_latch) {
     if(kk->dbg) dbg(kk);
 }
 
-@ I wanted to properly emulate a PS/2 keyboard in the simulator.  To do this, I needed to map SDL's generic keycodes to PS/2-specific values, and enqueue them in a form that the Kestrel software would understand.</p>
+@ I wanted to properly emulate a PS/2 keyboard in the simulator.</p>
+
+<<Keyboard Emulation>>=
+<<Querying Keyboard for Data Availability>>
+<<Querying Keyboard for Full Queue>>
+<<Popping the Keyboard Queue>>
+<<Queueing an MBC>>
+<<Current Head of Keyboard Queue>>
+
+@ To do this, I needed to map SDL's generic keycodes to PS/2-specific values, and enqueue them in a form that the Kestrel software would understand.</p>
 
 <<Definition of [[keypress]]>>=
 <<SDL keycode discovery table>>
 <<PS/2 keycode lookup table>>
-<<Definition of [[enqu]]>>
 void keypress(int up, SDL_Event *e, K kk) {
     int i,c,ext;
 
@@ -533,14 +595,18 @@ c=kbd2PS2[i];
 ext=2*((c&0xFF00)==0xE000);
 switch(ext+up) {
     case 0:     break;
-    case 1:     enqu(kk, 0xF0); break;
-    case 2:     enqu(kk, 0xE0); break;
-    case 3:     enqu(kk, 0xE0); enqu(kk, 0xF0); break;
+    case 1:     kqenq(kk, 0xF0); break;
+    case 2:     kqenq(kk, 0xE0); break;
+    case 3:     kqenq(kk, 0xE0); kqenq(kk, 0xF0); break;
 }
-enqu(kk, c);
+kqenq(kk, c);
 
-@ Enqueueing the bytes involves updating the keyboard I/O registers and bumping the keyboard scan code counter.</p>
+@ We can't enqueue MBCs if the keyboard queue is full, however.</p>
 
-<<Definition of [[enqu]]>>=
-void enqu(K kk, int c) {kk->kbqu=(kk->kbqu<<8)|(c&0xFF); kk->kbct++;}
+<<Queueing an MBC>>=
+void kqenq(K kk, int c) {if(!kqfull(kk)){kk->kqq[kk->kqhead]=c&0xFF; kk->kqhead=(kk->kqhead+1)&(KQSIZE-1);}}
+
+<<Keyboard I/O State>>=
+unsigned char kqq[KQSIZE];
+@
 
