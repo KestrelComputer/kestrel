@@ -149,6 +149,38 @@ Once both the data and return stacks have been committed to memory, the entire s
 
 <h1>40  Screen Editor Interface</h1>
 
+@ Wouldn't it be great if you could just print a form to the screen, which the user can then fill in or change, with the same level of ease as you would <q>Hello world</q>?  With a typical command-line interface, such as those found in Unix or Windows systems, you cannot accomplish this.  At best, you can print out the data the user is interested in, along with a small menu of commands to manually enter which affects this data.  Three solutions exist to overcome this problem.  You could rely on some kind of library like [[curses]] or [[ncurses]], but this often deleteriously changes the complexity of the program.  You could require the user to type, by hand of course, commands which affect various fields of the data being manipulated, but when doing this frequently, it becomes laborious and error-prone.  Finally, you can rely on a <i>full screen editor</i> to grant the user the power to take previously printed text as future input to a program.  Today's most popular command-line interfaces still assume that the user's interface consists of a line printer terminal, while the full-screen editor described herein takes advantage the 2-D nature of contemporary display devices.</p>
+
+@ If you used an Atari or Commodore 8-bit computer, such as the Atari 400 or the Commodore 64, you actually already used a full-screen editor.  Commodore users might remember the trick of listing a directory with:</p>
+<pre>LOAD<q>$</q>,8
+LIST</pre>
+@ then cursoring to the desired program, and changing the line by typing [[LOAD]] at the left-hand column and [[,8:]] or [[,8,1:]] on the right-hand side of the program's name.  This is a fine example of using one command to produce a kind of menu which, through screen editing, becomes a template to easily select a program for execution, despite no menu code actually existing anywhere in the disk drive or host computer ROM image.  I'm sure Atari users will have similar use-cases.</p>
+
+@ The Kestrel-2 monitor software will rely on a full-screen editor to provide its user interface, for several reasons.  First, its interface primarily takes the shape of a form, with specific fields for data and return stacks, for memory, and for action-oriented controls such as <q>execute.</q>  The user is expected to <q>just change</q> appropriate rows of fields as needed, then pressing [[ENTER]].  As implemented, the only real disadvantage is the user needs to press [[ENTER]] for each row he changes.</p>
+
+@ The monitor's screen editor offers the following capabilities:</p>
+<ol>
+ <li>Move the cursor about the screen</li>
+ <li>Insert or overwrite text on a line</li>
+ <li>Delete text to the left (backspace)</li>
+ <li>Delete text to the right</li>
+ <li>Submit a line for program processing</li>
+</ol>
+
+<h2>40.10  Moving the Cursor</h2>
+
+@ Through the editor interface, the cursor has free range over the screen.  The Kestrel-2 provides a 640&times;200 graphic display, which when broken into 8 pixel by 8 pixel tiles, yields an 80&times;25 display.  When moving the cursor, we want to make sure that its coordinates always remains somewhere on the screen.</p>
+
+<h2>40.20  Inserting and Overwriting Text</h2>
+
+<h2>40.30  Deleting Text to the Left</h2>
+
+<h2>40.40  Deleting Text to the Right</h2>
+
+<h2>40.50  Submitting a Line of Text</h2>
+
+<h2>40.XX  Unsorted/Old/Obsolete Stuff</h2>
+
 @ The text cursor resides somewhere on the character matrix.  These variables record where.  Note that many address calculations depend on the values of [[x]] and [[y]], so we require the invariants 0&le;[[x]]&lt;80 &and; 0&le;[[y]]&lt;25, lest some part of the screen editor ends up corrupting memory.</p>
 
 <<Screen Editor>>=
@@ -195,7 +227,10 @@ variable blct
 
 variable kbprct
 : +!            2dup @ + swap ! drop ;
-: keyboard      $FFFA @ dup kbprct @ xor if kbprct ! coff 1 x +! blink exit then drop ;
+: kbd?          $FFFE @ $8000 and ;
+: ack           $0300 $FFFE ! ;
+: bump          1 x +!  x @ -80 + $8000 and if exit then  0 x !  1 y +! ;
+: keyboard      kbd? if ack coff bump blink exit then ;
 
 : ui            blinker keyboard recurse ;
 @ </p>
