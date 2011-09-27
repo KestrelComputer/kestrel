@@ -369,13 +369,15 @@ defer   _illegalInstruction
 
 @ If the word is a number, such as a literal like [[42]] or a hexadecimal literal like [[$0C]], it should be translated to some canonical form and compiled as a numeric literal.</p>
 <<Definition of [[-number]]>>=
-: -number       0 nn ! 2dup -dec -hex 2drop ;
+: neg?          over c@ [char] - = if -1 xorMask ! 1 /string then ;
+: -number       0 nn ! 0 xorMask !  neg? 2dup -dec -hex 2drop ;
 
 @ </p>
 
 <h2>C.5.3  Numeric Literals</h2>
 @ As I write this document, only decimal and hexadecimal literals work.</p>
 <<Numeric Literal Conversion Logic>>=
+variable xorMask
 <<Definition of [[nn]]>>
 <<Definition of [[invert,]]>>
 <<Definition of [[bits14:0,]]>>
@@ -404,7 +406,7 @@ defer   _illegalInstruction
 @ If a word starts with a character between 0 and 9, heuristically, there's a great chance that it will be a decimal literal.</p>
 <<Definition of [[-dec]]>>=
 : is0-9?        [char] 0 [char] 9 1+ within ;
-: -dec          over c@ is0-9? if declit nn @ ['] lit, 2r> 2drop then ;
+: -dec          over c@ is0-9? if declit nn @ xorMask @ xor ['] lit, 2r> 2drop then ;
 
 @ We need an accumulator variable to hold onto the number we just converted.</p>
 <<Definition of [[nn]]>>=
