@@ -39,3 +39,6 @@ romfile: asm.f preen.f
 clean:
 	rm -f asm.f asm.html preen.f preen.html ks ks.c ks.html ks.o romfile
 
+run: romfile ks
+	./ks
+
