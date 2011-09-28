@@ -633,6 +633,7 @@ CONSTANT bufferAddress</pre>
 
 <<Target names>>=
 : +             +, ;
+: -             invert, +, 1 lit, +, ;
 : dup           dup, ;
 : xor           xor, ;
 : over          over, ;
