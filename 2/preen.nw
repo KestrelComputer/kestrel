@@ -166,10 +166,37 @@ LIST</pre>
  <li>Delete text to the right</li>
  <li>Submit a line for program processing</li>
 </ol>
+@ Correspondingly, the screen editor's layout in memory follows a similar form.</p>
+<<Screen Editor>>=
+<<Screen Editor State>>
+<<Screen Editor Cursor Confinement>>
+<<Screen Editor Cursor Movement>>
+<<Screen Editor Blinky Cursor>>
+@
 
 <h2>40.10  Moving the Cursor</h2>
 
-@ Through the editor interface, the cursor has free range over the screen.  The Kestrel-2 provides a 640&times;200 graphic display, which when broken into 8 pixel by 8 pixel tiles, yields an 80&times;25 display.  When moving the cursor, we want to make sure that its coordinates always remains somewhere on the screen.</p>
+@ Through the editor interface, the cursor has free range over the screen.  The Kestrel-2 provides a 640&times;200 graphic display, which when broken into 8 pixel by 8 pixel tiles, yields an 80&times;25 display.  When moving the cursor, we want to make sure that its coordinates always remains somewhere on the screen.  It should be noted that our screen editor will be more simple than those used in Atari and Commodore computers; because everything fits on one screen, we will not support scrolling the display.</p>
+
+<<Screen Editor State>>=
+variable x
+variable y
+@
+
+Pressing one of the four cursor keys will cause the cursor to move about the screen in the desired direction.  We implement this by updating the [[x]] and [[y]] variables, making sure to confine them to the appropriate bounding rectangle.</p>
+
+<<Screen Editor Cursor Movement>>=
+: up        -1 y +! confine ;
+: down       1 y +! confine ;
+: left      -1 x +! confine ;
+: right      1 x +! confine ;
+@
+
+Confinement ensures the cursor remains on the visible character matrix at all times.</p>
+
+<<Screen Editor Cursor Confinement>>=
+: confine   x @ 0 max 79 min x !   y @ 0 max 24 min y ! ;
+@
 
 <h2>40.20  Inserting and Overwriting Text</h2>
 
@@ -179,63 +206,64 @@ LIST</pre>
 
 <h2>40.50  Submitting a Line of Text</h2>
 
-<h2>40.XX  Unsorted/Old/Obsolete Stuff</h2>
+<h2>40.60  Blinking the Cursor</h2>
 
-@ The text cursor resides somewhere on the character matrix.  These variables record where.  Note that many address calculations depend on the values of [[x]] and [[y]], so we require the invariants 0&le;[[x]]&lt;80 &and; 0&le;[[y]]&lt;25, lest some part of the screen editor ends up corrupting memory.</p>
+@ I have discovered through my own experiences that a text cursor should blink fairly rapidly, and should cover the entire character cell.  Vertical bar cursors, such as those found in most graphical environments, get lost too easily.  Slowly blinking cursors don't seem to have the desired effect of telling me <i>at a glance</i> where my insertion point is.  Static solid block cursors, including those which rely on reverse video, too often blur into the background for me, leaving me effectively blind to them.  The human eye is most sensitive to motion in both the foreground and the periphery, so it makes sense to exploit that feature of human vision.  I chose to blink the cursor at a rate of four times every second.  My eye appreciates this blink rate the best.</p>
 
-<<Screen Editor>>=
-variable x
-variable y
-@
+@ We calculate the bitmap address of the glyph under the cursor by considering the cursor's current location.</p>
 
-We calculate the bitmap address of the glyph under the cursor by considering the cursor's current values.</p>
-
-<<Screen Editor>>=
+<<Screen Editor Blinky Cursor>>=
 : address       y @ 640* x @ + $8000 + ;
 @
 
-We implement the text cursor by reversing the video of a given character glyph in the bitmap.</p>
+We implement the text cursor by reversing the video of a given character glyph in the bitmap.  In addition, we'll toggle a flag in memory, so we know whether we've reversed the video or not.  This will come in handy for when we want to <q>turn off</q> the cursor.</p>
 
-<<Screen Editor>>=
-: b             dup dup c@ invert swap c! 80 + ;
-: blink         address b b b b b b b b drop ;
-@
-
-The Kestrel-2 runs its J1 processor at 12.5MHz more or less, so if we want the cursor to blink with a period of a quarter second, we need to wait close to (12.5&div;4)=3.125 million cycles between each blink state change.  Since a typical delay loop looks like this,</p>
-
-<<Screen Editor>>=
-: wait1         1 + dup if recurse exit then ;
-@
-
-we know each loop iteration takes five cycles to complete, except for the last which takes six.  If we pass zero as a parameter to [[wait1]], it will stall for 65536 complete loop iterations, or 5&times;65535+6=327 681 machine cycles.  Getting close to our desired blink rate requires we invoke such a loop 3 125 000&div;327 681=9 (approx.) times.</p>
-
-<<Screen Editor>>=
-: wait0         0 wait1 drop  $FFFF + dup if recurse exit then ;
-: wait          9 wait0 drop ;
-@
-
-This is a temporary definition for [[ui]].  Eventually, we want this to be the main loop for the monitor.</p>
-
-<<Screen Editor>>=
+<<Screen Editor Blinky Cursor>>=
 variable blst
-: blink         blink  blst @ $FFFF xor blst ! ;
-: coff          blst @ if blink then ;
+: b             dup dup c@ invert swap c! 80 + ;
+: blink         address b b b b b b b b drop  blst @ -1 xor blst ! ;
+@
 
-\ This blink event handler obsoletes wait, wait0, and wait1 above.
+We know that [[blink]] is its own inverse, so turning off a cursor involves calling [[blink]] if, and only if, we know the video underneath the cursor has already been inverted.</p>
+
+<<Screen Editor Blinky Cursor>>=
+: coff          blst @ if blink then ;
+@
+
+<h2>40.70  Text Editor Main Loop</h2>
+
+@ The text editor's main loop drives the blinking cursor as well as the keyboard interface.  I chose to blink the cursor four times every second, as my eye appreciates this blink rate the best.  It continues in this manner, blinking the cursor and responding to keyboard events, until the user presses the [[ENTER]] key, after which the editor returns the base address and length of the text line containing the cursor.  As a convenience to the user, the cursor is turned off, indicating no further input is required.</p>
+
+This is a temporary definition for [[ui]].  Eventually, we want this, perhaps with a new name, to be the main loop for the editor.</p>
+
+<<Screen Editor>>=
 variable blct
 : blinker       1 blct @ + dup 49152 xor if blct ! exit then drop blink 0 blct ! ;
 
 variable kbprct
-: +!            2dup @ + swap ! drop ;
 : kbd?          $FFFE @ $8000 and ;
 : ack           $0300 $FFFE ! ;
 : bump          1 x +!  x @ -80 + $8000 and if exit then  0 x !  1 y +! ;
-: keyboard      kbd? if ack coff bump blink exit then ;
-
+: keyboard      kbd? if ack coff right blink exit then ;
 : ui            blinker keyboard recurse ;
 @ </p>
 
-<h1>100  Memory Access Primitives</h1>
+<h1>100  Primitives</h1>
+<h2>100.10  Mathematics</h2>
+Boolean predicates, such as <i>less than zero</i>, occur frequently enough that they require their own definitions.</p>
+
+<<Primitives>>=
+: 0<        $8000 and ;
+@
+
+Not fitting in particularly well elsewhere, some mathematical operations are needed to make the machine language monitor work.  We start with determining the maximum or minimum value.</p>
+
+<<Primitives>>=
+: max       2dup - 0< if nip exit then drop ;
+: min       2dup - 0< if drop exit then nip ;
+@
+
+<h2>100.20  Memory Accessors</h2>
 @ Until now, we haven't addressed some of the more fundamental aspects of the J1 as it works with the Kestrel-2 hardware.  We start with the fetch operator, where we rely on software to extend the operation to two instruction cycles.  This provides the block RAMs on the Xilinx FPGA I'm using enough time to set up their address bus and deliver the data.  The J1, implementing an essentially asynchronous memory bus architecture, would work great as-is if we were talking to, say, a 62256 static RAM chip.  In this case, as soon as the address bus changes, the 62256 would take, say, 100ns to update its data bus.  Provided the J1 were clocked with a period at least as long as 100ns, the J1 could realize single-cycle read performance.  However, the RAMs used in the FPGA are <i>synchronous</i> RAMs, and are clocked off the processor clock for simplicity.  Therefore, as soon as the address bus changes, we need to wait at least one cycle for the block RAMs to catch up.</p>
 
 <p>As it happens, a J1 subroutine call takes exactly one cycle.  We define [[@]] as a subroutine, consisting of precisely one instruction ([[@,]]), which both fetches and returns to the caller in a single cycle as well.  Thus, we achieve our desired two-cycle execution performance for [[@]].</p>
@@ -254,6 +282,12 @@ variable kbprct
 : c!        dup 1 and if odd! exit then even! ;
 
 @ As you can see above, even addresses correspond to bits 15...8 of a word, while odd addresses correspond to bits 7...0.  This maintains consistency with how the video interface refreshes the display, and thus, how it expects bitmap data to be laid out in memory.</p>
+
+@ While somewhat ambiguous with the category of mathematical procedure, [[+!]] proves useful for performing basic addition on a memory-resident variable without having to explicitly manage addresses.  Since it depends on [[@]] and [[!]] for its operation, we place its definition here.</p>
+
+<<Primitives>>=
+: +!            2dup @ + swap ! drop ;
+@
 
 <h2>B.3  Displaying Text</h2>
 
