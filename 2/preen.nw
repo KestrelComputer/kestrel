@@ -183,7 +183,7 @@ variable x
 variable y
 @
 
-Pressing one of the four cursor keys will cause the cursor to move about the screen in the desired direction.  We implement this by updating the [[x]] and [[y]] variables, making sure to confine them to the appropriate bounding rectangle.</p>
+Pressing one of the four cursor keys will cause the cursor to move about the screen in the desired direction.  We implement this by updating the [[x]] and [[y]] variables, making sure to confine them to the appropriate bounding rectangle.  Make sure you turn the cursor off ([[coff]], defined later) before altering the cursor location, or you risk cosmetic problems.</p>
 
 <<Screen Editor Cursor Movement>>=
 : up        -1 y +! confine ;
