@@ -1,0 +1,65 @@
+==================================
+Keyboard Interface Design Proposal
+==================================
+
+1  The computer interacts with the PS/2 keyboard through 10 words in memory.  The PS/2 controller exposes two sets of registers: a 16-byte buffer which the PS/2 controller populates with MBCs as it receives them, and a two control registers.
+
+
+2  How Does the Host Know When an MBC Arrives?
+
+No hardware-provided means exists of identifying MBC boundaries, for MBCs can vary in length between one to three bytes typically.  However, the hardware provides a means of detecting when one or more bytes have been received from the attached keyboard.
+
+The keyboard controller implements a 16-byte queue.  Bytes are popped off the head of the queue by reading the KBDA register.
+
+        +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+  KBDA  | -- | -- | -- | -- | -- | -- | -- | DP | D7 | D6 | D5 | D4 | D3 | D2 | D1 | D0 |  (r/o)
+        +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+
+The DP bit indicates odd parity for the associated data bits, letting the host decide if it wants to deal with errors as it sees fit.
+
+The memory inside the queue is addressed with two pointers.
+
+        +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+  KBRP  | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | R3 | R2 | R1 | R0 |  (r/o)
+        +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+
+        +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+  KBWP  | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | -- | W3 | W2 | W1 | W0 |  (r/o)
+        +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+
+Each time a byte is received from the keyboard, and assuming enough space exists in the queue, the byte is stored in the queue, and W is incremented by one.  Likewise, when the host reads a byte from the KBDA register, R is incremented by one.  When R=W, the queue is empty, and no bytes can be read from the chip.  When W=R-1 (modulo 16), the queue is full, and no further data can be stored.  The host may also use the pointer registers to determine how many bytes were queued.
+
+3  How Does the Host Send Keyboard Commands?
+
+Much of the logic behind the keyboard interface exists to make the software engineer's job easier for the most common case -- reading individual MBCs in the order they've arrived.  However, the PS/2 and IBM AT keyboard interface allows data to flow from host to keyboard in addition to keyboard to host.  However, with data rates so slow (between 20kHz and 40kHz) and host-to-keyboard communications expected to be relatively infrequent (essentially, any time the keyboard LEDs change), no justification exists for specialized support hardware to automate the details of the host-to-keyboard PS/2 protocol.  This means that the CPU will need to implement the protocol if it wants to send the keyboard any control codes or commands.
+
+WARNING: At the time of publication, the KS emulator does not support the KBIO register.  Writes to it will be ignored, while reads will always return the value $00C3.
+
+        +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+  KBIO  | -- | -- | -- | -- | -- | -- | -- | -- | DI | CI | -- | -- | -- | -- | CO | DO |  (r/w)
+        +----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+----+
+                                                  |    |                        |    |
+                          1 if PS2DAT is high (r/o)    |                        |    |
+                               1 if PS2CLK is high (r/o)                        |    |
+                                                                                |    |
+                            1 to let keyboard drive PS2CLK; 0 to drive PS2CLK low    |
+                                 1 to let keyboard drive PS2DAT; 0 to drive PS2DAT low
+
+
+The DI/CI bits always reflect the current state of the PS/2 interface.  If the processor resets CO, a subsequent read will show CI also drops to zero.  The DO and CO bits work by controlling pull-down transistors.  Since DO/CO control the lines externally to any other circuitry, the computer will probably want to disable the keyboard shift register while it's sending data to the keyboard, so as to avoid protocol errors or spurious inputs.  It can do this by clearing the SE bit in the KBCT register.
+
+The placement of the DI/CI bits make effective use of both 6502 and J1 processor resources when reading raw bit-streams from the PS/2 keyboard interface.  The placement of DO works similarly for transmitting data over the PS/2 link.  CO could be placed anywhere with equal inconvenience.
+
+
+4  Register Map
+
+    $FFF8       KBDA
+    $FFFA       KBRP
+    $FFFC       KBWP
+    $FFFE       KBIO
+
+Z  Glossary
+
+MBC
+    Make/Break Code
+
