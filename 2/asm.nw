@@ -406,7 +406,7 @@ variable xorMask
 @ If a word starts with a character between 0 and 9, heuristically, there's a great chance that it will be a decimal literal.</p>
 <<Definition of [[-dec]]>>=
 : is0-9?        [char] 0 [char] 9 1+ within ;
-: ?neg          xorMask @ xor  xorMask 1 and + ;
+: ?neg          xorMask @ xor  xorMask @ 1 and + ;
 : -dec          over c@ is0-9? if declit nn @ ?neg ['] lit, 2r> 2drop then ;
 
 @ We need an accumulator variable to hold onto the number we just converted.</p>
