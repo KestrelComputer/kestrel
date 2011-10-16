@@ -241,10 +241,10 @@ variable blct
 : blinker       1 blct @ + dup 49152 xor if blct ! exit then drop blink 0 blct ! ;
 
 variable s
-: -up           dup $0175 xor if exit then drop up ;
-: -down         dup $0172 xor if exit then drop down ;
-: -left         dup $016B xor if exit then drop left ;
-: -right        dup $0174 xor if exit then drop right ;
+: -up           dup $0175 xor if exit then up r> 2drop ;
+: -down         dup $0172 xor if exit then down r> 2drop ;
+: -left         dup $016B xor if exit then left r> 2drop ;
+: -right        dup $0174 xor if exit then right r> 2drop ;
 : dispatch      -up -down -left -right drop ;
 : keycode       coff dispatch blink ;
 : -$E0          dup $E0 xor if exit then $0100 s @ or s !  r> 2drop ;
