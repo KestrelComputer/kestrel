@@ -240,12 +240,22 @@ This is a temporary definition for [[ui]].  Eventually, we want this, perhaps wi
 variable blct
 : blinker       1 blct @ + dup 49152 xor if blct ! exit then drop blink 0 blct ! ;
 
-variable kbprct
-: kbd?          $FFFE @ $8000 and ;
+variable s
+: -up           dup $0175 xor if exit then drop up ;
+: -down         dup $0172 xor if exit then drop down ;
+: -left         dup $016B xor if exit then drop left ;
+: -right        dup $0174 xor if exit then drop right ;
+: dispatch      -up -down -left -right drop ;
+: keycode       coff dispatch blink ;
+: -$E0          dup $E0 xor if exit then $0100 s @ or s !  r> 2drop ;
+: -$F0          dup $F0 xor if exit then $8000 s @ or s !  r> 2drop ;
+: filter        -$E0 -$F0 s @ or keycode 0 s ! ;
+: available?    $FFFE @ $8000 and ;
+: mbc           $FFFE @ $00FF and ;
 : ack           $0300 $FFFE ! ;
-: bump          1 x +!  x @ -80 + $8000 and if exit then  0 x !  1 y +! ;
-: keyboard      kbd? if ack coff right blink exit then ;
-: ui            blinker keyboard recurse ;
+: keyboard      available? if mbc filter ack then ;
+: ui...         blinker keyboard recurse ;
+: ui            0 s !  ui... ;
 @ </p>
 
 <h1>100  Primitives</h1>
