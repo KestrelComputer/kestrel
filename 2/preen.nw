@@ -259,8 +259,8 @@ create scrn
 : plot          TdfChrMtx @ y @ 80* x @ + + c! ;
 : emit          plot right commit ;
 : >ascii        rawcodes - cookedcodes + @ ;
-: kbhit         >ascii emit 2drop ;
-: -match        2dup @ xor if exit then kbhit r> r> 2drop r> drop ;
+: kbhit         >ascii emit 2drop drop ;
+: -match        2dup @ xor if exit then kbhit r> r> 2drop r> r> drop ;
 : r             -match 2 + ;
 : -found        r r r r  r r r r  r r r r  r r r r ;
 : -valid        dup rawcodes -found 2drop ;
