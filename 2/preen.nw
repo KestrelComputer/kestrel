@@ -141,7 +141,7 @@ r> over ! 2 +
 Once both the data and return stacks have been committed to memory, the entire state of the interrupted program avails itself for inspection.  Recall that the interrupted program's instruction pointer resides in the cell at [[rstack]]+0.  This leaves [[breakpoint]] with only one last task to perform: kick off the monitor's user interface.</p>
 
 <<Breakpoint handler>>=
-  scrn0 commit ui ;
+  scrn0 page .banner commit ui ;
 @ </p>
 
 <h1>30  Displaying the Program State</h1>
@@ -255,9 +255,14 @@ create cookedcodes
 create scrn
     2048 allot
 
+: clr           dup if swap 32 over c! 1 + swap -1 + recurse exit then 2drop ;
+: page          TdfChrMtx @ 2000 clr  0 x !  0 y ! ;
 : scrn0         scrn TdfChrMtx ! ;
 : plot          TdfChrMtx @ y @ 80* x @ + + c! ;
 : emit          plot right commit ;
+: type          dup if over c@ emit -1 + swap 1 + swap recurse exit then 2drop ;
+: cr            0 x ! down ;
+: .banner       S" Kestrel Preen 1.2" type cr cr ;
 : >ascii        rawcodes - cookedcodes + @ ;
 : kbhit         >ascii emit 2drop drop ;
 : -match        2dup @ xor if exit then kbhit r> r> 2drop r> r> drop ;
