@@ -10,6 +10,7 @@
 <<Deferred words>>
 <<Colon Compiler>>
 <<Macros>>
+<<String Literals>>
 <<[[TARGET]] and [[HOST]]>>
 host definitions
 @ </p>
@@ -601,7 +602,7 @@ CONSTANT bufferAddress</pre>
 @ The [[THEN]] word resolves an outstanding [[IF]]-created lexical block.  It works by patching the branch instruction compiled by [[IF]] to point to the first instruction past the consequent.  As with all program flow instructions, [[THEN]] terminates a basic block, and starts a new one.</p>
 
 <<Macros>>=
-: then,         there 2/ $2000 or swap t! bb off ;
+: then,         dup t@ there 2/ or swap t! bb off ;
 <<Target names>>=
 : then          then, ;
 
@@ -708,7 +709,19 @@ CONSTANT bufferAddress</pre>
 : @,            $6C00 i, ;
 @ </p>
 
-<h2>C.6  Vocabulary Selection</h2>
+<h2>C.6  String Literals</h2>
+<<String Literals>>=
+: align         there 1 and if 1 tallot then ;
+: (S",)         there >r [char] " parse there >host swap dup >r dup tallot move align r> r> swap ;
+: ahead,        there $0000 p, ;
+: S",           ahead, (S",) >r >r then, r> r> swap lit, lit, ;
+@
+
+<<Target names>>=
+: S"            S", ;
+@
+
+<h2>C.7  Vocabulary Selection</h2>
 @ It's really inconvenient to have to constantly type commas after primitives and immediate words.  Therefore, we need a way of conveniently alternating between target-specific and host-specific meanings of various words.  We'll exploit vocabularies to achieve this magic.</p>
 <<[[TARGET]] and [[HOST]]>>=
 only forth definitions
@@ -744,7 +757,7 @@ also target-primitives definitions previous
 : 2/            1 rshift ;
 @ </p>
 
-<h2>C.7  Miscellaneous</h2>
+<h2>C.8  Miscellaneous</h2>
 @ The Machine Forth compiler was designed to run under the SwiftForth environment.  However, I find its general lack of a word to find a word in the dictionary given an explicit counted string on the stack rather burdensome.  GForth provides this facility through [[sfind]], whose behavior I replicate below.</p>
 
 <<GForth compatibility layer>>=
