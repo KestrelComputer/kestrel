@@ -262,7 +262,7 @@ create scrn
 : emit          plot right commit ;
 : type          dup if over c@ emit -1 + swap 1 + swap recurse exit then 2drop ;
 : cr            0 x ! down ;
-: .banner       S" Kestrel Preen 1.2" type cr cr ;
+: .banner       S" Kestrel Preen 1A" type cr cr ;
 : >ascii        rawcodes - cookedcodes + @ ;
 : kbhit         >ascii emit 2drop drop ;
 : -match        2dup @ xor if exit then kbhit r> r> 2drop r> r> drop ;
