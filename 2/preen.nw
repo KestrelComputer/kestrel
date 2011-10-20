@@ -36,13 +36,14 @@ The J1 processor begins its execution at address zero in its memory map.  Since 
 defer _main
 @ %def _main
 <<Patch reset vector>>=
-' breakpoint is _main
+: b $DEAD $BEEF $FEED >r $FACE >r breakpoint ;
+' b is _main
 @
 
 Once everything's been assembled, we create the ROM file on the host computer, and terminate the Forth session.</p>
 
 <<Emit binary file>>=
-host romfile  bye
+host  there . s" bytes compiled" type cr  romfile  bye
 @
 
 All other sections refer to target-specific code, so let's make sure we configure the Forth environment to produce software in the target.</p>
@@ -84,64 +85,37 @@ You'll notice that no space exists for the program counter.  Since the breakpoin
 
 @ The J1 provides the programmer with <i>33</i> data stack registers.  These include [[T]], the top of the stack which feeds the J1's first ALU input, and 32 other stack registers.  However, in the state above, we reserve only 32 slots.  Since the J1 lacks an instruction to store its state in a memory location, we need to use [[!]] to store to memory the state of the data stack.  Pushing the address that [[!]] will store to necessarily causes the 33rd stack cell to disappear, <i>thus leaving only 32 of the 33 data stack items available for inspection.</i>  Preen will likely cause any program which depends on the availability of all 33 data stack registers to crash.</p>
 
-@ When the breakpoint hits, Preen must assume the program uses all data and return stack items.  Therefore, the breakpoint handler must free up enough stack space to function.  First we free up a handful of data stack items, which will in turn enable us to free up a few return stack slots.  Once complete, we can start using higher-level Forth definitions again.  Note we avoid invoking [[dstack]] and [[rstack]] because we don't want to disturb the state of the return stack just yet.</p>
-
+@ When the breakpoint hits, Preen must assume the program uses all data and return stack items.  Therefore, the breakpoint handler must free up enough stack space to function.  At first, I tried to be clever by freeing up a handful of stack items to allow for procedure calls, then rely on colon definitions to write out the rest of the stack items.  This involved the use of the [[SWAP]] instruction which, alas, suffers from an as-yet-unfixed bug in the Kestrel-2 emulator, which causes stack corruption whenever the data stack pointer equals 0.  As a work-around, we just bite the bullet and dump <i>all</i> stack items manually in their associated memory locations.  Not only does this work-around reliably function, it also benefits from being far simpler to understand.</p>
 <<Breakpoint handler>>=
-<<ds!>>
-<<rs!>>
 : breakpoint
-  $4000 !  $4002 !  $4004 !  $4006 !
-  r> $4040 !  r> $4042 !  r> $4044 !  r> $4046 !
+  <<Save data stack items>>
+  <<Save return stack items>>
 @ %def breakpoint
-
-Now that we have some play in the two stacks, we can rely on higher-level definitions to save the processor state without having to explicitly list all the memory addresses by hand.</p>
-
-<<Breakpoint handler>>=
-  dstack 8 + ds!  rstack 8 + rs!
+<<Save data stack items>>=
+$4000 !  $4002 !  $4004 !  $4006 !
+$4008 !  $400A !  $400C !  $400E !
+$4010 !  $4012 !  $4014 !  $4016 !
+$4018 !  $401A !  $401C !  $401E !
+$4020 !  $4022 !  $4024 !  $4026 !
+$4028 !  $402A !  $402C !  $402E !
+$4030 !  $4032 !  $4034 !  $4036 !
+$4038 !  $403A !  $403C !  $403E !
 @
-
-[[ds!]] will store 28 cells of the interrupted program's data stack.  Remember that [[breakpoint]] already stored four data stack items manually at the start of its definition, bringing the total number of data stack items saved to 32.</p>
-
-<p>
-<<ds!>>=
-: c         2dup ! 2 + nip ;
-: 7c        c c c c c c c ;
-: ds!       7c 7c 7c 7c drop ;
-@ %def ds!
-
-Committing the data stack to memory frees up the data stack &mdash; the monitor may now utilize all 32 cells if it wishes.  We still need to preserve the return stack, however.  We need a somewhat different strategy for the return stack, because invoking [[rs!]] itself uses the return stack.  Since [[>r]] is pushing a value onto the R-stack, we cannot invoke [[>r ;]] without crashing.  The [[;]] would try to pop from the R-stack at the same time as [[>r]] is pushing, corrupting the R-stack in the process.  We nullify tail-call optimization using [[nop, ;]]</p>
-
-<<rs!>>=
-: rs!       r> swap <<write 28 cells>> drop >r nop, ;
-@ %def rs!
-
-Regrettably, we cannot rely on subroutine calls while we're manipulating the return stack, so we need to inline 28 cell stores directly.</p>
-
-<<write 28 cells>>=
-<<write 7 cells>>
-<<write 7 cells>>
-<<write 7 cells>>
-<<write 7 cells>>
-@
-
-<<write 7 cells>>=
-<<write a cell>>
-<<write a cell>>
-<<write a cell>>
-<<write a cell>>
-<<write a cell>>
-<<write a cell>>
-<<write a cell>>
-@
-
-<<write a cell>>=
-r> over ! 2 +
+<<Save return stack items>>=
+r> $4040 !  r> $4042 !  r> $4044 !  r> $4046 !
+r> $4048 !  r> $404A !  r> $404C !  r> $404E !
+r> $4050 !  r> $4052 !  r> $4054 !  r> $4056 !
+r> $4058 !  r> $405A !  r> $405C !  r> $405E !
+r> $4060 !  r> $4062 !  r> $4064 !  r> $4066 !
+r> $4068 !  r> $406A !  r> $406C !  r> $406E !
+r> $4070 !  r> $4072 !  r> $4074 !  r> $4076 !
+r> $4078 !  r> $407A !  r> $407C !  r> $407E !
 @
 
 Once both the data and return stacks have been committed to memory, the entire state of the interrupted program avails itself for inspection.  Recall that the interrupted program's instruction pointer resides in the cell at [[rstack]]+0.  This leaves [[breakpoint]] with only one last task to perform: kick off the monitor's user interface.</p>
 
 <<Breakpoint handler>>=
-  scrn0 page .banner commit ui ;
+  scrn0 display commit ui ;
 @ </p>
 
 <h1>30  Displaying the Program State</h1>
@@ -262,7 +236,28 @@ create scrn
 : emit          plot right commit ;
 : type          dup if over c@ emit -1 + swap 1 + swap recurse exit then 2drop ;
 : cr            0 x ! down ;
-: .banner       S" Kestrel Preen 1A" type cr cr ;
+: space         $20 emit ;
+: dot           $2B emit ;
+: .n            $F and S" 0123456789ABCDEF" drop + c@ emit ;
+: .b            dup 4 rshift .n .n ;
+: .w            dup 8 rshift .b .b space ;
+: w             dup @ .w 2 + ;
+: words         w w w w w w w w ;
+: c             dup c@ emit 1 + ;
+: chars         c c c c c c c c  c c c c c c c c ;
+: dump          words S" -- " type -16 + chars cr drop ;
+: banner        S" Kestrel Preen 1A" type cr cr ;
+: d00           S" .D 00  " type $4000 dump ;
+: d08           S" .D 08  " type $4010 dump ;
+: d10           S" .D 10  " type $4020 dump ;
+: d18           S" .D 18  " type $4030 dump ;
+: dstk          d00 d08 d10 d18 cr ;
+: r00           S" .R 00  " type $4040 dump ;
+: r08           S" .R 08  " type $4050 dump ;
+: r10           S" .R 10  " type $4060 dump ;
+: r18           S" .R 18  " type $4070 dump ;
+: rstk          d00 d08 d10 d18 cr ;
+: display       page banner dstk rstk cr ;
 : >ascii        rawcodes - cookedcodes + @ ;
 : kbhit         >ascii emit 2drop drop ;
 : -match        2dup @ xor if exit then kbhit r> r> 2drop r> r> drop ;
