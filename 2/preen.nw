@@ -256,8 +256,8 @@ create scrn
 : r08           S" .R 08  " type $4050 dump ;
 : r10           S" .R 10  " type $4060 dump ;
 : r18           S" .R 18  " type $4070 dump ;
-: rstk          d00 d08 d10 d18 cr ;
-: display       page banner dstk rstk cr ;
+: rstk          r00 r08 r10 r18 cr ;
+: display       page banner dstk rstk ;
 : >ascii        rawcodes - cookedcodes + @ ;
 : kbhit         >ascii emit 2drop drop ;
 : -match        2dup @ xor if exit then kbhit r> r> 2drop r> r> drop ;
