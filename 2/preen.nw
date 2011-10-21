@@ -280,7 +280,14 @@ variable >in
 : -down         dup $0172 xor if exit then down r> 2drop ;
 : -left         dup $016B xor if exit then left r> 2drop ;
 : -right        dup $0174 xor if exit then right r> 2drop ;
-: interpret     0 0 at-xy tib @ #tib @ type cr ;
+: .D            0 0 at-xy tib @ #tib @ type cr ;
+: .R            0 24 at-xy tib @ #tib @ type cr ;
+: pch           >in @ tib @ + ;
+: ch            pch c@ ;
+: ws            ch $21 - $8000 and if 1 >in +! recurse exit then ;
+: txt           ch $21 - $8000 and if exit then 1 >in +! recurse ;
+: word          ws >in @ tib @ + txt >in @ tib @ + over - ;
+: interpret     word 0 0 at-xy type ;
 : complete      y @ 80* TdfChrMtx @ + tib ! 80 #tib ! 0 >in ! interpret ;
 : -enter        dup $005A xor if exit then complete r> 2drop ;
 : dispatch      -up -down -left -right -enter -valid drop ;
