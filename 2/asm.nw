@@ -209,6 +209,7 @@ variable >visible
 : ',            token sfind, 0= abort" Undefined" ;
 <<Target names>>=
 : '             ', ;
+: [']           ', lit, ;
 
 @ We search for a word starting at the most recently defined word and work our way backwards through the table, towards the first-defined word.  [[-exist]] asserts that our desired word doesn't exist.  However, if we discover the word, we return its execution token (table row index) in [[-match]].  Note that we require some address arithmetic, which is factored into [[rows]].  Anyone porting this software to a different architecture must adjust [[rows]] for his/her machine.</p>
 
