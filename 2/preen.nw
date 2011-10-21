@@ -1,4 +1,4 @@
-<div class="blogArticleTitle">
+< $1221 , $2442 , $1221 , $2442 ,div class="blogArticleTitle">
  Preen Release 1A: a Kestrel-2 Monitor
 </div>
 <div class="blogArticleTimestampAuthor">
@@ -284,11 +284,22 @@ variable >in
 : .R            0 24 at-xy tib @ #tib @ type cr ;
 : pch           >in @ tib @ + ;
 : ch            pch c@ ;
-: ws            ch $21 - $8000 and if 1 >in +! recurse exit then ;
-: txt           ch $21 - $8000 and if exit then 1 >in +! recurse ;
-: word          ws >in @ tib @ + txt >in @ tib @ + over - ;
-: interpret     word 0 0 at-xy type ;
-: complete      y @ 80* TdfChrMtx @ + tib ! 80 #tib ! 0 >in ! interpret ;
+: -eoln         >in @ 80 - $8000 and if exit then r> drop ;
+: ws?           ch $21 - $8000 and ;
+: ws            -eoln ws? if 1 >in +! recurse exit then ;
+: txt           -eoln ws? if exit then 1 >in +! recurse ;
+: word          ws pch txt pch over - ;
+create wxt
+    ' .D ,  ' .R ,   ' wxt >host 8 dump
+create wtab
+    $2E44 , $2E52 ,
+: xt            wtab - wxt + @ ;
+: -fnd          2dup @ xor if 2 + exit then nip xt r> r> 2drop ;
+: -found        wtab -fnd -fnd nop, ;
+: find          drop @ -found drop ['] display ;
+: +valid        dup if exit then r> drop ;
+: interpret     word +valid find dup .w >r ;
+: complete      y @ 80* TdfChrMtx @ + tib !  80 #tib !  0 >in !  interpret ;
 : -enter        dup $005A xor if exit then complete r> 2drop ;
 : dispatch      -up -down -left -right -enter -valid drop ;
 : keycode       coff dispatch blink ;
