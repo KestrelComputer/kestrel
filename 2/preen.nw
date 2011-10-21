@@ -36,7 +36,8 @@ The J1 processor begins its execution at address zero in its memory map.  Since 
 defer _main
 @ %def _main
 <<Patch reset vector>>=
-: b $DEAD $BEEF $FEED >r $FACE >r breakpoint ;
+: hlt $FFFF $8888 ! recurse ;
+: b $DEAD $BEEF $FEED >r $FACE >r breakpoint  hlt ;
 ' b is _main
 @
 
@@ -158,6 +159,12 @@ variable x
 variable y
 @
 
+Software can relocate the cursor at any time, but we must be careful to ensure the new location remains on the screen.</p>
+
+<<Screen Editor Cursor Movement>>=
+: at-xy     y ! x ! confine ;
+@
+
 Pressing one of the four cursor keys will cause the cursor to move about the screen in the desired direction.  We implement this by updating the [[x]] and [[y]] variables, making sure to confine them to the appropriate bounding rectangle.  Make sure you turn the cursor off ([[coff]], defined later) before altering the cursor location, or you risk cosmetic problems.</p>
 
 <<Screen Editor Cursor Movement>>=
@@ -229,6 +236,10 @@ create cookedcodes
 create scrn
     2048 allot
 variable commit?
+variable -done
+variable tib
+variable #tib
+variable >in
 
 : clr           dup if swap 32 over c! 1 + swap -1 + recurse exit then 2drop ;
 : page          TdfChrMtx @ 2000 clr  0 x !  0 y ! ;
@@ -269,7 +280,10 @@ variable commit?
 : -down         dup $0172 xor if exit then down r> 2drop ;
 : -left         dup $016B xor if exit then left r> 2drop ;
 : -right        dup $0174 xor if exit then right r> 2drop ;
-: dispatch      -up -down -left -right -valid drop ;
+: interpret     0 0 at-xy tib @ #tib @ type cr ;
+: complete      y @ 80* TdfChrMtx @ + tib ! 80 #tib ! 0 >in ! interpret ;
+: -enter        dup $005A xor if exit then complete r> 2drop ;
+: dispatch      -up -down -left -right -enter -valid drop ;
 : keycode       coff dispatch blink ;
 : -$E0          dup $E0 xor if exit then $0100 s @ or s !  r> 2drop ;
 : -$F0          dup $F0 xor if exit then $8000 s @ or s !  r> 2drop ;
@@ -279,8 +293,8 @@ variable commit?
 : ack           $0300 $FFFE ! ;
 : keyboard      available? if mbc filter ack then ;
 : ?commit       commit? @ if coff commit blink 0 commit? ! then ;
-: ui...         ?commit blinker keyboard recurse ;
-: ui            0 s !  ui... ;
+: ui...         ?commit blinker keyboard -done @ if recurse exit then ;
+: ui            0 s !  -1 -done !  ui... coff ;
 @ </p>
 
 <h1>100  Primitives</h1>
