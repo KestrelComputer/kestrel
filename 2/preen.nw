@@ -289,16 +289,18 @@ variable >in
 : ws            -eoln ws? if 1 >in +! recurse exit then ;
 : txt           -eoln ws? if exit then 1 >in +! recurse ;
 : word          ws pch txt pch over - ;
-create wxt
-    ' .D ,  ' .R ,   ' wxt >host 8 dump
+create wproc
+    ' .D >body 2/ ,  ' .R >body 2/ ,
 create wtab
     $2E44 , $2E52 ,
-: xt            wtab - wxt + @ ;
-: -fnd          2dup @ xor if 2 + exit then nip xt r> r> 2drop ;
+create display'
+    ' display >body 2/ ,
+: proc          wtab - wproc + @ ;
+: -fnd          2dup @ xor if 2 + exit then nip proc r> r> 2drop ;
 : -found        wtab -fnd -fnd nop, ;
-: find          drop @ -found drop ['] display ;
+: find          drop @ -found drop display' @ ;
 : +valid        dup if exit then r> drop ;
-: interpret     word +valid find dup .w >r ;
+: interpret     word +valid find >r nop, ;
 : complete      y @ 80* TdfChrMtx @ + tib !  80 #tib !  0 >in !  interpret ;
 : -enter        dup $005A xor if exit then complete r> 2drop ;
 : dispatch      -up -down -left -right -enter -valid drop ;
