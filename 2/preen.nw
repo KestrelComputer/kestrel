@@ -37,7 +37,7 @@ defer _main
 @ %def _main
 <<Patch reset vector>>=
 : hlt $FFFF $8888 ! recurse ;
-: b $DEAD $BEEF $FEED >r $FACE >r breakpoint  hlt ;
+: b breakpoint  hlt ;
 ' b is _main
 @
 
