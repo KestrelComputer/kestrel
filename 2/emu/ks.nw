@@ -452,7 +452,7 @@ Vn(alu) {
     kk->_t = aluOp[(n&0x0F00)>>8](kk);
     kk->d_we_o = (n&0x0020) != 0;
     kk->dbg^=n&0x0010;
-    if(n&0x0040) kk->rs[kk->_rsp] = kk->t;
+    if(n&0x0040) kk->rs[kk->_rsp&31] = kk->t;
     switch((n&0x000C)>>2) {
         case 0: break;
         case 1: kk->_rsp = (kk->rsp+1); break;
