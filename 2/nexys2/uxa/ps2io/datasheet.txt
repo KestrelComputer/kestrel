@@ -227,7 +227,7 @@ TYPICAL USAGE
         /* C */
 
         UBYTE nextByte(void) {
-		      extern unsigned short *IOKYBD;
+            extern unsigned short *IOKYBD;
 
             UBYTE b;
             waitForDataReady();
