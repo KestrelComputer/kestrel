@@ -48,7 +48,7 @@ module T_uxa_ps2_shfreg;
 		#40  sys_clk_i <= 1;
 		#40  sys_clk_i <= 0;
 	end
-
+	
 	initial begin
 		// Initialize Inputs
 		ps2_d_i = 1;
@@ -100,6 +100,19 @@ module T_uxa_ps2_shfreg;
 		
 		if(frame_o != 1) begin
 			$display("Deserializer failed to sync to the PS/2 frame.");
+			$stop;
+		end
+		
+		reset_i = 1;
+		#80 reset_i = 0;
+		
+		if(d_o != 8'b11111111) begin
+			$display("Deserializer didn't reset when instructed.");
+			$stop;
+		end
+		
+		if(frame_o != 0) begin
+			$display("Frame indicator didn't reset when instructed.");
 			$stop;
 		end
 	end
