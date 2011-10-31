@@ -22,10 +22,7 @@
 // Revision: 
 // Revision 0.01 - File Created
 // Additional Comments: 
-//		All registers with the _n suffix indicate the "next"
-// 	value.  So, given a set of registers X and X_n, at the
-//		next positive edge of sys_clk_i, X becomes X_n.  X_n
-//    is then free to change state based on other inputs.
+//
 //////////////////////////////////////////////////////////////////////////////////
 module M_uxa_ps2_shfreg(
     input ps2_d_i,
