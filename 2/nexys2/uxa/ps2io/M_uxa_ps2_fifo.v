@@ -41,11 +41,11 @@ module M_uxa_ps2_fifo(
 	
 	// When the user reads a value from the adapter, the read-pointer
 	// determines which of the 16 bytes are read from.
-	reg [3:0] rp;
+	reg [3:0] rp; /* synthesis keep */
 	
 	// When the deserializer has data to deliver to the FIFO, it is
 	// placed into the location pointed to by wp.
-	reg [3:0] wp;
+	reg [3:0] wp; /* synthesis keep */
 
 	// The queue is full when no more bytes can be written into
 	// the buffer without overwriting an unread byte.  This happens
