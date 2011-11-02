@@ -48,7 +48,7 @@ module M_uxa_ps2(
 	wire wl_we_o;
 	wire wl_ptr_inc_o;
 	wire wl_reset_o;
-	wire sr_d_o;
+	wire [7:0] sr_d_o;
 	wire sr_frame_o;
 	wire sr_reset_i = (sys_reset_i | wl_reset_o);
 
@@ -100,7 +100,7 @@ module M_uxa_ps2(
 	assign io_dat_o[9] = ps2_c_i;
 	assign io_dat_o[8] = ps2_d_i;
 
-	always begin
+	initial begin
 		zeros <= 4'b0000;
 	end
 endmodule
