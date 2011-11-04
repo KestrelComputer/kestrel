@@ -9,7 +9,7 @@
 // Module Name:   /Users/kc5tja/tmp/kestrel/2/nexys2/j1a/T_j1a.v
 // Project Name:  j1a
 // Target Device:  
-// Tool versions:  
+// Tool versi		ons:  
 // Description: 
 //
 // Verilog Test Fixture created by ISE for module: M_j1a
@@ -34,6 +34,8 @@ module T_j1a;
 	wire [15:1] ins_adr_o;
 	wire ins_cyc_o;
 	wire shr_stb_o;
+	wire [15:1] dat_adr_o;
+	wire [15:0] dat_dat_o;
 
 	// Instantiate the Unit Under Test (UUT)
 	M_j1a uut (
@@ -43,7 +45,9 @@ module T_j1a;
 		.ins_dat_i(ins_dat_i), 
 		.ins_cyc_o(ins_cyc_o), 
 		.shr_stb_o(shr_stb_o), 
-		.shr_ack_i(shr_ack_i)
+		.shr_ack_i(shr_ack_i),
+		.dat_adr_o(dat_adr_o),
+		.dat_dat_o(dat_dat_o)
 	);
 
 	always begin
@@ -128,6 +132,39 @@ module T_j1a;
 		end
 		shr_ack_i <= 0;
 		wait(sys_clk_i);
+		
+		//
+		// AS A    programmer
+		// I WANT  the CPU to accept numeric constants
+		// SO THAT I can push addresses and parameters on the stack.
+		//
+		ins_dat_i <= 16'h9234;
+		shr_ack_i <= 1;
+		wait(~sys_clk_i); wait(sys_clk_i);
+		ins_dat_i <= 16'hA468;
+		wait(~sys_clk_i); wait(sys_clk_i);
+		#25;
+		shr_ack_i <= 0;
+		if (dat_adr_o !== 15'b001001000110100) begin
+			$display("J1A:0600 Literal push instruction should have executed"); $stop;
+		end
+		if (dat_dat_o !== 16'b0001001000110100) begin
+			$display("J1A:0601 Literal push instruction should have executed"); $stop;
+		end
+		wait(sys_clk_i);
+		
+		//
+		// AS A    CPU designer
+		// I WANT  the CPU to not update its state when ACK_I is low
+		// SO THAT spurious bus states don't cause invalid instructions to execute.
+		//
+		ins_dat_i <= 16'h9999;
+		shr_ack_i <= 0;
+		wait(~sys_clk_i); wait(sys_clk_i);
+		#25;
+		if(dat_adr_o == 15'b000110011001100) begin
+			$display("J1A:0610 Literal push w/out ACK should never have happened"); $stop;
+		end
 	end
       
 endmodule

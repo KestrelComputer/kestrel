@@ -27,6 +27,8 @@ module M_j1a(
     input sys_clk_i,
     output [15:1] ins_adr_o,
     input [15:0] ins_dat_i,
+	 output [15:1] dat_adr_o,
+	 output [15:0] dat_dat_o,
     output ins_cyc_o,
     output shr_stb_o,
     input shr_ack_i
@@ -59,13 +61,34 @@ module M_j1a(
 	// to acknowledge both buses at once.
 	assign shr_stb_o = ins_cyc;
 
+	// When the processor executes a fetch or store instruction,
+	// the address always appears at the top of the data stack.
+	// So, we just export the top of stack directly to the
+	// dat_adr_o bus as-is.
+	//
+	// Likewise, in the event that the CPU executes a store
+	// operation, the second top of stack holds the datum to 
+	// push into memory.  Thus, we just hard-wire the 2nd
+	// top of stack to the data output pins.
+	reg [15:0] t;
+	reg [15:0] s;
+	
+	assign dat_adr_o[15:1] = t[15:1];
+	assign dat_dat_o = s;
+
 	always @(posedge sys_clk_i) begin
 		if (sys_res_i) begin
 			pc <= 15'h0000;
 			ins_cyc <= 1;
+			t <= 16'h0000;
 		end else begin
 			if (shr_stb_o & shr_ack_i) begin
 				pc <= pc+1;
+
+				if (ins_dat_i[15] == 1) begin
+					s <= t;
+					t <= {1'b0, ins_dat_i[14:0]};
+				end
 			end
 		end
 	end
