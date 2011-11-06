@@ -37,11 +37,28 @@ module M_j1a(
     input shr_ack_i
     );
 
+	// The asynchronous logic works to compute the processor's
+	// next state.  (Part 1)
+	wire is_alu = (ins_dat_i[15:13] === 3'b011);
+	wire is_call = (ins_dat_i[15:13] === 3'b010);
+	wire is_load = (ins_dat_i[15] === 1'b1);
+	wire is_ujump = (ins_dat_i[15:13] === 3'b000);
+	wire is_zjump = (ins_dat_i[15:13] === 3'b001);
+	wire [13:1] target = ins_dat_i[12:0];
+
 	// The microprocessor needs to fetch instructions from
 	// somewhere; the program counter (PC) register tells
 	// where.
 	reg [13:1] pc;
 	assign ins_adr_o = pc;
+
+	// Unlike the instruction bus, which operates permanently
+	// in a read-only manner, the data bus may be used to
+	// fetch or store to memory.  Thus, we need a signal to
+	// indicate what operation is required of the memory
+	// system.
+	wire dat_we = (is_alu & ins_dat_i[5]);
+	assign dat_we_o = dat_we;
 
 	// The Wishbone bus requires that we qualify all bus
 	// transactions with a CYC_O signal, indicating when
@@ -54,14 +71,6 @@ module M_j1a(
 	wire is_fetch = ins_dat_i[11:8] === 4'b1100;
 	wire dat_cyc = (is_alu & (is_fetch | dat_we));
 	assign dat_cyc_o = dat_cyc;
-
-	// Unlike the instruction bus, which operates permanently
-	// in a read-only manner, the data bus may be used to
-	// fetch or store to memory.  Thus, we need a signal to
-	// indicate what operation is required of the memory
-	// system.
-	wire dat_we = (is_alu & ins_dat_i[5]);
-	assign dat_we_o = dat_we;
 
 	// The J1A sports two different buses: the instruction
 	// bus, and the data bus.  The instruction bus fetches
@@ -113,13 +122,7 @@ module M_j1a(
 	reg rswe; 		// return stack write enable
 
 	// The asynchronous logic works to compute the processor's
-	// next state.
-	wire is_alu = (ins_dat_i[15:13] === 3'b011);
-	wire is_call = (ins_dat_i[15:13] === 3'b010);
-	wire is_load = (ins_dat_i[15] === 1'b1);
-	wire is_ujump = (ins_dat_i[15:13] === 3'b000);
-	wire is_zjump = (ins_dat_i[15:13] === 3'b001);
-	wire [13:1] target = ins_dat_i[12:0];
+	// next state.  (Part 2)
 	wire tzero = (t === 16'h0000);
 
 	always @* begin
