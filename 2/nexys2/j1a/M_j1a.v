@@ -143,7 +143,7 @@ module M_j1a(
 		// note that various bit-fields are used to concurrently
 		// update different parts of the CPU and/or external
 		// memory state.
-		if (is_alu) begin
+		else if (is_alu) begin
 			// Return from subroutine support
 			pc_n <= (ins_dat_i[12])? r : pc+1;
 
@@ -173,10 +173,7 @@ module M_j1a(
 
 			// This instruction field supports >R, DO/LOOP, et. al.
 			rswe <= ins_dat_i[6];
-			case(is_alu & ins_dat_i[6])
-				1'b0: r_n <= r;
-				1'b1: r_n <= t;
-			endcase
+			r_n <= (is_alu & ins_dat_i[6])? t : r;
 			
 			// Instruction bit 5 is handled in the wire dat_we_o.
 			
@@ -190,27 +187,29 @@ module M_j1a(
 		end
 		
 		// Jump instructions.
-		if (is_ujump) begin
+		else if (is_ujump) begin
 			pc_n <= target;
 			t_n <= t;
 			s_n <= s;
 			dswe <= 0;
 			rswe <= 0;
+			r_n <= r;
 			rsp_n <= rsp;
 			dsp_n <= dsp-1;
 		end
 
-		if (is_zjump) begin
+		else if (is_zjump) begin
 			pc_n <= tzero? target : pc+1;
 			t_n <= s;
 			s_n <= s;
 			dswe <= 0;
 			rswe <= 0;
+			r_n <= r;
 			rsp_n <= rsp;
 			dsp_n <= dsp-1;
 		end
 		
-		if (is_call) begin
+		else if (is_call) begin
 			pc_n <= target;
 			t_n <= t;
 			s_n <= s;
@@ -220,6 +219,17 @@ module M_j1a(
 			rsp_n <= rsp+1;
 			dsp_n <= dsp;
 		end
+		
+		else begin
+			pc_n <= 13'hxxxx;
+			t_n <= 16'hxxxx;
+			s_n <= 16'hxxxx;
+			dswe <= 1'bx;
+			rswe <= 1'bx;
+			r_n <= 16'hxxxx;
+			rsp_n <= 5'hxx;
+			dsp_n <= 5'hxx;
+		end
 	end
 
 	always @(posedge sys_clk_i) begin
@@ -227,8 +237,8 @@ module M_j1a(
 			pc <= 15'h0000;
 			ins_cyc <= 1;
 			t <= 16'h0000;
-			rsp <= 5'b00000; rsp_n <= 5'b00000;
-			dsp <= 5'b00000; dsp_n <= 5'b00000;
+			rsp <= 5'b00000;// rsp_n <= 5'b00000;
+			dsp <= 5'b00000;// dsp_n <= 5'b00000;
 		end else begin
 			if (shr_stb_o & shr_ack_i) begin
 				pc <= pc_n;
