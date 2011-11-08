@@ -57,7 +57,8 @@ module M_j1a(
 	// fetch or store to memory.  Thus, we need a signal to
 	// indicate what operation is required of the memory
 	// system.
-	wire dat_we = (is_alu & ins_dat_i[5]);
+	wire is_store = (is_alu & ins_dat_i[5]);
+	reg dat_we;
 	assign dat_we_o = dat_we;
 
 	// The Wishbone bus requires that we qualify all bus
@@ -69,7 +70,8 @@ module M_j1a(
 	reg ins_cyc;	assign ins_cyc_o = ins_cyc;
 	
 	wire is_fetch = ins_dat_i[11:8] === 4'b1100;
-	wire dat_cyc = (is_alu & (is_fetch | dat_we));
+	wire is_data_access = (is_alu & (is_fetch | is_store));
+	reg dat_cyc;
 	assign dat_cyc_o = dat_cyc;
 
 	// The J1A sports two different buses: the instruction
@@ -239,7 +241,12 @@ module M_j1a(
 			t <= 16'h0000;
 			rsp <= 5'b00000;// rsp_n <= 5'b00000;
 			dsp <= 5'b00000;// dsp_n <= 5'b00000;
+			dat_cyc <= 0;
+			dat_we <= 0;
 		end else begin
+			dat_cyc <= is_data_access;
+			dat_we <= is_store;
+
 			if (shr_stb_o & shr_ack_i) begin
 				pc <= pc_n;
 				t <= t_n;
