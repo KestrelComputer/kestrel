@@ -9,6 +9,8 @@ variable romfileHandle
 : readRomFile   openRomFile  buffer 16384 romfileHandle @ read-file throw drop closeRomFile ;
 readRomFile
 
+buffer 64 dump bye
+
 \ Create a hex dump of a single 32-byte run.  The format of the dump
 \ is opposite most memory dumps -- most significant byte first.  Verilog
 \ treats the value as a 256-bit integer, hence the weirdness.
@@ -26,8 +28,8 @@ variable unitHigh
 
 : indent    ."     " ;
 : module    ." pm" ;
-: dash      ." -" ;
-: unit      ." ram" unitLow @ .byte dash unitHigh @ .byte ;
+: uscr      ." _" ;
+: unit      ." ram" unitLow @ .byte uscr unitHigh @ .byte ;
 : init      ." INIT_" ctr @ .byte ;
 : dot       ." ." ;
 : comma     ." ," ;
