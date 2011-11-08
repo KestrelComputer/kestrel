@@ -2,25 +2,38 @@
 module VRAM(
 	input					RST_I,
 	input					CLK_I,
-	input		[12:0]	ADR_I,
-	input					CYC_I,
-	input					STB_I,
-	output				ACK_O,
-	output	[15:0]	DAT_O
+	input		[12:0]	VF_ADR_I,
+	input					VF_CYC_I,
+	input					VF_STB_I,
+	output				VF_ACK_O,
+	output	[15:0]	VF_DAT_O,
+	input		[12:0]	CPU_ADR_I,
+	input		[15:0]	CPU_DAT_I,
+	output	[15:0]	CPU_DAT_O,
+	input					CPU_STB_I,
+	output				CPU_ACK_O,
+	input					CPU_WE_I
 );
 
 	reg				raw_ack;
 	reg				ram_ack;
 	wire	[15:0]	dat0, dat1, dat2, dat3, dat4, dat5, dat6, dat7;
+	wire	[15:0]	cpu_dat0, cpu_dat1, cpu_dat2, cpu_dat3, cpu_dat4, cpu_dat5, cpu_dat6, cpu_dat7;
 	reg	[15:0]	ram_q;
+	reg	[15:0]	cpu_ram_q;
+	reg				cpu_ram_ack;
+	reg				cpu_raw_ack;
 
-	assign	ACK_O	= ram_ack;
-	assign	DAT_O = ram_q;
+	assign	VF_ACK_O	= ram_ack;
+	assign	VF_DAT_O = ram_q;
+	assign	CPU_ACK_O = cpu_ram_ack;
+	assign	CPU_DAT_O = cpu_ram_q;
 
 	always @(*) begin
-		ram_ack <= raw_ack & CYC_I & STB_I;
-		
-		case(ADR_I[12:10])
+		ram_ack <= raw_ack & VF_CYC_I & VF_STB_I;
+		cpu_ram_ack <= cpu_raw_ack & CPU_STB_I;
+
+		case(VF_ADR_I[12:10])
 			0:	ram_q <= dat0;
 			1: ram_q <= dat1;
 			2:	ram_q <= dat2;
@@ -30,99 +43,130 @@ module VRAM(
 			6:	ram_q <= dat6;
 			7:	ram_q <= dat7;
 		endcase
+
+		case(CPU_ADR_I[12:10])
+			0:	cpu_ram_q <= cpu_dat0;
+			1: cpu_ram_q <= cpu_dat1;
+			2:	cpu_ram_q <= cpu_dat2;
+			3:	cpu_ram_q <= cpu_dat3;
+			4:	cpu_ram_q <= cpu_dat4;
+			5: cpu_ram_q <= cpu_dat5;
+			6:	cpu_ram_q <= cpu_dat6;
+			7:	cpu_ram_q <= cpu_dat7;
+		endcase
 	end
 
 	always @(posedge CLK_I) begin
-		raw_ack <= STB_I & !raw_ack;
+		raw_ack <= VF_STB_I & !raw_ack;
+		cpu_raw_ack <= CPU_STB_I & !cpu_raw_ack;
 	end
 
-	RAMB16_S18 r0(
-		.WE(1'b0),
-		.EN(ADR_I[12:10] == 0),
-		.SSR(RST_I),
-		.CLK(CLK_I),
-		.ADDR(ADR_I[9:0]),
-		.DO(dat0),
-		.DI(16'hFFFF),
-		.DIP(2'b11)
+	wire vf_ram_0 = VF_ADR_I[12:10] == 0;
+	wire vf_ram_1 = VF_ADR_I[12:10] == 1;
+	wire vf_ram_2 = VF_ADR_I[12:10] == 2;
+	wire vf_ram_3 = VF_ADR_I[12:10] == 3;
+	wire vf_ram_4 = VF_ADR_I[12:10] == 4;
+	wire vf_ram_5 = VF_ADR_I[12:10] == 5;
+	wire vf_ram_6 = VF_ADR_I[12:10] == 6;
+	wire vf_ram_7 = VF_ADR_I[12:10] == 7;
+
+	wire cpu_ram_0 = CPU_ADR_I[12:10] == 0;
+	wire cpu_ram_1 = CPU_ADR_I[12:10] == 1;
+	wire cpu_ram_2 = CPU_ADR_I[12:10] == 2;
+	wire cpu_ram_3 = CPU_ADR_I[12:10] == 3;
+	wire cpu_ram_4 = CPU_ADR_I[12:10] == 4;
+	wire cpu_ram_5 = CPU_ADR_I[12:10] == 5;
+	wire cpu_ram_6 = CPU_ADR_I[12:10] == 6;
+	wire cpu_ram_7 = CPU_ADR_I[12:10] == 7;
+
+	RAMB16_S18_S18 r0(
+		.WEA(1'b0),						.WEB(CPU_WE_I),
+		.ENA(vf_ram_0),				.ENB(cpu_ram_0),
+		.SSRA(RST_I),					.SSRB(RST_I),
+		.CLKA(CLK_I),					.CLKB(CLK_I),
+		.ADDRA(VF_ADR_I[9:0]),		.ADDRB(CPU_ADR_I[9:0]),
+		.DOA(dat0),						.DOB(cpu_dat0),
+		.DIA(16'hFFFF),				.DIB(CPU_DAT_I),
+		.DIPA(2'b11),					.DIPB(2'b11)
 	);
 
-	RAMB16_S18 r1(
-		.WE(1'b0),
-		.EN(ADR_I[12:10] == 1),
-		.SSR(RST_I),
-		.CLK(CLK_I),
-		.ADDR(ADR_I[9:0]),
-		.DO(dat1),
-		.DI(16'hFFFF),
-		.DIP(2'b11)
+	RAMB16_S18_S18 r1(
+		.WEA(1'b0),						.WEB(CPU_WE_I),
+		.ENA(vf_ram_1),				.ENB(cpu_ram_1),
+		.SSRA(RST_I),					.SSRB(RST_I),
+		.CLKA(CLK_I),					.CLKB(CLK_I),
+		.ADDRA(VF_ADR_I[9:0]),		.ADDRB(CPU_ADR_I[9:0]),
+		.DOA(dat1),						.DOB(cpu_dat1),
+		.DIA(16'hFFFF),				.DIB(CPU_DAT_I),
+		.DIPA(2'b11),					.DIPB(2'b11)
 	);
 
-	RAMB16_S18 r2(
-		.WE(1'b0),
-		.EN(ADR_I[12:10] == 2),
-		.SSR(RST_I),
-		.CLK(CLK_I),
-		.ADDR(ADR_I[9:0]),
-		.DO(dat2),
-		.DI(16'hFFFF),
-		.DIP(2'b11)
+	RAMB16_S18_S18 r2(
+		.WEA(1'b0),						.WEB(CPU_WE_I),
+		.ENA(vf_ram_2),				.ENB(cpu_ram_2),
+		.SSRA(RST_I),					.SSRB(RST_I),
+		.CLKA(CLK_I),					.CLKB(CLK_I),
+		.ADDRA(VF_ADR_I[9:0]),		.ADDRB(CPU_ADR_I[9:0]),
+		.DOA(dat2),						.DOB(cpu_dat2),
+		.DIA(16'hFFFF),				.DIB(CPU_DAT_I),
+		.DIPA(2'b11),					.DIPB(2'b11)
 	);
 
-	RAMB16_S18 r3(
-		.WE(1'b0),
-		.EN(ADR_I[12:10] == 3),
-		.SSR(RST_I),
-		.CLK(CLK_I),
-		.ADDR(ADR_I[9:0]),
-		.DO(dat3),
-		.DI(16'hFFFF),
-		.DIP(2'b11)
+	RAMB16_S18_S18 r3(
+		.WEA(1'b0),						.WEB(CPU_WE_I),
+		.ENA(vf_ram_3),				.ENB(cpu_ram_3),
+		.SSRA(RST_I),					.SSRB(RST_I),
+		.CLKA(CLK_I),					.CLKB(CLK_I),
+		.ADDRA(VF_ADR_I[9:0]),		.ADDRB(CPU_ADR_I[9:0]),
+		.DOA(dat3),						.DOB(cpu_dat3),
+		.DIA(16'hFFFF),				.DIB(CPU_DAT_I),
+		.DIPA(2'b11),					.DIPB(2'b11)
 	);
 
-	RAMB16_S18 r4(
-		.WE(1'b0),
-		.EN(ADR_I[12:10] == 4),
-		.SSR(RST_I),
-		.CLK(CLK_I),
-		.ADDR(ADR_I[9:0]),
-		.DO(dat4),
-		.DI(16'hFFFF),
-		.DIP(2'b11)
+	RAMB16_S18_S18 r4(
+		.WEA(1'b0),						.WEB(CPU_WE_I),
+		.ENA(vf_ram_4),				.ENB(cpu_ram_4),
+		.SSRA(RST_I),					.SSRB(RST_I),
+		.CLKA(CLK_I),					.CLKB(CLK_I),
+		.ADDRA(VF_ADR_I[9:0]),		.ADDRB(CPU_ADR_I[9:0]),
+		.DOA(dat4),						.DOB(cpu_dat4),
+		.DIA(16'hFFFF),				.DIB(CPU_DAT_I),
+		.DIPA(2'b11),					.DIPB(2'b11)
 	);
 
-	RAMB16_S18 r5(
-		.WE(1'b0),
-		.EN(ADR_I[12:10] == 5),
-		.SSR(RST_I),
-		.CLK(CLK_I),
-		.ADDR(ADR_I[9:0]),
-		.DO(dat5),
-		.DI(16'hFFFF),
-		.DIP(2'b11)
+	RAMB16_S18_S18 r5(
+		.WEA(1'b0),						.WEB(CPU_WE_I),
+		.ENA(vf_ram_5),				.ENB(cpu_ram_5),
+		.SSRA(RST_I),					.SSRB(RST_I),
+		.CLKA(CLK_I),					.CLKB(CLK_I),
+		.ADDRA(VF_ADR_I[9:0]),		.ADDRB(CPU_ADR_I[9:0]),
+		.DOA(dat5),						.DOB(cpu_dat5),
+		.DIA(16'hFFFF),				.DIB(CPU_DAT_I),
+		.DIPA(2'b11),					.DIPB(2'b11)
 	);
 
-	RAMB16_S18 r6(
-		.WE(1'b0),
-		.EN(ADR_I[12:10] == 6),
-		.SSR(RST_I),
-		.CLK(CLK_I),
-		.ADDR(ADR_I[9:0]),
-		.DO(dat6),
-		.DI(16'hFFFF),
-		.DIP(2'b11)
+	RAMB16_S18_S18 r6(
+		.WEA(1'b0),						.WEB(CPU_WE_I),
+		.ENA(vf_ram_6),				.ENB(cpu_ram_6),
+		.SSRA(RST_I),					.SSRB(RST_I),
+		.CLKA(CLK_I),					.CLKB(CLK_I),
+		.ADDRA(VF_ADR_I[9:0]),		.ADDRB(CPU_ADR_I[9:0]),
+		.DOA(dat6),						.DOB(cpu_dat6),
+		.DIA(16'hFFFF),				.DIB(CPU_DAT_I),
+		.DIPA(2'b11),					.DIPB(2'b11)
 	);
 
-	RAMB16_S18 r7(
-		.WE(1'b0),
-		.EN(ADR_I[12:10] == 7),
-		.SSR(RST_I),
-		.CLK(CLK_I),
-		.ADDR(ADR_I[9:0]),
-		.DO(dat7),
-		.DI(16'hFFFF),
-		.DIP(2'b11)
+	RAMB16_S18_S18 r7(
+		.WEA(1'b0),						.WEB(CPU_WE_I),
+		.ENA(vf_ram_7),				.ENB(cpu_ram_7),
+		.SSRA(RST_I),					.SSRB(RST_I),
+		.CLKA(CLK_I),					.CLKB(CLK_I),
+		.ADDRA(VF_ADR_I[9:0]),		.ADDRB(CPU_ADR_I[9:0]),
+		.DOA(dat7),						.DOB(cpu_dat7),
+		.DIA(16'hFFFF),				.DIB(CPU_DAT_I),
+		.DIPA(2'b11),					.DIPB(2'b11)
 	);
+
 
 	defparam
 r0.INIT_3F = 256'h5555555555555555555555555555555555555555555555555555555555555555,
