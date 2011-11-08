@@ -78,38 +78,28 @@ module M_kestrel2(
 	wire [15:0] j1a_ins_dat_i;
 	wire        j1a_ins_cyc_o;
 	wire [15:1] j1a_dat_adr_o;
-	wire [15:0] j1a_dat_dat_i;
+	reg  [15:0] j1a_dat_dat_i;
 	wire [15:0] j1a_dat_dat_o;
 	wire        j1a_dat_cyc_o;
 	wire        j1a_dat_we_o;
 	wire        j1a_stb_o;
-	wire        j1a_ack_i;
+	reg         j1a_ack_i;
 
-	wire [13:1] mem_ins_adr_i;
-	wire [13:1] mem_dat_adr_i;
-	wire [15:0] mem_ins_dat_o;
-	wire [15:0] mem_dat_dat_o;
-	wire [15:0] mem_dat_dat_i;
-	wire        mem_dat_we_i;
-	wire        mem_stb_i;
-	wire        mem_ack_o;
+	wire			pm_dat_ack_o;
+	wire			pm_ins_ack_o;
+	wire [15:0]	pm_dat_o;
+	reg 			pm_dat_stb;
 
-	// Instantiate the UXA, which includes the MGIA
-	// and PS2IO modules.  This includes video RAM.
-	
-	// Instantiate the program memory space.
-	M_mem mem(
-		.ins_adr_i(mem_ins_adr_i),
-		.ins_dat_o(mem_ins_dat_o),
-		.dat_adr_i(mem_dat_adr_i),
-		.dat_dat_o(mem_dat_dat_o),
-		.dat_dat_i(mem_dat_dat_i),
-		.dat_we_i(mem_dat_we_i),
-		.dat_stb_i(mem_stb_i),
-		.dat_ack_o(mem_ack_o),
-		.dat_clk_i(sys_clk),
-		.dat_rst_i(N2_RST_I)
-	);
+	wire [15:0]	vm_dat_o;
+	reg			vm_dat_stb;
+	wire			vm_dat_ack_o;
+
+	wire [13:1]	mgia_adr_o;
+	wire [15:0]	mgia_dat_i;
+	wire			mgia_cyc_o;
+	wire			mgia_stb_o;
+	wire			mgia_ack_i;
+	wire			sys_clk;
 
 	// Instantiate the J1A microprocessor.
 	M_j1a j1a(
@@ -126,13 +116,93 @@ module M_kestrel2(
 		.shr_stb_o(j1a_stb_o),
 		.shr_ack_i(j1a_ack_i)
 	);
+
+	wire data_access = ~N2_RST_I & j1a_stb_o & j1a_dat_cyc_o;
+	wire addressing_prg_mem = j1a_dat_adr_o[15:14] == 2'b00;
+	wire addressing_vid_mem = j1a_dat_adr_o[15:14] == 2'b10;
+
+	always @* begin
+		// When fetching data from various resources, the CPU will
+		// need to select which output data bus to read from.
+		if (addressing_prg_mem)
+			j1a_dat_dat_i <= pm_dat_o;
+		else if (addressing_vid_mem)
+			j1a_dat_dat_i <= vm_dat_o;
+//		else if (addressing_kbd_ps2)
+//			j1a_dat_dat_i <= kbd_dat_o;
+		else
+			j1a_dat_dat_i <= 16'hxxxx;
+			
+		// Peripherals won't know to drive their buses, however,
+		// unless told to do so by asserting the appropriate
+		// data strobes.
+		pm_dat_stb <= data_access & addressing_prg_mem;
+		vm_dat_stb <= data_access & addressing_vid_mem;
+
+		// Since the Kestrel-2 lacks multi-master support,
+		// we can get by with simply ORing all the acknowledgements
+		// together.
+		j1a_ack_i <= pm_ins_ack_o | pm_dat_ack_o | vm_dat_ack_o;
+	end
+
+	// Program Memory ($0000-$3FFF)
+	M_mem pm(
+		.ins_adr_i(j1a_ins_adr_o),
+		.ins_dat_o(j1a_ins_dat_i),
+		.ins_cyc_i(j1a_ins_cyc_o),
+		.ins_stb_i(j1a_stb_o),
+		.ins_ack_o(pm_ins_ack_o),
+
+		.dat_adr_i(j1a_dat_adr_o[13:1]),
+		.dat_dat_o(pm_dat_o),
+		.dat_dat_i(j1a_dat_dat_o),
+		.dat_we_i(j1a_dat_we_o),
+		.dat_cyc_i(j1a_dat_cyc_o),
+		.dat_stb_i(pm_dat_stb),
+		.dat_ack_o(pm_dat_ack_o),
+
+		.sys_clk_i(sys_clk),
+		.sys_rst_i(N2_RST_I)
+	);
 	
-	// Address decoding logic.
-	wire addressing_program_memory = (j1a_dat_adr_o[15:14] == 2'b00);
-	wire addressing_video_memory = (j1a_dat_adr_o[15:14] == 2'b10);
-	wire addressing_uxa = (j1a_dat_adr_o[15:2] == 14'b11_1111_1111_1111);
+	// Video Memory ($8000-$BFFF)
+	M_mem vm(
+		.ins_adr_i(mgia_adr_o),
+		.ins_dat_o(mgia_dat_i),
+		.ins_cyc_i(mgia_cyc_o),
+		.ins_stb_i(mgia_stb_o),
+		.ins_ack_o(mgia_ack_i),
+		
+		.dat_adr_i(j1a_dat_adr_o[13:1]),
+		.dat_dat_o(vm_dat_o),
+		.dat_dat_i(j1a_dat_dat_o),
+		.dat_we_i(j1a_dat_we_o),
+		.dat_cyc_i(j1a_dat_cyc_o),
+		.dat_stb_i(vm_dat_stb),
+		.dat_ack_o(vm_dat_ack_o),
+		
+		.sys_clk_i(sys_clk),
+		.sys_rst_i(N2_RST_I)
+	);
+
+	// Monochrome Graphics Interface Adapter
+	M_uxa_mgia mgia(
+		.CLK_I_50MHZ(N2_50MHZ_I),
+		.RST_I(N2_RST_I),
+		.CLK_O_25MHZ(sys_clk),
+
+		.HSYNC_O(N2_HSYNC_O),
+		.VSYNC_O(N2_VSYNC_O),
+		.RED_O(N2_RED_O),
+		.GRN_O(N2_GRN_O),
+		.BLU_O(N2_BLU_O),
 	
-	// Wishbone requires we route strobe signals based on address
-	// decoding state.
-	assign mem_stb_i = addressing_program_memory & j1a_stb_o & j1a_dat_cyc_o;
+		.MGIA_ADR_O(mgia_adr_o),
+		.MGIA_DAT_I(mgia_dat_i),
+		.MGIA_CYC_O(mgia_cyc_o),
+		.MGIA_STB_O(mgia_stb_o),
+		.MGIA_ACK_I(mgia_ack_i)
+	);
+
+	// Keyboard PS2IO ($FFFE)
 endmodule
