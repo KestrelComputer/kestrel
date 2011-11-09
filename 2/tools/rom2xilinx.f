@@ -19,8 +19,8 @@ readRomFile
 
 : swapb         >r r@ c@ r@ 1+ c@ r@ c! r@ 1+ c! r> ;
 : -end          dup buffer /buffer + u< if exit then r> drop ;
-: 16k           begin -end swapb 2 + again ;
-: swapBytes     buffer 16k drop ;
+: swapAll       begin -end swapb 2 + again ;
+: swapBytes     buffer swapAll drop ;
 swapBytes
 
 \ Create a hex dump of a single 32-byte run.  The format of the dump
