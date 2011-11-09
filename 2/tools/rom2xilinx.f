@@ -1,4 +1,5 @@
-create buffer   16384 allot
+16384 constant /buffer
+create buffer   /buffer allot
 
 \ Read the romfile into the buffer.
 
@@ -6,10 +7,21 @@ variable romfileHandle
 : name          S" romfile" ;
 : openRomFile   name r/o open-file throw romfileHandle ! ;
 : closeRomFile  romfileHandle @ close-file throw ;
-: readRomFile   openRomFile  buffer 16384 romfileHandle @ read-file throw drop closeRomFile ;
+: readRomFile   openRomFile  buffer /buffer romfileHandle @ read-file throw drop closeRomFile ;
 readRomFile
 
-buffer 64 dump bye
+\ If we create a simple byte dump of our buffer, we will find ourselves
+\ executing bad code.  This is because the Xilinx products interprets its
+\ initialization vectors for 16-bit wide memories in chunks of 16 bits.
+\ However, if you do a dumb dump of the freshly filled buffer, you'll find
+\ that we need to swap even and odd bytes throughout the buffer in order
+\ for the RAM's initialization to make any kind of sense.
+
+: swapb         >r r@ c@ r@ 1+ c@ r@ c! r@ 1+ c! r> ;
+: -end          dup buffer /buffer + u< if exit then r> drop ;
+: 16k           begin -end swapb 2 + again ;
+: swapBytes     buffer 16k drop ;
+swapBytes
 
 \ Create a hex dump of a single 32-byte run.  The format of the dump
 \ is opposite most memory dumps -- most significant byte first.  Verilog
