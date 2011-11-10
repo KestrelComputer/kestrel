@@ -41,8 +41,15 @@ module M_uxa_ps2_busctl(
 	// the I/O port takes no action.  It's assumed that other logic
 	// maps the q_o outputs of the FIFO module directly to the
 	// wb_dat_o outputs.
-	assign wb_ack_o = wb_stb_i;
-
+	//
+	// Update -- we need to insert wait states for the Kestrel's
+	// specific implementation of the J1A processor, because it's
+	// unable to handle at-clock-rate memory accesses.
+	//
+	// Original code: assign wb_ack_o = wb_stb_i;
+	reg wb_ack;
+	assign wb_ack_o = wb_ack;
+	
 	// When writing, however, we need to be more careful.  First,
 	// we need to capture the values of the C and D signals, and
 	// perhaps drive the corresponding PS/2 signals low.
@@ -62,7 +69,9 @@ module M_uxa_ps2_busctl(
 			c_oe <= 0;
 			d_oe <= 0;
 			rp_inc <= 0;
+			wb_ack <= 0;
 		end else begin
+			wb_ack <= ~wb_ack & wb_stb_i;
 			rp_inc <= rp_inc_n;
 			if(wb_stb_i & wb_we_i) begin
 				c_oe <= ~wb_dat_9_i;
