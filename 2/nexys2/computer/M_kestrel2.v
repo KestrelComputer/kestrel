@@ -101,6 +101,12 @@ module M_kestrel2(
 	wire			mgia_ack_i;
 	wire			sys_clk;
 
+	wire			kbd_ack_o;
+	reg			kbd_stb_i;
+	wire			kbd_we_i;
+	wire			[15:0] kbd_dat_i;
+	wire			[15:0] kbd_dat_o;
+
 	// Instantiate the J1A microprocessor.
 	M_j1a j1a(
 		.sys_res_i(N2_RST_I),
@@ -120,6 +126,11 @@ module M_kestrel2(
 	wire data_access = ~N2_RST_I & j1a_stb_o & j1a_dat_cyc_o;
 	wire addressing_prg_mem = j1a_dat_adr_o[15:14] == 2'b00;
 	wire addressing_vid_mem = j1a_dat_adr_o[15:14] == 2'b10;
+	wire addressing_ps2 = j1a_dat_adr_o[15:2] == 14'h3FFF;
+// wire addressing_mou_ps2 = addressing_ps2 & ~j1a_dat_adr_o[0];
+	wire addressing_kbd_ps2 = addressing_ps2 & j1a_dat_adr_o[1];
+
+	assign kbd_we_i = j1a_dat_we_o;
 
 	always @* begin
 		// When fetching data from various resources, the CPU will
@@ -128,8 +139,8 @@ module M_kestrel2(
 			j1a_dat_dat_i <= pm_dat_o;
 		else if (addressing_vid_mem)
 			j1a_dat_dat_i <= vm_dat_o;
-//		else if (addressing_kbd_ps2)
-//			j1a_dat_dat_i <= kbd_dat_o;
+		else if (addressing_kbd_ps2)
+			j1a_dat_dat_i <= kbd_dat_o;
 		else
 			j1a_dat_dat_i <= 16'hxxxx;
 			
@@ -138,11 +149,12 @@ module M_kestrel2(
 		// data strobes.
 		pm_dat_stb <= data_access & addressing_prg_mem;
 		vm_dat_stb <= data_access & addressing_vid_mem;
+		kbd_stb_i <= data_access & addressing_kbd_ps2;
 
 		// Since the Kestrel-2 lacks multi-master support,
 		// we can get by with simply ORing all the acknowledgements
 		// together.
-		j1a_ack_i <= pm_ins_ack_o | pm_dat_ack_o | vm_dat_ack_o;
+		j1a_ack_i <= pm_ins_ack_o | pm_dat_ack_o | vm_dat_ack_o | kbd_ack_o;
 	end
 
 	// Program Memory ($0000-$3FFF)
@@ -205,7 +217,22 @@ module M_kestrel2(
 	);
 
 	// Keyboard PS2IO ($FFFE)
-	
+	M_uxa_ps2 ps2kbd(
+//		.ps2_c_oe_o(DELIBERATELY UNUSED),
+//		.ps2_d_oe_o(DELIBERATELY UNUSED),
+		.ps2_d_i(N2_PS2D_I),
+		.ps2_c_i(N2_PS2C_I),
+
+		.sys_clk_i(sys_clk),
+		.sys_reset_i(N2_RST_I),
+
+		.io_ack_o(kbd_ack_o),
+		.io_stb_i(kbd_stb_i),
+		.io_we_i(kbd_we_i),
+		.io_dat_i(kbd_dat_i),
+		.io_dat_o(kbd_dat_o)
+	);
+
 	// Video RAM static image (at boot-time)
 	defparam
 vm.ram00_07.INIT_3F = 256'h5555555555555555555555555555555555555555555555555555555555555555,
