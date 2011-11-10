@@ -34,8 +34,16 @@ module M_j1a(
 	 output dat_cyc_o,
     output ins_cyc_o,
     output shr_stb_o,
-    input shr_ack_i
+    input shr_ack_i,
+	 output tp_o	// (hg.note.1)
     );
+
+	// Due to the interactions between synchronous instruction
+	// fetching and the Wishbone bus, we need to add special
+	// logic just to hold the data bus stable while a memory
+	// write is in progress.  These registers help. (hg.note.2)
+	reg [15:1] write_addr;
+	reg [15:0] write_data;
 
 	// The asynchronous logic works to compute the processor's
 	// next state.  (Part 1)
@@ -45,6 +53,8 @@ module M_j1a(
 	wire is_ujump = (ins_dat_i[15:13] === 3'b000);
 	wire is_zjump = (ins_dat_i[15:13] === 3'b001);
 	wire [13:1] target = ins_dat_i[12:0];
+
+	assign tp_o = is_alu?(ins_dat_i[4]):0; // (hg.note.1)
 
 	// The microprocessor needs to fetch instructions from
 	// somewhere; the program counter (PC) register tells
@@ -69,10 +79,41 @@ module M_j1a(
 	// arbitrate for bus access.
 	reg ins_cyc;	assign ins_cyc_o = ins_cyc;
 	
-	wire is_fetch = ins_dat_i[11:8] === 4'b1100;
-	wire is_data_access = (is_alu & (is_fetch | is_store));
-	reg dat_cyc;
-	assign dat_cyc_o = dat_cyc;
+	// (hg.note.4)
+	// I've encountered situations where the CPU would
+	// return from a subroutine, causing the PC to address
+	// a different 1Kx16 block RAM.  Since the address
+	// decoding logic is combinatorial, it's asynchronous,
+	// making the INS_DAT_I multiplexer the same.  Because
+	// each RAM retains the last value it had on the bus
+	// until its address latches are reloaded, sometimes
+	// you'd find a memory fetch opcode appear on the bus.
+	// The problem is, DAT_CYC_O would respond to this
+	// opcode, even though the instruction was ignored
+	// elsewhere.  This caused SHR_ACK_I to be held high
+	// for _three_ cycles in succession, instead of just
+	// one, causing the CPU to execute bad instructions
+	// or fetch wrong data in subsequent instructions.  Long
+	// story short, you'd end up with a corrupted data
+	// stack, causing your intended code to crash.
+	//
+	// The logic below helps alleviate this.  It works in
+	// several ways.  First, we better qualify the is_fetch
+	// signal, which has the effect of better qualifying the
+	// is_data_access signal.
+	//
+	// Next, though, we use a 2-bit shift register to drive
+	// the DAT_CYC_O signal, to ensure its output actually
+	// lines up with the actual read cycle.
+	//
+	// Finally, in (hg.note.5), you'll see where we qualify
+	// loads to the dat_cyc shift register, so that it
+	// responds to actual fetch instructions, and not spurious
+	// readings on the instruction data bus.
+	wire is_fetch = is_alu & (ins_dat_i[11:8] == 4'b1100);
+	wire is_data_access = is_fetch | is_store;
+	reg [1:0] dat_cyc;
+	assign dat_cyc_o = dat_cyc[0];
 
 	// The J1A sports two different buses: the instruction
 	// bus, and the data bus.  The instruction bus fetches
@@ -100,8 +141,19 @@ module M_j1a(
 	reg [4:0] dsp;
 	wire [15:0] s = ds[dsp];
 	
-	assign dat_adr_o[15:1] = t[15:1];
-	assign dat_dat_o = s;
+	// (hg.note.3)
+	assign dat_adr_o[15:1] = dat_we_o? write_addr : t[15:1];
+	assign dat_dat_o = dat_we_o? write_data : s;
+
+	// However, when we fetch data, the generation of DAT_CYC_O
+	// happens one half of one bus cycle too early.  Therefore,
+	// we need to qualify a few signals against SYS_CLK_I to
+	// make things line up properly.  However, this _also_ means
+	// we need to insert a null bus cycle too.  We do this by
+	// withholding the SHR_ACK_I signal until we know that the
+	// read cycle has at least started, if not outright finished.
+	// But, we need to be careful to only do this for fetches.
+	wire qualified_ack = is_fetch? (shr_ack_i & dat_cyc) : shr_ack_i;
 
 	// The R pseudo-register always refers to the current top
 	// of the return stack.
@@ -197,7 +249,7 @@ module M_j1a(
 			rswe <= 0;
 			r_n <= r;
 			rsp_n <= rsp;
-			dsp_n <= dsp-1;
+			dsp_n <= dsp;		// (hg.note.6)
 		end
 
 		else if (is_zjump) begin
@@ -241,13 +293,18 @@ module M_j1a(
 			t <= 16'h0000;
 			rsp <= 5'b00000;// rsp_n <= 5'b00000;
 			dsp <= 5'b00000;// dsp_n <= 5'b00000;
-			dat_cyc <= 0;
+			dat_cyc <= 2'b00;
 			dat_we <= 0;
 		end else begin
-			dat_cyc <= is_data_access;
-			dat_we <= is_store;
+			// (hg.note.5)
+			dat_cyc[0] <= (is_data_access & shr_ack_i & ~dat_cyc_o)? 1 : dat_cyc[1];
+			dat_cyc[1] <= (is_data_access & shr_ack_i & ~dat_cyc_o)? 1 : 0 ;
 
-			if (shr_stb_o & shr_ack_i) begin
+			dat_we <= is_store;
+			write_addr <= dat_we_o ? write_addr : t[15:1];	// (hg.note.2)
+			write_data <= dat_we_o ? write_data : s;			// (hg.note.2)
+
+			if (shr_stb_o & qualified_ack) begin
 				pc <= pc_n;
 				t <= t_n;
 
