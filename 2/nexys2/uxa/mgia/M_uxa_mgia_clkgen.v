@@ -30,9 +30,10 @@ module TIMEBASE(
 	wire				vsync_assert	= linectr == 12;
 	wire				vsync_negate	= linectr == 14;
 	wire				h_refresh_on	= dotctr == 154;
-	wire				v_refresh_on	= linectr == 45;
-	wire				v_fetch_on		= linectr == 44;
-	wire				v_fetch_off		= linectr == 524;
+	wire				v_refresh_on	= linectr == 85; // 45 for 480V
+	wire				v_refresh_off  = linectr == 484; // 525 for 480V
+	wire				v_fetch_on		= linectr == 84; // 44 for 480V
+	wire				v_fetch_off		= linectr == 483; // 524 for 480V
 
 	assign HSYNC_O 		= hsync;
 	assign VSYNC_O 		= vsync;
@@ -84,7 +85,7 @@ module TIMEBASE(
 			default:	h_refresh_enable <= h_refresh_enable;
 		endcase
 
-		case({v_refresh_on, frame_done})
+		case({v_refresh_on, v_refresh_off})
 			2'b01:	v_refresh_enable <= 0;
 			2'b10:	v_refresh_enable <= 1;
 			default:	v_refresh_enable <= v_refresh_enable;
