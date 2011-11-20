@@ -78,7 +78,7 @@ In summary, the top-level layout of the program follows:</p>
 @ A breakpoint behaves like a software-defined interrupt.  The application containing a breakpoint instruction <i>trusts</i> the processor state will remain unaltered before and afterwards.  (Of course, the user has the option of altering the state of the running program.)  In order to display the machine state to the user, it must be preserved in memory somewhere, so we'll need some storage space.</p>
 
 <<System software state>>=
-: dstack        $4000 ;
+: dstack        $3F00 ;
 : rstack        dstack 64 + ;
 @ %def dstack rstack
 
@@ -93,24 +93,24 @@ You'll notice that no space exists for the program counter.  Since the breakpoin
   <<Save return stack items>>
 @ %def breakpoint
 <<Save data stack items>>=
-$4000 !  $4002 !  $4004 !  $4006 !
-$4008 !  $400A !  $400C !  $400E !
-$4010 !  $4012 !  $4014 !  $4016 !
-$4018 !  $401A !  $401C !  $401E !
-$4020 !  $4022 !  $4024 !  $4026 !
-$4028 !  $402A !  $402C !  $402E !
-$4030 !  $4032 !  $4034 !  $4036 !
-$4038 !  $403A !  $403C !  $403E !
+$3F00 !  $3F02 !  $3F04 !  $3F06 !
+$3F08 !  $3F0A !  $3F0C !  $3F0E !
+$3F10 !  $3F12 !  $3F14 !  $3F16 !
+$3F18 !  $3F1A !  $3F1C !  $3F1E !
+$3F20 !  $3F22 !  $3F24 !  $3F26 !
+$3F28 !  $3F2A !  $3F2C !  $3F2E !
+$3F30 !  $3F32 !  $3F34 !  $3F36 !
+$3F38 !  $3F3A !  $3F3C !  $3F3E !
 @
 <<Save return stack items>>=
-r> $4040 !  r> $4042 !  r> $4044 !  r> $4046 !
-r> $4048 !  r> $404A !  r> $404C !  r> $404E !
-r> $4050 !  r> $4052 !  r> $4054 !  r> $4056 !
-r> $4058 !  r> $405A !  r> $405C !  r> $405E !
-r> $4060 !  r> $4062 !  r> $4064 !  r> $4066 !
-r> $4068 !  r> $406A !  r> $406C !  r> $406E !
-r> $4070 !  r> $4072 !  r> $4074 !  r> $4076 !
-r> $4078 !  r> $407A !  r> $407C !  r> $407E !
+r> $3F40 !  r> $3F42 !  r> $3F44 !  r> $3F46 !
+r> $3F48 !  r> $3F4A !  r> $3F4C !  r> $3F4E !
+r> $3F50 !  r> $3F52 !  r> $3F54 !  r> $3F56 !
+r> $3F58 !  r> $3F5A !  r> $3F5C !  r> $3F5E !
+r> $3F60 !  r> $3F62 !  r> $3F64 !  r> $3F66 !
+r> $3F68 !  r> $3F6A !  r> $3F6C !  r> $3F6E !
+r> $3F70 !  r> $3F72 !  r> $3F74 !  r> $3F76 !
+r> $3F78 !  r> $3F7A !  r> $3F7C !  r> $3F7E !
 @
 
 Once both the data and return stacks have been committed to memory, the entire state of the interrupted program avails itself for inspection.  Recall that the interrupted program's instruction pointer resides in the cell at [[rstack]]+0.  This leaves [[breakpoint]] with only one last task to perform: kick off the monitor's user interface.</p>
@@ -259,15 +259,15 @@ variable >in
 : chars         c c c c c c c c  c c c c c c c c ;
 : dump          words S" -- " type -16 + chars cr drop ;
 : banner        S" Kestrel Preen 1A" type cr cr ;
-: d00           S" D+ 00  " type $4000 dump ;
-: d10           S" D+ 10  " type $4010 dump ;
-: d20           S" D+ 20  " type $4020 dump ;
-: d30           S" D+ 30  " type $4030 dump ;
+: d00           S" D+ 00  " type $3F00 dump ;
+: d10           S" D+ 10  " type $3F10 dump ;
+: d20           S" D+ 20  " type $3F20 dump ;
+: d30           S" D+ 30  " type $3F30 dump ;
 : dstk          d00 d10 d20 d30 cr ;
-: r00           S" R+ 00  " type $4040 dump ;
-: r10           S" R+ 10  " type $4050 dump ;
-: r20           S" R+ 20  " type $4060 dump ;
-: r30           S" R+ 30  " type $4070 dump ;
+: r00           S" R+ 00  " type $3F40 dump ;
+: r10           S" R+ 10  " type $3F50 dump ;
+: r20           S" R+ 20  " type $3F60 dump ;
+: r30           S" R+ 30  " type $3F70 dump ;
 : rstk          r00 r10 r20 r30 cr ;
 variable memptr
 : m             S" M+ " type dup .b space space dup memptr @ + dump 16 + ;
@@ -301,22 +301,22 @@ variable v
 : R+            nbr rstack + chg ;
 : M=            nbr memptr ! display ;
 : M+            nbr memptr @ + chg ;
-: GO            $407E @ >r $407C @ >r $407A @ >r $4078 @ >r
-                $4076 @ >r $4074 @ >r $4072 @ >r $4070 @ >r
-                $406E @ >r $406C @ >r $406A @ >r $4068 @ >r
-                $4066 @ >r $4064 @ >r $4062 @ >r $4060 @ >r
-                $405E @ >r $405C @ >r $405A @ >r $4058 @ >r
-                $4056 @ >r $4054 @ >r $4052 @ >r $4050 @ >r
-                $404E @ >r $404C @ >r $404A @ >r $4048 @ >r
-                $4046 @ >r $4044 @ >r $4042 @ >r $4040 @ >r
-                $403E @    $403C @    $403A @    $4038 @
-                $4036 @    $4034 @    $4032 @    $4030 @
-                $402E @    $402C @    $402A @    $4028 @
-                $4026 @    $4024 @    $4022 @    $4020 @
-                $401E @    $401C @    $401A @    $4018 @
-                $4016 @    $4014 @    $4012 @    $4010 @
-                $400E @    $400C @    $400A @    $4008 @
-                $4006 @    $4004 @    $4002 @    $4000 @ ;
+: GO            $3F7E @ >r $3F7C @ >r $3F7A @ >r $3F78 @ >r
+                $3F76 @ >r $3F74 @ >r $3F72 @ >r $3F70 @ >r
+                $3F6E @ >r $3F6C @ >r $3F6A @ >r $3F68 @ >r
+                $3F66 @ >r $3F64 @ >r $3F62 @ >r $3F60 @ >r
+                $3F5E @ >r $3F5C @ >r $3F5A @ >r $3F58 @ >r
+                $3F56 @ >r $3F54 @ >r $3F52 @ >r $3F50 @ >r
+                $3F4E @ >r $3F4C @ >r $3F4A @ >r $3F48 @ >r
+                $3F46 @ >r $3F44 @ >r $3F42 @ >r $3F40 @ >r
+                $3F3E @    $3F3C @    $3F3A @    $3F38 @
+                $3F36 @    $3F34 @    $3F32 @    $3F30 @
+                $3F2E @    $3F2C @    $3F2A @    $3F28 @
+                $3F26 @    $3F24 @    $3F22 @    $3F20 @
+                $3F1E @    $3F1C @    $3F1A @    $3F18 @
+                $3F16 @    $3F14 @    $3F12 @    $3F10 @
+                $3F0E @    $3F0C @    $3F0A @    $3F08 @
+                $3F06 @    $3F04 @    $3F02 @    $3F00 @ ;
 
 create wproc
     ' D+ >body 2/ ,  ' R+ >body 2/ , ' M= >body 2/ , ' M+ >body 2/ ,
@@ -347,15 +347,6 @@ create display'
 : ui...         ?commit blinker keyboard -done @ if recurse exit then ;
 : ui            0 s !  -1 -done !  ui... coff ;
 @ </p>
-
-vars    notDone, s, commitQ;
-structs wproc=(&D,&R),
-        wtab=($2E44, $2E52);
-consts  displayT=&display;
-code
-  ui = s=0; notDone=-1; uiLoop; coff
-  uiLoop = qCommit; blinker; keyboard; if notDone then uiLoop; return end
-  qCommit = if commitQ then coff; commit; blink; commitQ=0 end
 
 
 <h1>100  Primitives</h1>
