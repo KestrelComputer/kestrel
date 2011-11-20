@@ -131,7 +131,7 @@ module M_mem(
 		.ADDRA(ins_adr_i[10:1]),	.ADDRB(dat_adr_i[10:1]),
 		.DIA(16'h0000),				.DIB(dat_dat_i),
 		.DOA(iq0),						.DOB(dq0),
-		.DIPA(0), 						.DIPB(0)
+		.DIPA(2'b00),					.DIPB(2'b00)
 	);
 
 	RAMB16_S18_S18 ram08_0F(
@@ -142,7 +142,7 @@ module M_mem(
 		.ADDRA(ins_adr_i[10:1]),	.ADDRB(dat_adr_i[10:1]),
 		.DIA(16'h0000),				.DIB(dat_dat_i),
 		.DOA(iq1),						.DOB(dq1),
-		.DIPA(0), 						.DIPB(0)
+		.DIPA(2'b00), 					.DIPB(2'b00)
 	);
 
 	RAMB16_S18_S18 ram10_17(
@@ -153,7 +153,7 @@ module M_mem(
 		.ADDRA(ins_adr_i[10:1]),	.ADDRB(dat_adr_i[10:1]),
 		.DIA(16'h0000),				.DIB(dat_dat_i),
 		.DOA(iq2),						.DOB(dq2),
-		.DIPA(0), 						.DIPB(0)
+		.DIPA(2'b00), 					.DIPB(2'b00)
 	);
 
 	RAMB16_S18_S18 ram18_1F(
@@ -164,7 +164,7 @@ module M_mem(
 		.ADDRA(ins_adr_i[10:1]),	.ADDRB(dat_adr_i[10:1]),
 		.DIA(16'h0000),				.DIB(dat_dat_i),
 		.DOA(iq3),						.DOB(dq3),
-		.DIPA(0), 						.DIPB(0)
+		.DIPA(2'b00), 					.DIPB(2'b00)
 	);
 
 	RAMB16_S18_S18 ram20_27(
@@ -175,7 +175,7 @@ module M_mem(
 		.ADDRA(ins_adr_i[10:1]),	.ADDRB(dat_adr_i[10:1]),
 		.DIA(16'h0000),				.DIB(dat_dat_i),
 		.DOA(iq4),						.DOB(dq4),
-		.DIPA(0), 						.DIPB(0)
+		.DIPA(2'b00), 					.DIPB(2'b00)
 	);
 
 	RAMB16_S18_S18 ram28_2F(
@@ -186,7 +186,7 @@ module M_mem(
 		.ADDRA(ins_adr_i[10:1]),	.ADDRB(dat_adr_i[10:1]),
 		.DIA(16'h0000),				.DIB(dat_dat_i),
 		.DOA(iq5),						.DOB(dq5),
-		.DIPA(0), 						.DIPB(0)
+		.DIPA(2'b00), 					.DIPB(2'b00)
 	);
 
 	RAMB16_S18_S18 ram30_37(
@@ -197,7 +197,7 @@ module M_mem(
 		.ADDRA(ins_adr_i[10:1]),	.ADDRB(dat_adr_i[10:1]),
 		.DIA(16'h0000),				.DIB(dat_dat_i),
 		.DOA(iq6),						.DOB(dq6),
-		.DIPA(0), 						.DIPB(0)
+		.DIPA(2'b00), 					.DIPB(2'b00)
 	);
 
 	RAMB16_S18_S18 ram38_3F(
@@ -208,6 +208,6 @@ module M_mem(
 		.ADDRA(ins_adr_i[10:1]),	.ADDRB(dat_adr_i[10:1]),
 		.DIA(16'h0000),				.DIB(dat_dat_i),
 		.DOA(iq7),						.DOB(dq7),
-		.DIPA(0), 						.DIPB(0)
+		.DIPA(2'b00), 					.DIPB(2'b00)
 	);
 endmodule
