@@ -67,7 +67,6 @@ In summary, the top-level layout of the program follows:</p>
 <<Screen Editor>>
 <<Breakpoint handler>>
 
-<<TDF Example Code>>
 <<Patch reset vector>>
 <<Emit binary file>>
 @
@@ -199,51 +198,99 @@ variable memptr
 : mem           S" M= " type memptr @ .w cr 0 m m m m m m m m drop cr ;
 @ %def memptr mem
 
-<h1>30  Displaying the Program State</h1>
+Like most monitors, Preen offers two visualizations for the same data: hexadecimal values and their ASCII equivalents, separated by an em-dash.
 
-@ Before the user can interact with the debugger, the user needs to see what the program's state is.</p>
+<<Definition of [[DUMP]]>>=
+: dump          words S" -- " type -16 + chars cr drop ;
+@ %def dump
 
-<h1>40  Screen Editor Interface</h1>
+Each dump consists of sixteen bytes, arranged as eight words since the J1 processor addresses memory using words, not bytes:</p>
 
-@ Wouldn't it be great if you could just print a form to the screen, which the user can then fill in or change, with the same level of ease as you would <q>Hello world</q>?  With a typical command-line interface, such as those found in Unix or Windows systems, you cannot accomplish this.  At best, you can print out the data the user is interested in, along with a small menu of commands to manually enter which affects this data.  Three solutions exist to overcome this problem.  You could rely on some kind of library like [[curses]] or [[ncurses]], but this often deleteriously changes the complexity of the program.  You could require the user to type, by hand of course, commands which affect various fields of the data being manipulated, but when doing this frequently, it becomes laborious and error-prone.  Finally, you can rely on a <i>full screen editor</i> to grant the user the power to take previously printed text as future input to a program.  Today's most popular command-line interfaces still assume that the user's interface consists of a line printer terminal, while the full-screen editor described herein takes advantage the 2-D nature of contemporary display devices.</p>
+<<Definition of [[WORDS]]>>=
+: words         w w w w w w w w ;
+@ %def words
 
-@ If you used an Atari or Commodore 8-bit computer, such as the Atari 400 or the Commodore 64, you actually already used a full-screen editor.  Commodore users might remember the trick of listing a directory with:</p>
-<pre>LOAD<q>$</q>,8
-LIST</pre>
-@ then cursoring to the desired program, and changing the line by typing [[LOAD]] at the left-hand column and [[,8:]] or [[,8,1:]] on the right-hand side of the program's name.  This is a fine example of using one command to produce a kind of menu which, through screen editing, becomes a template to easily select a program for execution, despite no menu code actually existing anywhere in the disk drive or host computer ROM image.  I'm sure Atari users will have similar use-cases.</p>
+We print each word's value by printing two bytes, most significant first, then advancing the fetch pointer by two so that the next time we print, we fetch the next word as expected.</p>
 
-@ The Kestrel-2 monitor software will rely on a full-screen editor to provide its user interface, for several reasons.  First, its interface primarily takes the shape of a form, with specific fields for data and return stacks, for memory, and for action-oriented controls such as <q>execute.</q>  The user is expected to <q>just change</q> appropriate rows of fields as needed, then pressing [[ENTER]].  As implemented, the only real disadvantage is the user needs to press [[ENTER]] for each row he changes.</p>
+<<Definition of [[W]]>>=
+: .w            dup 8 rshift .b .b space ;
+: w             dup @ .w 2 + ;
+@ %def w
 
-@ The monitor's screen editor offers the following capabilities:</p>
-<ol>
- <li>Move the cursor about the screen</li>
- <li>Insert or overwrite text on a line</li>
- <li>Delete text to the left (backspace)</li>
- <li>Delete text to the right</li>
- <li>Submit a line for program processing</li>
-</ol>
-@ Correspondingly, the screen editor's layout in memory follows a similar form.</p>
+Similarly, we dump each byte's value by breaking it into nybbles, most significant first.  Then, we rely on a character look-up table to translate each nybble's value into an ASCII code suitable for display.</p>
+
+<<Definition of [[.B]]>>=
+: .n            $F and S" 0123456789ABCDEF" drop + c@ emit ;
+: .b            dup 4 rshift .n .n ;
+@ %def .b
+
+Upon completion of the eight word dump, the address on the stack will point 16 bytes after of our intended region.  This is why [[dump]] subtracts 16 before producing the ASCII visualization of the memory buffer.</p>
+
+@ Many computers rely on monitors or debuggers which emits character data through a <q>cooked</q> character output routine.  This means that the system firmware or host operating system interprets some characters as control codes, instructing the computer to do such things as change character sets, move the cursor, etc.  Often, these same computers lacks a one-to-one mapping between ASCII code and the corresponding glyph.  For example, a Commodore 64 maps ASCII code 65 (capital A) to screen code 1.  This complicates the design of any monitor, because it needs to be aware of this <q>convenience</q> to avoid distorting the display unintentionally.  For this reason, most monitors will filter the ASCII view of raw data, substituting such unprintable characters with a simple period.</p>
+
+@ Preen, however, avoids all of this mess through two features: (1) all printable characters have glyph indices matching their ASCII codes, and (2) no special characters exist.  Rather, Preen relies on a programming interface to perform such duties as moving the cursor or clearing the screen.  Combined, this simplifies printing a 16-character ASCII view of a raw data buffer significantly.</p>
+
+<<Definition of [[CHARS]]>>=
+: c             dup c@ emit 1 + ;
+: chars         c c c c c c c c  c c c c c c c c ;
+@ %def chars
+
+<h1>30  Screen Editing Facility</h1>
+
+@ Most computer operating systems implement a <q>glass teletype</q> abstraction for their user interface.  In this interface, the computer prints characters to a video display, and the user responds, sequentially, line after line, character after character.  No means generally exists of exploiting the two-dimensional surface of the display.  This creates a plurality of complications that both the user and the systems software engineer need to consider.</p>
+
+<ul>
+ <li>
+  From a usability perspective, the user cannot use the arrow keys to move the cursor to a wrong command and fix it.  Many operating systems provide <q>command-line history</q> as a useful, albeit sorely limited, substitute.
+ </li>
+ <li>
+  From an application developer's persepctive, the application developer needs to go out of his or her way to incorporate history functionality.  While typically encapsulated in support libraries to make doing so easier, the programmer still must consciously think to include the library and hope for the best compatibility if an update to the library comes out afterwards.  On the author's Linux installation, for example, three versions of GNU ReadLine library exists, all of which are used.
+ </li>
+ <li>
+  From a systems software engineering perspective, the teletype interface adds <i>immense</i> complexity to the user interface.  A typical Unix console interface, for example, performs activities normally expected of <i>serial-line</i> interfaces (e.g., RS-232 or X.25), despite no such physical resources existing in the path between the application and the video frame buffer on modern systems, including but not limited to such matters as implementing line-delay after receiving an end-of-line indication, translation of carriage returns or newlines into each other, or worse, into both a carriage return/line feed pair.  Character set munging, retaining their <q>7-bit clean</q> I/O model from the 70s, proves how retarded such abstractions remain in today's world of 8-bit-clean video devices.  It gets worse though &mdash; inline embedding of what ought to be out-of-band controls require stateful interpretation, but which command-set do you use?  In the 60s and 70s, when competition in the dumb terminal market proved fierce and vibrant, such sophisticated libraries as [[termcap]] and [[terminfo]] proved useful.  Today, they represent nothing but baggage, as virtually <i>every</i> device claiming to be a terminal these days understands the DEC VT-100 command set.  These abstractions help only the simplest possible software in rendering textual output portably; for all other cases, even those <i>simple</i> applications seeking to capture the difference between the [[ALT-A]] key from just a normal [[A]] key, all need to be consciously aware of the limitations and complexities imposed by the host environment.  Worse still, nearly every environment further places the burden of restoring the I/O channel to its previously complexity levels prior to exiting.  For example, in Linux at least, an application which unexpectedly segfaults often leaves the user's terminal in an unknown, often completely unusable, state which may not always be restored from via the [[reset]] command.
+ </li>
+</ul>
+
+@ A screen editor treats the addressible display as an interactive, editable document.  We achieve command-line history for free, for the user may re-issue any command still visible on the screen.  Application writers needn't concern themselves with including support for command-line history explicitly.</p>
+
+@ Broadly, two kinds exist &mdash; array editors and matrix editors.  An array editor most closely corresponds to a traditional text editor, such as Notepad, Emacs, or Vim.  These editors tend to rely on data structures such as gap buffers or ropes to manage the textual content, since no one-to-one correspondence exists between text buffer and the concrete representation thereof.  Array editors work best with variable-geometry displays, such as those found in graphical user interfaces.  Matrix editors, however, rely on a fixed geometry and fixed-width fonts to simplify their implementation.  In most other respects, the two varieties of editor interfaces match each other in features and usability.</p>
+
+@ Preen uses a (too?) simple matrix editor with a fixed 80&times;25 geometry.  The combination of this geometry and an isomorphism between ASCII code and font glyph allows Preen to re-use the same character matrix with the Text Display Facility for display refresh purposes.  Preen's screen editor only supports the functionality considered essential for Preen's operation: entering of hexadecimal numbers, and selection of the [[GO]] command.</p>
+
 <<Screen Editor>>=
 <<Screen Editor State>>
-<<Screen Editor Cursor Confinement>>
 <<Screen Editor Cursor Movement>>
-<<Screen Editor Blinky Cursor>>
+<<Screen Editor Blink Address>>
+<<Screen Editor Cursor Blink>>
+<<Turning Off the Cursor>>
 @
 
-<h2>40.10  Moving the Cursor</h2>
+<h2>30.1  Character Matrix</h2>
 
-@ Through the editor interface, the cursor has free range over the screen.  The Kestrel-2 provides a 640&times;200 graphic display, which when broken into 8 pixel by 8 pixel tiles, yields an 80&times;25 display.  When moving the cursor, we want to make sure that its coordinates always remains somewhere on the screen.  It should be noted that our screen editor will be more simple than those used in Atari and Commodore computers; because everything fits on one screen, we will not support scrolling the display.</p>
+@ The Kestrel-2 supports a simplistic display interface, consisting of a 16KB buffer starting at [[$8000]] and offering a 640&times;200 video resolution.  With an 8&times;8 pixel character font, this gives us an 80&times;25 character matrix, assuming we keep characters aligned to eight pixel boundaries.  Correspondingly, the screen editor works on a buffer 80&times;25 = 2048 bytes in size.</p>
+
+<<Character Matrix Buffer>>=
+create scrn
+    2048 allot
+@ %def scrn
+
+For the purposes of receiving input from the user, Preen treats the character matrix as a 25-element array of 80-character line records.  Since none of Preen's inputs can possibly span multiple lines, the screen editor doesn't support so-called <q>logical lines</q>, such as the screen editors found in Commodore and Atari 8-bit products support.  This will be discussed in greater detail in a later section.</p>
+
+<h2>30.2  Cursor Movement</h2>
+
+@ Preen lets the user and applications locate the cursor anywhere on the display.  A pair of variables keeps track of the cursor at all times.</p>
 
 <<Screen Editor State>>=
 variable x
 variable y
-@
+@ %def x y
 
-Software can relocate the cursor at any time, but we must be careful to ensure the new location remains on the screen.</p>
+Software can relocate the cursor at any time, but we must be careful to ensure the new location remains on the screen.  Otherwise, we risk memory corruption when we [[emit]] or [[type]] next.</p>
 
 <<Screen Editor Cursor Movement>>=
+: confine   x @ 0 max 79 min x !   y @ 0 max 24 min y ! ;
 : at-xy     y ! x ! confine ;
-@
+@ %def at-xy confine
 
 Pressing one of the four cursor keys will cause the cursor to move about the screen in the desired direction.  We implement this by updating the [[x]] and [[y]] variables, making sure to confine them to the appropriate bounding rectangle.  Make sure you turn the cursor off ([[coff]], defined later) before altering the cursor location, or you risk cosmetic problems.</p>
 
@@ -252,56 +299,215 @@ Pressing one of the four cursor keys will cause the cursor to move about the scr
 : down       1 y +! confine ;
 : left      -1 x +! confine ;
 : right      1 x +! confine ;
-@
+@ %def up down left right
 
-Confinement ensures the cursor remains on the visible character matrix at all times.</p>
+The keyboard interface software invokes [[up]], [[down]], [[left]], and [[right]] in response to handling arrow key presses.  We'll discuss this logic in the appropriate section.</p>
 
-<<Screen Editor Cursor Confinement>>=
-: confine   x @ 0 max 79 min x !   y @ 0 max 24 min y ! ;
-@
+<h2>30.3  Character Output: [[type]], [[emit]], and [[page]]</h2>
 
-<h2>40.20  Inserting and Overwriting Text</h2>
+@ Once the cursor has been placed, text output occurs by placing bytes into the character matrix and advancing the cursor to the right.  [[emit]] places individual characters:</p>
 
-<h2>40.30  Deleting Text to the Left</h2>
+<<Placing a Character>>=
+: plot          TdfChrMtx @ y @ 80* x @ + + c! ;
+: emit          plot right -1 commit? !  ;
+@ %def emit
 
-<h2>40.40  Deleting Text to the Right</h2>
+The [[type]] word supports printing of entire strings, provided they do not span multiple lines.</p>
 
-<h2>40.50  Submitting a Line of Text</h2>
+<<Placing a String>>=
+: type          dup if over c@ emit -1 + swap 1 + swap recurse exit then 2drop ;
+@ %def type
 
-<h2>40.60  Blinking the Cursor</h2>
+If a string does span multiple lines, you'll find the lack of wrap-around logic will truncate the string to the current line only.  You'll want to split the line up into smaller segments, and print each one independently, using [[cr]] to perform a carriage return.</p>
 
-@ I have discovered through my own experiences that a text cursor should blink fairly rapidly, and should cover the entire character cell.  Vertical bar cursors, such as those found in most graphical environments, get lost too easily.  Slowly blinking cursors don't seem to have the desired effect of telling me <i>at a glance</i> where my insertion point is.  Static solid block cursors, including those which rely on reverse video, too often blur into the background for me, leaving me effectively blind to them.  The human eye is most sensitive to motion in both the foreground and the periphery, so it makes sense to exploit that feature of human vision.  I chose to blink the cursor at a rate of four times every second.  My eye appreciates this blink rate the best.</p>
+<<Carriage Return>>=
+: cr            0 x ! down ;
+@ %def cr
 
-@ We calculate the bitmap address of the glyph under the cursor by considering the cursor's current location.</p>
+Note that the lack of vertical screen scroll support further confines output to a single display's worth at a time.  Since the monitor's output never spans more than 23 lines, I left vertical scroll support out.  One work-around involves the use of a pager, which renders a single page of text at a time, clears the screen with [[page]], then renders the next page, and so on.  (This actually works quite well for Kestrel-2-generated slide presentations.)</p>
 
-<<Screen Editor Blinky Cursor>>=
-: address       y @ 640* x @ + $8000 + ;
-@
+<<Clearing the screen>>=
+: clr           dup if swap 32 over c! 1 + swap -1 + recurse exit then 2drop ;
+: page          TdfChrMtx @ 2000 clr  0 x !  0 y ! ;
+@ %def page
 
-We implement the text cursor by reversing the video of a given character glyph in the bitmap.  In addition, we'll toggle a flag in memory, so we know whether we've reversed the video or not.  This will come in handy for when we want to <q>turn off</q> the cursor.</p>
+<h2>30.4  User Interface Loop</h2>
 
-<<Screen Editor Blinky Cursor>>=
+@ When Preen desires user input, it invokes [[ui]] to present the screen editor user interface to the user.  It first establishes reasonable defaults for its operating state, then drops into the main loop proper.</p>
+
+<<User Interface Entrypoint>>=
+: ui            0 s !  0 blst !  -1 -done !  ui... coff ;
+@ %def ui
+
+The user interface main loop repeatedly polls for input events, and handles them as it finds each kind of event.</p>
+
+<<User Interface Main Loop>>=
+: ui...         ?commit blinker keyboard -done @ if recurse exit then ;
+@ %def ui...
+
+@ You might have noticed that we're setting a flag called [[commit?]] in the definition for [[emit]].  This flag, when set, informs the application's user interface loop that at least one screen character changed since the last refresh.</p>
+
+<<Character Matrix Commit Flag>>=
+variable commit?
+@ %def commit?
+
+Refreshing the display involves touching over 16 000 bytes using both [[c@]] and [[c!]], both very slow operations on the current generation of J1 processor technology.  Thus, [[commit?]] allows us to defer a full-screen refresh until we know all text output has completed.</p>
+
+<<Screen Refresh Event Handler>>=
+: ?commit       commit? @ if coff commit blink 0 commit? ! then ;
+@ %def ?commit
+
+Next, we handle the blink animation of the cursor.  Each time through the [[ui...]] loop, we increment the blink counter [[blct]].  When it reaches an empirically determined threshold, we toggle the state of the cursor on the screen.</p>
+
+<p>I have discovered through my own experiences that a text cursor should blink fairly rapidly, and should cover the entire character cell.  Slowly blinking cursors don't seem to have the desired effect of telling me at a glance where my insertion point is.  Static solid block cursors, including those which rely on reverse video, too often blur into the background for me, leaving me effectively blind to them.  The human eye is most sensitive to motion in both the foreground and the periphery, so it makes sense to exploit that feature of human vision. I chose to blink the cursor at a rate of four times every second.  The constant, [[49152]], happens to match this rate given the current editor UI loop overhead and processor speed.  My eye appreciates this blink rate the best.</p>
+
+<<Blink Event Handler>>=
+variable blct
+: blinker       1 blct @ + dup 49152 xor if blct ! exit then drop blink 0 blct ! ;
+@ %def blinker
+
+We implement the text cursor by reversing the video of a given character glyph in the bitmap. In addition, we'll toggle a flag in memory, so we know whether we've reversed the video or not. This will come in handy for when we want to "turn off" the cursor.</p>
+
+<<Screen Editor Cursor Blink>>=
 variable blst
 : b             dup dup c@ invert swap c! 80 + ;
 : blink         address b b b b b b b b drop  blst @ -1 xor blst ! ;
-@
+@ %def blink
 
-We know that [[blink]] is its own inverse, so turning off a cursor involves calling [[blink]] if, and only if, we know the video underneath the cursor has already been inverted.</p>
+@ We calculate the bitmap address of the glyph under the cursor by considering the cursor's current location.</p>
 
-<<Screen Editor Blinky Cursor>>=
+<<Screen Editor Blink Address>>=
+: address       y @ 640* x @ + $8000 + ;
+@ %def address
+
+We know that [[blink]] is its own inverse, so turning off a cursor involves calling [[blink]] if, and only if, we know the video underneath the cursor has already been inverted.
+
+<<Turning Off the Cursor>>=
 : coff          blst @ if blink then ;
+@ %def coff
+
+The [[keyboard]] definition encapsulates both the PS/2 keyboard driver and the screen editor's event handler.  We'll discuss the keyboard handling logic in its own section below.
+
+<h1>40  Text Display Facility</h2>
+
+<p>The Kestrel-2 lacks a hardware character matrix display mode; instead, the video circuitry fetches bytes from memory starting at address [[$8000]] and displays them as a raw bitmap.  We cannot simply poke bytes into memory and expect fully-formed characters to appear on the screen.  Preen provides a facility to emulate character matrix displays in software.  This results in a simpler hardware implementation and graphics when you need it, while incurring only modest software costs.</p>
+
+<<Text Display Facility>>=
+<<TDF global state>>
+
+@ </p>
+<h2>40.1  Character Font</h2>
+
+<p>The 640&times;200 display resolution requires (640&div;16)&times;200=8 000 words of memory.  Using an 8&times;8 pixel font, that allows us to pack 80 columns by 25 rows of text on the screen.  The Kestrel-2 expects a single word of memory to hold two characters (or, put another way, one character consumes eight bits of storage), so (80&div;2)&times;25=1 000 words hold a complete character matrix.  This allows up to 256 characters to be represented by a single character matrix.</p>
+
+<p>Displaying text requires we provide a number of small, 8&times;8 images, each representing some character on the screen.  Each image is known as a <i>glyph</i>.  The <i>font</i> contains the set of glyphs corresponding to each character.  Preen expects the font to exist as a 2 048&times;8 bitmap in memory, for 256 possible characters times 8 pixels per glyph row comes out to 2 048 total pixels.  Thus, the first 128 words (256 bytes) constitutes row 0 pixels for all 256 characters, the next 128 words row 1 pixels, and so on.  Arranging the font data this way allows a developer to use an image editing tool of his or her choice to create a font, then extract the raw bitmap data for direct use with the Kestrel-2.</p>
+
+<p>The Kestrel-2 firmware references the font data via an ancillary Forth source file.
+<<Text Display Facility>>=
+<<TDF System Font>>
+
+<<TDF System Font>>=
+create font
+include font.inc
 @
 
-<h2>40.70  Text Editor Main Loop</h2>
+<h2>40.2  Committing a Character Matrix</h2>
+
+<p>In a perfect world, we would somehow convince the hardware to monitor some region of memory which we call the <i>character matrix</i> for updates.  Whenever we update memory in the matrix, the hardware would somehow recognize this event, and adjust the display accordingly.  As it happens, this is hard to do, though not impossible.  Two ways exist to approach the problem&mdash;you could either poll memory at periodic intervals, which is what the video hardware already is designed to do, or you can maintain what's called a <q>write queue</q> to trap writes into the character matrix, where a processor on the other end of the queue discovers these writes and acts accordingly.  As you can imagine, the latter solution is the hardest approach to take of them all, and won't be discussed further here.  The former technique, widely used in such hardware platforms as the VGA-compatible chipsets and the Commodore 64's VIC-II chip, works by accessing memory <i>twice</i>; once to read the character, and once to grab the font data corresponding to that character.  I could have implemented this in the Kestrel-2's video circuitry, but since it roughly doubled the complexity of the hardware involved, I decided to just keep things as simple as possible, and stick with a pure bitmapped display interface.</p>
+
+<p>Updating the bitmapped display takes eight times the effort of updating a simple character matrix.  Therefore, we want to minimize how often we actually push updates to the bitmapped display.  It's better to compute what we want the finished display to look like first, in the form of the character matrix, <i>then</i> perform a bulk update of the whole screen.  When we talk of <q>committing</q> a character matrix, we're talking about that final act of bulk-updating the bitmapped display.  The term comes from the field of transactions, where updates to a resource occurs when the transaction completes.</p>
+
+<p>I implement a relatively slow algorithm below, but one which is known to work.  It takes the overall form:</p>
+<<Text Display Facility>>=
+<<TDF address computation logic>>
+<<TDF commit glyph logic>>
+<<TDF commit row logic>>
+<<TDF commit screen-wide logic>>
+<<TDF character matrix commit logic>>
+
+@ We commit the display character by character, one glyph at a time, starting in the upper-lefthand corner of the display.  We know we need to update 25 rows of text.</p>
+
+<<TDF character matrix commit logic>>=
+: commit    0 x !  0 y !  25r ;
+@ %def commit
+
+We address each character through the [[x]] and [[y]] state variables.  Note that these variables <i>do not</i> refer to any kind of cursor position; they're used only while committing the display, keeping track of which glyph we're painting into the bitmap.  They conform to the invariant that (0&le;<i>x</i>&lt;80)&and;(0&le;<i>y</i>&lt;25) while the screen update continues to proceed.</p>
+
+<<TDF global state>>=
+variable x
+variable y
+@ %def x y
+
+A screen consists of 25 rows, as established above.  If each execution of [[r]] bumps the [[y]] variable by one, then we can clearly see that upon completion of the operation, [[y]] will be set to 25.  While the update proceeds, we see that 0&le;<i>y</i>&lt;25, thus satisfying the invariant.</p>
+
+<<TDF commit screen-wide logic>>=
+: 8r        r r r r  r r r r ;
+: 25r       8r 8r 8r r ;
+@ %def 25r
+
+Each row consists of 80 characters apiece.  As each row completes, we make sure to reset our (x,y) coordinates to keep track of where the next row begins.  During the update of a single row, 0&le;<i>x</i>&le;80.  However, because [[r]] resets the [[x]] variable back to zero upon finishing each row, and because we know that 0&le;<i>y</i>&lt;25 while the commit progresses, the global invariants hold.</p>
+
+<<TDF commit row logic>>=
+: 10c       c c c c c  c c c c c ;
+: 80c       10c 10c 10c 10c  10c 10c 10c 10c ;
+: r         80c  0 x ! 1 y @ + y ! ;
+@ %def r
+
+We draw each character by cycling through all eight raster lines of its shape, copying data from the font data to the bitmap along the way.  After we're done copying the glyph, we update our (x,y) state to prepare for the next character to be copied.</p>
+
+<<TDF commit glyph logic>>=
+: s         chradr c@ glyph c@ bmadr c!  1 raster @ + raster ! ;
+: c         0 raster !  s s s s  s s s s  1 x @ + x ! ;
+@ %def c
+
+When updating the bitmap, we need to know which character to draw.  We address a character in the character matrix based on the current (valid) values of the [[x]] and [[y]] variables.  The equation to compute an address for any character in the matrix is <i>a</i> = <i>character_matrix_base</i> + <i>x</i> + 80<i>y</i>.</p>
+
+<<TDF address computation logic>>=
+: chradr    y @ 80* x @ + TdfChrMtx @ + ;
+@ %def chradr
+
+<<TDF global state>>=
+variable TdfChrMtx
+@ %def TdfChrMtx
+
+The TDF user must initialize the [[TdfChrMtx]] variable prior to invoking [[commit]], lest garbage be rendered on the screen.  Further, make sure the 1 000 cells referenced by [[TdfChrMtx]] never overlaps read-triggered I/O space, as the screen update will fire the I/O triggers.</p>
+
+<p>Next, we need to resolve which row of the glyph's picture to use.  We calculate the glyph's bitmap byte address using the character code (on the data stack) and knowledge of which [[raster]] we're drawing.  Its formula is, <i>a</i> = <i>font_base</i> + <i>c</i> + 256<i>s</i>, where 0&le;<i>c</i>&lt;256 contains the character code, and 0&le;<i>s</i>&lt;8 contains the current raster scanline.
+
+<<TDF address computation logic>>=
+: glyph     font + raster @ 256* + ;
+@ %def glyph
+
+<<TDF global state>>=
+variable raster
+@ %def raster
+
+Finally, we just place the glyph image data in the destination bitmap.  The correct row of pixels in the target bitmap is computed using a formula similar to that used to determine the character matrix byte address, but adjusted to compensate for the bitmapped nature: <i>a</i> = <i>bitmap_base</i> + <i>x</i> + 80<i>s</i> + 640<i>y</i>, where 0&le;<i>s</i>&lt;8 refers to the specific scanline of the glyph.  Remember, we defined the system font height as eight.</p>
+
+<<TDF address computation logic>>=
+: bmadr     y @ 640* raster @ 80* + x @ + $8000 + ;
+@ %def bmadr
+
+<h2>40.3  Mathematics Primitives</h2>
+
+@ You might have noticed a few multiplications going on, expressed as single words instead of separate calls to [[*]].  The J1, not being a terribly sophisticated processor, lacks hardware multiplication support.  This means that we'd need to implement [[*]], a non-trivial task, if we wanted to perform general purpose multiplication.  As it happens, we always multiply by a constant factor, which allows us to create words which computes the desired results using <i>shifts and additions</i> instead.  This also has the benefit of isolating the Text Display Facility from the rest of the system firmware, useful for debugging purposes.</p>
+
+<<Primitives>>=
+: 8*        3 lshift ;
+: 16*       4 lshift ;
+: 80*       4 lshift dup 2 lshift + ;
+: 256*      8 lshift ;
+: 640*      80* 8* ;
+@ </p>
+
+<h2>99  Text Editor Main Loop</h2>
 
 @ The text editor's main loop drives the blinking cursor as well as the keyboard interface.  I chose to blink the cursor four times every second, as my eye appreciates this blink rate the best.  It continues in this manner, blinking the cursor and responding to keyboard events, until the user presses the [[ENTER]] key, after which the editor returns the base address and length of the text line containing the cursor.  As a convenience to the user, the cursor is turned off, indicating no further input is required.</p>
 
 This is a temporary definition for [[ui]].  Eventually, we want this, perhaps with a new name, to be the main loop for the editor.</p>
 
 <<Screen Editor>>=
-variable blct
-: blinker       1 blct @ + dup 49152 xor if blct ! exit then drop blink 0 blct ! ;
-
+<<Blink Event Handler>>
 variable s
 create rawcodes
     $0045 , $0016 , $001E , $0026 ,
@@ -313,31 +519,25 @@ create cookedcodes
     $0034 , $0035 , $0036 , $0037 ,
     $0038 , $0039 , $0041 , $0042 ,
     $0043 , $0044 , $0045 , $0046 ,
-create scrn
-    2048 allot
-variable commit?
+<<Character Matrix Buffer>>
+<<Character Matrix Commit Flag>>
 variable -done
 variable tib
 variable #tib
 variable >in
 
-: clr           dup if swap 32 over c! 1 + swap -1 + recurse exit then 2drop ;
-: page          TdfChrMtx @ 2000 clr  0 x !  0 y ! ;
+<<Clearing the screen>>
 : scrn0         scrn TdfChrMtx ! ;
-: plot          TdfChrMtx @ y @ 80* x @ + + c! ;
-: emit          plot right -1 commit? !  ;
-: type          dup if over c@ emit -1 + swap 1 + swap recurse exit then 2drop ;
-: cr            0 x ! down ;
+<<Placing a Character>>
+<<Placing a String>>
+<<Carriage Return>>
 : space         $20 emit ;
 : dot           $2B emit ;
-: .n            $F and S" 0123456789ABCDEF" drop + c@ emit ;
-: .b            dup 4 rshift .n .n ;
-: .w            dup 8 rshift .b .b space ;
-: w             dup @ .w 2 + ;
-: words         w w w w w w w w ;
-: c             dup c@ emit 1 + ;
-: chars         c c c c c c c c  c c c c c c c c ;
-: dump          words S" -- " type -16 + chars cr drop ;
+<<Definition of [[.B]]>>
+<<Definition of [[W]]>>
+<<Definition of [[WORDS]]>>
+<<Definition of [[CHARS]]>>
+<<Definition of [[DUMP]]>>
 <<Dumping Data Stack>>
 <<Dumping Return Stack>>
 <<Dumping Arbitrary Memory>>
@@ -397,9 +597,9 @@ create display'
 : mbc           $FFFE @ $00FF and ;
 : ack           $0300 $FFFE ! ;
 : keyboard      available? if mbc filter ack then ;
-: ?commit       commit? @ if coff commit blink 0 commit? ! then ;
-: ui...         ?commit blinker keyboard -done @ if recurse exit then ;
-: ui            0 s !  -1 -done !  ui... coff ;
+<<Screen Refresh Event Handler>>
+<<User Interface Main Loop>>
+<<User Interface Entrypoint>>
 @ </p>
 
 
@@ -444,137 +644,4 @@ Not fitting in particularly well elsewhere, some mathematical operations are nee
 : +!            2dup @ + swap ! drop ;
 @
 
-<h2>B.3  Displaying Text</h2>
-
-<p>The Kestrel-2 lacks a hardware character matrix display mode; instead, the video circuitry fetches bytes from memory starting at address [[$8000]] and displays them as a raw bitmap.  We cannot simply poke bytes into memory and expect fully-formed characters to appear on the screen.  The Kestrel-2 firmware provides a facility to emulate character matrix displays in software.  This results in a simpler hardware implementation and graphics when you need it, while incurring only modest software costs.</p>
-
-<<Text Display Facility>>=
-<<TDF global state>>
-
-@ </p><h3>B.3.1  Character Font</h3>
-
-<p>The 640&times;200 display resolution requires (640&div;16)&times;200=8 000 words of memory.  Using an 8&times;8 pixel font, that allows us to pack 80 columns by 25 rows of text on the screen.  The Kestrel-2 expects a single word of memory to hold two characters (or, put another way, one character consumes eight bits of storage), so (80&div;2)&times;25=1 000 words hold a complete character matrix.  This allows up to 256 characters to be represented by a single character matrix.</p>
-
-<p>Displaying text requires we provide a number of small, 8&times;8 images, each representing some character on the screen.  Each image is known as a <i>glyph</i>.  The <i>font</i> contains the set of glyphs corresponding to each character.  The Kestrel-2 expects the font to exist as a 2 048&times;8 bitmap in memory, for 256 possible characters times 8 pixels per glyph row comes out to 2 048 total pixels.  Thus, the first 128 words (256 bytes) constitutes row 0 pixels for all 256 characters, the next 128 words row 1 pixels, and so on.  Arranging the font data this way allows a developer to use an image editing tool of his or her choice to create a font, then extract the raw bitmap data for direct use with the Kestrel-2.</p>
-
-<p>The Kestrel-2 firmware references the font data via an ancillary Forth source file.
-<<Text Display Facility>>=
-<<TDF System Font>>
-
-<<TDF System Font>>=
-create font
-include font.inc
-@
-
-<h3>B.3.2  Committing a Character Matrix</h3>
-
-<p>In a perfect world, we would somehow convince the hardware to monitor some region of memory which we call the <i>character matrix</i> for updates.  Whenever we update memory in the matrix, the hardware would somehow recognize this event, and adjust the display accordingly.  As it happens, this is hard to do.  Not impossible, mind you.  There exists two ways to approach the problem&mdash;you could either poll memory at periodic intervals, which is what the video hardware already is designed to do, or you can maintain what's called a <q>write queue</q> to trap writes into the character matrix, where a processor on the other end of the queue discovers these writes and acts accordingly.  As you can imagine, the latter solution is the hardest approach to take of them all, and won't be discussed further here.  The former technique, widely used in such hardware platforms as the VGA-compatible chipsets and the Commodore 64's VIC-II chip, works by accessing memory <i>twice</i>; once to read the character, and once to grab the font data corresponding to that character.  I could have implemented this in the Kestrel-2's video circuitry, but since it roughly doubled the complexity of the hardware involved, I decided to just keep things as simple as possible, and stick with a pure bitmapped display interface.</p>
-
-<p>The problem is, updating the bitmapped display takes eight times the effort than updating a simple character matrix.  Therefore, we want to minimize how often we actually push updates to the bitmapped display.  It's better to compute what we want the finished display to look like first, in the form of the character matrix, <i>then</i> perform a bulk update of the whole screen.  When we talk of <q>committing</q> a character matrix, we're talking about that final act of bulk-updating the bitmapped display.  The term comes from the field of transactions, where updates to a resource occurs when the transaction completes.</p>
-
-<p>I implement a relatively slow algorithm below, but one which is known to work.  It takes the overall form:</p>
-<<Text Display Facility>>=
-<<TDF address computation logic>>
-<<TDF commit glyph logic>>
-<<TDF commit row logic>>
-<<TDF commit screen-wide logic>>
-<<TDF character matrix commit logic>>
-
-@ We commit the display character by character, one glyph at a time, starting in the upper-lefthand corner of the display.  We know we need to update 25 rows of text.</p>
-
-<<TDF character matrix commit logic>>=
-: commit    0 x !  0 y !  25r ;
-
-@ We address each character through the [[x]] and [[y]] state variables.  Note that these variables <i>do not</i> refer to any kind of cursor position; they're used only while committing the display, keeping track of which glyph we're painting into the bitmap.  They conform to the invariant that (0&le;<i>x</i>&lt;80)&and;(0&le;<i>y</i>&lt;25) while the screen update continues to proceed.</p>
-
-<<TDF global state>>=
-variable x
-variable y
-
-@ A screen consists of 25 rows, as established above.  If each execution of [[r]] bumps the [[y]] variable by one, then we can clearly see that upon completion of the operation, [[y]] will be set to 25.  While the update proceeds, we see that 0&le;<i>y</i>&lt;25, thus satisfying the invariant.</p>
-
-<<TDF commit screen-wide logic>>=
-: 8r        r r r r  r r r r ;
-: 25r       8r 8r 8r r ;
-
-@ Each row consists of 80 characters apiece.  As each row completes, we make sure to reset our (x,y) coordinates to keep track of where the next row begins.  During the update of a single row, 0&le;<i>x</i>&le;80.  However, because [[r]] resets the [[x]] variable back to zero upon finishing each row, and because we know that 0&le;<i>y</i>&lt;25 while the commit progresses, the global invariants hold.</p>
-
-<<TDF commit row logic>>=
-: 10c       c c c c c  c c c c c ;
-: 80c       10c 10c 10c 10c  10c 10c 10c 10c ;
-: r         80c  0 x ! 1 y @ + y ! ;
-
-@ We draw each character by cycling through all eight raster lines of its shape, copying data from the font data to the bitmap along the way.  After we're done copying the glyph, we update our (x,y) state to prepare for the next character to be copied.</p>
-
-<<TDF commit glyph logic>>=
-: s         chradr c@ glyph c@ bmadr c!  1 raster @ + raster ! ;
-: c         0 raster !  s s s s  s s s s  1 x @ + x ! ;
-
-@ When updating the bitmap, we need to know which character to draw.  We address a character in the character matrix based on the current (valid) values of the [[x]] and [[y]] variables.  The equation to compute an address for any character in the matrix is <i>a</i> = <i>character_matrix_base</i> + <i>x</i> + 80<i>y</i>.</p>
-
-<<TDF address computation logic>>=
-: chradr    y @ 80* x @ + TdfChrMtx @ + ;
-
-<<TDF global state>>=
-variable TdfChrMtx
-
-@ The TDF user must initialize the [[TdfChrMtx]] variable prior to invoking [[commit]], lest garbage be rendered on the screen.  Further, make sure the 1 000 cells referenced by [[TdfChrMtx]] never overlaps read-triggered I/O space, as the screen update will fire the I/O triggers.</p>
-
-<b>ISSUE: we need a better name for [[TdfChrMtx]].</b>
-
-<p>Next, we need to resolve which row of the glyph's picture to use.  We calculate the glyph's bitmap byte address using the character code (on the data stack) and knowledge of which [[raster]] we're drawing.  Its formula is, <i>a</i> = <i>font_base</i> + <i>c</i> + 256<i>s</i>, where 0&le;<i>c</i>&lt;256 contains the character code, and 0&le;<i>s</i>&lt;8 contains the current raster scanline.
-
-<<TDF address computation logic>>=
-: glyph     font + raster @ 256* + ;
-
-<<TDF global state>>=
-variable raster
-
-@ Finally, we just place the glyph image data in the destination bitmap.  The correct row of pixels in the target bitmap is computed using a formula similar to that used to determine the character matrix byte address, but adjusted to compensate for the bitmapped nature: <i>a</i> = <i>bitmap_base</i> + <i>x</i> + 80<i>s</i> + 640<i>y</i>, where 0&le;<i>s</i>&lt;8 refers to the specific scanline of the glyph.  Remember, we defined the system font height as eight.</p>
-
-<<TDF address computation logic>>=
-: bmadr     y @ 640* raster @ 80* + x @ + $8000 + ;
-
-@ </p><h3>B.3.3  Miscellaneous</h3>
-
-@ You might have noticed a few multiplications going on, expressed as single words instead of separate calls to [[*]].  The J1, not being a terribly sophisticated processor, lacks hardware multiplication support.  This means that we'd need to implement [[*]], a non-trivial task, if we wanted to perform general purpose multiplication.  As it happens, we always multiply by a constant factor, which allows us to create words which computes the desired results using <i>shifts and additions</i> instead.  This also has the benefit of isolating the Text Display Facility from the rest of the system firmware, useful for debugging purposes.</p>
-
-<<Primitives>>=
-: 8*        3 lshift ;
-: 16*       4 lshift ;
-: 80*       4 lshift dup 2 lshift + ;
-: 256*      8 lshift ;
-: 640*      80* 8* ;
-
-@ </p><h3>B.3.4  Example</h3>
-
-<p>First, we create our character matrix.  To be safe, we'll allot 2KiB of memory to the character matrix, but we'll only use 2KB.</p>
-
-<<TDF Example Code>>=
-create myChrmtx
-    2048 allot
-
-@ Next, we'll populate our character matrix with all 256 characters, arranged as a 16&times;16 matrix of characters, along the left-edge of the screen.  The right-hand side will be blank.  However, this populates only 16 of the 25 rows on the screen, so we'll fill the nine remaining rows with dots.</p>
-
-<<TDF Example Code>>=
-: c         over over c!  1 + swap 1 + swap ;
-: 16cols    c c c c  c c c c  c c c c  c c c c ;
-: s         32 over c!  1 + ;
-: 16s       s s s s  s s s s  s s s s  s s s s ;
-: 64spcs    16s 16s 16s 16s ;
-: r         16cols  64spcs ;
-: 16rows    r r r r  r r r r  r r r r  r r r r ;
-: d         $2E over c!  1 + ;
-: 10d       d d d d d  d d d d d ;
-: r         10d 10d 10d 10d  10d 10d 10d 10d ;
-: 9rows     r r r r  r r r r  r ;
-: chrmtx0   0 myChrmtx 16rows 9rows 2drop ;
-
-@ As our main program, we'll initialize the character matrix with the above code, configure [[TdfChrMtx]] to point to our matrix, and commit the display.  We'll then busy-wait forever, so that the user can see the results.</p>
-
-<<TDF Example Code>>=
-: halt      $8100 @ invert $8100 !  recurse ;
-: main      chrmtx0  myChrmtx TdfChrMtx !  commit  halt ;
-
-@
 </body>
