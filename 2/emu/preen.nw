@@ -533,6 +533,36 @@ Given this simple interface to the keyboard hardware, writing an event handler f
 <<PS/2 Keyboard Driver>>=
 : keyboard      available? if mbc filter ack then ;
 @ %def keyboard
+</p>
+
+<h3>50.2  PS/2 Key Code Computation</h3>
+
+@ A PS/2 keyboard communicates with its host computer via a serial communications link, not entirely unlike an RS-232 interface.  It does so using variable-length messages to indicate various events.  For example, if a keyboard sends the code [[$5A]], we know that the [[RETURN]] key was pressed (note the distinction between [[RETURN]] and [[ENTER]] on the numeric key-pad).  However, if we receive the sequence [[$F0 $5A]], we know that the button was released.  Since [[RETURN]] and [[ENTER]] essentially perform the same function now-a-days, it makes sense that they generate similar messages for their respective pressed and released states.  However, we can distinguish the two keys based on yet another message component: the [[$E0]] prefix, which prepends all <q>extended</q> key identifiers.  For example, [[$E0 $5A]] indicates that the [[ENTER]] key was pressed, while [[$F0 $E0 $5A]] indicates it was released.</p>
+
+@ As these so-called <i>make/break codes</i> (hence the name [[mbc]] above) pour into the Kestrel, we essentially filter the raw feed, making sure to parse the multi-byte messages into something more manageable, namely single words we call <i>keycodes</i>.</p>
+
+@ The most basic keycode happens to be the key-down event for a single-byte PS/2 MBC.  However, not knowing whether a single byte is a self-standing message or not, we keep a flags variable handy to remember whether an MBC is really extended or not, or is a make or a break code.</p>
+
+<<PS/2 State>>=
+variable s
+@
+
+We then merge that in with all bytes that look like single-byte messages.  Once keycode handling completes, we make sure to reset the keyboard state to ensure a clean slate for subsequent keyboard events.</p>
+
+<<PS/2 Keycode Filter>>=
+: filter        -$E0 -$F0 s @ or keycode 0 s ! ;
+@ %def filter
+
+Referring back to [[ui]] above, you'll notice that we reset the PS/2 keyboard state to zero every time the editor takes control of the machine.  This ensures the computer and the user share a common expectation of the state of the computer keyboard.</p>
+
+@ What if a received byte <i>is</i> either an extension flag or a break flag?  We simply set the appropriate flags in [[s]], and eat the byte.  I can't think of any reason to invoke the [[keycode]] handler knowing we don't yet have a full keyboard message in hand.</p>
+
+<<PS/2 Flag Intercepts>>=
+: -$E0          dup $E0 xor if exit then $0100 s @ or s !  r> 2drop ;
+: -$F0          dup $F0 xor if exit then $8000 s @ or s !  r> 2drop ;
+@ %def -$E0 -$F0
+
+Notice that we use bit 8 to indicate an extended keycode.  If we wanted to, we could logically-AND all keycodes with [[$00FF]] to share left- and right-hand side [[SHIFT]], [[CTRL]], [[ALT]], [[Windows]], and the numeric keypad keys with their left-handed counterparts.  Likewise, we use bit 15 to indicate a switch break event.  This lets one use [[0< IF]] in Forth, or its equivalent, to concisely differentiate between make and break codes.</p>
 
 EOI
 
@@ -544,7 +574,7 @@ This is a temporary definition for [[ui]].  Eventually, we want this, perhaps wi
 
 <<Screen Editor>>=
 <<Blink Event Handler>>
-variable s
+<<PS/2 State>>
 create rawcodes
     $0045 , $0016 , $001E , $0026 ,
     $0025 , $002E , $0036 , $003D ,
@@ -626,9 +656,8 @@ create display'
 : -enter        dup $005A xor if exit then complete r> 2drop ;
 : dispatch      -up -down -left -right -enter -valid drop ;
 : keycode       coff dispatch blink ;
-: -$E0          dup $E0 xor if exit then $0100 s @ or s !  r> 2drop ;
-: -$F0          dup $F0 xor if exit then $8000 s @ or s !  r> 2drop ;
-: filter        -$E0 -$F0 s @ or keycode 0 s ! ;
+<<PS/2 Flag Intercepts>>
+<<PS/2 Keycode Filter>>
 <<PS/2 Keyboard Driver>>
 <<Screen Refresh Event Handler>>
 <<User Interface Main Loop>>
