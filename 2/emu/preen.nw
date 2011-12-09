@@ -500,6 +500,42 @@ Finally, we just place the glyph image data in the destination bitmap.  The corr
 : 640*      80* 8* ;
 @ </p>
 
+<h2>50  Keyboard Handling</h2>
+
+@ Most computer systems rely on interrupts to handle keyboard input.  The basic idea involves a (semi-)intelligent peripheral, the keyboard, operating completely asynchronously to the host computer.  When the user presses or releases a key, the keyboard somehow alerts the host computer to read the event right away.  This often takes mere microseconds to accomplish, even on processors with the slowest interrupt response times.  It depends extensively on humans being much slower than the electronics used to report on the user's activities.</p>
+
+<h3>50.1  Keyboard Queue</h3>
+
+@ The Kestrel-2, however, differs from the norm.  The J1 microprocessor lacks support for interrupts, forcing both software and hardware engineer alike to approach the problem of timely delivery of keyboard events differently.  With the Kestrel, whenever a user presses or releases a key, the appropriate event is stored in a temporary queue <i>immediately</i>, assuming enough room exists to do so.  The queue exists in hardware, so the microprocessor needn't concern itself tending to the queue.  Up to fifteen bytes of event data may exist in the queue before information loss occurs.  Considering how slowly the user types in relation to the host processor, this depth might as well be considered infinite.</p>
+
+@ The queue indicates whether or not data exists by setting a flag, namely bit 15, in its I/O register.</p>
+
+<<PS/2 Keyboard Driver>>=
+: available?    $FFFE @ $8000 and ;
+@ %def available?
+
+Given that at least one byte of data remains to be read, bits 7-0 of the register contains the value of interest.</p>
+
+<<PS/2 Keyboard Driver>>=
+: mbc           $FFFE @ $00FF and ;
+@ %def mbc
+
+Reading from the keyboard I/O port will <i>not</i> dequeue the byte.  You can read it repeatedly as often as you want, and it will continue to return the same head of the queue over and over.  This might differ from most hardware-implemented queues, <i>precisely because</i> the J1 lacks interrupts.  We need the ability to poll for data without fear of destroying any data that might already exist in the queue.</p>
+
+@ This leaves the problem of how one actually dequeues the keyboard queue.  We do this by writing any value back to the I/O register.  For the purposes of dequeueing, any value will do.  However, since two bits also control drivers to the PS/2 data and clock lines, we choose to use a fixed value guaranteeing that our local drivers are disabled.</p>
+
+<<PS/2 Keyboard Driver>>=
+: ack           $0300 $FFFE ! ;
+@ %def ack
+
+Given this simple interface to the keyboard hardware, writing an event handler for the keyboard becomes trivial.</p>
+
+<<PS/2 Keyboard Driver>>=
+: keyboard      available? if mbc filter ack then ;
+@ %def keyboard
+
+EOI
+
 <h2>99  Text Editor Main Loop</h2>
 
 @ The text editor's main loop drives the blinking cursor as well as the keyboard interface.  I chose to blink the cursor four times every second, as my eye appreciates this blink rate the best.  It continues in this manner, blinking the cursor and responding to keyboard events, until the user presses the [[ENTER]] key, after which the editor returns the base address and length of the text line containing the cursor.  As a convenience to the user, the cursor is turned off, indicating no further input is required.</p>
@@ -593,10 +629,7 @@ create display'
 : -$E0          dup $E0 xor if exit then $0100 s @ or s !  r> 2drop ;
 : -$F0          dup $F0 xor if exit then $8000 s @ or s !  r> 2drop ;
 : filter        -$E0 -$F0 s @ or keycode 0 s ! ;
-: available?    $FFFE @ $8000 and ;
-: mbc           $FFFE @ $00FF and ;
-: ack           $0300 $FFFE ! ;
-: keyboard      available? if mbc filter ack then ;
+<<PS/2 Keyboard Driver>>
 <<Screen Refresh Event Handler>>
 <<User Interface Main Loop>>
 <<User Interface Entrypoint>>
