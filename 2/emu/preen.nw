@@ -564,6 +564,201 @@ Referring back to [[ui]] above, you'll notice that we reset the PS/2 keyboard st
 
 Notice that we use bit 8 to indicate an extended keycode.  If we wanted to, we could logically-AND all keycodes with [[$00FF]] to share left- and right-hand side [[SHIFT]], [[CTRL]], [[ALT]], [[Windows]], and the numeric keypad keys with their left-handed counterparts.  Likewise, we use bit 15 to indicate a switch break event.  This lets one use [[0< IF]] in Forth, or its equivalent, to concisely differentiate between make and break codes.</p>
 
+<h3>50.3  User Keyboard Interface</h3>
+
+@ A human operator interacts with Preen via the keyboard, so somewhere the program must dispatch commands based on which key event occurs.  Preen contains a fairly restricted set of keyboard inputs, including cursor control, the ENTER key, and valid hexadecimal digits.</p>
+
+<<Keyboard dispatcher>>=
+: dispatch      -up -down -left -right -enter -valid drop ;
+@ %def dispatch
+
+Since most of these inputs result in the cursor moving on the screen, we need to make sure we wrap our dispatcher with logic to turn the cursor off and back on afterwards.</p>
+
+<<Keyboard dispatcher>>=
+: keycode       coff dispatch blink ;
+@ %def keycode
+
+If we detect a cursor movement operation, we call into the screen editor to adjust the cursor location accordingly, and take no further action.</p>
+
+<<Cursor Movement Dispatch>>=
+: -up           dup $0175 xor if exit then up r> 2drop ;
+: -down         dup $0172 xor if exit then down r> 2drop ;
+: -left         dup $016B xor if exit then left r> 2drop ;
+: -right        dup $0174 xor if exit then right r> 2drop ;
+@ %def -up -down -left -right
+
+When the user presses [[ENTER]], the user's session with the screen editor completes, causing whatever line the cursor is on to be executed.</p>
+
+<<ENTER dispatch>>=
+: -enter        dup $005A xor if exit then complete r> 2drop ;
+@ %def -enter
+
+We'll talk more about [[complete]] and how it actually executes command later.</p>
+
+@ When a user presses a valid hexadecimal digit, we would like to make that digit appear where the cursor resides, and bump the cursor to the left.  Recall that our display buffer doubles as our text input buffer, so merely [[emit]]ing a character suffices to make it eligible for input later.</p>
+
+<<Valid Hexadecimal Digit Handler>>=
+: kbhit         >ascii emit 2drop drop ;
+@ %def kbhit
+
+We need to be careful here, though, for what we're given from the PS/2 interface is a <i>keycode</i>, and the text buffer consumes <i>ASCII</i>.  We use a look-up table to perform the conversion, since keycodes make up an unordered set.</p>
+
+<<Convert keycode to ASCII>>=
+: >ascii        rawcodes - cookedcodes + @ ;
+@ %def >ascii
+
+An unordered keycode becomes an ordered rawcode via the following look-up table.</p>
+
+<<Keycode to Rawcode Lookup Table>>=
+create rawcodes
+    $0045 , $0016 , $001E , $0026 ,
+    $0025 , $002E , $0036 , $003D ,
+    $003E , $0046 , $001C , $0032 ,
+    $0021 , $0023 , $0024 , $002B ,
+@ %def rawcodes
+
+Knowledge of PS/2 keycode values shows that I've listed the sixteen hexadecimal digits, from <q>0</q> through <q>F</q>, in this table.  When we receive a keycode, we look it up in this table to see if it exists.  If not, we know the key isn't a hex digit, and we ignore it.</p>
+
+<<Rawcode Table Scanner>>=
+: -match        2dup @ xor if exit then kbhit r> r> 2drop r> r> drop ;
+: r             -match 2 + ;
+: -found        r r r r  r r r r  r r r r  r r r r ;
+: -valid        dup rawcodes -found 2drop ;
+@ %def -valid
+
+Assuming we find a match in the [[rawcodes]] table, [[>ascii]] converts the address in [[rawcodes]] into a relative offset into [[cookedcodes]], which contain the corresponding ASCII codes for the hexadecimal digits.</p>
+
+<<Rawcode to ASCII Lookup Table>>=
+create cookedcodes
+    $0030 , $0031 , $0032 , $0033 ,
+    $0034 , $0035 , $0036 , $0037 ,
+    $0038 , $0039 , $0041 , $0042 ,
+    $0043 , $0044 , $0045 , $0046 ,
+@ %def cookedcodes
+
+This results in two arrays which work together to translate keycodes into their ASCII equivalents.</p>
+
+<table width="50%">
+ <tr>
+  <th>keycode</th>
+  <th>ASCII</th>
+ </tr>
+ <tr><td>[[$0045]]</td><td>[[$0030]]</td></tr>
+ <tr><td>[[$0016]]</td><td>[[$0031]]</td></tr>
+ <tr><td>[[$001E]]</td><td>[[$0032]]</td></tr>
+ <tr><td>[[$0026]]</td><td>[[$0033]]</td></tr>
+ <tr><td>[[$0025]]</td><td>[[$0034]]</td></tr>
+ <tr><td>[[$002E]]</td><td>[[$0035]]</td></tr>
+ <tr><td>[[$0036]]</td><td>[[$0036]]</td></tr>
+ <tr><td>[[$003D]]</td><td>[[$0037]]</td></tr>
+ <tr><td>[[$003E]]</td><td>[[$0038]]</td></tr>
+ <tr><td>[[$0046]]</td><td>[[$0039]]</td></tr>
+ <tr><td>[[$001C]]</td><td>[[$0041]]</td></tr>
+ <tr><td>[[$0032]]</td><td>[[$0042]]</td></tr>
+ <tr><td>[[$0021]]</td><td>[[$0043]]</td></tr>
+ <tr><td>[[$0023]]</td><td>[[$0044]]</td></tr>
+ <tr><td>[[$0024]]</td><td>[[$0045]]</td></tr>
+ <tr><td>[[$002B]]</td><td>[[$0046]]</td></tr>
+</table>
+
+<h2>60  Interpreting Commands</h2>
+
+<h3>60.1  Parsing the Command Name</h3>
+
+@ When the user presses [[ENTER]], whatever line the cursor happens to be on will be taken as input to a very simple evaluator.</p>
+
+<<Command Interpreter>>=
+: complete      y @ 80* TdfChrMtx @ + tib !  80 #tib !  0 >in !  interpret ;
+@ %def complete
+
+[[interpret]] takes its input from the buffer pointed to by [[tib]], whose maximum length resides in [[#tib]].  The interpreter keeps track of where it's at through the [[>in]] variable.  At all times, 0 &le; [[>in]] &le; [[#tib]].</p>
+
+<<Interpreter State>>=
+variable tib
+variable #tib
+variable >in
+@ %def >in #tib tib
+
+Like shell commands in Windows or Unix, commands consist of a name followed optionally by space-delimited arguments.  The interpreter concerns itself only with the command name.  We commence execution by pushing the command's address onto the CPU's return stack, and literally <q>returning</q> to it.</p>
+
+<<Command Dispatch>>=
+: interpret     word +valid find >r nop, ;
+@ %def interpret
+
+We define command names to be Forth-compatible words (e.g., white-space delimited strings of non-whitespace characters).  Words may optionally have whitespace ahead of it, so we make sure to skip over it, if possible.  After skipping over non-whitespace characters too, we can subtract the starting address from the ending addresses to arrive at the word's length.</p>
+
+<<Forth Word Lexing>>=
+: ws            -eoln ws? if 1 >in +! recurse exit then ;
+: txt           -eoln ws? if exit then 1 >in +! recurse ;
+: word          ws pch txt pch over - ;
+@ %def word
+
+I define whitespace as any ASCII character in the range [$00, $20].</p>
+
+<<Whitespace check>>=
+: ws?           ch $21 - $8000 and ;
+@ %def ws?
+
+While scanning text for (non-)whitespace characters, we want to make sure we confine ourselves to the current line.  If we don't do this, we can overrun memory if the cursor happens to be at the very bottom of the screen.  Even if it's not, we can get odd behaviors in cases where text appears to wrap around the screen's edges.  This latter condition never happens in Preen, but the former has caused problems while the software was under development.  Note that the expression [[>in @ #tib @ -]] becomes positive precisely when [[>in]] &ge; [[#tib]].</p>
+
+<<End-of-line check>>=
+: -eoln         >in @ #tib @ - $8000 and if exit then r> drop ;
+@ %def -eoln
+
+As indicated above several times, we use the text display character matrix directly as a buffer.</p>
+
+<<Matrix Character Fetch>>=
+: pch           >in @ tib @ + ;
+: ch            pch c@ ;
+@ %def ch pch
+
+What if a line is empty, though?  Put another way, what if the line contains only whitespace?  In this case, our command word will have a zero length.  Without a command to execute, doing nothing is all we can do.</p>
+
+<<Command Length Check>>=
+: +valid        dup if exit then r> drop ;
+@ %def +valid
+</p>
+
+<h3>60.2  Finding the Command's Implementation</h3>
+
+@ Although [[word]] properly returns the length of the string it's parsed, we only use it as a flag to see whether or not a line was empty or not.  All command names in Preen occupy a single word of memory, enabling [[xor]] to service as a crude string comparison operator.  It similarly allows us to fetch whole names from memory using only [[@]].</p>
+
+@ We start our search by first discarding the length of the word, and fetching the first two characters (space padded due to how the display memory works).  If nothing is found, we default to the routine which causes a display refresh.</p>
+
+<<Map Command Name to Executable Address>>=
+: find          drop @ -found drop display' @ ;
+@ %def find
+
+<<Display Routine Address>>=
+create display'
+    ' display >body 2/ ,
+@ %def display'
+
+We start our search by attempting to index our command name in a look-up table.  Since Preen supports so few commands, we hard-wire the number of items to search.</p>
+
+<<Command Search>>=
+: -found        wtab -fnd -fnd -fnd -fnd -fnd nop, ;
+@ %def -found
+
+The table of command names includes [[D+]], [[R+]], [[M=]], [[M+]], and [[GO]].</p>
+
+<<Command Name Table>>=
+create wtab
+    $442B , $522B , $4D3D , $4D2B , $474F ,
+@ %def wtab
+
+When we find a hit in [[wtab]], [[-fnd]] uses [[proc]] to read the corresponding procedure address out of the procedure table:</p>
+
+<<Command Search Step>>=
+: proc          wtab - wproc + @ ;
+: -fnd          2dup @ xor if 2 + exit then nip proc r> r> 2drop ;
+@ %def -fnd proc
+
+<<Command Procedure Table>>=
+create wproc
+    ' D+ >body 2/ ,  ' R+ >body 2/ , ' M= >body 2/ , ' M+ >body 2/ , ' GO >body 2/ ,
+@ %def wproc
+
 EOI
 
 <h2>99  Text Editor Main Loop</h2>
@@ -575,22 +770,12 @@ This is a temporary definition for [[ui]].  Eventually, we want this, perhaps wi
 <<Screen Editor>>=
 <<Blink Event Handler>>
 <<PS/2 State>>
-create rawcodes
-    $0045 , $0016 , $001E , $0026 ,
-    $0025 , $002E , $0036 , $003D ,
-    $003E , $0046 , $001C , $0032 ,
-    $0021 , $0023 , $0024 , $002B ,
-create cookedcodes
-    $0030 , $0031 , $0032 , $0033 ,
-    $0034 , $0035 , $0036 , $0037 ,
-    $0038 , $0039 , $0041 , $0042 ,
-    $0043 , $0044 , $0045 , $0046 ,
+<<Keycode to Rawcode Lookup Table>>
+<<Rawcode to ASCII Lookup Table>>
 <<Character Matrix Buffer>>
 <<Character Matrix Commit Flag>>
 variable -done
-variable tib
-variable #tib
-variable >in
+<<Interpreter State>>
 
 <<Clearing the screen>>
 : scrn0         scrn TdfChrMtx ! ;
@@ -608,23 +793,14 @@ variable >in
 <<Dumping Return Stack>>
 <<Dumping Arbitrary Memory>>
 <<Memory Dump>>
-: >ascii        rawcodes - cookedcodes + @ ;
-: kbhit         >ascii emit 2drop drop ;
-: -match        2dup @ xor if exit then kbhit r> r> 2drop r> r> drop ;
-: r             -match 2 + ;
-: -found        r r r r  r r r r  r r r r  r r r r ;
-: -valid        dup rawcodes -found 2drop ;
-: -up           dup $0175 xor if exit then up r> 2drop ;
-: -down         dup $0172 xor if exit then down r> 2drop ;
-: -left         dup $016B xor if exit then left r> 2drop ;
-: -right        dup $0174 xor if exit then right r> 2drop ;
-: pch           >in @ tib @ + ;
-: ch            pch c@ ;
-: -eoln         >in @ 80 - $8000 and if exit then r> drop ;
-: ws?           ch $21 - $8000 and ;
-: ws            -eoln ws? if 1 >in +! recurse exit then ;
-: txt           -eoln ws? if exit then 1 >in +! recurse ;
-: word          ws pch txt pch over - ;
+<<Convert keycode to ASCII>>
+<<Valid Hexadecimal Digit Handler>>
+<<Rawcode Table Scanner>>
+<<Cursor Movement Dispatch>>
+<<Matrix Character Fetch>>
+<<End-of-line check>>
+<<Whitespace check>>
+<<Forth Word Lexing>>
 variable v
 : digit         -48 + dup -10 + $8000 and if exit then -7 + ;
 : d             over c@ digit v @ 4 lshift or v ! ;
@@ -638,24 +814,17 @@ variable v
 : M+            nbr memptr @ + chg ;
 <<[[GO]] Command>>
 
-create wproc
-    ' D+ >body 2/ ,  ' R+ >body 2/ , ' M= >body 2/ , ' M+ >body 2/ ,
-    ' GO >body 2/ ,
-create wtab
-    $442B , $522B , $4D3D , $4D2B ,
-    $474F ,
-create display'
-    ' display >body 2/ ,
-: proc          wtab - wproc + @ ;
-: -fnd          2dup @ xor if 2 + exit then nip proc r> r> 2drop ;
-: -found        wtab -fnd -fnd -fnd -fnd -fnd nop, ;
-: find          drop @ -found drop display' @ ;
-: +valid        dup if exit then r> drop ;
-: interpret     word +valid find >r nop, ;
-: complete      y @ 80* TdfChrMtx @ + tib !  80 #tib !  0 >in !  interpret ;
-: -enter        dup $005A xor if exit then complete r> 2drop ;
-: dispatch      -up -down -left -right -enter -valid drop ;
-: keycode       coff dispatch blink ;
+<<Command Procedure Table>>
+<<Command Name Table>>
+<<Display Routine Address>>
+<<Command Search Step>>
+<<Command Search>>
+<<Map Command Name to Executable Address>>
+<<Command Length Check>>
+<<Command Dispatch>>
+<<Command Interpreter>>
+<<ENTER dispatch>>
+<<Keyboard dispatcher>>
 <<PS/2 Flag Intercepts>>
 <<PS/2 Keycode Filter>>
 <<PS/2 Keyboard Driver>>
