@@ -117,7 +117,7 @@ r> $3F78 !  r> $3F7A !  r> $3F7C !  r> $3F7E !
 Once both the data and return stacks have been committed to memory, the entire state of the interrupted program avails itself for inspection.  Recall that the interrupted program's instruction pointer resides in the cell at [[rstack]]+0.  This leaves [[breakpoint]] with only one last task to perform: kick off the monitor's user interface.</p>
 
 <<Breakpoint handler>>=
-  scrn0 display ui ;
+scrn TdfChrMtx !  display ui ;
 @
 
 Note that [[ui]] never returns.</p>
@@ -212,6 +212,10 @@ Each dump consists of sixteen bytes, arranged as eight words since the J1 proces
 
 We print each word's value by printing two bytes, most significant first, then advancing the fetch pointer by two so that the next time we print, we fetch the next word as expected.</p>
 
+<<Definition of [[SPACE]]>>=
+: space         $20 emit ;
+@ %def space
+
 <<Definition of [[W]]>>=
 : .w            dup 8 rshift .b .b space ;
 : w             dup @ .w 2 + ;
@@ -267,11 +271,11 @@ Upon completion of the eight word dump, the address on the stack will point 16 b
 
 <h2>30.1  Character Matrix</h2>
 
-@ The Kestrel-2 supports a simplistic display interface, consisting of a 16KB buffer starting at [[$8000]] and offering a 640&times;200 video resolution.  With an 8&times;8 pixel character font, this gives us an 80&times;25 character matrix, assuming we keep characters aligned to eight pixel boundaries.  Correspondingly, the screen editor works on a buffer 80&times;25 = 2048 bytes in size.</p>
+@ The Kestrel-2 supports a simplistic display interface, consisting of a 16KB buffer starting at [[$8000]] and offering a 640&times;200 video resolution.  With an 8&times;8 pixel character font, this gives us an 80&times;25 character matrix, assuming we keep characters aligned to eight pixel boundaries.  Correspondingly, the screen editor works on a buffer 80&times;25 = 2000 bytes in size.</p>
 
 <<Character Matrix Buffer>>=
 create scrn
-    2048 allot
+    2000 allot
 @ %def scrn
 
 For the purposes of receiving input from the user, Preen treats the character matrix as a 25-element array of 80-character line records.  Since none of Preen's inputs can possibly span multiple lines, the screen editor doesn't support so-called <q>logical lines</q>, such as the screen editors found in Commodore and Atari 8-bit products support.  This will be discussed in greater detail in a later section.</p>
@@ -336,13 +340,13 @@ Note that the lack of vertical screen scroll support further confines output to 
 @ When Preen desires user input, it invokes [[ui]] to present the screen editor user interface to the user.  It first establishes reasonable defaults for its operating state, then drops into the main loop proper.</p>
 
 <<User Interface Entrypoint>>=
-: ui            0 s !  0 blst !  -1 -done !  ui... coff ;
+: ui            0 s !  0 blst !  ui... coff ;
 @ %def ui
 
 The user interface main loop repeatedly polls for input events, and handles them as it finds each kind of event.</p>
 
 <<User Interface Main Loop>>=
-: ui...         ?commit blinker keyboard -done @ if recurse exit then ;
+: ui...         ?commit blinker keyboard recurse ;
 @ %def ui...
 
 @ You might have noticed that we're setting a flag called [[commit?]] in the definition for [[emit]].  This flag, when set, informs the application's user interface loop that at least one screen character changed since the last refresh.</p>
@@ -500,11 +504,11 @@ Finally, we just place the glyph image data in the destination bitmap.  The corr
 : 640*      80* 8* ;
 @ </p>
 
-<h2>50  Keyboard Handling</h2>
+<h1>50  Keyboard Handling</h2>
 
 @ Most computer systems rely on interrupts to handle keyboard input.  The basic idea involves a (semi-)intelligent peripheral, the keyboard, operating completely asynchronously to the host computer.  When the user presses or releases a key, the keyboard somehow alerts the host computer to read the event right away.  This often takes mere microseconds to accomplish, even on processors with the slowest interrupt response times.  It depends extensively on humans being much slower than the electronics used to report on the user's activities.</p>
 
-<h3>50.1  Keyboard Queue</h3>
+<h2>50.1  Keyboard Queue</h3>
 
 @ The Kestrel-2, however, differs from the norm.  The J1 microprocessor lacks support for interrupts, forcing both software and hardware engineer alike to approach the problem of timely delivery of keyboard events differently.  With the Kestrel, whenever a user presses or releases a key, the appropriate event is stored in a temporary queue <i>immediately</i>, assuming enough room exists to do so.  The queue exists in hardware, so the microprocessor needn't concern itself tending to the queue.  Up to fifteen bytes of event data may exist in the queue before information loss occurs.  Considering how slowly the user types in relation to the host processor, this depth might as well be considered infinite.</p>
 
@@ -535,7 +539,7 @@ Given this simple interface to the keyboard hardware, writing an event handler f
 @ %def keyboard
 </p>
 
-<h3>50.2  PS/2 Key Code Computation</h3>
+<h2>50.2  PS/2 Key Code Computation</h3>
 
 @ A PS/2 keyboard communicates with its host computer via a serial communications link, not entirely unlike an RS-232 interface.  It does so using variable-length messages to indicate various events.  For example, if a keyboard sends the code [[$5A]], we know that the [[RETURN]] key was pressed (note the distinction between [[RETURN]] and [[ENTER]] on the numeric key-pad).  However, if we receive the sequence [[$F0 $5A]], we know that the button was released.  Since [[RETURN]] and [[ENTER]] essentially perform the same function now-a-days, it makes sense that they generate similar messages for their respective pressed and released states.  However, we can distinguish the two keys based on yet another message component: the [[$E0]] prefix, which prepends all <q>extended</q> key identifiers.  For example, [[$E0 $5A]] indicates that the [[ENTER]] key was pressed, while [[$F0 $E0 $5A]] indicates it was released.</p>
 
@@ -564,7 +568,7 @@ Referring back to [[ui]] above, you'll notice that we reset the PS/2 keyboard st
 
 Notice that we use bit 8 to indicate an extended keycode.  If we wanted to, we could logically-AND all keycodes with [[$00FF]] to share left- and right-hand side [[SHIFT]], [[CTRL]], [[ALT]], [[Windows]], and the numeric keypad keys with their left-handed counterparts.  Likewise, we use bit 15 to indicate a switch break event.  This lets one use [[0< IF]] in Forth, or its equivalent, to concisely differentiate between make and break codes.</p>
 
-<h3>50.3  User Keyboard Interface</h3>
+<h2>50.3  User Keyboard Interface</h3>
 
 @ A human operator interacts with Preen via the keyboard, so somewhere the program must dispatch commands based on which key event occurs.  Preen contains a fairly restricted set of keyboard inputs, including cursor control, the ENTER key, and valid hexadecimal digits.</p>
 
@@ -661,9 +665,9 @@ This results in two arrays which work together to translate keycodes into their 
  <tr><td>[[$002B]]</td><td>[[$0046]]</td></tr>
 </table>
 
-<h2>60  Interpreting Commands</h2>
+<h1>60  Interpreting Commands</h2>
 
-<h3>60.1  Parsing the Command Name</h3>
+<h2>60.1  Parsing the Command Name</h3>
 
 @ When the user presses [[ENTER]], whatever line the cursor happens to be on will be taken as input to a very simple evaluator.</p>
 
@@ -719,7 +723,7 @@ What if a line is empty, though?  Put another way, what if the line contains onl
 @ %def +valid
 </p>
 
-<h3>60.2  Finding the Command's Implementation</h3>
+<h2>60.2  Finding the Command's Implementation</h3>
 
 @ Although [[word]] properly returns the length of the string it's parsed, we only use it as a flag to see whether or not a line was empty or not.  All command names in Preen occupy a single word of memory, enabling [[xor]] to service as a crude string comparison operator.  It similarly allows us to fetch whole names from memory using only [[@]].</p>
 
@@ -759,6 +763,54 @@ create wproc
     ' D+ >body 2/ ,  ' R+ >body 2/ , ' M= >body 2/ , ' M+ >body 2/ , ' GO >body 2/ ,
 @ %def wproc
 
+<h2>60.3  Commands</h2>
+
+@ We already saw the [[GO]] command implementation earlier in this document.  Therefore, I'll focus on the [[D+]], [[R+]], [[M=]], and [[M+]] commands next, all of which accept arguments and take some action based on those arguments.</p>
+
+@ Perhaps the simplest commands to understand are the [[D+]] and [[R+]] commands.  Each of these commands consumes nine arguments: a byte indicating an offset from some fixed buffer address, and eight words of data to store starting at that offset.  So, e.g., executing [[D+ 10 1111 2222 3333 4444 5555 6666 7777 8888]] causes the value [[$1111]] to be stored in the data stack's 16th byte, [[$2222]] in the 18th byte location, and so on.  The only difference between [[D+]], [[R+]], and [[M+]] concerns where the first byte of data will be stored.</p>
+
+<<Memory Store Commands>>=
+: D+            nbr dstack + chg ;
+: R+            nbr rstack + chg ;
+: M+            nbr memptr @ + chg ;
+@ %def D+ R+ M+
+
+Note that both [[D+]] and [[R+]] operate on a well-known buffer whose address is well-known at compile-time (namely, the data and return stack buffers written to by [[breakpoint]] and restored from in [[GO]]).  [[M+]], however, operates on a buffer whose address is determined only at runtime through the [[memptr]] variable.  We set [[memptr]] using the [[M=]] command.</p>
+
+<<Memory Pointer Change Command>>=
+: M=            nbr memptr ! display ;
+@ %def M=
+
+With all these commands, note that we accept a number as a parameter.  We expect the number to be small enough to fit in a single CPU cell.  While converting the number, we use [[v]] as a temporary accumulator.</p>
+
+<<Grab a numeric parameter>>=
+: nbr           0 v ! word hex>n v @ ;
+@ %def nbr
+
+<<Numeric Accumulator>>=
+variable v
+@ %def v
+
+Conversion procedes one hexadecimal digit at a time, for as long as we have digits to convert.  We trust the user to not provide us with garbage (e.g., numbers more than four hex digits in length).  Note that it's impossible to provide non-hex digits because the keyboard interface discards them out of hand.</p>
+
+<<Convert a string into a number>>=
+: hex>n         dup if d -1 + swap 1 + swap recurse exit then 2drop ;
+@ %def hex>n
+
+For each digit, we shift the accumulator left four bits, then logically-OR the equivalent binary value of the hexadecimal digit.</p>
+
+<<Accumulate a single hex digit>>=
+: digit         -48 + dup -10 + $8000 and if exit then -7 + ;
+: d             over c@ digit v @ 4 lshift or v ! ;
+@ %def d
+
+For the [[D+]], [[R+]], and [[M+]] commands, we consume eight additional numbers, each of which are to be placed in memory at successive addresses.</p>
+
+<<Store Data>>=
+: w             nbr over !  2 + ;
+: chg           w w w w w w w w drop display ;
+@ %def chg
+
 EOI
 
 <h2>99  Text Editor Main Loop</h2>
@@ -774,16 +826,12 @@ This is a temporary definition for [[ui]].  Eventually, we want this, perhaps wi
 <<Rawcode to ASCII Lookup Table>>
 <<Character Matrix Buffer>>
 <<Character Matrix Commit Flag>>
-variable -done
 <<Interpreter State>>
-
 <<Clearing the screen>>
-: scrn0         scrn TdfChrMtx ! ;
 <<Placing a Character>>
 <<Placing a String>>
 <<Carriage Return>>
-: space         $20 emit ;
-: dot           $2B emit ;
+<<Definition of [[SPACE]]>>
 <<Definition of [[.B]]>>
 <<Definition of [[W]]>>
 <<Definition of [[WORDS]]>>
@@ -801,19 +849,14 @@ variable -done
 <<End-of-line check>>
 <<Whitespace check>>
 <<Forth Word Lexing>>
-variable v
-: digit         -48 + dup -10 + $8000 and if exit then -7 + ;
-: d             over c@ digit v @ 4 lshift or v ! ;
-: hex>n         dup if d -1 + swap 1 + swap recurse exit then 2drop ;
-: nbr           0 v ! word hex>n v @ ;
-: w             nbr over !  2 + ;
-: chg           w w w w w w w w drop display ;
-: D+            nbr dstack + chg ;
-: R+            nbr rstack + chg ;
-: M=            nbr memptr ! display ;
-: M+            nbr memptr @ + chg ;
+<<Numeric Accumulator>>
+<<Accumulate a single hex digit>>
+<<Convert a string into a number>>
+<<Grab a numeric parameter>>
+<<Store Data>>
+<<Memory Store Commands>>
+<<Memory Pointer Change Command>>
 <<[[GO]] Command>>
-
 <<Command Procedure Table>>
 <<Command Name Table>>
 <<Display Routine Address>>
