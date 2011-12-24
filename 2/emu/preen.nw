@@ -63,9 +63,71 @@ In summary, the top-level layout of the program follows:</p>
 
 <<Text Display Facility>>
 
-<<System software state>>
-<<Screen Editor>>
-<<Breakpoint handler>>
+<<Screen Editor State>>                     \ (sef/cur)
+<<Screen Editor Cursor Movement>>           \ (sef/cur)
+<<Screen Editor Blink Address>>             \ (sef/uil)
+<<Screen Editor Cursor Blink>>              \ (sef/uil)
+<<Turning Off the Cursor>>                  \ (sef/uil)
+<<Blink Event Handler>>                     \ (sef/uil)
+<<Character Matrix Commit Flag>>            \ (sef/uil)
+<<Screen Refresh Event Handler>>            \ (sef/uil)
+<<Character Matrix Buffer>>                 \ (sef/mtx)
+<<Clearing the screen>>                     \ (sef/out)
+<<Placing a Character>>                     \ (sef/out)
+<<Placing a String>>                        \ (sef/out)
+<<Carriage Return>>                         \ (sef/out)
+
+<<System software state>>                   \ (dbg/brk)
+<<[[GO]] Command>>                          \ (dbg/brk)
+<<Definition of [[SPACE]]>>                 \ (dbg/dmp)
+<<Definition of [[.B]]>>                    \ (dbg/dmp)
+<<Definition of [[W]]>>                     \ (dbg/dmp)
+<<Definition of [[WORDS]]>>                 \ (dbg/dmp)
+<<Definition of [[CHARS]]>>                 \ (dbg/dmp)
+<<Definition of [[DUMP]]>>                  \ (dbg/dmp)
+<<Dumping Data Stack>>                      \ (dbg/dmp)
+<<Dumping Return Stack>>                    \ (dbg/dmp)
+<<Dumping Arbitrary Memory>>                \ (dbg/dmp)
+<<Memory Dump>>                             \ (dbg/dmp)
+
+<<Interpreter State>>                       \ (cmd/int)
+<<Matrix Character Fetch>>                  \ (cmd/int)
+<<End-of-line check>>                       \ (cmd/int)
+<<Whitespace check>>                        \ (cmd/int)
+<<Forth Word Lexing>>                       \ (cmd/int)
+<<Numeric Accumulator>>                     \ (cmd/cmd)
+<<Accumulate a single hex digit>>           \ (cmd/cmd)
+<<Convert a string into a number>>          \ (cmd/cmd)
+<<Grab a numeric parameter>>                \ (cmd/cmd)
+<<Store Data>>                              \ (cmd/cmd)
+<<Memory Store Commands>>                   \ (cmd/cmd)
+<<Memory Pointer Change Command>>           \ (cmd/cmd)
+<<Command Procedure Table>>                 \ (cmd/fnd)
+<<Command Name Table>>                      \ (cmd/fnd)
+<<Command Search Step>>                     \ (cmd/fnd)
+<<Command Search>>                          \ (cmd/fnd)
+<<Display Routine Address>>                 \ (cmd/fnd)
+<<Map Command Name to Executable Address>>  \ (cmd/fnd)
+<<Command Length Check>>                    \ (cmd/int)
+<<Command Dispatch>>                        \ (cmd/int)
+<<Command Interpreter>>                     \ (cmd/int)
+
+<<Keycode to Rawcode Lookup Table>>         \ (ps2/uki)
+<<Rawcode to ASCII Lookup Table>>           \ (ps2/uki)
+<<Convert keycode to ASCII>>                \ (ps2/uki)
+<<Valid Hexadecimal Digit Handler>>         \ (ps2/uki)
+<<Rawcode Table Scanner>>                   \ (ps2/uki)
+<<Cursor Movement Dispatch>>                \ (ps2/uki)
+<<ENTER dispatch>>                          \ (ps2/uki)
+<<Keyboard dispatcher>>                     \ (ps2/uki)
+<<PS/2 State>>                              \ (ps2/key)
+<<PS/2 Flag Intercepts>>                    \ (ps2/key)
+<<PS/2 Keycode Filter>>                     \ (ps2/key)
+<<PS/2 Keyboard Driver>>                    \ (ps2/drv)
+
+<<User Interface Main Loop>>                \ (sef/uil)
+<<User Interface Entrypoint>>               \ (sef/uil)
+<<Breakpoint handler>>                      \ (dbg/brk)
 
 <<Patch reset vector>>
 <<Emit binary file>>
@@ -192,8 +254,11 @@ We re-use the same memory dump code for all three types of regions.  We simply h
 : rstk          r00 r10 r20 r30 cr ;
 @ %def rstk
 
-<<Dumping Arbitrary Memory>>=
+<<System software state>>=
 variable memptr
+@ %def memptr
+
+<<Dumping Arbitrary Memory>>=
 : m             S" M+ " type dup .b space space dup memptr @ + dump 16 + ;
 : mem           S" M= " type memptr @ .w cr 0 m m m m m m m m drop cr ;
 @ %def memptr mem
@@ -261,13 +326,6 @@ Upon completion of the eight word dump, the address on the stack will point 16 b
 
 @ Preen uses a (too?) simple matrix editor with a fixed 80&times;25 geometry.  The combination of this geometry and an isomorphism between ASCII code and font glyph allows Preen to re-use the same character matrix with the Text Display Facility for display refresh purposes.  Preen's screen editor only supports the functionality considered essential for Preen's operation: entering of hexadecimal numbers, and selection of the [[GO]] command.</p>
 
-<<Screen Editor>>=
-<<Screen Editor State>>
-<<Screen Editor Cursor Movement>>
-<<Screen Editor Blink Address>>
-<<Screen Editor Cursor Blink>>
-<<Turning Off the Cursor>>
-@
 
 <h2>30.1  Character Matrix</h2>
 
@@ -672,7 +730,7 @@ This results in two arrays which work together to translate keycodes into their 
 @ When the user presses [[ENTER]], whatever line the cursor happens to be on will be taken as input to a very simple evaluator.</p>
 
 <<Command Interpreter>>=
-: complete      y @ 80* TdfChrMtx @ + tib !  80 #tib !  0 >in !  interpret ;
+: complete      y @ 80* TdfChrMtx @ + tib !  80 #tib !  0 >in !  interpret display ;
 @ %def complete
 
 [[interpret]] takes its input from the buffer pointed to by [[tib]], whose maximum length resides in [[#tib]].  The interpreter keeps track of where it's at through the [[>in]] variable.  At all times, 0 &le; [[>in]] &le; [[#tib]].</p>
@@ -778,7 +836,7 @@ create wproc
 Note that both [[D+]] and [[R+]] operate on a well-known buffer whose address is well-known at compile-time (namely, the data and return stack buffers written to by [[breakpoint]] and restored from in [[GO]]).  [[M+]], however, operates on a buffer whose address is determined only at runtime through the [[memptr]] variable.  We set [[memptr]] using the [[M=]] command.</p>
 
 <<Memory Pointer Change Command>>=
-: M=            nbr memptr ! display ;
+: M=            nbr memptr ! ;
 @ %def M=
 
 With all these commands, note that we accept a number as a parameter.  We expect the number to be small enough to fit in a single CPU cell.  While converting the number, we use [[v]] as a temporary accumulator.</p>
@@ -808,73 +866,11 @@ For the [[D+]], [[R+]], and [[M+]] commands, we consume eight additional numbers
 
 <<Store Data>>=
 : w             nbr over !  2 + ;
-: chg           w w w w w w w w drop display ;
+: chg           w w w w w w w w drop ;
 @ %def chg
 
 EOI
-
-<h2>99  Text Editor Main Loop</h2>
-
-@ The text editor's main loop drives the blinking cursor as well as the keyboard interface.  I chose to blink the cursor four times every second, as my eye appreciates this blink rate the best.  It continues in this manner, blinking the cursor and responding to keyboard events, until the user presses the [[ENTER]] key, after which the editor returns the base address and length of the text line containing the cursor.  As a convenience to the user, the cursor is turned off, indicating no further input is required.</p>
-
-This is a temporary definition for [[ui]].  Eventually, we want this, perhaps with a new name, to be the main loop for the editor.</p>
-
-<<Screen Editor>>=
-<<Blink Event Handler>>
-<<PS/2 State>>
-<<Keycode to Rawcode Lookup Table>>
-<<Rawcode to ASCII Lookup Table>>
-<<Character Matrix Buffer>>
-<<Character Matrix Commit Flag>>
-<<Interpreter State>>
-<<Clearing the screen>>
-<<Placing a Character>>
-<<Placing a String>>
-<<Carriage Return>>
-<<Definition of [[SPACE]]>>
-<<Definition of [[.B]]>>
-<<Definition of [[W]]>>
-<<Definition of [[WORDS]]>>
-<<Definition of [[CHARS]]>>
-<<Definition of [[DUMP]]>>
-<<Dumping Data Stack>>
-<<Dumping Return Stack>>
-<<Dumping Arbitrary Memory>>
-<<Memory Dump>>
-<<Convert keycode to ASCII>>
-<<Valid Hexadecimal Digit Handler>>
-<<Rawcode Table Scanner>>
-<<Cursor Movement Dispatch>>
-<<Matrix Character Fetch>>
-<<End-of-line check>>
-<<Whitespace check>>
-<<Forth Word Lexing>>
-<<Numeric Accumulator>>
-<<Accumulate a single hex digit>>
-<<Convert a string into a number>>
-<<Grab a numeric parameter>>
-<<Store Data>>
-<<Memory Store Commands>>
-<<Memory Pointer Change Command>>
-<<[[GO]] Command>>
-<<Command Procedure Table>>
-<<Command Name Table>>
-<<Display Routine Address>>
-<<Command Search Step>>
-<<Command Search>>
-<<Map Command Name to Executable Address>>
-<<Command Length Check>>
-<<Command Dispatch>>
-<<Command Interpreter>>
-<<ENTER dispatch>>
-<<Keyboard dispatcher>>
-<<PS/2 Flag Intercepts>>
-<<PS/2 Keycode Filter>>
-<<PS/2 Keyboard Driver>>
-<<Screen Refresh Event Handler>>
-<<User Interface Main Loop>>
-<<User Interface Entrypoint>>
-@ </p>
+</p>
 
 
 <h1>100  Primitives</h1>
