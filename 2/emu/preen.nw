@@ -36,8 +36,7 @@ The J1 processor begins its execution at address zero in its memory map.  Since 
 defer _main
 @ %def _main
 <<Patch reset vector>>=
-: hlt $FFFF $8888 ! recurse ;
-: b breakpoint  hlt ;
+: b breakpoint  recurse ;
 ' b is _main
 @
 
@@ -59,78 +58,156 @@ In summary, the top-level layout of the program follows:</p>
 <<Load target development>>
 <<Origin directive>>
 <<Reset vector>>
-<<Primitives>>
-
-<<Text Display Facility>>
-
-<<Screen Editor State>>                     \ (sef/cur)
-<<Screen Editor Cursor Movement>>           \ (sef/cur)
-<<Screen Editor Blink Address>>             \ (sef/uil)
-<<Screen Editor Cursor Blink>>              \ (sef/uil)
-<<Turning Off the Cursor>>                  \ (sef/uil)
-<<Blink Event Handler>>                     \ (sef/uil)
-<<Character Matrix Commit Flag>>            \ (sef/uil)
-<<Screen Refresh Event Handler>>            \ (sef/uil)
-<<Character Matrix Buffer>>                 \ (sef/mtx)
-<<Clearing the screen>>                     \ (sef/out)
-<<Placing a Character>>                     \ (sef/out)
-<<Placing a String>>                        \ (sef/out)
-<<Carriage Return>>                         \ (sef/out)
-
-<<System software state>>                   \ (dbg/brk)
-<<[[GO]] Command>>                          \ (dbg/brk)
-<<Definition of [[SPACE]]>>                 \ (dbg/dmp)
-<<Definition of [[.B]]>>                    \ (dbg/dmp)
-<<Definition of [[W]]>>                     \ (dbg/dmp)
-<<Definition of [[WORDS]]>>                 \ (dbg/dmp)
-<<Definition of [[CHARS]]>>                 \ (dbg/dmp)
-<<Definition of [[DUMP]]>>                  \ (dbg/dmp)
-<<Dumping Data Stack>>                      \ (dbg/dmp)
-<<Dumping Return Stack>>                    \ (dbg/dmp)
-<<Dumping Arbitrary Memory>>                \ (dbg/dmp)
-<<Memory Dump>>                             \ (dbg/dmp)
-
-<<Interpreter State>>                       \ (cmd/int)
-<<Matrix Character Fetch>>                  \ (cmd/int)
-<<End-of-line check>>                       \ (cmd/int)
-<<Whitespace check>>                        \ (cmd/int)
-<<Forth Word Lexing>>                       \ (cmd/int)
-<<Numeric Accumulator>>                     \ (cmd/cmd)
-<<Accumulate a single hex digit>>           \ (cmd/cmd)
-<<Convert a string into a number>>          \ (cmd/cmd)
-<<Grab a numeric parameter>>                \ (cmd/cmd)
-<<Store Data>>                              \ (cmd/cmd)
-<<Memory Store Commands>>                   \ (cmd/cmd)
-<<Memory Pointer Change Command>>           \ (cmd/cmd)
-<<Command Procedure Table>>                 \ (cmd/fnd)
-<<Command Name Table>>                      \ (cmd/fnd)
-<<Command Search Step>>                     \ (cmd/fnd)
-<<Command Search>>                          \ (cmd/fnd)
-<<Display Routine Address>>                 \ (cmd/fnd)
-<<Map Command Name to Executable Address>>  \ (cmd/fnd)
-<<Command Length Check>>                    \ (cmd/int)
-<<Command Dispatch>>                        \ (cmd/int)
-<<Command Interpreter>>                     \ (cmd/int)
-
-<<Keycode to Rawcode Lookup Table>>         \ (ps2/uki)
-<<Rawcode to ASCII Lookup Table>>           \ (ps2/uki)
-<<Convert keycode to ASCII>>                \ (ps2/uki)
-<<Valid Hexadecimal Digit Handler>>         \ (ps2/uki)
-<<Rawcode Table Scanner>>                   \ (ps2/uki)
-<<Cursor Movement Dispatch>>                \ (ps2/uki)
-<<ENTER dispatch>>                          \ (ps2/uki)
-<<Keyboard dispatcher>>                     \ (ps2/uki)
-<<PS/2 State>>                              \ (ps2/key)
-<<PS/2 Flag Intercepts>>                    \ (ps2/key)
-<<PS/2 Keycode Filter>>                     \ (ps2/key)
-<<PS/2 Keyboard Driver>>                    \ (ps2/drv)
-
-<<User Interface Main Loop>>                \ (sef/uil)
-<<User Interface Entrypoint>>               \ (sef/uil)
-<<Breakpoint handler>>                      \ (dbg/brk)
-
+<<Preen Code>>
 <<Patch reset vector>>
 <<Emit binary file>>
+@ </p>
+
+<h1>15  Executive Summary of Preen Code</h1>
+
+@ The main Preen software consists of several major functional parts.  An executive summary of each section appears below.  More detailed explanations exist for each chunk of code in later sections of this document.</p>
+
+@ Before we can compile anything else in the software, we need a set of baseline Forth primitives.</p>
+
+<<Preen Code>>=
+<<Primitives>>
+@
+
+While the screen editor outputs characters to a character matrix, something still needs to render that character matrix to the screen.</p>
+
+<<Preen Code>>=
+<<Text Display Facility>>
+@
+
+The screen editor consists of two main parts: those things handling user input, and those things handling output to a character matrix.  Relating to output, the screen editor includes cursor management,</p>
+
+<<Preen Code>>=
+<<Screen Editor State>>
+<<Screen Editor Cursor Movement>>
+@
+
+cursor blinking support,</p>
+
+<<Preen Code>>=
+<<Screen Editor Blink Address>>
+<<Screen Editor Cursor Blink>>
+<<Turning Off the Cursor>>
+<<Blink Event Handler>>
+@
+
+knowledge of when to redraw the screen into the Kestrel's bitmapped frame buffer,</p>
+
+<<Preen Code>>=
+<<Character Matrix Commit Flag>>
+<<Screen Refresh Event Handler>>
+<<Character Matrix Buffer>>
+@
+
+and generic text output routines such as the familiar Forth [[EMIT]], [[TYPE]], et. al.</p>
+
+<<Preen Code>>=
+<<Clearing the screen>>
+<<Placing a Character>>
+<<Placing a String>>
+<<Carriage Return>>
+@
+
+Preen wouldn't be a proper debugger if it couldn't let users execute the programs that he keys in.</p>
+
+<<Preen Code>>=
+<<System software state>>
+<<[[GO]] Command>>
+@
+
+Once the system knows how to draw a character matrix to the screen, and how to render text into the character matrix, Preen needs to provide functionality to let the user see the contents of memory.</p>
+
+<<Preen Code>>=
+<<Definition of [[SPACE]]>>
+<<Definition of [[.B]]>>
+<<Definition of [[W]]>>
+<<Definition of [[WORDS]]>>
+<<Definition of [[CHARS]]>>
+<<Definition of [[DUMP]]>>
+<<Dumping Data Stack>>
+<<Dumping Return Stack>>
+<<Dumping Arbitrary Memory>>
+<<Memory Dump>>
+@
+
+When a user issues a command to Preen, it must interpret it.  We depend on typical Forth lexing rules to parse out command tokens and parameters.</p>
+
+<<Preen Code>>=
+<<Interpreter State>>
+<<Matrix Character Fetch>>
+<<End-of-line check>>
+<<Whitespace check>>
+<<Forth Word Lexing>>
+@
+
+Most commands take parameters in the form of hexadecimal numbers.</p>
+
+<<Preen Code>>=
+<<Numeric Accumulator>>
+<<Accumulate a single hex digit>>
+<<Convert a string into a number>>
+<<Grab a numeric parameter>>
+@
+
+Above, we saw that Preen let you execute programs that the user can key in.  This requires the ability for a user to change memory locations interactively.</p>
+
+<<Preen Code>>=
+<<Store Data>>
+<<Memory Store Commands>>
+<<Memory Pointer Change Command>>
+@
+
+Preen references commands via look-up tables.</p>
+
+<<Preen Code>>=
+<<Command Procedure Table>>
+<<Command Name Table>>
+<<Command Search Step>>
+<<Command Search>>
+@
+
+Syntactically speaking, Preen's command interpreter works very much like the Windows or Unix command interpreter.</p>
+
+<<Preen Code>>=
+<<Display Routine Address>>
+<<Map Command Name to Executable Address>>
+<<Command Length Check>>
+<<Command Dispatch>>
+<<Command Interpreter>>
+@
+
+The screen editor consists of both input and output halves.  Handling keyboard input requires checking detected key codes for commands like <q>move cursor up</q>, pressing [[ENTER]] to submit a command, or simply overwriting a character with a hexadecimal digit.</p>
+
+<<Preen Code>>=
+<<Keycode to Rawcode Lookup Table>>
+<<Rawcode to ASCII Lookup Table>>
+<<Convert keycode to ASCII>>
+<<Valid Hexadecimal Digit Handler>>
+<<Rawcode Table Scanner>>
+<<Cursor Movement Dispatch>>
+<<ENTER dispatch>>
+<<Keyboard dispatcher>>
+@
+
+The screen editor is the only interested party for received keyboard events.  However, it's aware only of <q>cooked</q> keyboard events.  We therefore need a PS/2 keyboard driver to interact with the low-level hardware and refine the raw events into something the screen editor can understand.</p>
+
+<<Preen Code>>=
+<<PS/2 State>>
+<<PS/2 Flag Intercepts>>
+<<PS/2 Keycode Filter>>
+<<PS/2 Keyboard Driver>>
+@
+
+The Preen debugger works by painting the screen with its desired user interface, then invokes the screen editor to serve as the user's primary user interface.</p>
+
+<<Preen Code>>=
+<<User Interface Main Loop>>
+<<User Interface Entrypoint>>
+<<Breakpoint handler>>
 @
 
 <h1>20  Breakpoints</h1>
@@ -261,7 +338,7 @@ variable memptr
 <<Dumping Arbitrary Memory>>=
 : m             S" M+ " type dup .b space space dup memptr @ + dump 16 + ;
 : mem           S" M= " type memptr @ .w cr 0 m m m m m m m m drop cr ;
-@ %def memptr mem
+@ %def mem
 
 Like most monitors, Preen offers two visualizations for the same data: hexadecimal values and their ASCII equivalents, separated by an em-dash.
 
@@ -306,11 +383,11 @@ Upon completion of the eight word dump, the address on the stack will point 16 b
 
 <h1>30  Screen Editing Facility</h1>
 
-@ Most computer operating systems implement a <q>glass teletype</q> abstraction for their user interface.  In this interface, the computer prints characters to a video display, and the user responds, sequentially, line after line, character after character.  No means generally exists of exploiting the two-dimensional surface of the display.  This creates a plurality of complications that both the user and the systems software engineer need to consider.</p>
+@ Most computer operating systems implement a <q>glass teletype</q> abstraction for their user interface.  In this interface, the computer prints characters to a video display, and the user responds, sequentially, line after line, character after character, as though they still worked with paper print-outs.  No means generally exists of exploiting the two-dimensional surface of the display.  This creates a plurality of complications that both the user and the systems software engineer need to consider.</p>
 
 <ul>
  <li>
-  From a usability perspective, the user cannot use the arrow keys to move the cursor to a wrong command and fix it.  Many operating systems provide <q>command-line history</q> as a useful, albeit sorely limited, substitute.
+  From a usability perspective, the user cannot use the arrow keys to move the cursor to a wrong command and fix it, a rather obvious feature when you think about it.  Many operating systems provide <q>command-line history</q> as a useful, albeit sorely limited, substitute.
  </li>
  <li>
   From an application developer's persepctive, the application developer needs to go out of his or her way to incorporate history functionality.  While typically encapsulated in support libraries to make doing so easier, the programmer still must consciously think to include the library and hope for the best compatibility if an update to the library comes out afterwards.  On the author's Linux installation, for example, three versions of GNU ReadLine library exists, all of which are used.
@@ -326,6 +403,7 @@ Upon completion of the eight word dump, the address on the stack will point 16 b
 
 @ Preen uses a (too?) simple matrix editor with a fixed 80&times;25 geometry.  The combination of this geometry and an isomorphism between ASCII code and font glyph allows Preen to re-use the same character matrix with the Text Display Facility for display refresh purposes.  Preen's screen editor only supports the functionality considered essential for Preen's operation: entering of hexadecimal numbers, and selection of the [[GO]] command.</p>
 
+@ The screen editor consists of two major components: output and input.  This chapter deals with the <q>high level</q> screen output functionality, while the section on the text display facility discusses the low-level output to the framebuffer.  Input functionality will be discussed in the subsequent keyboard sections.</p>
 
 <h2>30.1  Character Matrix</h2>
 
@@ -573,7 +651,7 @@ Finally, we just place the glyph image data in the destination bitmap.  The corr
 @ The queue indicates whether or not data exists by setting a flag, namely bit 15, in its I/O register.</p>
 
 <<PS/2 Keyboard Driver>>=
-: available?    $FFFE @ $8000 and ;
+: available?    $FFFE @ 0< ;
 @ %def available?
 
 Given that at least one byte of data remains to be read, bits 7-0 of the register contains the value of interest.</p>
@@ -758,13 +836,13 @@ We define command names to be Forth-compatible words (e.g., white-space delimite
 I define whitespace as any ASCII character in the range [$00, $20].</p>
 
 <<Whitespace check>>=
-: ws?           ch $21 - $8000 and ;
+: ws?           ch $21 - 0< ;
 @ %def ws?
 
 While scanning text for (non-)whitespace characters, we want to make sure we confine ourselves to the current line.  If we don't do this, we can overrun memory if the cursor happens to be at the very bottom of the screen.  Even if it's not, we can get odd behaviors in cases where text appears to wrap around the screen's edges.  This latter condition never happens in Preen, but the former has caused problems while the software was under development.  Note that the expression [[>in @ #tib @ -]] becomes positive precisely when [[>in]] &ge; [[#tib]].</p>
 
 <<End-of-line check>>=
-: -eoln         >in @ #tib @ - $8000 and if exit then r> drop ;
+: -eoln         >in @ #tib @ - 0< if exit then r> drop ;
 @ %def -eoln
 
 As indicated above several times, we use the text display character matrix directly as a buffer.</p>
@@ -858,7 +936,7 @@ Conversion procedes one hexadecimal digit at a time, for as long as we have digi
 For each digit, we shift the accumulator left four bits, then logically-OR the equivalent binary value of the hexadecimal digit.</p>
 
 <<Accumulate a single hex digit>>=
-: digit         -48 + dup -10 + $8000 and if exit then -7 + ;
+: digit         -48 + dup -10 + 0< if exit then -7 + ;
 : d             over c@ digit v @ 4 lshift or v ! ;
 @ %def d
 
@@ -868,14 +946,12 @@ For the [[D+]], [[R+]], and [[M+]] commands, we consume eight additional numbers
 : w             nbr over !  2 + ;
 : chg           w w w w w w w w drop ;
 @ %def chg
-
-EOI
 </p>
 
 
-<h1>100  Primitives</h1>
-<h2>100.10  Mathematics</h2>
-Boolean predicates, such as <i>less than zero</i>, occur frequently enough that they require their own definitions.</p>
+<h1>70  Primitives</h1>
+
+@ Boolean predicates, such as <i>less than zero</i>, occur frequently enough that they require their own definitions.</p>
 
 <<Primitives>>=
 : 0<        $8000 and ;
@@ -888,17 +964,16 @@ Not fitting in particularly well elsewhere, some mathematical operations are nee
 : min       2dup - 0< if drop exit then nip ;
 @
 
-<h2>100.20  Memory Accessors</h2>
-@ Until now, we haven't addressed some of the more fundamental aspects of the J1 as it works with the Kestrel-2 hardware.  We start with the fetch operator, where we rely on software to extend the operation to two instruction cycles.  This provides the block RAMs on the Xilinx FPGA I'm using enough time to set up their address bus and deliver the data.  The J1, implementing an essentially asynchronous memory bus architecture, would work great as-is if we were talking to, say, a 62256 static RAM chip.  In this case, as soon as the address bus changes, the 62256 would take, say, 100ns to update its data bus.  Provided the J1 were clocked with a period at least as long as 100ns, the J1 could realize single-cycle read performance.  However, the RAMs used in the FPGA are <i>synchronous</i> RAMs, and are clocked off the processor clock for simplicity.  Therefore, as soon as the address bus changes, we need to wait at least one cycle for the block RAMs to catch up.</p>
+Until now, we haven't addressed some of the more fundamental aspects of the J1 as it works with the Kestrel-2 hardware.  We start with the fetch operator, where we rely on software to extend the operation to two instruction cycles.  This provides the block RAMs on the Xilinx FPGA I'm using enough time to set up their address bus and deliver the data.  The J1, implementing an essentially asynchronous memory bus architecture, would work great as-is if we were talking to, say, a 62256 static RAM chip.  In this case, as soon as the address bus changes, the 62256 would take, say, 100ns to update its data bus.  Provided the J1 were clocked with a period at least as long as 100ns, the J1 could realize single-cycle read performance.  However, the RAMs used in the FPGA are <i>synchronous</i> RAMs, and are clocked off the processor clock for simplicity.  Therefore, as soon as the address bus changes, we need to wait at least one cycle for the block RAMs to catch up.</p>
 
-<p>As it happens, a J1 subroutine call takes exactly one cycle.  We define [[@]] as a subroutine, consisting of precisely one instruction ([[@,]]), which both fetches and returns to the caller in a single cycle as well.  Thus, we achieve our desired two-cycle execution performance for [[@]].</p>
+@ As it happens, a J1 subroutine call takes exactly one cycle.  We define [[@]] as a subroutine, consisting of precisely one instruction ([[@,]]), which both fetches and returns to the caller in a single cycle as well.  Thus, we achieve our desired two-cycle execution performance for [[@]].</p>
 
 <<Primitives>>=
 : @     @, ;
 
 @ The J1 also requires, albeit for different reasons, two cycles to effect the [[!]] instruction.  The first instruction strobes the CPU's [[D_WE_O]] signal, telling the block RAMs to write the data instead of reading it, while the second cleans up the stack.  Best implemented as a macro, we find the definition for [[!]] in the assembler, [[asm.f]], rather than here.</p>
 
-<p>The J1 can only access memory 16-bits at a time; accessing individual 8-bit quantities, important for character manipulation or some graphics operations, requires that we perform bit-field manipulations.  Applications should make every effort to minimize the use of character accessors, however, as these can incur significant program overheads.  [[c@]] consumes somewhere in the vicinity of 10 clock cycles, while [[c!]] consumes around 15.</p>
+@ The J1 can only access memory 16-bits at a time; accessing individual 8-bit quantities, important for character manipulation or some graphics operations, requires that we perform bit-field manipulations.  Applications should make every effort to minimize the use of character accessors, however, as these can incur significant program overheads.  [[c@]] consumes somewhere in the vicinity of 10 clock cycles, while [[c!]] consumes around 15.</p>
 
 <<Primitives>>=
 : c@        dup 1 and if @ 255 and exit then @ 8 rshift 255 and ;
@@ -912,6 +987,5 @@ Not fitting in particularly well elsewhere, some mathematical operations are nee
 
 <<Primitives>>=
 : +!            2dup @ + swap ! drop ;
-@
+@ </p>
 
-</body>
