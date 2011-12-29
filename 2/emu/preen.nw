@@ -15,7 +15,146 @@
 </div>
 <div class="blogArticleBody">
 
-<h1>1  Binary Image Generation</h1>
+<h1>1  Introduction</h1>
+
+@ Preen serves as a <i>monitor</i> to the user.  A monitor lets the user access the internals of the computer by offering a convenient interface for changing low-level system settings.  See figure 1, below.</p>
+
+<table>
+ <tr>
+  <td>
+   <img src="/blog2/images/k2scsh01.png" />
+  </td>
+ </tr>
+ <tr>
+  <td>
+   Figure 1.
+  </td>
+ </tr>
+</table>
+
+@ Preen divides the screen into three categories.  At the top lies the data stack of the processor at the time the monitor was entered.  The middle contains the return stack of the processor.  Finally, the bottom contains a view into system memory.</p>
+
+<table>
+ <tr>
+  <td>
+   <img src="/blog2/images/k2scsh02.png" />
+  </td>
+ </tr>
+ <tr>
+  <td>
+   Figure 2.
+  </td>
+ </tr>
+</table>
+
+@ Notice that each line in all three zones have a similar form.  The left-most number tells the monitor where it's displaying data from (or writing new data to) relative to some base address in memory.  Following this offset comes eight more hexadecimal numbers, representing the contents of memory at the given location.  After the dash comes another view of the same piece of memory, this time as (hopefully) printable characters.  This lets you spot text stored in memory, for example.</p>
+
+@ You'll see a flashing rectangle on the screen, called a <i>cursor</i>.  The cursor lets you know where the next character you type will appear.  You can move the cursor anywhere on the screen using the four cursor movement keys.  Pressing &uarr; will move the cursor up one line, &darr; down one line, &rarr; right one column, and &larr; left one column.</p>
+
+@ To change a setting on the screen, place the cursor over the value you want to change, and type new contents in.  For example, cursor up to the line that reads [[D+ 00]] and over to the first data word.  Then type in the following: [[4845]] &rarr; [[4C4C]] &rarr; [[4F]] and then press [[ENTER]].  While typing, you should see the display change in place, like this:</p>
+
+<table>
+ <tr>
+  <td>
+   <img src="/blog2/images/k2scsh03.png" />
+  </td>
+ </tr>
+ <tr>
+  <td>
+   Figure 3.
+  </td>
+ </tr>
+</table>
+
+@ Finally, after pressing [[ENTER]], we see that the changes take effect when we see the word <q>HELLO</q> appear in the character side of the display.</p>
+
+<table>
+ <tr>
+  <td>
+   <img src="/blog2/images/k2scsh04.png" />
+  </td>
+ </tr>
+ <tr>
+  <td>
+   Figure 4.
+  </td>
+ </tr>
+</table>
+
+@ What if you make a mistake while typing?  Depending on the nature of the error, you can use the &larr; key to go back and fix your typo, but sometimes the error would be faster to fix if you just started over.  To get the original line back, just cursor to an unchanged line (one above or one below, provided it's not the line that reads [[GO]]) and press [[ENTER]].  This will refresh the display without saving your changes.</p>
+
+@ Through this mechanism, you can type in programs for the Kestrel to run.  For example, let's say you want to write a program that adds one to whatever sits at the top of the J1 processor's data stack:</p>
+<blockquote>
+ <pre>: addOne   1 + breakpoint recurse ;</pre>
+</blockquote>
+
+@ Let's place this program at memory location [[$3C00]].  First, cursor up to the line that reads [[M=]] and change its value to [[3C00]], followed by [[ENTER]].  Notice how the memory view updates after altering the address.  Cursor up to [[M+ 00]] and over to the first data word, just as you did above for the data stack.  Then, type in [[8001]] &rarr; [[6203]] &rarr;  [[4CC8]] &rarr; [[1E00]] [[ENTER]].  Your display should look like this now:</p>
+
+<table>
+ <tr>
+  <td>
+   <img src="/blog2/images/k2scsh05.png" />
+  </td>
+ </tr>
+ <tr>
+  <td>
+   Figure 5.
+  </td>
+ </tr>
+</table>
+
+@ At this point, your program has been stored in memory at location [[$3C00]], but we now need to tell the J1 where this program sits.  Cursor up to [[R+ 00]] and alter the first word to read [[1E00]].</p>
+
+<table>
+ <tr>
+  <td>
+   <img src="/blog2/images/k2scsh06.png" />
+  </td>
+ </tr>
+ <tr>
+  <td>
+   Figure 6.
+  </td>
+ </tr>
+</table>
+
+@ Why did we type in [[$1E00]] instead of [[$3C00]]?  The answer lies in how the J1 stores addresses on its return stack.  Because the J1 only fetches and stores memory in units of 16-bit words, the <i>byte address</i> will always have a zero in its least significant bit.  The J1 therefore stores the <i>word address</i>, which equals the byte address <i>divided by two.</i></p>
+
+@ At last, we now are ready to execute our program!  Since the top of the data stack currently contains the value [[$4845]], we expect it should change to [[$4846]] after we run the program.  Test this by cursoring up to the word [[GO]], and pressing [[ENTER]].</p>
+
+<table>
+ <tr>
+  <td>
+   <img src="/blog2/images/k2scsh07.png" />
+  </td>
+ </tr>
+ <tr>
+  <td>
+   Figure 7.
+  </td>
+ </tr>
+</table>
+
+@ Your data and return stacks should have changed accordingly.  See the figure below:</p>
+
+<table>
+ <tr>
+  <td>
+   <img src="/blog2/images/k2scsh08.png" />
+  </td>
+ </tr>
+ <tr>
+  <td>
+   Figure 8.
+  </td>
+ </tr>
+</table>
+
+@ We see that the data stack updates as we expect, and that the return stack changed to point to word address [[$1E03]] (byte address [[$3C06]]).  If you look at that address you'll see the jump back to the beginning of the program.  So, to keep adding one to the top of data stack, you simply need to keep invoking the [[GO]] command.</p>
+
+@ Now that you know the essentials of using Preen, it's time to discuss the implementation.</p>
+
+<h1>2  Binary Image Generation</h1>
 @ All target compiler sources run under an ANS Forth environment, such as SwiftForth.  We start Forth using something like <q>sf [[preen.f]]</q>, and rely on the implementation of [[preen.f]] to do the right thing.  Since we're assembling code for the target processor, we need to load the assembler into the host's dictionary.</p>
 
 <<Load target development>>=
@@ -63,7 +202,7 @@ In summary, the top-level layout of the program follows:</p>
 <<Emit binary file>>
 @ </p>
 
-<h1>2  Executive Summary of Preen Code</h1>
+<h1>3  Executive Summary of Preen Code</h1>
 
 @ The main Preen software consists of several major functional parts.  An executive summary of each section appears below.  More detailed explanations exist for each chunk of code in later sections of this document.</p>
 
@@ -210,10 +349,10 @@ The Preen debugger works by painting the screen with its set of commands, then i
 <<Breakpoint handler>>
 @
 
-<h1>3  Breakpoints</h1>
+<h1>4  Breakpoints</h1>
 @ The J1 processor as used in the Kestrel-2 lacks interrupts; therefore, the processor cannot reasonably respond to such things as illegal memory accesses or malformed instructions.  Control transfers to the monitor, like all other software on the J1 processor, through explicit control flow instructions.  In this case, applications explicitly invoke a <i>breakpoint</i>.</p>
 
-<h2>3.1  Saving Processor State</h2>
+<h2>4.1  Saving Processor State</h2>
 
 @ A breakpoint behaves like a software-defined interrupt.  The application containing a breakpoint instruction <i>trusts</i> the processor state will remain unaltered before and afterwards.  Of course, the user has the option of altering the state of the running program.  In order to display the machine state to the user, we must preserve it in memory somewhere, so we'll need some storage space.  We place our state explicitly instead of relying on [[CREATE]] to minimize data stack usage.  There's a low probability that a program will ever reach the extremities of program space, so we place our buffers there out of convenience.</p>
 
@@ -261,7 +400,7 @@ scrn TdfChrMtx !  display ui ;
 
 Note that [[ui]] never returns.</p>
 
-<h2>3.2  Restoring Processor State</h2>
+<h2>4.2  Restoring Processor State</h2>
 
 <p>Although one speaks frequently of <q>returning</q> from a breakpoint, as one would return from an interrupt, we find actual practice more closely resembles a computed jump.  I rely on this feature to implement a Forth word that lets us <q>return</q> to the monitored program.  It allows us to execute arbitrary programs in memory from the debugger interface.</p>
 
@@ -295,7 +434,7 @@ $3F0E @    $3F0C @    $3F0A @    $3F08 @
 $3F06 @    $3F04 @    $3F02 @    $3F00 @
 @ </p>
 
-<h1>4  Dumping Memory</h1>
+<h1>5  Dumping Memory</h1>
 
 <p>All monitors, by their very nature, provide visibility into arbitrary regions of memory.  Preen provides a display with three different regions on the screen.</p>
 
@@ -381,7 +520,7 @@ Upon completion of the eight word dump, the address on the stack will point 16 b
 : chars         c c c c c c c c  c c c c c c c c ;
 @ %def chars
 
-<h1>5  Screen Editing Facility</h1>
+<h1>6  Screen Editing Facility</h1>
 
 @ Most computer operating systems implement a <q>glass teletype</q> abstraction for their user interface.  In this interface, the computer prints characters to a video display, and the user responds, sequentially, line after line, character after character, as though they still worked with paper print-outs.  No means generally exists of exploiting the two-dimensional surface of the display.  This creates a plurality of complications that both the user and the systems software engineer need to consider.</p>
 
@@ -405,7 +544,7 @@ Upon completion of the eight word dump, the address on the stack will point 16 b
 
 @ The screen editor consists of two major components: output and input.  This chapter deals with the <q>high level</q> screen output functionality, while the section on the text display facility discusses the low-level output to the framebuffer.  We discuss input functionality in the subsequent keyboard sections.</p>
 
-<h2>5.1  Character Matrix</h2>
+<h2>6.1  Character Matrix</h2>
 
 @ The Kestrel-2 supports a simplistic display interface, consisting of a 16KB buffer starting at [[$8000]] and offering a 640&times;200 video resolution.  With an 8&times;8 pixel character font, this gives us an 80&times;25 character matrix, assuming we keep characters aligned to eight pixel boundaries.  Correspondingly, the screen editor works on a buffer 80&times;25 = 2000 bytes in size.</p>
 
@@ -416,7 +555,7 @@ create scrn
 
 For the purposes of receiving input from the user, Preen treats the character matrix as a 25-element array of 80-character line records.  Since none of Preen's inputs can possibly span multiple lines, the screen editor doesn't support so-called <q>logical lines</q>, such as the screen editors found in Commodore and Atari 8-bit products support.</p>
 
-<h2>5.2  Cursor Movement</h2>
+<h2>6.2  Cursor Movement</h2>
 
 @ Preen lets the user and applications locate the cursor anywhere on the display.  A pair of variables keeps track of the cursor at all times.</p>
 
@@ -443,7 +582,7 @@ Pressing one of the four cursor keys will cause the cursor to move about the scr
 
 The keyboard interface software invokes [[up]], [[down]], [[left]], and [[right]] in response to handling arrow key presses.  We'll discuss this logic in the appropriate section.</p>
 
-<h2>5.3  Character Output: [[type]], [[emit]], and [[page]]</h2>
+<h2>6.3  Character Output: [[type]], [[emit]], and [[page]]</h2>
 
 @ Once the cursor has been placed, text output occurs by placing bytes into the character matrix and advancing the cursor to the right.  [[emit]] places individual characters:</p>
 
@@ -471,7 +610,7 @@ Note that the lack of vertical screen scroll support further confines output to 
 : page          TdfChrMtx @ 2000 clr  0 x !  0 y ! ;
 @ %def page
 
-<h2>5.4  User Interface Loop</h2>
+<h2>6.4  User Interface Loop</h2>
 
 @ When Preen desires user input, it invokes [[ui]] to manage the user interface.  It first establishes reasonable defaults for its operating state, then drops into the main loop proper.</p>
 
@@ -528,7 +667,7 @@ We know that [[blink]] inverts itself, so turning off a cursor involves calling 
 
 The [[keyboard]] definition encapsulates both the PS/2 keyboard driver and the screen editor's event handler.  We'll discuss the keyboard handling logic in its own section below.
 
-<h1>6  Text Display Facility</h2>
+<h1>7  Text Display Facility</h2>
 
 <p>The Kestrel-2 lacks a hardware character matrix display mode; instead, the video circuitry fetches bytes from memory starting at address [[$8000]] and displays them as a raw bitmap.  We cannot simply poke bytes into memory and expect fully-formed characters to appear on the screen.  Preen provides a facility to emulate character matrix displays in software.  This results in a simpler hardware implementation and graphics when you need it, while incurring only modest software costs.</p>
 
@@ -536,13 +675,14 @@ The [[keyboard]] definition encapsulates both the PS/2 keyboard driver and the s
 <<TDF global state>>
 
 @ </p>
-<h2>6.1  Character Font</h2>
+<h2>7.1  Character Font</h2>
 
 <p>The 640&times;200 display resolution requires (640&divide;16)&times;200=8 000 words of memory.  Using an 8&times;8 pixel font, that allows us to pack 80 columns by 25 rows of text on the screen.  The Kestrel-2 expects a single word of memory to hold two characters (or, put another way, one character consumes eight bits of storage), so (80&divide;2)&times;25=1 000 words hold a complete character matrix.</p>
 
 <p>Displaying text requires we provide a number of small, 8&times;8 images, each representing some character on the screen.  I call each image a <i>glyph</i>.  The <i>font</i> contains the set of glyphs corresponding to each character.  Preen expects the font to exist as a 2 048&times;8 bitmap in memory, for 256 possible characters times 8 pixels per glyph row comes out to 2 048 total pixels.  Thus, the first 128 words (256 bytes) constitutes row 0 pixels for all 256 characters, the next 128 words row 1 pixels, and so on.  Arranging the font data this way allows a developer to use an image editing tool of his or her choice to create a font, then extract the raw bitmap data for direct use with the Kestrel-2.</p>
 
-<p>The Kestrel-2 firmware references the font data via an ancillary Forth source file.
+<p>The Kestrel-2 firmware references the font data via an ancillary Forth source file.</p>
+
 <<Text Display Facility>>=
 <<TDF System Font>>
 
@@ -551,7 +691,7 @@ create font
 include font.inc
 @
 
-<h2>6.2  Committing a Character Matrix</h2>
+<h2>7.2  Committing a Character Matrix</h2>
 
 <p>In a perfect world, we would somehow convince the hardware to monitor some region of memory which we call the <i>character matrix</i> for updates.  Whenever we update memory in the matrix, the hardware would somehow recognize this event, and adjust the display accordingly.  Two ways exist to approach the problem&mdash;you could either poll memory at periodic intervals, such as how video display systems like VGA, Atari ANTIC, or the Commodore VIC-II chip behaves.  Alternatively, you can maintain what's called a <q>write queue</q> to trap writes into the character matrix, where a processor on the other end of the queue discovers these writes and acts accordingly, such as how Firewire peripherals operate.  As you can imagine, maintaining a write queue doesn't really solve the problem, but rather defers the problem of video refresh to an external peripheral.  The polling technique works by accessing memory <i>twice</i>; once to read the character, and once to grab the font data corresponding to that character, at a rate sufficiently fast to keep up with the monitor's scanning electron beam.  I could have implemented this in the Kestrel-2's video circuitry, but since it roughly doubled the complexity of the hardware involved, I decided to just keep things as simple as possible, and stick with a pure bitmapped display interface.</p>
 
@@ -612,7 +752,7 @@ variable TdfChrMtx
 
 The TDF user must initialize the [[TdfChrMtx]] variable prior to invoking [[commit]], lest we render garbage on the screen.  Further, make sure the 1 000 cells referenced by [[TdfChrMtx]] never overlaps read-triggered I/O space, as the screen update will fire the I/O triggers.</p>
 
-<p>Next, we need to resolve which row of the glyph's picture to use.  We calculate the glyph's bitmap byte address using the character code (on the data stack) and knowledge of which [[raster]] we're drawing.  Its formula is, <i>a</i> = <i>font_base</i> + <i>c</i> + 256<i>s</i>, where 0&le;<i>c</i>&lt;256 contains the character code, and 0&le;<i>s</i>&lt;8 contains the current raster scanline.
+<p>Next, we need to resolve which row of the glyph's picture to use.  We calculate the glyph's bitmap byte address using the character code (on the data stack) and knowledge of which [[raster]] we're drawing.  Its formula is, <i>a</i> = <i>font_base</i> + <i>c</i> + 256<i>s</i>, where 0&le;<i>c</i>&lt;256 contains the character code, and 0&le;<i>s</i>&lt;8 contains the current raster scanline.</p>
 
 <<TDF address computation logic>>=
 : glyph     font + raster @ 256* + ;
@@ -628,7 +768,7 @@ Finally, we just place the glyph image data in the destination bitmap.  We compu
 : bmadr     y @ 640* raster @ 80* + x @ + $8000 + ;
 @ %def bmadr
 
-<h2>6.3  Mathematics Primitives</h2>
+<h2>7.3  Mathematics Primitives</h2>
 
 @ You might have noticed a few multiplications going on, expressed as single words instead of separate calls to [[*]].  The J1, not being a terribly sophisticated processor, lacks hardware multiplication support.  This means that we'd need to implement [[*]], a non-trivial task, if we wanted to perform general purpose multiplication.  As it happens, we always multiply by a constant factor, which allows us to create words which computes the desired results using <i>shifts and additions</i> instead.  This also has the benefit of isolating the Text Display Facility from the rest of the system firmware, useful for debugging purposes.</p>
 
@@ -640,11 +780,11 @@ Finally, we just place the glyph image data in the destination bitmap.  We compu
 : 640*      80* 8* ;
 @ </p>
 
-<h1>7  Keyboard Handling</h2>
+<h1>8  Keyboard Handling</h2>
 
 @ Most computer systems rely on interrupts to handle keyboard input.  The basic idea involves a (semi-)intelligent peripheral, the keyboard, operating completely asynchronously to the host computer.  When the user presses or releases a key, the keyboard somehow alerts the host computer to read the event right away.  This often takes mere microseconds to accomplish, even on processors with the slowest interrupt response times.  It depends extensively on humans being much slower than the electronics used to report on the user's activities.</p>
 
-<h2>7.1  Keyboard Queue</h3>
+<h2>8.1  Keyboard Queue</h3>
 
 @ The Kestrel-2, however, differs from the norm.  The J1 microprocessor lacks support for interrupts, forcing both software and hardware engineer alike to approach the problem of timely delivery of keyboard events differently.  With the Kestrel, whenever a user presses or releases a key, the appropriate event appears in a temporary queue <i>immediately</i>, assuming enough room exists to do so.  The queue exists in hardware, so the microprocessor needn't concern itself tending to the queue.  Up to fifteen bytes of event data may exist in the queue before information loss occurs.  Considering how slowly the user types in relation to the host processor, we consider this depth effectively infinite.</p>
 
@@ -675,7 +815,7 @@ Given this simple interface to the keyboard hardware, writing an event handler f
 @ %def keyboard
 </p>
 
-<h2>7.2  PS/2 Key Code Computation</h3>
+<h2>8.2  PS/2 Key Code Computation</h3>
 
 @ A PS/2 keyboard communicates with its host computer via a serial communications link, not entirely unlike an RS-232 interface.  It does so using variable-length messages to indicate various events.  For example, if a keyboard sends the code [[$5A]], we know that the [[RETURN]] key was pressed (note the distinction between [[RETURN]] and [[ENTER]] on the numeric key-pad).  However, if we receive the sequence [[$F0 $5A]], we know that the button was released.  Since [[RETURN]] and [[ENTER]] essentially perform the same function now-a-days, it makes sense that they generate similar messages for their respective pressed and released states.  However, we can distinguish the two keys based on yet another message component: the [[$E0]] prefix, which prepends all <q>extended</q> key identifiers.  For example, [[$E0 $5A]] indicates that the [[ENTER]] key was pressed, while [[$F0 $E0 $5A]] indicates it was released.</p>
 
@@ -695,7 +835,7 @@ We then merge that in with all bytes that look like single-byte messages.  Once 
 
 Referring back to [[ui]] above, you'll notice that we reset the PS/2 keyboard state to zero every time the editor takes control of the machine.  This ensures the computer and the user share a common expectation of the state of the computer keyboard.</p>
 
-@ What if a received byte <i>is</i> either an extension flag or a break flag?  We simply set the appropriate flags in [[s]], and eat the byte.  I can't think of any reason to invoke the [[keycode]] handler knowing we don't yet have a full keyboard message in hand.</p>
+@ What if we actually receive either an extension flag or a break flag?  We simply set the appropriate flags in [[s]], and eat the byte.  I can't think of any reason to invoke the [[keycode]] handler knowing we don't yet have a full keyboard message in hand.</p>
 
 <<PS/2 Flag Intercepts>>=
 : -$E0          dup $E0 xor if exit then $0100 s @ or s !  r> 2drop ;
@@ -704,7 +844,7 @@ Referring back to [[ui]] above, you'll notice that we reset the PS/2 keyboard st
 
 Notice that we use bit 8 to indicate an extended keycode.  If we wanted to, we could logically-AND all keycodes with [[$00FF]] to share left- and right-hand side [[SHIFT]], [[CTRL]], [[ALT]], [[Windows]], and the numeric keypad keys with their left-handed counterparts.  Likewise, we use bit 15 to indicate a switch break event.  This lets one use [[0< IF]] in Forth, or its equivalent, to concisely differentiate between make and break codes.</p>
 
-<h2>7.3  User Keyboard Interface</h3>
+<h2>8.3  User Keyboard Interface</h3>
 
 @ A human operator interacts with Preen via the keyboard, so somewhere the program must dispatch commands based on which key event occurs.  Preen contains a fairly restricted set of keyboard inputs, including cursor control, the ENTER key, and valid hexadecimal digits.</p>
 
@@ -801,9 +941,9 @@ This results in two arrays which work together to translate keycodes into their 
  <tr><td>[[$002B]]</td><td>[[$0046]]</td></tr>
 </table>
 
-<h1>8  Interpreting Commands</h2>
+<h1>9  Interpreting Commands</h2>
 
-<h2>8.1  Parsing the Command Name</h3>
+<h2>9.1  Parsing the Command Name</h3>
 
 @ When the user presses [[ENTER]], whatever line the cursor resides on provides the input to a very simple evaluator.</p>
 
@@ -859,7 +999,7 @@ What if the line contains only whitespace?  In this case, our command word will 
 @ %def +valid
 </p>
 
-<h2>8.2  Finding the Command's Implementation</h3>
+<h2>9.2  Finding the Command's Implementation</h3>
 
 @ Although [[word]] properly returns the length of the string it's parsed, we only use it as a flag to see whether or not a line was empty or not.  All command names in Preen occupy a single word of memory, enabling [[xor]] to service as a crude string comparison operator.  It similarly allows us to fetch whole names from memory using only [[@]].</p>
 
@@ -899,7 +1039,7 @@ create wproc
     ' D+ >body 2/ ,  ' R+ >body 2/ , ' M= >body 2/ , ' M+ >body 2/ , ' GO >body 2/ ,
 @ %def wproc
 
-<h2>8.3  Commands</h2>
+<h2>9.3  Commands</h2>
 
 @ We already saw the [[GO]] command implementation earlier in this document.  Therefore, I'll focus on the [[D+]], [[R+]], [[M=]], and [[M+]] commands next, all of which accept arguments and take some action based on those arguments.</p>
 
@@ -949,7 +1089,7 @@ For the [[D+]], [[R+]], and [[M+]] commands, we consume eight additional numbers
 </p>
 
 
-<h1>9  Primitives</h1>
+<h1>10  Primitives</h1>
 
 @ Boolean predicates, such as <i>less than zero</i>, occur frequently enough that they require their own definitions.</p>
 
@@ -988,3 +1128,5 @@ Until now, we haven't addressed some of the more fundamental aspects of the J1 a
 <<Primitives>>=
 : +!            2dup @ + swap ! drop ;
 @ </p>
+<h1>Indices</h1>
+

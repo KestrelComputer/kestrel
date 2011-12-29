@@ -1,6 +1,7 @@
 CFLAGS=`sdl-config --cflags` -g
 LDFLAGS=`sdl-config --libs` -g
 FORTH=sf
+HDRFTR=header.html footer.html
 
 .c.o:
 	gcc ${CFLAGS} -O4 -fomit-frame-pointer -c -o $@ $<
@@ -24,14 +25,17 @@ preen.f: preen.nw
 asm.f: asm.nw
 	notangle -Rasm.f asm.nw >asm.f
 
-ks.html: ks.nw
-	noweave -html -index ks.nw >ks.html
+ks.html: ks.nw ${HDRFTR}
+	noweave -delay -html -index ks.nw >ks.body
+	cat header.html ks.body footer.html >ks.html
 
-preen.html: preen.nw
-	noweave -html -index preen.nw >preen.html
+preen.html: preen.nw ${HDRFTR}
+	noweave -delay -html -index preen.nw >preen.body
+	cat header.html preen.body footer.html >preen.html
 
-asm.html: asm.nw
-	noweave -html -index asm.nw >asm.html
+asm.html: asm.nw ${HDRFTR}
+	noweave -delay -html -index asm.nw >asm.body
+	cat header.html asm.body footer.html >asm.html
 
 romfile: asm.f preen.f
 	${FORTH} preen.f
