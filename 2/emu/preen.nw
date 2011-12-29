@@ -22,7 +22,7 @@
 include asm.f
 @
 
-When first loaded, the assembler will exist in an inconsistent state.  We need to reset the assembler's internal state.</p>
+When first loaded, the assembler will exist in an inconsistent state.  We need to initialize the assembler before we use it.</p>
 
 <<Load target development>>=
 0symtab
@@ -46,7 +46,7 @@ Once everything's been assembled, we create the ROM file on the host computer, a
 host  there . s" bytes compiled" type cr  romfile  bye
 @
 
-All other sections refer to target-specific code, so let's make sure we configure the Forth environment to produce software in the target.</p>
+All other sections refer to target-specific code, so let's make sure we configure the Forth environment to produce software in the target memory space.</p>
 
 <<Origin directive>>=
 target
@@ -202,7 +202,7 @@ The screen editor consumes received keyboard events.  However, it's aware only o
 <<PS/2 Keyboard Driver>>
 @
 
-The Preen debugger works by painting the screen with its desired user interface, then invokes the screen editor to serve as the user's primary user interface.</p>
+The Preen debugger works by painting the screen with its set of commands, then invokes the screen editor to manage user interaction.</p>
 
 <<Preen Code>>=
 <<User Interface Main Loop>>
@@ -370,7 +370,7 @@ Similarly, we dump each byte's value by breaking it into nybbles, most significa
 : .b            dup 4 rshift .n .n ;
 @ %def .b
 
-Upon completion of the eight word dump, the address on the stack will point 16 bytes after of our intended region.  For this reason, [[dump]] subtracts 16 before producing the ASCII visualization of the memory buffer.</p>
+Upon completion of the eight word dump, the address on the stack will point 16 bytes after our intended region.  For this reason, [[dump]] subtracts 16 before producing the ASCII visualization of the memory buffer.</p>
 
 @ Many computers rely on monitors or debuggers which emits character data through a <q>cooked</q> character output routine.  This means that the system firmware or host operating system interprets some characters as control codes, instructing the computer to do such things as change character sets, move the cursor, etc.  Often, these same computers lacks a one-to-one mapping between ASCII code and the corresponding glyph.  For example, a Commodore 64 maps ASCII code 65 (capital A) to screen code 1.  This complicates the design of any monitor, because supporting awareness of this <q>convenience</q> requires additional software to avoid distorting the display unintentionally.  For this reason, most monitors will filter the ASCII view of raw data, substituting such unprintable characters with a simple period.</p>
 
@@ -390,18 +390,18 @@ Upon completion of the eight word dump, the address on the stack will point 16 b
   From a usability perspective, the user cannot use the arrow keys to move the cursor to a wrong command and fix it, a rather obvious feature when you think about it.  Many operating systems provide <q>command-line history</q> as a useful, albeit sorely limited, substitute.
  </li>
  <li>
-  From an application developer's persepctive, the application developer needs to go out of his or her way to incorporate history functionality.  While typically encapsulated in support libraries to make doing so easier, the programmer still must consciously think to include the library and hope for the best compatibility if an update to the library comes out afterwards.  On the author's Linux installation, for example, three versions of GNU ReadLine library exists, all of which are used.
+  From an application developer's persepctive, the application developer needs to go out of his or her way to incorporate history functionality.  While typically encapsulated in support libraries to make doing so easier, the programmer still must consciously think to include the library and hope for the best compatibility if an update to the library comes out afterwards.  On my Linux installation, for example, three versions of GNU ReadLine library exists, all of which are used.
  </li>
  <li>
-  From a systems software engineering perspective, the teletype interface adds <i>immense</i> complexity to the user interface.  A typical Unix console interface, for example, performs activities normally expected of <i>serial-line</i> interfaces (e.g., RS-232 or X.25), despite no such physical resources existing in the path between the application and the video frame buffer on modern systems, including but not limited to such matters as implementing line-delay after receiving an end-of-line indication, translation of carriage returns or newlines into each other, or worse, into both a carriage return/line feed pair.  Character set munging, retaining their <q>7-bit clean</q> I/O model from the 70s, proves how retarded such abstractions remain in today's world of 8-bit-clean video devices.  It gets worse though &mdash; inline embedding of what should be out-of-band controls require stateful interpretation, but which command-set do you use?  In the 60s and 70s, when competition in the dumb terminal market proved fierce and vibrant, such sophisticated libraries as [[termcap]] and [[terminfo]] proved useful.  Today, they represent nothing but baggage, as virtually <i>every</i> device claiming it's a terminal emulator these days understands the DEC VT-100 command set.  These abstractions help only the simplest possible software in rendering textual output portably; for all other cases, even those <i>simple</i> applications seeking to capture the difference between the [[ALT-A]] key from just a normal [[A]] key, all require awareness of the limitations and complexities imposed by the host environment.  Worse still, nearly every environment further places the burden of restoring the I/O channel to its previously complexity levels prior to exiting.  For example, in Linux at least, a curses application which unexpectedly segfaults often leaves the user's terminal in an unknown, often completely unusable, state which [[reset]] may not always recover from.
+  From a systems software engineering perspective, the teletype interface adds <i>immense</i> complexity to the user interface.  A typical Unix console interface, for example, performs activities normally expected of <i>serial-line</i> interfaces (e.g., RS-232 or X.25), despite no such physical resources existing in the path between the application and the video frame buffer on modern systems, including but not limited to such matters as implementing line-delay after receiving an end-of-line indication, translation of carriage returns or newlines into each other, or worse, into both a carriage return/line feed pair.  Character set munging, retaining their <q>7-bit clean</q> I/O model from the 70s, proves how retarded such abstractions remain in today's world of 8-bit-clean video devices.  It gets worse though &mdash; inline embedding of what should be out-of-band controls require stateful interpretation, but which command-set do you use?  In the 60s and 70s, when competition in the dumb terminal market proved fierce and vibrant, such sophisticated libraries as [[termcap]] and [[terminfo]] proved useful.  Today, they represent nothing but baggage, as virtually <i>every</i> device claiming it's a terminal emulator these days understands the DEC VT-100 command set.  These abstractions help only the simplest possible software in rendering textual output portably; for all other cases, even those <i>simple</i> applications seeking to capture the difference between the [[ALT-A]] key from just a normal [[A]] key, all require awareness of the limitations and complexities imposed by the host environment.  Worse still, nearly every environment further places the burden of restoring the I/O channel to its previous state prior to exiting.  For example, in Linux at least, a curses application which unexpectedly segfaults often leaves the user's terminal in an unknown, often completely unusable, state which [[reset]] may not always recover from.
  </li>
 </ul>
 
 @ A screen editor treats the addressible display as an interactive, editable document.  We achieve command-line history for free, for the user may re-issue any command still visible on the screen.  Application writers needn't concern themselves with including support for command-line history explicitly.</p>
 
-@ Broadly, two kinds exist &mdash; array editors and matrix editors.  An array editor most closely corresponds to a traditional text editor, such as Notepad, Emacs, or Vim.  These editors tend to rely on data structures such as gap buffers or ropes to manage the textual content, since no one-to-one correspondence exists between text buffer and the concrete representation thereof.  Array editors work best with variable-geometry displays, such as those found in graphical user interfaces.  Matrix editors, however, rely on a fixed geometry and fixed-width fonts to simplify their implementation.  In most other respects, the two varieties of editor interfaces match each other in features and usability.</p>
+@ Broadly, two kinds exist &mdash; array editors and matrix editors.  An array editor most closely corresponds to a traditional text editor, such as Notepad, Emacs, or Vim.  These editors tend to rely on data structures such as gap buffers or ropes to manage the textual content, since no one-to-one correspondence exists between text buffer and the concrete representation on the screen.  Array editors work best with variable-geometry displays, such as those found in graphical user interfaces.  Matrix editors, however, rely on a fixed geometry and fixed-width fonts to simplify their implementation.  In most other respects, the two varieties of editor interfaces match each other in features and usability.</p>
 
-@ Preen uses a (too?) simple matrix editor with a fixed 80&times;25 geometry.  The combination of this geometry and an isomorphism between ASCII code and font glyph allows Preen to re-use the same character matrix with the Text Display Facility for display refresh purposes.  Preen's screen editor only supports the functionality considered essential for Preen's operation: entering of hexadecimal numbers, and selection of the [[GO]] command.</p>
+@ Preen uses a (too?) simple matrix editor with a fixed 80&times;25 geometry.  The combination of this geometry and an isomorphism between ASCII code and font glyph allows Preen to re-use the same character matrix that the Text Display Facility uses for display refresh purposes.  Preen's screen editor only supports the functionality considered essential for Preen's operation: entering of hexadecimal numbers, and selection of the [[GO]] command.</p>
 
 @ The screen editor consists of two major components: output and input.  This chapter deals with the <q>high level</q> screen output functionality, while the section on the text display facility discusses the low-level output to the framebuffer.  We discuss input functionality in the subsequent keyboard sections.</p>
 
@@ -473,7 +473,7 @@ Note that the lack of vertical screen scroll support further confines output to 
 
 <h2>5.4  User Interface Loop</h2>
 
-@ When Preen desires user input, it invokes [[ui]] to present the screen editor user interface to the user.  It first establishes reasonable defaults for its operating state, then drops into the main loop proper.</p>
+@ When Preen desires user input, it invokes [[ui]] to manage the user interface.  It first establishes reasonable defaults for its operating state, then drops into the main loop proper.</p>
 
 <<User Interface Entrypoint>>=
 : ui            0 s !  0 blst !  ui... coff ;
@@ -538,7 +538,7 @@ The [[keyboard]] definition encapsulates both the PS/2 keyboard driver and the s
 @ </p>
 <h2>6.1  Character Font</h2>
 
-<p>The 640&times;200 display resolution requires (640&div;16)&times;200=8 000 words of memory.  Using an 8&times;8 pixel font, that allows us to pack 80 columns by 25 rows of text on the screen.  The Kestrel-2 expects a single word of memory to hold two characters (or, put another way, one character consumes eight bits of storage), so (80&div;2)&times;25=1 000 words hold a complete character matrix.  This lets us represent up to 256 characters in a single character matrix.</p>
+<p>The 640&times;200 display resolution requires (640&divide;16)&times;200=8 000 words of memory.  Using an 8&times;8 pixel font, that allows us to pack 80 columns by 25 rows of text on the screen.  The Kestrel-2 expects a single word of memory to hold two characters (or, put another way, one character consumes eight bits of storage), so (80&divide;2)&times;25=1 000 words hold a complete character matrix.</p>
 
 <p>Displaying text requires we provide a number of small, 8&times;8 images, each representing some character on the screen.  I call each image a <i>glyph</i>.  The <i>font</i> contains the set of glyphs corresponding to each character.  Preen expects the font to exist as a 2 048&times;8 bitmap in memory, for 256 possible characters times 8 pixels per glyph row comes out to 2 048 total pixels.  Thus, the first 128 words (256 bytes) constitutes row 0 pixels for all 256 characters, the next 128 words row 1 pixels, and so on.  Arranging the font data this way allows a developer to use an image editing tool of his or her choice to create a font, then extract the raw bitmap data for direct use with the Kestrel-2.</p>
 
@@ -571,7 +571,7 @@ include font.inc
 : commit    0 x !  0 y !  25r ;
 @ %def commit
 
-We address each character through the [[x]] and [[y]] state variables.  Note that these variables <i>do not</i> refer to any kind of cursor position; they're used only while committing the display, keeping track of which glyph we're painting into the bitmap.  They conform to the invariant that (0&le;<i>x</i>&lt;80)&and;(0&le;<i>y</i>&lt;25) while the screen update continues to proceed.</p>
+We address each character through the [[x]] and [[y]] state variables.  Note that these variables <i>do not</i> refer to any kind of cursor position; they're used only while committing the display, keeping track of which glyph we're painting into the bitmap.  They conform to the invariant that (0&le;<i>x</i>&lt;80)&and;(0&le;<i>y</i>&lt;25) while the screen update continues.</p>
 
 <<TDF global state>>=
 variable x
@@ -660,7 +660,7 @@ Given that at least one byte of data remains available for reading, bits 7-0 of 
 : mbc           $FFFE @ $00FF and ;
 @ %def mbc
 
-Reading from the keyboard I/O port will <i>not</i> dequeue the byte.  You can read it repeatedly as often as you want, and it will continue to return the same head of the queue over and over.  This might differ from most hardware-implemented queues, <i>precisely because</i> the J1 lacks interrupts.  We need the ability to poll for data without fear of destroying any data that might already exist in the queue.</p>
+Reading from the keyboard I/O port will <i>not</i> dequeue the byte.  You can read it repeatedly as often as you want, and it will continue to return the same head of the queue over and over.  This differs from most hardware-implemented queues, <i>precisely because</i> the J1 lacks interrupts.  We need the ability to poll for data without fear of destroying any data that might already exist in the queue.</p>
 
 @ This leaves the problem of how one actually dequeues the keyboard queue.  We do this by writing any value back to the I/O register.  For the purposes of dequeueing, any value will do.  However, since two bits also control drivers to the PS/2 data and clock lines, we choose to use a fixed value guaranteeing that our local drivers are disabled.</p>
 
