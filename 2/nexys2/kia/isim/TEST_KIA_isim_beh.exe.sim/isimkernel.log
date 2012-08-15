@@ -1,0 +1,30 @@
+Command line:
+   TEST_KIA_isim_beh.exe
+     -simmode  gui
+     -simrunnum  0
+     -socket  56942
+
+Wed Aug 15 01:14:02 2012
+
+
+ Elaboration Time: 0.02 sec
+
+ Current Memory Usage: 180.363 Meg
+
+ Total Signals          : 30
+ Total Nets             : 35
+ Total Signal Drivers   : 20
+ Total Blocks           : 3
+ Total Primitive Blocks : 2
+ Total Processes        : 27
+ Total Traceable Variables  : 34
+ Total Scalar Nets and Variables : 166
+Total Line Count : 184
+Total Line Count : 184
+
+ Total Simulation Time: 0.26 sec
+
+ Current Memory Usage: 188.756 Meg
+
+Wed Aug 15 01:15:48 2012
+
