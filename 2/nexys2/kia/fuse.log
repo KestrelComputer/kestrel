@@ -8,14 +8,14 @@ Analyzing Verilog file "/home/kc5tja/Projects/kestrel/2/nexys2/kia/test-top.v" i
 Analyzing Verilog file "/home/kc5tja/Downloads/xilinx/14.2/ISE_DS/ISE//verilog/src/glbl.v" into library work
 Starting static elaboration
 Completed static elaboration
-Fuse Memory Usage: 93972 KB
-Fuse CPU Usage: 1890 ms
+Fuse Memory Usage: 94620 KB
+Fuse CPU Usage: 1900 ms
 Compiling module KIA_M
 Compiling module TEST_KIA
 Compiling module glbl
 Time Resolution for simulation is 1ps.
 Compiled 3 Verilog Units
 Built simulation executable /home/kc5tja/Projects/kestrel/2/nexys2/kia/TEST_KIA_isim_beh.exe
-Fuse Memory Usage: 130228 KB
-Fuse CPU Usage: 1910 ms
-GCC CPU Usage: 940 ms
+Fuse Memory Usage: 201436 KB
+Fuse CPU Usage: 2020 ms
+GCC CPU Usage: 3540 ms

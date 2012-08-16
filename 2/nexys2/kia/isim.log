@@ -11,10 +11,6 @@ Time resolution is 1 ps
 # run 1000 ns
 Simulator is doing circuit initialization process.
 Finished circuit initialization process.
-# restart
 # run 1s
-Simulator is doing circuit initialization process.
-Finished circuit initialization process.
-Expected 8'hE0 for first byte.
-Stopped at time : 2884900 ns(1) :  in File "/home/kc5tja/Projects/kestrel/2/nexys2/kia/test-top.v" Line 192 
+Stopped at time : 27403 us(1) :  in File "/home/kc5tja/Projects/kestrel/2/nexys2/kia/test-top.v" Line 1064 
 # exit 0

@@ -1,5 +1,18 @@
 `timescale 1 ns / 1 ps
 
+//
+// KIA registers
+//
+
+`define KQSTAT		0
+`define KQDATA		1
+
+// KIA status flag bits
+
+`define KQSF_EMPTY 8'h01
+`define KQSF_FULL  8'h02
+
+
 module TEST_KIA;
 	// To test the KIA, we need a Wishbone bus.
 	reg 				CLK_O;
@@ -45,7 +58,7 @@ module TEST_KIA;
 	initial begin
 		RES_O <= 0;
 		CLK_O <= 0;
-		ADR_O <= 0;
+		ADR_O <= `KQSTAT;
 		WE_O <= 0;
 		CYC_O <= 0;
 		STB_O <= 0;
@@ -63,7 +76,7 @@ module TEST_KIA;
 		wait(CLK_O); wait(~CLK_O);
 		RES_O <= 0;
 		wait(CLK_O); wait(~CLK_O);
-		ADR_O <= 0;
+		ADR_O <= `KQSTAT;
 		WE_O <= 0;
 		CYC_O <= 1;
 		STB_O <= 1;
@@ -98,7 +111,7 @@ module TEST_KIA;
 		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
 		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
 		wait(CLK_O); wait(~CLK_O);
-		ADR_O <= 0;
+		ADR_O <= `KQSTAT;
 		WE_O <= 0;
 		CYC_O <= 1;
 		STB_O <= 1;
@@ -133,7 +146,7 @@ module TEST_KIA;
 		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
 		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
 		wait(CLK_O); wait(~CLK_O);
-		ADR_O <= 1;
+		ADR_O <= `KQDATA;
 		WE_O <= 0;
 		CYC_O <= 1;
 		STB_O <= 1;
@@ -180,7 +193,7 @@ module TEST_KIA;
 		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
 		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
 		wait(CLK_O); wait(~CLK_O);
-		ADR_O <= 1;
+		ADR_O <= `KQDATA;
 		WE_O <= 0;
 		CYC_O <= 1;
 		STB_O <= 1;
@@ -191,10 +204,10 @@ module TEST_KIA;
 		if(DAT_I != 8'hE0) begin
 			$display("Expected 8'hE0 for first byte."); $stop;
 		end
-		ADR_O <= 0;
+		ADR_O <= `KQDATA;
 		WE_O <= 1;
 		wait(CLK_O); wait(~CLK_O);
-		ADR_O <= 1;
+		ADR_O <= `KQDATA;
 		WE_O <= 0;
 		wait(CLK_O); wait(~CLK_O);
 		if(DAT_I != 8'h1B) begin
@@ -202,10 +215,852 @@ module TEST_KIA;
 		end
 
 		// AS A verilog engineer
+		// I WANT the KIA to drop excess characters when the queue is full
+		// SO THAT software engineers don't have to worry about key-code order issues.
+		
+		STORY_O <= 16'h0040;
+		RES_O <= 1;
+		CYC_O <= 0;
+		STB_O <= 0;
+		wait(CLK_O); wait(~CLK_O);
+		RES_O <= 0;
+		wait(CLK_O); wait(~CLK_O);
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		wait(CLK_O); wait(~CLK_O);
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hE0) begin
+			$display("Pattern mismatch on byte 0."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hE1) begin
+			$display("Pattern mismatch on byte 1."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hE2) begin
+			$display("Pattern mismatch on byte 2."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hE3) begin
+			$display("Pattern mismatch on byte 3."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hE4) begin
+			$display("Pattern mismatch on byte 4."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hE5) begin
+			$display("Pattern mismatch on byte 5."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hE6) begin
+			$display("Pattern mismatch on byte 6."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hE7) begin
+			$display("Pattern mismatch on byte 7."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hE8) begin
+			$display("Pattern mismatch on byte 8."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hE9) begin
+			$display("Pattern mismatch on byte 9."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hEA) begin
+			$display("Pattern mismatch on byte A."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hEB) begin
+			$display("Pattern mismatch on byte B."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hEC) begin
+			$display("Pattern mismatch on byte C."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hED) begin
+			$display("Pattern mismatch on byte D."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hEE) begin
+			$display("Pattern mismatch on byte E."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hCF) begin
+			$display("Pattern mismatch on byte F."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		ADR_O <= `KQDATA;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'hCF) begin
+			$display("Should not be able to read beyond the bottom of the queue."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		
+		// AS A software engineer
+		// I WANT the KIA to indicate the queue is empty after reading the last available byte
+		// SO THAT my keyboard handling loops have an exit criterion.
+		
+		STORY_O <= 16'h0050;
+		RES_O <= 1;
+		CYC_O <= 0;
+		STB_O <= 0;
+		WE_O <= 0;
+		wait(CLK_O); wait(~CLK_O);
+		RES_O <= 0;
+		wait(CLK_O); wait(~CLK_O);
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 0; #32768 C_O <= 0; #32768 C_O <= 1;
+		D_O <= 1; #32768 C_O <= 0; #32768 C_O <= 1;
+
+		wait(CLK_O); wait(~CLK_O);
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != `KQSF_FULL) begin
+			$display("Before popping first byte, queue must be full."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte 1."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte 2."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte 3."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte 4."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte 5."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte 6."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte 7."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte 8."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte 9."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte A."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte B."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte C."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte D."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != 8'h00) begin
+			$display("Queue is neither full nor empty.  Byte E."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != `KQSF_EMPTY) begin
+			$display("After reading 15 bytes, the queue should be empty."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		ADR_O <= `KQSTAT;
+		WE_O <= 0;
+		CYC_O <= 1;
+		STB_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+		if(DAT_I != `KQSF_EMPTY) begin
+			$display("Popping an empty queue should have no effect."); $stop;
+		end
+		ADR_O <= `KQDATA;
+		WE_O <= 1;
+		wait(CLK_O); wait(~CLK_O);
+
+		// AS A verilog engineer
 		// I WANT the end of all tests to be delineated on the waveform
 		// SO THAT I don't have to hunt around for the end of the test sequence.
 
 		STORY_O <= -1;
 		wait(CLK_O); wait(~CLK_O);
+		$stop;
 	end;
 endmodule

@@ -1,5 +1,12 @@
 `timescale 1ns / 1ps
 
+//
+// KIA registers
+//
+
+`define KQSTAT		0
+`define KQDATA		1
+
 module KIA_M(
 	input CLK_I,
 	input RES_I,
@@ -29,12 +36,24 @@ module KIA_M(
 		end
 	end
 
-// STORY 0000,0010,0020
+// STORY 0000,0010,0020,0050
 // When reading the status register, we want to put the contents of the queue
-// status register on the data bus.
+// status register on the data bus.  The queue status register has the following
+// bit-level mapping:
+//		Bit 0		0=queue is not empty; at least one byte is waiting to be read.
+//					1=queue is empty.
+//
+//		Bit 1		0=queue is not (yet) full; room for at least one byte remains.
+//					1=queue is full.  Any additional data coming from the peripheral
+//					  will be dropped.
 //
 // When reading the head of the queue, we want a copy of the current data byte,
 // if any.
+//
+// STORY 0030, 0050
+// When the CPU writes to the keyboard queue head register, it pops the queue.  We ignore the value
+// actually written.  If the queue is already empty, take no action.
+	
 
 	reg [7:0] dat;
 	assign DAT_O = dat;
@@ -43,10 +62,16 @@ module KIA_M(
 
 	always @(posedge CLK_I) begin
 		if(~RES_I) begin
-			case(ADR_I)
-				1'h0: dat <= {7'b0000000, ~byte_received};
-				1'h1: dat <= sr[8:1];
-			endcase
+			if(~WE_I) begin
+				case(ADR_I)
+					`KQSTAT: dat <= {7'b000000, queue_full, queue_empty};
+					`KQDATA: dat <= queue[rp];
+				endcase
+			end else begin
+				case(ADR_I)
+					`KQDATA: rp <= (queue_empty)? rp : rp+1;
+				endcase
+			end
 		end
 	end
 
@@ -82,14 +107,33 @@ module KIA_M(
 				sr <= {D_I, sr[10:1]};
 				bits_received <= bits_received+1;
 			end
-			if(ps2clk_edge && waiting_for_stop_bit && is_stop_bit) begin
-				sr <= {D_I, sr[10:1]};
-				byte_received <= 1;
+			if(ps2clk_edge && waiting_for_stop_bit && is_stop_bit && ~queue_full) begin
+				queue[wp] <= sr[9:2];
+				wp <= next_wp;
+				bits_received <= 0;
+			end
+			if(ps2clk_edge && waiting_for_stop_bit && is_stop_bit && queue_full) begin
 				bits_received <= 0;
 			end
 			prev_C <= cur_C;
 		end
 	end
+
+	// STORY 0030,0040,0050
+	// We need a queue of bytes received to hold unread data.  The queue is 16-elements deep.  Thus,
+	// we need 4-bit addresses into the queue memory.
+	//
+	// The queue is considered full when writing a new byte threatens to overwrite the byte addressed
+	// by the read pointer.
+	//
+	// Likewise, the queue is considered empty when the read pointer matches the write pointer.
+
+	reg [7:0] queue[0:15];
+	reg [3:0] rp;
+	reg [3:0] wp;
+	wire [3:0] next_wp = wp+1;
+	wire queue_full = (next_wp == rp);
+	wire queue_empty = (rp == wp);
 
 	always @(posedge CLK_I) begin
 		if(RES_I) begin
@@ -100,6 +144,24 @@ module KIA_M(
 			cur_C <= 1;
 			byte_received <= 0;
 			bits_received <= 0;
+			queue[0] <= 8'hC0;			// This is entirely for debugging purposes.
+			queue[1] <= 8'hC1;			// After active development, we can remove these.
+			queue[2] <= 8'hC2;			// Even the unit tests won't depend on these values.
+			queue[3] <= 8'hC3;
+			queue[4] <= 8'hC4;
+			queue[5] <= 8'hC5;
+			queue[6] <= 8'hC6;
+			queue[7] <= 8'hC7;
+			queue[8] <= 8'hC8;
+			queue[9] <= 8'hC9;
+			queue[10] <= 8'hCA;
+			queue[11] <= 8'hCB;
+			queue[12] <= 8'hCC;
+			queue[13] <= 8'hCD;
+			queue[14] <= 8'hCE;
+			queue[15] <= 8'hCF;
+			wp <= 0;
+			rp <= 0;
 		end
 	end
 endmodule

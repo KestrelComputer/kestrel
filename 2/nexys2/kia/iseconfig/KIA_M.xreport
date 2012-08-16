@@ -1,11 +1,11 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <report-views version="2.0" >
  <header>
-  <DateModified>2012-08-14T22:50:48</DateModified>
+  <DateModified>2012-08-15T07:46:58</DateModified>
   <ModuleName>KIA_M</ModuleName>
   <SummaryTimeStamp>Unknown</SummaryTimeStamp>
   <SavedFilePath>/home/kc5tja/Projects/kestrel/2/nexys2/kia/iseconfig/KIA_M.xreport</SavedFilePath>
-  <ImplementationReportsDirectory>/home/kc5tja/Projects/kestrel/2/nexys2/kia</ImplementationReportsDirectory>
+  <ImplementationReportsDirectory>/home/kc5tja/Projects/kestrel/2/nexys2/kia/</ImplementationReportsDirectory>
   <DateInitialized>2012-08-14T22:50:48</DateInitialized>
   <EnableMessageFiltering>false</EnableMessageFiltering>
  </header>
