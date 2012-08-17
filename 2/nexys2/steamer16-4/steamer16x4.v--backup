@@ -1,0 +1,115 @@
+`timescale 1ns / 1ps
+
+`define	OPC_NOP		4'b0000
+`define	OPC_LIT		4'b0001
+`define	OPC_FWM		4'b0010
+`define	OPC_SWM		4'b0011
+`define	OPC_ADD		4'b0100
+`define	OPC_AND		4'b0101
+`define	OPC_XOR		4'b0110
+`define	OPC_ZGO		4'b0111
+
+module STEAMER16X4(
+	input					clk_i,
+	input					res_i,
+	output	[15:1]	adr_o,
+	output				we_o,
+	output				cyc_o,
+	output	[1:0]		stb_o,
+	output				vda_o,
+	output				vpa_o,
+	input					ack_i,
+	input		[15:0]	dat_i
+);
+
+	reg	[15:1]	adr;
+	reg				we;
+	reg				cyc;
+	reg	[1:0]		stb;
+	reg				vda;
+	reg				vpa;
+	reg	[15:0]	ir;
+
+	reg	[15:1]	p;
+
+	assign adr_o = adr;
+	assign we_o  = we;
+	assign cyc_o = cyc;
+	assign stb_o = stb;
+	assign vda_o = vda;
+	assign vpa_o = vpa;
+
+	// STORY 0010
+	wire				cycle_done = (cyc & ack_i);
+	wire	[15:1]	next_p     = (res_i)? 15'h7FF8 : ((cycle_done)? p+1 : p);
+	wire	[15:0]	next_ir    = (res_i)? 16'h0000 : ((cycle_done)? dat_i : ir);
+	wire	[15:0]	shifted_ir = {ir[11:0], 4'b0000};
+
+	wire				no_instructions_left = (ir == 16'h0000);
+	wire				instructions_pending = ~no_instructions_left;
+
+	// STORY 0020
+	always @(posedge clk_i) begin
+		if(~res_i & instructions_pending) begin
+			case(ir[15:12])
+			`OPC_NOP: begin
+				we <= 0;
+				cyc <= 0;
+				stb <= 2'b00;
+				vda <= 0;
+				vpa <= 0;
+				ir <= shifted_ir;
+			end
+
+			`OPC_LIT: begin
+				p <= next_p;
+				adr <= next_p;
+				we <= 0;
+				cyc <= 1;
+				stb <= 2'b11;
+				vda <= 1;
+				vpa <= 1;
+				ir <= shifted_ir;
+			end
+
+			endcase
+		end
+	end
+
+	// STORY XXXX
+	always @(posedge clk_i) begin
+		if(~res_i & no_instructions_left) begin
+			p   <= next_p;
+			adr <= next_p;
+			we  <= 0;
+			cyc <= 1;
+			stb <= 2'b11;
+			vda <= 0;
+			vpa <= 1;
+			ir  <= next_ir;
+			$display("IR");
+		end
+	end
+
+	// STORY 0000
+	// After reset, the CPU should be executing code close to the top of memory.
+	// We manually set the bus as if we were fetching because asynchronous logic
+	// doesn't work well in an FPGA, and doing the more obvious approach of gating
+	// off of the [fetching] signal would inject an undesirable wait cycle.
+	//
+	// We set our initial program counter to 16'hFFF0 >> 1 = 15'h7FF8.
+
+	always @(posedge clk_i) begin
+		if(res_i) begin
+			p   <= next_p;
+			adr <= next_p;
+			we  <= 0;
+			cyc <= 1;
+			stb <= 2'b11;
+			vda <= 0;
+			vpa <= 1;
+			ir  <= next_ir;
+			$display("RESET");
+		end
+	end
+endmodule
