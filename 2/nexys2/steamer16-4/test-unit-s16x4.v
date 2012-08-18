@@ -580,6 +580,230 @@ module TEST_UNIT_S16X4();
 			$display("We should be engaging the bus to store."); $stop;
 		end
 
+		// AS A software engineer
+		// I WANT the ability to add numbers
+		// SO THAT I can index into an array and maintain count-down loops.
+		
+		story_o <= 16'h00A0;
+		res_o <= 1;
+		ack_o <= 1;
+		wait(clk_o); wait(~clk_o);
+		
+		dat_o <= 16'h1141;		// LI $7FFF:LI $0001:ADD:LI $xxxx
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h7FFF;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h0001;
+		wait(clk_o); wait(~clk_o);
+		if(cyc_i) begin
+			$display("Internal operations like ADD or XOR ought not engage the bus."); $stop;
+		end
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h7FFF;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h3000;		// SWM:NOP:NOP:NOP
+		wait(clk_o); wait(~clk_o);
+		if(dat_i != 16'h8000) begin
+			$display("Addition appears broken somehow."); $stop;
+		end
+
+		// AS A software engineer
+		// I WANT the ability to mask bits
+		// SO THAT I can ignore don't-care bits when reading I/O registers.
+		
+		story_o <= 16'h00B0;
+		res_o <= 1;
+		ack_o <= 1;
+		wait(clk_o); wait(~clk_o);
+		
+		dat_o <= 16'h1151;		// LI $7FFF:LI $0001:AND:LI $xxxx
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h7FFF;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h0FF0;
+		wait(clk_o); wait(~clk_o);
+		if(cyc_i) begin
+			$display("Internal operations like ADD or XOR ought not engage the bus."); $stop;
+		end
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h7FFF;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h3000;		// SWM:NOP:NOP:NOP
+		wait(clk_o); wait(~clk_o);
+		if(dat_i != 16'h0FF0) begin
+			$display("AND appears broken somehow."); $stop;
+		end
+
+		// AS A software engineer
+		// I WANT the ability to invert bits
+		// SO THAT I can subtract, logically-OR, test for opposing conditions, etc.
+		
+		story_o <= 16'h00C0;
+		res_o <= 1;
+		ack_o <= 1;
+		wait(clk_o); wait(~clk_o);
+		
+		dat_o <= 16'h1161;		// LI $7FFF:LI $0001:XOR:LI $xxxx
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h7FFF;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h0FF0;
+		wait(clk_o); wait(~clk_o);
+		if(cyc_i) begin
+			$display("Internal operations like ADD or XOR ought not engage the bus."); $stop;
+		end
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h7FFF;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h3000;		// SWM:NOP:NOP:NOP
+		wait(clk_o); wait(~clk_o);
+		if(dat_i != 16'h700F) begin
+			$display("AND appears broken somehow."); $stop;
+		end
+
+		// AS A software engineer
+		// I WANT the ability to branch on a false condition
+		// SO THAT I can make decisions during run-time.
+		
+		story_o <= 16'h00D0;
+		res_o <= 1;
+		ack_o <= 1;
+		wait(clk_o); wait(~clk_o);
+		
+		dat_o <= 16'h1173;		// LI 0:LI $AAAA:ZGO:SWM (Avoiding early instruction fetch ensures ZGO is the cause of immediate instruction fetch.)
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h0000;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'hAAAA;
+		wait(clk_o); wait(~clk_o);
+		if(cyc_i) begin
+			$display("Internal operations like ZGO, NZGO, and GO ought not engage the bus."); $stop;
+		end
+		wait(clk_o); wait(~clk_o);
+		if(adr_i != 15'b101010101010101) begin
+			$display("ZGO should have branched when Y is zero."); $stop;
+		end
+
+		// AS A software engineer
+		// I WANT the ability to not branch on a true condition
+		// SO THAT I can make decisions during run-time.
+		
+		story_o <= 16'h00E0;
+		res_o <= 1;
+		ack_o <= 1;
+		wait(clk_o); wait(~clk_o);
+		
+		dat_o <= 16'h1173;		// LI 1:LI $AAAA:ZGO:SWM (Avoiding early instruction fetch ensures ZGO is the cause of immediate instruction fetch.)
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h0001;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'hAAAA;
+		wait(clk_o); wait(~clk_o);
+		if(cyc_i) begin
+			$display("Internal operations like ZGO, NZGO, and GO ought not engage the bus."); $stop;
+		end
+		wait(clk_o); wait(~clk_o);
+		if(~we_i) begin
+			$display("ZGO should not have branched; expected execution of SWM."); $stop;
+		end
+		wait(clk_o); wait(~clk_o);
+		if(vda_i) begin
+			$display("Should be fetching next opcode here"); $stop;
+		end
+		if(~vpa_i) begin
+			$display("In program space, that is."); $stop;
+		end
+		if(adr_i != (`RESET_ORIGIN>>1)+3) begin
+			$display("Next instruction expected at $FFF6."); $stop;
+		end
+
+		// AS A software engineer
+		// I WANT the ability to skip a branch on a false condition
+		// SO THAT I can make decisions during run-time.
+		
+		story_o <= 16'h00F0;
+		res_o <= 1;
+		ack_o <= 1;
+		wait(clk_o); wait(~clk_o);
+		
+		dat_o <= 16'h11F3;		// LI 0:LI $AAAA:NZGO:SWM (Avoiding early instruction fetch ensures ZGO is the cause of immediate instruction fetch.)
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h0000;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'hAAAA;
+		wait(clk_o); wait(~clk_o);
+		if(cyc_i) begin
+			$display("Internal operations like ZGO, NZGO, and GO ought not engage the bus."); $stop;
+		end
+		wait(clk_o); wait(~clk_o);
+		if(~we_i) begin
+			$display("NZGO should not have branched; expected execution of SWM."); $stop;
+		end
+		wait(clk_o); wait(~clk_o);
+		if(vda_i) begin
+			$display("Should be fetching next opcode here"); $stop;
+		end
+		if(~vpa_i) begin
+			$display("In program space, that is."); $stop;
+		end
+		if(adr_i != (`RESET_ORIGIN>>1)+3) begin
+			$display("Next instruction expected at $FFF6."); $stop;
+		end
+
+
+		// AS A software engineer
+		// I WANT the ability to branch on a true condition
+		// SO THAT I can make decisions during run-time.
+		
+		story_o <= 16'h0100;
+		res_o <= 1;
+		ack_o <= 1;
+		wait(clk_o); wait(~clk_o);
+		
+		dat_o <= 16'h11F3;		// LI 1:LI $AAAA:NZGO:SWM (Avoiding early instruction fetch ensures ZGO is the cause of immediate instruction fetch.)
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h0001;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'hAAAA;
+		wait(clk_o); wait(~clk_o);
+		if(cyc_i) begin
+			$display("Internal operations like ZGO, NZGO, and GO ought not engage the bus."); $stop;
+		end
+		wait(clk_o); wait(~clk_o);
+		if(adr_i != 15'b101010101010101) begin
+			$display("NZGO should have branched when Y is non-zero."); $stop;
+		end
+
+		// AS A software engineer
+		// I WANT occasionally to branch unconditionally
+		// SO THAT I can create loops or jump vectors.
+		
+		story_o <= 16'h0110;
+		res_o <= 1;
+		ack_o <= 1;
+		wait(clk_o); wait(~clk_o);
+		
+		dat_o <= 16'h1E33;		// LI $AAAA:GO:SWM:SWM  (Avoiding early instruction fetch ensures ZGO is the cause of immediate instruction fetch.)
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'hAAAA;
+		wait(clk_o); wait(~clk_o);
+		if(cyc_i) begin
+			$display("Internal operations like ZGO, NZGO, and GO ought not engage the bus."); $stop;
+		end
+		wait(clk_o); wait(~clk_o);
+		if(adr_i != 15'b101010101010101) begin
+			$display("GO should have branched."); $stop;
+		end
+
+
 		story_o <= 16'hFFFF;
 		$stop;
 	end

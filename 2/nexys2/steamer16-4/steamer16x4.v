@@ -8,14 +8,14 @@
 `define	OPC_AND		4'b0101
 `define	OPC_XOR		4'b0110
 `define	OPC_ZGO		4'b0111
-`define	OPC_unk0		4'b1000
-`define	OPC_unk1		4'b1001
+`define	OPC_unk8		4'b1000
+`define	OPC_unk9		4'b1001
 `define	OPC_FBM		4'b1010
 `define	OPC_SBM		4'b1011
-`define	OPC_unk4		4'b1100
-`define	OPC_unk5		4'b1101
-`define	OPC_unk6		4'b1110
-`define	OPC_unk7		4'b1111
+`define	OPC_unkC		4'b1100
+`define	OPC_unkD		4'b1101
+`define	OPC_GO		4'b1110
+`define	OPC_NZGO		4'b1111
 
 module STEAMER16X4(
 	input					clk_i,
@@ -59,9 +59,14 @@ module STEAMER16X4(
 	wire				no_more_instructions = t0 ? (dat_i == 16'h0000) : (ir[11:0] == 12'h000);
 	wire	[3:0]		current_opcode = ir[15:12];
 	wire				increment_p = t0 | (current_opcode == `OPC_LIT);
-	wire				goto_t0 = res_i | no_more_instructions;
-	wire	[15:1]	next_p = (res_i)? 15'h7FF8 : (increment_p)? p+1 : p;
-	wire	[4:0]		next_t = (goto_t0)? 5'hb00001 : (t << 1);
+	wire				branch_taken = ((current_opcode == `OPC_ZGO) && y_is_zero) | ((current_opcode == `OPC_NZGO) && ~y_is_zero) | (current_opcode == `OPC_GO);
+	wire				goto_t0 = res_i | no_more_instructions | branch_taken;
+	wire				y_is_zero = y == 0;
+	wire	[15:1]	next_p = res_i ? 15'h7FF8 : (increment_p ? p+1 : (branch_taken ? z[15:1] : p));
+	wire	[4:0]		next_t = goto_t0 ? 5'hb00001 : (t << 1);
+	wire	[15:0]	sum = y + z;
+	wire	[15:0]	mask = y & z;
+	wire	[15:0]	flips = y ^ z;
 
 	always @(*) begin
 		if(t0)	begin
@@ -78,6 +83,7 @@ module STEAMER16X4(
 		end
 		else begin
 			case(current_opcode)
+			// // THE ORIGINAL STEAMER-16 INSTRUCTION SET (as defined by Myron Plichota)
 			`OPC_NOP:	begin
 								we <= 0;
 								cyc <= 0;
@@ -127,6 +133,58 @@ module STEAMER16X4(
 								next_y <= x;
 								next_z <= x;
 							end
+			`OPC_ADD:	begin
+								we <= 0;
+								cyc <= 0;
+								stb <= 2'b00;
+								vda <= 0;
+								vpa <= 0;
+								adr <= 0;
+								dat <= 0;
+								next_x <= x;
+								next_y <= x;
+								next_z <= sum;
+							end
+			`OPC_AND:	begin
+								we <= 0;
+								cyc <= 0;
+								stb <= 2'b00;
+								vda <= 0;
+								vpa <= 0;
+								adr <= 0;
+								dat <= 0;
+								next_x <= x;
+								next_y <= x;
+								next_z <= mask;
+							end
+			`OPC_XOR:	begin
+								we <= 0;
+								cyc <= 0;
+								stb <= 2'b00;
+								vda <= 0;
+								vpa <= 0;
+								adr <= 0;
+								dat <= 0;
+								next_x <= x;
+								next_y <= x;
+								next_z <= flips;
+							end
+			`OPC_ZGO:	begin
+								we <= 0;
+								cyc <= 0;
+								stb <= 2'b00;
+								vda <= 0;
+								vpa <= 0;
+								adr <= 0;
+								dat <= 0;
+								next_x <= x;
+								next_y <= x;
+								next_z <= x;
+								// See also the branch_taken wire.
+							end
+			
+			// STEAMER S16X4-1A EXTENDED INSTRUCTIONS HERE.
+
 			`OPC_FBM:	begin
 								we <= 0;
 								cyc <= 1;
@@ -150,6 +208,32 @@ module STEAMER16X4(
 								next_x <= x;
 								next_y <= x;
 								next_z <= x;
+							end
+			`OPC_GO:		begin
+								we <= 0;
+								cyc <= 0;
+								stb <= 2'b00;
+								vda <= 0;
+								vpa <= 0;
+								adr <= 0;
+								dat <= 0;
+								next_x <= x;
+								next_y <= x;
+								next_z <= y;
+								// See also the branch_taken wire.
+							end
+			`OPC_NZGO:	begin
+								we <= 0;
+								cyc <= 0;
+								stb <= 2'b00;
+								vda <= 0;
+								vpa <= 0;
+								adr <= 0;
+								dat <= 0;
+								next_x <= x;
+								next_y <= x;
+								next_z <= x;
+								// See also the branch_taken wire.
 							end
 			endcase
 		end
