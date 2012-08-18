@@ -10,8 +10,8 @@
 `define	OPC_ZGO		4'b0111
 `define	OPC_unk0		4'b1000
 `define	OPC_unk1		4'b1001
-`define	OPC_unk2		4'b1010
-`define	OPC_unk3		4'b1011
+`define	OPC_FBM		4'b1010
+`define	OPC_SBM		4'b1011
 `define	OPC_unk4		4'b1100
 `define	OPC_unk5		4'b1101
 `define	OPC_unk6		4'b1110
@@ -26,6 +26,7 @@ module STEAMER16X4(
 	output	[1:0]		stb_o,
 	output				vda_o,
 	output				vpa_o,
+	output	[15:0]	dat_o,
 	input					ack_i,
 	input		[15:0]	dat_i
 );
@@ -36,6 +37,7 @@ module STEAMER16X4(
 	reg	[1:0]		stb;
 	reg				vda;
 	reg				vpa;
+	reg	[15:0]	dat;
 
 	assign adr_o = adr;
 	assign we_o  = we;
@@ -43,12 +45,14 @@ module STEAMER16X4(
 	assign stb_o = stb;
 	assign vda_o = vda;
 	assign vpa_o = vpa;
+	assign dat_o = dat;
 
 	// STORY 0010
 	wire				cycle_done = (cyc & ack_i) | ~cyc;
 
 	reg	[4:0]		t;
 	reg	[15:1]	p;
+	reg	[15:0]	x, y, z, next_x, next_y, next_z;
 	reg	[15:0]	ir;
 
 	wire				t0 = t[0];
@@ -67,6 +71,10 @@ module STEAMER16X4(
 			stb <= 2'b11;
 			vda <= 0;
 			vpa <= 1;
+			dat <= 0;
+			next_x <= x;
+			next_y <= y;
+			next_z <= z;
 		end
 		else begin
 			case(current_opcode)
@@ -77,6 +85,10 @@ module STEAMER16X4(
 								vda <= 0;
 								vpa <= 0;
 								adr <= 0;
+								dat <= 0;
+								next_x <= x;
+								next_y <= y;
+								next_z <= z;
 							end
 							
 			`OPC_LIT:	begin
@@ -86,6 +98,58 @@ module STEAMER16X4(
 								vda <= 1;
 								vpa <= 1;
 								adr <= p;
+								dat <= 0;
+								next_x <= y;
+								next_y <= z;
+								next_z <= dat_i;
+							end
+			`OPC_FWM:	begin
+								we <= 0;
+								cyc <= 1;
+								stb <= 2'b11;
+								vda <= 1;
+								vpa <= 0;
+								adr <= z[15:1];
+								dat <= 0;
+								next_x <= x;
+								next_y <= y;
+								next_z <= dat_i;
+							end
+			`OPC_SWM:	begin
+								we <= 1;
+								cyc <= 1;
+								stb <= 2'b11;
+								vda <= 1;
+								vpa <= 0;
+								adr <= z[15:1];
+								dat <= y;
+								next_x <= x;
+								next_y <= x;
+								next_z <= x;
+							end
+			`OPC_FBM:	begin
+								we <= 0;
+								cyc <= 1;
+								stb <= {z[0], ~z[0]};
+								vda <= 1;
+								vpa <= 0;
+								adr <= z[15:1];
+								dat <= 0;
+								next_x <= x;
+								next_y <= y;
+								next_z <= z[0] ? {8'b00000000, dat_i[15:8]} : {8'b00000000, dat_i[7:0]};
+							end
+			`OPC_SBM:	begin
+								we <= 1;
+								cyc <= 1;
+								stb <= {z[0], ~z[0]};
+								vda <= 1;
+								vpa <= 0;
+								adr <= z[15:1];
+								dat <= y;
+								next_x <= x;
+								next_y <= x;
+								next_z <= x;
 							end
 			endcase
 		end
@@ -99,6 +163,9 @@ module STEAMER16X4(
 		if(cycle_done) begin
 			if(t0)		ir <= dat_i;
 			else			ir <= {ir[11:0], 4'b0000};
+			x <= next_x;
+			y <= next_y;
+			z <= next_z;
 		end
 	end
 	
@@ -110,5 +177,9 @@ module STEAMER16X4(
 		stb <= 2'b00;
 		vda <= 1;
 		vpa <= 0;
+		dat <= 16'hBEEF;
+		x <= 16'hCC00;
+		y <= 16'hCC11;
+		z <= 16'hCC22;
 	end
 endmodule
