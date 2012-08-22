@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-`define RESET_ORIGIN 	16'hFFF0
+`define RESET_ORIGIN 	16'h0000
 
 module TEST_UNIT_S16X4();
 	reg [15:0] story_o;

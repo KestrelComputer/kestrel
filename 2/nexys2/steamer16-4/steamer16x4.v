@@ -62,7 +62,7 @@ module STEAMER16X4(
 	wire				branch_taken = ((current_opcode == `OPC_ZGO) && y_is_zero) | ((current_opcode == `OPC_NZGO) && ~y_is_zero) | (current_opcode == `OPC_GO);
 	wire				goto_t0 = res_i | no_more_instructions | branch_taken;
 	wire				y_is_zero = y == 0;
-	wire	[15:1]	next_p = res_i ? 15'h7FF8 : (increment_p ? p+1 : (branch_taken ? z[15:1] : p));
+	wire	[15:1]	next_p = res_i ? 0 : (increment_p ? p+1 : (branch_taken ? z[15:1] : p));
 	wire	[4:0]		next_t = goto_t0 ? 5'hb00001 : (t << 1);
 	wire	[15:0]	sum = y + z;
 	wire	[15:0]	mask = y & z;
