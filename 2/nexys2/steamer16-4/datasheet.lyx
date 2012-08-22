@@ -1,0 +1,1499 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+S16X4 Data Sheet
+\end_layout
+
+\begin_layout Author
+Samuel A.
+ Falvo II
+\end_layout
+
+\begin_layout Date
+2012-Aug-20
+\end_layout
+
+\begin_layout Itemize
+64KiB Addressing Space
+\end_layout
+
+\begin_layout Itemize
+SS0 Load/Store Stack Architecture
+\end_layout
+
+\begin_layout Itemize
+8-Bit and 16-Bit Memory Accessors
+\end_layout
+
+\begin_layout Itemize
+16-Bit Internal Architecture
+\end_layout
+
+\begin_layout Itemize
+All Instructions Execute in 1 Clock Cycle
+\end_layout
+
+\begin_layout Itemize
+Wishbone Bus Compatible
+\end_layout
+
+\begin_layout Itemize
+Easy to Program
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+The Steamer16 architecture, first defined by Myron Plichota in December
+ 1999 (see Appendix A), specifies an exceptionally small, relatively high
+ performance microprocessor ideal for deep-embedded applications.
+ Originally consisting of 9 instructions and four opcodes per instruction
+ word, the design was later revised to include only 8 instructions, allowing
+ for five opcodes per 16-bit word.
+ The S16X4 microprocessor is a specific variant of the original Steamer16
+ concept.
+ The processor design caters to ease of programming and easy integration
+ with other components in an FPGA development platform.
+\end_layout
+
+\begin_layout Subsection
+Addressing
+\end_layout
+
+\begin_layout Standard
+The S16X4, without the use of external hardware, supports a flat, unified
+ address space.
+ Unlike most processors that provide at least two addressing modes, the
+ S16X4 only offers one addressing mode: stack indirect.
+ All memory accessors take their effective address from the top of the parameter
+ stack.
+\end_layout
+
+\begin_layout Subsection
+Data Types
+\end_layout
+
+\begin_layout Standard
+The S16X4 supports two data types: bytes and words.
+ The most basic addressing unit on the S16X4 is an octet (8-bit) byte.
+ All addresses consist of 16 bits, thus limiting the S16X4 to 65536 bytes
+ of directly addressible space.
+\end_layout
+
+\begin_layout Standard
+Words consist of two bytes, back to back, placed on an even address boundary.
+ The least-significant byte appears at the lower address; thus making the
+ S16X4 a little-endian machine.
+ When addressing 16-bit words, the S16X4 currently ignores bit 0 of an address.
+ Hence, the two pointers $AAAA and $AAAB both refer to the same word of
+ memory, even though they refer to two different bytes within the same word.
+ For compatibility with later generations of processors, all pointers to
+ 16-bit entities should have bit 0 clear.
+ 
+\end_layout
+
+\begin_layout Section
+Internal Architecture
+\end_layout
+
+\begin_layout Standard
+Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Block-Diagram-of-Processor"
+
+\end_inset
+
+ illustrates the block diagram of the S16X4 processor.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename block-diagram.pdf
+	scale 50
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Block Diagram of the S16X4 Processor.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Block-Diagram-of-Processor"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Parameter Stack
+\end_layout
+
+\begin_layout Standard
+The S16X4 can hold up to three words of data at any given time, arranged
+ as a stack.
+ The three words are labelled X, Y, and Z, with Z representing the top of
+ the stack.
+ Presently, only one instruction, LIT, can push data onto the stack.
+ All other instructions either replace Z directly or consume data from the
+ stack on an as-needed basis.
+ When popping values off the stack, the processor retains the current value
+ for X.
+ In the example below, values filled in from popping the stack appear in
+ 
+\emph on
+italics
+\emph default
+, while new or computed values appear in 
+\series bold
+bold
+\series default
+.
+\end_layout
+
+\begin_layout Standard
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+\begin_inset Tabular
+<lyxtabular version="3" rows="6" columns="4">
+<features tabularvalignment="top">
+<column alignment="left" valignment="top" width="0">
+<column alignment="left" valignment="top" width="0">
+<column alignment="left" valignment="top" width="0">
+<column alignment="left" valignment="top" width="0pt">
+<row>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+Instruction
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+X
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Y
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Z
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+LIT $1111
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+-
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+-
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+$1111
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+LIT $2222
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+-
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+$1111
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+$2222
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+LIT $5555
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+$1111
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+$2222
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+$5555
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+ADD
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+$1111
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\emph on
+$1111
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\series bold
+$7777
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+SWM
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+$1111
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\emph on
+$1111
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="left" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+
+\emph on
+$1111
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+While having only three stack elements might seem constraining to someone
+ familiar with either Forth or Java, it turns out you can do anything that
+ (at least) an accumulator- or register/memory-architecture CPU can do.
+ For example, you're writing a program that needs to store a value at a
+ location 
+\begin_inset Formula $Y$
+\end_inset
+
+ bytes beyond the pointer found in memory at 
+\begin_inset Formula $\$44+S$
+\end_inset
+
+.
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+I genuinely hope you don't name your variables 
+\begin_inset Formula $A$
+\end_inset
+
+, 
+\begin_inset Formula $S$
+\end_inset
+
+, and 
+\begin_inset Formula $Y$
+\end_inset
+
+ in production code unless it is genuinely trivial to comprehend.
+ I use them here for example purposes only.
+\end_layout
+
+\end_inset
+
+ This is a genuinely complex addressing mode by anyone's measure.
+ Here's an example S16X4 program that computes this complex effective address:
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+The corresponding W65C816 microprocessor instruction for this operation
+ is STA ($44,S),Y.
+ It takes only two instruction bytes to encode, but consumes 8 cycles, obviously
+ faster than the S16X4 in this specific case.
+ Generally, however, the S16X4 proves at least as fast, and often faster,
+ than the W65C816 in other situations.
+ 
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout LyX-Code
+LIT a
+\end_layout
+
+\begin_layout LyX-Code
+FWM
+\end_layout
+
+\begin_layout LyX-Code
+LIT s
+\end_layout
+
+\begin_layout LyX-Code
+FWM
+\end_layout
+
+\begin_layout LyX-Code
+LIT $44
+\end_layout
+
+\begin_layout LyX-Code
+ADD
+\end_layout
+
+\begin_layout LyX-Code
+FWM
+\end_layout
+
+\begin_layout LyX-Code
+LIT y
+\end_layout
+
+\begin_layout LyX-Code
+FWM
+\end_layout
+
+\begin_layout LyX-Code
+ADD
+\end_layout
+
+\begin_layout LyX-Code
+SWM
+\end_layout
+
+\begin_layout Standard
+Observe that no more than two stack cells (Y and Z, specifically) are involved
+ in computing the effective address for the subsequent store instruction,
+ allowing X to hold onto the value we wish to store during effective address
+ calculation.
+\end_layout
+
+\begin_layout Subsection
+ALU
+\end_layout
+
+\begin_layout Standard
+The arithmetic/logic unit, or ALU, computes identities, sums, bitwise ANDs,
+ and bitwise exclusive-ORs of Y and Z.
+ The NOP, ADD, AND, and XOR instructions respectively selects which of these
+ results will be chosen as the result.
+ 
+\end_layout
+
+\begin_layout Subsection
+Instruction Register
+\end_layout
+
+\begin_layout Standard
+The instruction register holds the most recently fetched package of instructions.
+ Since S16X4 opcodes consume only 4 bits in memory, the S16X4 packs four
+ instructions per instruction word, as illustrated below.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Tabular
+<lyxtabular version="3" rows="2" columns="4">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Slot 1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Slot 2
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Slot 3
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Slot 4
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+15..12
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+11..8
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+7..4
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+3..0
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The processor will execute instructions starting first with slot 1, and
+ continuing up to and including slot 4 before fetching another instruction.
+\end_layout
+
+\begin_layout Standard
+The S16X4 fetches a new instruction word if it detects that all remaining
+ opcodes are NOP instructions.
+ This includes the case where all four slots contain NOPs.
+\end_layout
+
+\begin_layout Subsection
+Program Counter Register
+\end_layout
+
+\begin_layout Standard
+The P register holds the location of the next program literal or instruction
+ word.
+ It contains only 15 bits, hard-wiring bit 0 to zero to enforce even addressing
+ while fetching instructions.
+ 
+\end_layout
+
+\begin_layout Subsection
+T-Counter
+\end_layout
+
+\begin_layout Standard
+This internal register controls when the processor should fetch an instruction
+ word, when it is safe to perform non-program memory references, et.
+ al.
+ In essence, it determines which slot in the instruction register is currently
+ being executed, and defines extra 
+\begin_inset Quotes eld
+\end_inset
+
+slots
+\begin_inset Quotes erd
+\end_inset
+
+ for handling reset logic, instruction fetching, etc.
+\end_layout
+
+\begin_layout Subsection
+Control and Random Logic
+\end_layout
+
+\begin_layout Standard
+The random logic portion of the processor interprets the currently executing
+ instruction, if any, the T-counter, as well as the current state of any
+ bus transaction in progress to decide how best to proceed.
+ It can either fetch another instruction word, advance to the next, delay
+ the current bus transaction until some external device says it's OK to
+ proceed, etc.
+\end_layout
+
+\begin_layout Section
+Hardware Interface
+\end_layout
+
+\begin_layout Subsection
+Logic Symbol
+\end_layout
+
+\begin_layout Subsection
+Signal Descriptions
+\end_layout
+
+\begin_layout Standard
+The S16X4 complies with Wishbone B.3 bus master standards with a 16-bit port
+ size, with 8-bit granularity.
+\end_layout
+
+\begin_layout Subsubsection
+SYSCON Signals
+\end_layout
+
+\begin_layout Description
+CLK_I.
+ Provides the standard time-base for the processor.
+ All processor state transitions occur on the rising edge of this signal.
+\end_layout
+
+\begin_layout Description
+RES_I.
+ When asserted during the rising edge of CLK_I, the processor resets to
+ its power-on default state, immediately commencing a new instruction packet
+ fetch.
+ See section 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "sec:Initialization"
+
+\end_inset
+
+ for more details.
+\end_layout
+
+\begin_layout Subsubsection
+MASTER Signals
+\end_layout
+
+\begin_layout Description
+ACK_I.
+ If negated upon the rising edge of CLK_I during a read or write bus transaction
+, the processor will insert a wait-state, holding the entire processor state
+ as-is.
+ If asserted during a CLK_I rising edge, the bus transaction completes,
+ thus allowing the processor to make progress.
+ However, if the processor does not require the use of the bus, the state
+ of ACK_I will be ignored.
+\end_layout
+
+\begin_layout Description
+ADR_O(15:1).
+ This 15-bit bus provides the word address for an external memory or peripheral
+ to decode.
+ This bus is valid only while CYC_O remains asserted; if CYC_O is negated,
+ the value on this bus is undefined.
+\end_layout
+
+\begin_layout Description
+CYC_O.
+ When asserted, the processor requires the use of the bus, and is engaged
+ in a bus transaction.
+ If negated, the processor releases the bus, perhaps for other bus masters
+ to use.
+\end_layout
+
+\begin_layout Description
+DAT_I(15:0).
+ When reading from external memory or peripherals, the addressed memory
+ or peripheral puts its data on this bus.
+ This bus must be valid at least by the time ACK_I is asserted.
+\end_layout
+
+\begin_layout Description
+DAT_O(15:0).
+ When writing to external memory or peripherals, the addressed memory or
+ peripheral must accept data from this bus.
+ This bus will remain valid at least until ACK_I is asserted and the following
+ CLK_I rising edge.
+\end_layout
+
+\begin_layout Description
+STB_O(1:0).
+ These signals indicates which byte-lanes are valid.
+ STB_O(1) indicates that DAT_I/DAT_O(15:8) are valid, while STB_O(0) indicates
+ that DAT_I/DAT_O(7:0) are valid.
+ These signals are valid only while CYC_O remains asserted.
+\end_layout
+
+\begin_layout Description
+WE_O.
+ If asserted, the current bus transaction is a write cycle (data on DAT_O(15:0)).
+ If negated, the processor will expect an external peripheral or memory
+ to drive data on its DAT_I(15:0) bus.
+\end_layout
+
+\begin_layout Description
+VPA_O.
+ Also known as TGA_O(1).
+ When asserted, the address on the bus refers to a program address.
+ This signal will be asserted while the processor is fetching either an
+ instruction packet or instruction operands.
+\end_layout
+
+\begin_layout Description
+VDA_O.
+ Also known as TGA_O(0).
+ When asserted, the address on the bus refers to some kind of data.
+ If VPA_O is negated, the address corresponds to data memory or peripherals;
+ otherwise, the fetch is for an instruction operand.
+ If negated, the fetch must be for an instruction packet.
+ The following table will help illustrate:
+\end_layout
+
+\begin_layout Description
+\begin_inset Tabular
+<lyxtabular version="3" rows="5" columns="3">
+<features tabularvalignment="middle">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<column alignment="center" valignment="top" width="0">
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+VPA_O
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+VDA_O
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Type of Memory Access
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Not possible except when CYC_O = 0 as well.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Data memory access (fetch or store).
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+0
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Instruction packet fetch.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+<row>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+1
+\end_layout
+
+\end_inset
+</cell>
+<cell alignment="center" valignment="top" topline="true" bottomline="true" leftline="true" rightline="true" usebox="none">
+\begin_inset Text
+
+\begin_layout Plain Layout
+Instruction operand fetch.
+\end_layout
+
+\end_inset
+</cell>
+</row>
+</lyxtabular>
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Timing Diagrams
+\end_layout
+
+\begin_layout Subsubsection
+Reset Timing
+\end_layout
+
+\begin_layout Subsubsection
+Reset Timing with Wait States
+\end_layout
+
+\begin_layout Subsubsection
+Memory Read
+\end_layout
+
+\begin_layout Subsubsection
+Memory Write
+\end_layout
+
+\begin_layout Subsubsection
+Memory Read with Wait States
+\end_layout
+
+\begin_layout Subsubsection
+Memory Write with Wait States
+\end_layout
+
+\begin_layout Section
+\begin_inset CommandInset label
+LatexCommand label
+name "sec:Initialization"
+
+\end_inset
+
+Initialization
+\end_layout
+
+\begin_layout Standard
+After reset, the S16X4 fetches its first instruction at address $0000.
+ The state of the parameter stack remains undefined until explicitly initialized
+ in software.
+\end_layout
+
+\begin_layout Section
+Instruction Set
+\end_layout
+
+\begin_layout Subsection
+NOP
+\end_layout
+
+\begin_layout Subsection
+LIT
+\end_layout
+
+\begin_layout Subsection
+FWM
+\end_layout
+
+\begin_layout Subsection
+SWM
+\end_layout
+
+\begin_layout Subsection
+ADD
+\end_layout
+
+\begin_layout Subsection
+AND
+\end_layout
+
+\begin_layout Subsection
+XOR
+\end_layout
+
+\begin_layout Subsection
+ZGO
+\end_layout
+
+\begin_layout Subsection
+GO
+\end_layout
+
+\begin_layout Subsection
+NZGO
+\end_layout
+
+\begin_layout Subsection
+FBM
+\end_layout
+
+\begin_layout Subsection
+SBM
+\end_layout
+
+\begin_layout Section
+Roadmap
+\end_layout
+
+\begin_layout Subsection
+Support for Interrupts
+\end_layout
+
+\begin_layout Subsection
+32-Bit Architecture
+\end_layout
+
+\begin_layout Subsection
+Macro-instruction Execution
+\end_layout
+
+\begin_layout Section
+Original Steamer16 Announcement
+\end_layout
+
+\begin_layout LyX-Code
+To: <MISC> 
+\end_layout
+
+\begin_layout LyX-Code
+Subject: 16-bit stack machine implemented on a Cypress CY37128 CPLD 
+\end_layout
+
+\begin_layout LyX-Code
+From: "Myron Plichota" <myron.plichota@xxxxxxxxxxxx> 
+\end_layout
+
+\begin_layout LyX-Code
+Date: Fri, 31 Dec 1999 11:01:53 -0500 
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+I have developed a 16-bit zero-operand stack machine that I call Steamer16.
+ It fits on the Cypress CY37128 CPLD in an 84-pin PLCC package.
+ Using the 125 MHz speed grade, wirewrapped operation at 20 MHz is predicted
+ by the simulator.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Unfortunately, a dual-stack Forth architecture doesn't fit in the 128 macrocells
+ available.
+ Consequently the design isn't a true Forth chip, but it is a zero-operand
+ stack machine nonetheless.
+ In the future I would like to fit a true Forth architecture to one of the
+ CPLD or FPGA architectures that include on-chip RAM blocks for the stacks.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Being fearfull of actually fitting the design to the target device, the
+ instruction set and architecture was minimized to a ridiculous extent,
+ and it indeed just barely fits.
+ In the future, more elaborate implementations may be implemented on larger
+ devices not suitable for hobby projects due to exotic packaging.
+ For this reason, the documentation contains nerdy phrases typical of growth-pat
+h specifications, but don't let that distract you from understanding the
+ Steamer16 initial implementation that exists today.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+I plan to design a companion chip, also using the CY37128 to provide a timer,
+ parallel I/O, a funnel shifter, memory decoder/wait state logic, and glue
+ logic for a 16-bit 3-port multiplier/accumulator.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+I think it might be bad netiqette to attach the 40Kbyte zip file I have
+ available because of the load on the MISC server.
+ It contains the assembler, JEDEC file, and side documentation.
+ Interested parties should e-mail me for a copy.
+ Please withold any technical questions until having read the documentation
+ package.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+BTW, I am well aware of the shortcomings of the Steamer16 implementation,
+ so please don't take me to task over it.
+ My defense is: 1) it fits on a low-cost CPLD in a package hobbyists can
+ deal with 2) companion chips can alleviate some of the shortcomings 3)
+ at 20 MHz, it can clunk through inelegant code sequences quickly
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Following is an excerpt from the assembler documentation (STASM.TXT), part
+ of the zipped package.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Happy New Millenium, MISCers! Myron Plichota
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+************************************************************
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Programming Model:
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+The Steamer architecture consists of a program counter (P) and a 3-deep
+ RPN evaluation stack (TOP, 2ND, 3RD).
+ P is cleared on reset.
+ The stack registers are undefined until loaded under program control.
+ There is no program status word or carry flag.
+ P addresses instruction groups, not necessarily individual instructions.
+ Steamer architecture mandates operations on natural size words without
+ forbidding other data types.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Steamer16 implements the Steamer architecture in 16 bits, with no enhancements.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Stack diagrams:
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Stack diagrams are used to describe instruction behavior by showing both
+ the inputs on the stack and the results in a concise notation.
+ The input list is on the left-hand side of the "--" before/after separator,
+ the results are on the right-hand side.
+  eg.
+ ( 3RD 2ND TOP -- 3RD 2ND TOP)
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+The input list shows the proper order of input entry in left-to-right order.
+ The input list shows only the requisite stack entries.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+The output list shows all three entries.
+ The symbols x, y, and z, are used to denote the original values of any
+ surviving independent stack entries.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Instruction Descriptions: opcodes are in hexadecimal order
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+NOP, {0} ( -- x y z)           no operation
+\end_layout
+
+\begin_layout LyX-Code
+lit, {8} ( -- y z data)        P++ read memory at P, increment P
+\end_layout
+
+\begin_layout LyX-Code
+@,   {9} ( addr -- x y data)   read memory at addr
+\end_layout
+
+\begin_layout LyX-Code
+!,   {A} ( data addr -- x x x) write data to memory at addr
+\end_layout
+
+\begin_layout LyX-Code
++,   {B} ( n1 n2 -- x x n1+n2) add 2ND to TOP
+\end_layout
+
+\begin_layout LyX-Code
+AND, {C} ( n1 n2 -- x x n1&n2) and 2ND to TOP
+\end_layout
+
+\begin_layout LyX-Code
+OR,  {D} ( n1 n2 -- x x n1|n2) or 2ND to TOP
+\end_layout
+
+\begin_layout LyX-Code
+XOR, {E} ( n1 n2 -- x x n1^n2) exclusive-or 2ND to TOP
+\end_layout
+
+\begin_layout LyX-Code
+zgo, {F} ( flg addr -- x x x)  if flg equals 0 then jump to addr else continue
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Notes:
+\end_layout
+
+\begin_layout LyX-Code
+  1) 3RD is sticky.
+ When the stack shrinks it holds its value.
+\end_layout
+
+\begin_layout LyX-Code
+  2) lit, is the only instruction that grows the stack, destroying 3RD.
+\end_layout
+
+\begin_layout LyX-Code
+  3) The Steamer16 instruction set contains no additions to the Steamer
+ required instruction set.
+\end_layout
+
+\begin_layout LyX-Code
+  4) Opcodes {1..7} are implemented as no operation and are not part of the
+ Steamer required instruction set.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Instruction Timing:
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Steamer16 executes all instructions in 1 clock cycle.
+ A quartet fetch cycle is required when the current quartet has finished
+ executing or a jump is taken.
+ For sequential execution, quartets are fetched and executed in 5 clocks.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Software delays are deterministic and may be counted from the fetch of any
+ quartet.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+The adder for the +, instruction is implemented as a cascade of 8 2-bit
+ ripple-carry adder cells.
+ Running on a 125 MHz part, the maximum clock frequency is 20 MHz for unambiguou
+s results.
+\end_layout
+
+\begin_layout LyX-Code
+
+\end_layout
+
+\begin_layout LyX-Code
+Instruction timing is not mandated in the Steamer architecture.
+\end_layout
+
+\end_body
+\end_document
