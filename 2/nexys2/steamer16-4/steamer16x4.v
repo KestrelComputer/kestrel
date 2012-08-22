@@ -23,7 +23,8 @@ module STEAMER16X4(
 	output	[15:1]	adr_o,
 	output				we_o,
 	output				cyc_o,
-	output	[1:0]		stb_o,
+	output				stb_o,
+	output	[1:0]		sel_o,
 	output				vda_o,
 	output				vpa_o,
 	output	[15:0]	dat_o,
@@ -34,7 +35,7 @@ module STEAMER16X4(
 	reg	[15:1]	adr;
 	reg				we;
 	reg				cyc;
-	reg	[1:0]		stb;
+	reg	[1:0]		sel;
 	reg				vda;
 	reg				vpa;
 	reg	[15:0]	dat;
@@ -42,7 +43,8 @@ module STEAMER16X4(
 	assign adr_o = adr;
 	assign we_o  = we;
 	assign cyc_o = cyc;
-	assign stb_o = stb;
+	assign stb_o = cyc;
+	assign sel_o = sel;
 	assign vda_o = vda;
 	assign vpa_o = vpa;
 	assign dat_o = dat;
@@ -73,7 +75,7 @@ module STEAMER16X4(
 			adr <= p;
 			we <= 0;
 			cyc <= 1;
-			stb <= 2'b11;
+			sel <= 2'b11;
 			vda <= 0;
 			vpa <= 1;
 			dat <= 0;
@@ -87,7 +89,7 @@ module STEAMER16X4(
 			`OPC_NOP:	begin
 								we <= 0;
 								cyc <= 0;
-								stb <= 2'b00;
+								sel <= 2'b00;
 								vda <= 0;
 								vpa <= 0;
 								adr <= 0;
@@ -100,7 +102,7 @@ module STEAMER16X4(
 			`OPC_LIT:	begin
 								we <= 0;
 								cyc <= 1;
-								stb <= 2'b11;
+								sel <= 2'b11;
 								vda <= 1;
 								vpa <= 1;
 								adr <= p;
@@ -112,7 +114,7 @@ module STEAMER16X4(
 			`OPC_FWM:	begin
 								we <= 0;
 								cyc <= 1;
-								stb <= 2'b11;
+								sel <= 2'b11;
 								vda <= 1;
 								vpa <= 0;
 								adr <= z[15:1];
@@ -124,7 +126,7 @@ module STEAMER16X4(
 			`OPC_SWM:	begin
 								we <= 1;
 								cyc <= 1;
-								stb <= 2'b11;
+								sel <= 2'b11;
 								vda <= 1;
 								vpa <= 0;
 								adr <= z[15:1];
@@ -136,7 +138,7 @@ module STEAMER16X4(
 			`OPC_ADD:	begin
 								we <= 0;
 								cyc <= 0;
-								stb <= 2'b00;
+								sel <= 2'b00;
 								vda <= 0;
 								vpa <= 0;
 								adr <= 0;
@@ -148,7 +150,7 @@ module STEAMER16X4(
 			`OPC_AND:	begin
 								we <= 0;
 								cyc <= 0;
-								stb <= 2'b00;
+								sel <= 2'b00;
 								vda <= 0;
 								vpa <= 0;
 								adr <= 0;
@@ -160,7 +162,7 @@ module STEAMER16X4(
 			`OPC_XOR:	begin
 								we <= 0;
 								cyc <= 0;
-								stb <= 2'b00;
+								sel <= 2'b00;
 								vda <= 0;
 								vpa <= 0;
 								adr <= 0;
@@ -172,7 +174,7 @@ module STEAMER16X4(
 			`OPC_ZGO:	begin
 								we <= 0;
 								cyc <= 0;
-								stb <= 2'b00;
+								sel <= 2'b00;
 								vda <= 0;
 								vpa <= 0;
 								adr <= 0;
@@ -188,7 +190,7 @@ module STEAMER16X4(
 			`OPC_FBM:	begin
 								we <= 0;
 								cyc <= 1;
-								stb <= {z[0], ~z[0]};
+								sel <= {z[0], ~z[0]};
 								vda <= 1;
 								vpa <= 0;
 								adr <= z[15:1];
@@ -200,7 +202,7 @@ module STEAMER16X4(
 			`OPC_SBM:	begin
 								we <= 1;
 								cyc <= 1;
-								stb <= {z[0], ~z[0]};
+								sel <= {z[0], ~z[0]};
 								vda <= 1;
 								vpa <= 0;
 								adr <= z[15:1];
@@ -212,7 +214,7 @@ module STEAMER16X4(
 			`OPC_GO:		begin
 								we <= 0;
 								cyc <= 0;
-								stb <= 2'b00;
+								sel <= 2'b00;
 								vda <= 0;
 								vpa <= 0;
 								adr <= 0;
@@ -225,7 +227,7 @@ module STEAMER16X4(
 			`OPC_NZGO:	begin
 								we <= 0;
 								cyc <= 0;
-								stb <= 2'b00;
+								sel <= 2'b00;
 								vda <= 0;
 								vpa <= 0;
 								adr <= 0;
@@ -258,7 +260,7 @@ module STEAMER16X4(
 		ir <= 16'hFFFF;
 		we <= 0;
 		cyc <= 1;
-		stb <= 2'b00;
+		sel <= 2'b00;
 		vda <= 1;
 		vpa <= 0;
 		dat <= 16'hBEEF;

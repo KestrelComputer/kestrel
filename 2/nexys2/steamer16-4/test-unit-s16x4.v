@@ -13,10 +13,13 @@ module TEST_UNIT_S16X4();
 	wire [15:1] adr_i;
 	wire we_i;
 	wire cyc_i;
-	wire [1:0] stb_i;
+	wire stb_i;
+	wire [1:0] sel_i;
 	wire vda_i;
 	wire vpa_i;
 	wire [15:0] dat_i;
+
+	wire bus_accessed = cyc_i & stb_i;
 
 	STEAMER16X4 cpu(
 		.res_i(res_o),
@@ -26,6 +29,7 @@ module TEST_UNIT_S16X4();
 		.we_o(we_i),
 		.cyc_o(cyc_i),
 		.stb_o(stb_i),
+		.sel_o(sel_i),
 		.vpa_o(vpa_i),
 		.vda_o(vda_i),
 		.dat_o(dat_i),
@@ -60,10 +64,10 @@ module TEST_UNIT_S16X4();
 		if(we_i != 0) begin
 			$display("CPU should not be writing after a reset."); $stop;
 		end
-		if(cyc_i != 1) begin
+		if(bus_accessed != 1) begin
 			$display("CPU should be in a bus cycle while fetching its first instructions."); $stop;
 		end
-		if(stb_i != 2'h3) begin
+		if(sel_i != 2'h3) begin
 			$display("CPU should be fetching a full word."); $stop;
 		end
 		if(vpa_i != 1) begin
@@ -145,7 +149,7 @@ module TEST_UNIT_S16X4();
 		res_o <= 0;
 		dat_o <= 16'h0010;
 		wait(clk_o); wait(~clk_o);
-		if(cyc_i) begin
+		if(bus_accessed) begin
 			$display("CPU should never engage the bus during a NOP."); $stop;
 		end
 		if(vda_i) begin
@@ -155,7 +159,7 @@ module TEST_UNIT_S16X4();
 			$display("CPU should not be accessing program space here."); $stop;
 		end
 		wait(clk_o); wait(~clk_o);
-		if(cyc_i) begin
+		if(bus_accessed) begin
 			$display("CPU should never engage the bus during a NOP."); $stop;
 		end
 		if(vda_i) begin
@@ -165,7 +169,7 @@ module TEST_UNIT_S16X4();
 			$display("CPU should not be accessing program space here."); $stop;
 		end
 		wait(clk_o); wait(~clk_o);
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("CPU should try fetching an operand here."); $stop;
 		end
 		if(~vda_i) begin
@@ -174,14 +178,14 @@ module TEST_UNIT_S16X4();
 		if(~vpa_i) begin
 			$display("CPU should be accessing program space here."); $stop;
 		end
-		if(stb_i != 2'b11) begin
+		if(sel_i != 2'b11) begin
 			$display("Fetching a full word here."); $stop;
 		end
 		if(adr_i != (`RESET_ORIGIN>>1)+1) begin
 			$display("Fetching operand from wrong address"); $stop;
 		end
 		wait(clk_o); wait(~clk_o);
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("CPU should try fetching an opcode here."); $stop;
 		end
 		if(vda_i) begin
@@ -190,7 +194,7 @@ module TEST_UNIT_S16X4();
 		if(~vpa_i) begin
 			$display("CPU should be accessing program space here."); $stop;
 		end
-		if(stb_i != 2'b11) begin
+		if(sel_i != 2'b11) begin
 			$display("Fetching a full word here."); $stop;
 		end
 		if(adr_i != (`RESET_ORIGIN>>1)+2) begin
@@ -216,10 +220,10 @@ module TEST_UNIT_S16X4();
 		if(adr_i != 15'h5555) begin
 			$display("CPU should be addressing memory location $AAAA right now."); $stop;
 		end
-		if(stb_i != 2'b11) begin
+		if(sel_i != 2'b11) begin
 			$display("CPU should be addressing a full word right now."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("CPU should be engaging the bus during this cycle."); $stop;
 		end
 		if(~we_i) begin
@@ -238,7 +242,7 @@ module TEST_UNIT_S16X4();
 		if(adr_i != (`RESET_ORIGIN>>1)+3) begin
 			$display("Expected P value mismatch."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("CPU should be jonsing for an opcode fetch here."); $stop;
 		end
 		if(~vpa_i) begin
@@ -267,10 +271,10 @@ module TEST_UNIT_S16X4();
 		if(adr_i != 15'h5555) begin
 			$display("CPU should be addressing memory location $AAAA right now."); $stop;
 		end
-		if(stb_i != 2'b01) begin
+		if(sel_i != 2'b01) begin
 			$display("CPU should be addressing the low byte right now."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("CPU should be engaging the bus during this cycle."); $stop;
 		end
 		if(~we_i) begin
@@ -289,7 +293,7 @@ module TEST_UNIT_S16X4();
 		if(adr_i != (`RESET_ORIGIN>>1)+3) begin
 			$display("Expected P value mismatch."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("CPU should be jonsing for an opcode fetch here."); $stop;
 		end
 		if(~vpa_i) begin
@@ -319,10 +323,10 @@ module TEST_UNIT_S16X4();
 		if(adr_i != 15'h5555) begin
 			$display("CPU should be addressing memory location $AAAB right now."); $stop;
 		end
-		if(stb_i != 2'b10) begin
+		if(sel_i != 2'b10) begin
 			$display("CPU should be addressing the high byte right now."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("CPU should be engaging the bus during this cycle."); $stop;
 		end
 		if(~we_i) begin
@@ -341,7 +345,7 @@ module TEST_UNIT_S16X4();
 		if(adr_i != (`RESET_ORIGIN>>1)+3) begin
 			$display("Expected P value mismatch."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("CPU should be jonsing for an opcode fetch here."); $stop;
 		end
 		if(~vpa_i) begin
@@ -370,10 +374,10 @@ module TEST_UNIT_S16X4();
 		if(adr_i != 15'h5555) begin
 			$display("CPU should be addressing memory location $AAAB right now."); $stop;
 		end
-		if(stb_i != 2'b10) begin
+		if(sel_i != 2'b10) begin
 			$display("CPU should be addressing the high byte right now."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("CPU should be engaging the bus during this cycle."); $stop;
 		end
 		if(~we_i) begin
@@ -393,10 +397,10 @@ module TEST_UNIT_S16X4();
 		if(adr_i != 15'h5555) begin
 			$display("CPU should still be addressing memory location $AAAB right now."); $stop;
 		end
-		if(stb_i != 2'b10) begin
+		if(sel_i != 2'b10) begin
 			$display("CPU should still be addressing the high byte right now."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("CPU should still be engaging the bus during this cycle."); $stop;
 		end
 		if(~we_i) begin
@@ -416,7 +420,7 @@ module TEST_UNIT_S16X4();
 		if(adr_i != (`RESET_ORIGIN>>1)+3) begin
 			$display("Expected P value mismatch."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("CPU should be jonsing for an opcode fetch here."); $stop;
 		end
 		if(~vpa_i) begin
@@ -446,7 +450,7 @@ module TEST_UNIT_S16X4();
 		if(we_i) begin
 			$display("We should be fetching, not storing."); $stop;
 		end
-		if(stb_i != 2'b11) begin
+		if(sel_i != 2'b11) begin
 			$display("We should be fetching a full word."); $stop;
 		end
 		if(vpa_i) begin
@@ -455,7 +459,7 @@ module TEST_UNIT_S16X4();
 		if(~vda_i) begin
 			$display("We should be fetching from data memory."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("We should be engaging the bus to fetch."); $stop;
 		end
 		dat_o <= 16'hBEEF;
@@ -468,7 +472,7 @@ module TEST_UNIT_S16X4();
 		if(~we_i) begin
 			$display("We should be storing, not fetching."); $stop;
 		end
-		if(stb_i != 2'b11) begin
+		if(sel_i != 2'b11) begin
 			$display("We should be storing a full word."); $stop;
 		end
 		if(vpa_i) begin
@@ -477,7 +481,7 @@ module TEST_UNIT_S16X4();
 		if(~vda_i) begin
 			$display("We should be storing to data memory."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("We should be engaging the bus to store."); $stop;
 		end
 		if(dat_i != 16'hBEEF) begin
@@ -490,7 +494,7 @@ module TEST_UNIT_S16X4();
 		if(we_i) begin
 			$display("We should be fetching."); $stop;
 		end
-		if(stb_i != 2'b11) begin
+		if(sel_i != 2'b11) begin
 			$display("We should be fetching a full word."); $stop;
 		end
 		if(~vpa_i) begin
@@ -499,7 +503,7 @@ module TEST_UNIT_S16X4();
 		if(vda_i) begin
 			$display("We should be fetching the next opcode."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("We should be engaging the bus to store."); $stop;
 		end
 
@@ -523,7 +527,7 @@ module TEST_UNIT_S16X4();
 		if(we_i) begin
 			$display("We should be fetching, not storing."); $stop;
 		end
-		if(stb_i != 2'b10) begin
+		if(sel_i != 2'b10) begin
 			$display("We should be fetching a byte at an odd address."); $stop;
 		end
 		if(vpa_i) begin
@@ -532,7 +536,7 @@ module TEST_UNIT_S16X4();
 		if(~vda_i) begin
 			$display("We should be fetching from data memory."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("We should be engaging the bus to fetch."); $stop;
 		end
 		dat_o <= 16'hBEEF;
@@ -545,7 +549,7 @@ module TEST_UNIT_S16X4();
 		if(~we_i) begin
 			$display("We should be storing, not fetching."); $stop;
 		end
-		if(stb_i != 2'b11) begin
+		if(sel_i != 2'b11) begin
 			$display("We should be storing a full word."); $stop;
 		end
 		if(vpa_i) begin
@@ -554,7 +558,7 @@ module TEST_UNIT_S16X4();
 		if(~vda_i) begin
 			$display("We should be storing to data memory."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("We should be engaging the bus to store."); $stop;
 		end
 		if(dat_i != 16'h00BE) begin
@@ -567,7 +571,7 @@ module TEST_UNIT_S16X4();
 		if(we_i) begin
 			$display("We should be fetching."); $stop;
 		end
-		if(stb_i != 2'b11) begin
+		if(sel_i != 2'b11) begin
 			$display("We should be fetching a full word."); $stop;
 		end
 		if(~vpa_i) begin
@@ -576,7 +580,7 @@ module TEST_UNIT_S16X4();
 		if(vda_i) begin
 			$display("We should be fetching the next opcode."); $stop;
 		end
-		if(~cyc_i) begin
+		if(~bus_accessed) begin
 			$display("We should be engaging the bus to store."); $stop;
 		end
 
@@ -596,7 +600,7 @@ module TEST_UNIT_S16X4();
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'h0001;
 		wait(clk_o); wait(~clk_o);
-		if(cyc_i) begin
+		if(bus_accessed) begin
 			$display("Internal operations like ADD or XOR ought not engage the bus."); $stop;
 		end
 		wait(clk_o); wait(~clk_o);
@@ -624,7 +628,7 @@ module TEST_UNIT_S16X4();
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'h0FF0;
 		wait(clk_o); wait(~clk_o);
-		if(cyc_i) begin
+		if(bus_accessed) begin
 			$display("Internal operations like ADD or XOR ought not engage the bus."); $stop;
 		end
 		wait(clk_o); wait(~clk_o);
@@ -652,7 +656,7 @@ module TEST_UNIT_S16X4();
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'h0FF0;
 		wait(clk_o); wait(~clk_o);
-		if(cyc_i) begin
+		if(bus_accessed) begin
 			$display("Internal operations like ADD or XOR ought not engage the bus."); $stop;
 		end
 		wait(clk_o); wait(~clk_o);
@@ -680,7 +684,7 @@ module TEST_UNIT_S16X4();
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'hAAAA;
 		wait(clk_o); wait(~clk_o);
-		if(cyc_i) begin
+		if(bus_accessed) begin
 			$display("Internal operations like ZGO, NZGO, and GO ought not engage the bus."); $stop;
 		end
 		wait(clk_o); wait(~clk_o);
@@ -704,7 +708,7 @@ module TEST_UNIT_S16X4();
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'hAAAA;
 		wait(clk_o); wait(~clk_o);
-		if(cyc_i) begin
+		if(bus_accessed) begin
 			$display("Internal operations like ZGO, NZGO, and GO ought not engage the bus."); $stop;
 		end
 		wait(clk_o); wait(~clk_o);
@@ -738,7 +742,7 @@ module TEST_UNIT_S16X4();
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'hAAAA;
 		wait(clk_o); wait(~clk_o);
-		if(cyc_i) begin
+		if(bus_accessed) begin
 			$display("Internal operations like ZGO, NZGO, and GO ought not engage the bus."); $stop;
 		end
 		wait(clk_o); wait(~clk_o);
@@ -773,7 +777,7 @@ module TEST_UNIT_S16X4();
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'hAAAA;
 		wait(clk_o); wait(~clk_o);
-		if(cyc_i) begin
+		if(bus_accessed) begin
 			$display("Internal operations like ZGO, NZGO, and GO ought not engage the bus."); $stop;
 		end
 		wait(clk_o); wait(~clk_o);
@@ -795,7 +799,7 @@ module TEST_UNIT_S16X4();
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'hAAAA;
 		wait(clk_o); wait(~clk_o);
-		if(cyc_i) begin
+		if(bus_accessed) begin
 			$display("Internal operations like ZGO, NZGO, and GO ought not engage the bus."); $stop;
 		end
 		wait(clk_o); wait(~clk_o);

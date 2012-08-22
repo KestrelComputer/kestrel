@@ -844,24 +844,30 @@ ACK_I.
  as-is.
  If asserted during a CLK_I rising edge, the bus transaction completes,
  thus allowing the processor to make progress.
- However, if the processor does not require the use of the bus, the state
- of ACK_I will be ignored.
+ However, if the processor does not require the use of the bus, namely when
+ either CYC_O or STB_O are negated, the state of ACK_I will be ignored,
+ allowing the processor to make progress at the CLK_I frequency regardless
+ of external bus activity.
 \end_layout
 
 \begin_layout Description
 ADR_O(15:1).
  This 15-bit bus provides the word address for an external memory or peripheral
  to decode.
- This bus is valid only while CYC_O remains asserted; if CYC_O is negated,
+ This bus is valid only while STB_O remains asserted; if STB_O is negated,
  the value on this bus is undefined.
 \end_layout
 
 \begin_layout Description
 CYC_O.
- When asserted, the processor requires the use of the bus, and is engaged
- in a bus transaction.
- If negated, the processor releases the bus, perhaps for other bus masters
- to use.
+ This signal serves as a flag to external bus arbitration logic that the
+ S16X4 wishes to use the bus, asserting it when it has data to transfer,
+ and negating it otherwise.
+ As such, CYC_O qualifies 
+\emph on
+all
+\emph default
+ other bus signals except for RES_I and CLK_I.
 \end_layout
 
 \begin_layout Description
@@ -869,6 +875,8 @@ DAT_I(15:0).
  When reading from external memory or peripherals, the addressed memory
  or peripheral puts its data on this bus.
  This bus must be valid at least by the time ACK_I is asserted.
+ The processor senses the state of this bus only when it asserts STB_O and
+ negates WE_O; it ignores it otherwise.
 \end_layout
 
 \begin_layout Description
@@ -877,14 +885,39 @@ DAT_O(15:0).
  peripheral must accept data from this bus.
  This bus will remain valid at least until ACK_I is asserted and the following
  CLK_I rising edge.
+ The processor will place valid data on this bus only while asserting STB_O.
+ Peripherals must never trust the value on this bus when the processor negates
+ STB_O.
 \end_layout
 
 \begin_layout Description
-STB_O(1:0).
+SEL_O(1:0).
  These signals indicates which byte-lanes are valid.
- STB_O(1) indicates that DAT_I/DAT_O(15:8) are valid, while STB_O(0) indicates
- that DAT_I/DAT_O(7:0) are valid.
- These signals are valid only while CYC_O remains asserted.
+ SEL_O(1) indicates that the processor expects valid data on DAT_I(15:8)
+ or that the it drives valid data on DAT_O(15:8), while SEL_O(0) does the
+ same respectively for DAT_I(7:0) and DAT_O(7:0).
+ STB_O qualifies these signals.
+ Assertion of both signals implies a full 16-bit transfer.
+\end_layout
+
+\begin_layout Description
+STB_O.
+ This signal qualifies a single bus transfer.
+ As of this writing, the S16X4 supports neither read-modify-write bus transactio
+ns nor burst transactions; thus, the S16X4 maps individual transfers to
+ their own transactions by driving STB_O and CYC_O with the same state for
+ any given clock cycle.
+ It's important to remember, however, that CYC_O requests the use of the
+ bus, while STB_O qualifies a single bus transfer.
+ Future generations of this processor may exploit this semantic of the Wishbone
+ bus without notice.
+ Thus, device-enable and acknowledgement signals should be derived from
+ STB_O 
+\begin_inset Formula $\wedge$
+\end_inset
+
+ CYC_O, not just CYC_O, and certainly never from STB_O alone.
+ 
 \end_layout
 
 \begin_layout Description
@@ -892,14 +925,16 @@ WE_O.
  If asserted, the current bus transaction is a write cycle (data on DAT_O(15:0)).
  If negated, the processor will expect an external peripheral or memory
  to drive data on its DAT_I(15:0) bus.
+ STB_O qualifies this signal.
 \end_layout
 
 \begin_layout Description
 VPA_O.
  Also known as TGA_O(1).
- When asserted, the address on the bus refers to a program address.
+ When asserted, the address on the bus refers to a valid program address.
  This signal will be asserted while the processor is fetching either an
  instruction packet or instruction operands.
+ STB_O qualifies this signal.
 \end_layout
 
 \begin_layout Description
@@ -909,7 +944,8 @@ VDA_O.
  If VPA_O is negated, the address corresponds to data memory or peripherals;
  otherwise, the fetch is for an instruction operand.
  If negated, the fetch must be for an instruction packet.
- The following table will help illustrate:
+ STB_O qualifies this signal.
+ To summarize:
 \end_layout
 
 \begin_layout Description
@@ -971,7 +1007,35 @@ Type of Memory Access
 \begin_inset Text
 
 \begin_layout Plain Layout
-Not possible except when CYC_O = 0 as well.
+Not possible except when (CYC_O
+\family roman
+\series medium
+\shape up
+\size normal
+\emph off
+\bar no
+\strikeout off
+\uuline off
+\uwave off
+\noun off
+\color none
+
+\begin_inset Formula $\wedge$
+\end_inset
+
+STB_O)
+\family default
+\series default
+\shape default
+\size default
+\emph default
+\bar default
+\strikeout default
+\uuline default
+\uwave default
+\noun default
+\color inherit
+ = 0 as well.
 \end_layout
 
 \end_inset
@@ -1077,10 +1141,6 @@ Timing Diagrams
 
 \begin_layout Subsubsection
 Reset Timing
-\end_layout
-
-\begin_layout Subsubsection
-Reset Timing with Wait States
 \end_layout
 
 \begin_layout Subsubsection
