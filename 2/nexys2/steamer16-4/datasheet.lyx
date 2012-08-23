@@ -541,11 +541,6 @@ status open
 \begin_layout Plain Layout
 The corresponding W65C816 microprocessor instruction for this operation
  is STA ($44,S),Y.
- It takes only two instruction bytes to encode, and consumes up to 8 cycles.
- Obviously, it's twice as fast as the S16X4 in this specific case.
- Generally, however, the S16X4 proves at least as fast, and often faster,
- than the W65C816 in other situations.
- 
 \end_layout
 
 \end_inset
@@ -779,6 +774,17 @@ Hardware Interface
 
 \begin_layout Subsection
 Logic Symbol
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename logic-symbol.pdf
+	BoundingBox 0bp 600bp 306bp 792bp
+	clip
+
+\end_inset
+
+
 \end_layout
 
 \begin_layout Subsection
