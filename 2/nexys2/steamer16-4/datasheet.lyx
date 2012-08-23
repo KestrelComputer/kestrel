@@ -107,7 +107,8 @@ Introduction
 \begin_layout Standard
 The Steamer16 architecture, first defined by Myron Plichota in December
  1999 (see Appendix A), specifies an exceptionally small, relatively high
- performance microprocessor ideal for deep-embedded applications.
+ performance microprocessor with good qualities for deep-embedded applications
+ and easy synthesis on small programmable logic devices.
  Originally consisting of 9 instructions and four opcodes per instruction
  word, the design was later revised to include only 8 instructions, allowing
  for five opcodes per 16-bit word.
@@ -785,8 +786,8 @@ Signal Descriptions
 \end_layout
 
 \begin_layout Standard
-The S16X4 complies with Wishbone B.3 bus master standards with a 16-bit port
- size, with 8-bit granularity.
+The S16X4 complies with Wishbone B3 bus master standards with a 16-bit port
+ size and 8-bit granularity.
 \end_layout
 
 \begin_layout Subsubsection
@@ -1285,52 +1286,460 @@ After reset, the S16X4 fetches its first instruction at address $0000.
 Instruction Set
 \end_layout
 
-\begin_layout Subsection
-NOP
+\begin_layout Standard
+Unless stated otherwise, the S16X4 will always consume an appropriate number
+ of elements from the parameter stack prior to generating its results.
 \end_layout
 
 \begin_layout Subsection
-LIT
+NOP (0)
+\end_layout
+
+\begin_layout Subsubsection*
+Function
+\end_layout
+
+\begin_layout LyX-Code
+X := X
+\end_layout
+
+\begin_layout LyX-Code
+Y := Y
+\end_layout
+
+\begin_layout LyX-Code
+Z := Z
+\end_layout
+
+\begin_layout LyX-Code
+P := P
+\end_layout
+
+\begin_layout Subsubsection*
+Description
+\end_layout
+
+\begin_layout Standard
+Takes no action for one execution cycle.
 \end_layout
 
 \begin_layout Subsection
-FWM
+LIT (1)
+\end_layout
+
+\begin_layout Subsubsection*
+Function
+\end_layout
+
+\begin_layout LyX-Code
+X := Y
+\end_layout
+
+\begin_layout LyX-Code
+Y := Z
+\end_layout
+
+\begin_layout LyX-Code
+Z := WordAt(P)
+\end_layout
+
+\begin_layout LyX-Code
+P := P
+\begin_inset Formula $+$
+\end_inset
+
+2
+\end_layout
+
+\begin_layout Subsubsection*
+Description
+\end_layout
+
+\begin_layout Standard
+Fetches the word pointed at by the program counter, placing it onto the
+ parameter stack.
+ The program counter automatically increments to the next word.
 \end_layout
 
 \begin_layout Subsection
-SWM
+FWM (2)
+\end_layout
+
+\begin_layout Subsubsection*
+Function
+\end_layout
+
+\begin_layout LyX-Code
+X := X
+\end_layout
+
+\begin_layout LyX-Code
+Y := Y
+\end_layout
+
+\begin_layout LyX-Code
+Z := WordAt(Z
+\begin_inset Formula $\wedge$
+\end_inset
+
+$FFFE)
+\end_layout
+
+\begin_layout LyX-Code
+P := P
+\end_layout
+
+\begin_layout Subsubsection*
+Description
+\end_layout
+
+\begin_layout Standard
+Fetches a word from memory.
+ Z must hold the address to fetch from; note that bit 0 of the pointer is
+ ignored.
+ After completing the bus transaction, Z will contain the word stored at
+ that location.
 \end_layout
 
 \begin_layout Subsection
-ADD
+SWM (3)
+\end_layout
+
+\begin_layout Subsubsection*
+Function
+\end_layout
+
+\begin_layout LyX-Code
+WordAt(Z
+\begin_inset Formula $\wedge$
+\end_inset
+
+$FFFE) := Y
+\end_layout
+
+\begin_layout LyX-Code
+X := X
+\end_layout
+
+\begin_layout LyX-Code
+Y := X
+\end_layout
+
+\begin_layout LyX-Code
+Z := X
+\end_layout
+
+\begin_layout LyX-Code
+P := P
+\end_layout
+
+\begin_layout Subsubsection*
+Description
+\end_layout
+
+\begin_layout Standard
+Stores the contents of Y into the word addressed by Z.
+ Note that bit 0 of Z is ignored.
 \end_layout
 
 \begin_layout Subsection
-AND
+ADD (4)
+\end_layout
+
+\begin_layout Subsubsection*
+Function
+\end_layout
+
+\begin_layout LyX-Code
+X := X
+\end_layout
+
+\begin_layout LyX-Code
+Y := X
+\end_layout
+
+\begin_layout LyX-Code
+Z := Z
+\begin_inset Formula $+$
+\end_inset
+
+Y
+\end_layout
+
+\begin_layout LyX-Code
+P := P
+\end_layout
+
+\begin_layout Subsubsection*
+Description
+\end_layout
+
+\begin_layout Standard
+Adds two words on the parameter stack, yielding a single result.
 \end_layout
 
 \begin_layout Subsection
-XOR
+AND (5)
+\end_layout
+
+\begin_layout Subsubsection*
+Function
+\end_layout
+
+\begin_layout LyX-Code
+X := X
+\end_layout
+
+\begin_layout LyX-Code
+Y := X
+\end_layout
+
+\begin_layout LyX-Code
+Z := Z
+\begin_inset Formula $\wedge$
+\end_inset
+
+Y
+\end_layout
+
+\begin_layout LyX-Code
+P := P
+\end_layout
+
+\begin_layout Subsubsection*
+Description
+\end_layout
+
+\begin_layout Standard
+Computes the bit-wise AND of Y and Z, yielding a single result.
 \end_layout
 
 \begin_layout Subsection
-ZGO
+XOR (6)
+\end_layout
+
+\begin_layout Subsubsection*
+Function
+\end_layout
+
+\begin_layout LyX-Code
+X := X
+\end_layout
+
+\begin_layout LyX-Code
+Y := X
+\end_layout
+
+\begin_layout LyX-Code
+Z := Z
+\begin_inset Formula $\oplus$
+\end_inset
+
+Y
+\end_layout
+
+\begin_layout LyX-Code
+P := P
+\end_layout
+
+\begin_layout Subsubsection*
+Description
+\end_layout
+
+\begin_layout Standard
+Computes the bit-wise exclusive-OR of Y and Z, yielding a single result.
 \end_layout
 
 \begin_layout Subsection
-GO
+ZGO (7)
+\end_layout
+
+\begin_layout Subsubsection*
+Function
+\end_layout
+
+\begin_layout LyX-Code
+X := X
+\end_layout
+
+\begin_layout LyX-Code
+Y := X
+\end_layout
+
+\begin_layout LyX-Code
+Z := X
+\end_layout
+
+\begin_layout LyX-Code
+P := (Y
+\begin_inset Formula $\not=$
+\end_inset
+
+0)
+\begin_inset Formula $\rightarrow$
+\end_inset
+
+P ; Z
+\end_layout
+
+\begin_layout Subsubsection*
+Description
+\end_layout
+
+\begin_layout Standard
+If Y holds a non-zero value, continue processing with the next instruction
+ in the current instruction word.
+ Otherwise, jump to the address contained in Z.
 \end_layout
 
 \begin_layout Subsection
-NZGO
+FBM (A)
+\end_layout
+
+\begin_layout Subsubsection*
+Function
+\end_layout
+
+\begin_layout LyX-Code
+X := X
+\end_layout
+
+\begin_layout LyX-Code
+Y := Y
+\end_layout
+
+\begin_layout LyX-Code
+Z := ZeroExtend(ByteAt(Z))
+\end_layout
+
+\begin_layout LyX-Code
+P := P
+\end_layout
+
+\begin_layout Subsubsection*
+Description
+\end_layout
+
+\begin_layout Standard
+Fetches the byte contained at the address in Z.
+ Note all 16-bits of Z comprise the byte address.
 \end_layout
 
 \begin_layout Subsection
-FBM
+SBM (B)
+\end_layout
+
+\begin_layout Subsubsection*
+Function
+\end_layout
+
+\begin_layout LyX-Code
+ByteAt(Z) := Y
+\begin_inset Formula $\wedge$
+\end_inset
+
+$00FF
+\end_layout
+
+\begin_layout LyX-Code
+X := X
+\end_layout
+
+\begin_layout LyX-Code
+Y := X
+\end_layout
+
+\begin_layout LyX-Code
+Z := X
+\end_layout
+
+\begin_layout LyX-Code
+P := P
+\end_layout
+
+\begin_layout Subsubsection*
+Description
+\end_layout
+
+\begin_layout Standard
+Stores the byte held in Y(7:0) at the memory location referenced by Z.
+ Note all 16-bits of Z comprise the byte address.
 \end_layout
 
 \begin_layout Subsection
-SBM
+GO (E)
+\end_layout
+
+\begin_layout Subsubsection*
+Function
+\end_layout
+
+\begin_layout LyX-Code
+X := X
+\end_layout
+
+\begin_layout LyX-Code
+Y := X
+\end_layout
+
+\begin_layout LyX-Code
+Z := Y
+\end_layout
+
+\begin_layout LyX-Code
+P := Z
+\end_layout
+
+\begin_layout Subsubsection*
+Description
+\end_layout
+
+\begin_layout Standard
+Unconditionally jumps to the address in Z.
+ The processor discards the current instruction register contents, causing
+ an immediate fetch for a new instruction word.
+\end_layout
+
+\begin_layout Subsection
+NZGO (F)
+\end_layout
+
+\begin_layout Subsubsection*
+Function
+\end_layout
+
+\begin_layout LyX-Code
+X := X
+\end_layout
+
+\begin_layout LyX-Code
+Y := X
+\end_layout
+
+\begin_layout LyX-Code
+Z := X
+\end_layout
+
+\begin_layout LyX-Code
+P := (Y
+\begin_inset Formula $\not\not=$
+\end_inset
+
+0)
+\begin_inset Formula $\rightarrow$
+\end_inset
+
+Z ; P
+\end_layout
+
+\begin_layout Subsubsection*
+Description
+\end_layout
+
+\begin_layout Standard
+If Y holds a non-zero value, branch to the address in Z.
+ Otherwise, continue with the next instruction in the currently fetched
+ instruction word, if any.
 \end_layout
 
 \begin_layout Section
@@ -1341,16 +1750,262 @@ Roadmap
 Support for Interrupts
 \end_layout
 
+\begin_layout Standard
+When working with multitasking or otherwise with event-driven external stimuli,
+ support for interrupts proves valuable.
+ The S16X4 presently lacks interrupts; however, future revisions to the
+ processor will add support for them.
+\end_layout
+
+\begin_layout Standard
+Preliminarily speaking, I anticipate using address $0004 as the interrupt
+ handler entry point.
+ For this reason, good S16X4 coding practices suggests using a LIT/GO combinatio
+n at location $0000, like so:
+\end_layout
+
+\begin_layout LyX-Code
+ORG $0000
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+XREF cold_boot_entry_point
+\end_layout
+
+\begin_layout LyX-Code
+XREF interrupt_handler_entry_point
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+; $0000 - reset entry point
+\end_layout
+
+\begin_layout LyX-Code
+LIT cold_boot_entry_point
+\end_layout
+
+\begin_layout LyX-Code
+GO
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+; $0004 - interrupt entry point
+\end_layout
+
+\begin_layout LyX-Code
+LIT interrupt_handler_entry_point
+\end_layout
+
+\begin_layout LyX-Code
+GO
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+; ...
+\end_layout
+
+\begin_layout Standard
+Saving application context to memory, such as will be necessary to support
+ context-switching in any multitasking environment, will require at least
+ two additional parameter stack registers.
+ For this reason, any S16X4 model that supports interrupts will likely support
+ 
+\emph on
+three
+\emph default
+ extra stack registers, U, V, and W, behind the current X, Y, and Z.
+ This should give sufficient room to either ignore the contents of X, Y,
+ and Z completely
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+For this approach to work, the interrupt handler will need to be proven
+ to never use more than three stack elements under any circumstances.
+\end_layout
+
+\end_inset
+
+, or enough room to save and restore application X, Y, and Z values to/from
+ memory using any effective address computation you choose.
+\end_layout
+
 \begin_layout Subsection
-32-Bit Architecture
+32- or 64-Bit Successors
+\end_layout
+
+\begin_layout Standard
+Contemporary applications work extensively with graphics data, like it or
+ not.
+ The freedom and flexibility of a fully bitmapped display, however, is paid
+ for in memory consumed by a frame buffer.
+ A simple 640
+\begin_inset Formula $\times$
+\end_inset
+
+480, monochrome bitmapped display consumes 38KiB of memory; more than half
+ that addressible by the S16X4.
+ For a true-color display at the same resolution, a framebuffer will consume
+ a minimum of 921 600 bytes of storage.
+ Additionally, the instruction set for the S16X4 lacks many useful primitives,
+ including but not limited to multiplication, bit-shifts, etc.
+ To overcome these limitations in a performant manner often involves the
+ use of a look-up table of some kind.
+\end_layout
+
+\begin_layout Standard
+To that end, working with a larger address space motivates the consideration
+ for wider data paths inside the processor core itself.
+ A hypothetical 32-bit variant of the S16X4 would have several useful characteri
+stics:
+\end_layout
+
+\begin_layout Itemize
+It can pack 8 4-bit instructions per instruction word fetched.
+ This matches nicely the average basic block length of 8 instructions.
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+http://piotrbania.com/all/articles/bb_instr_stats.html , accessed 2012-Aug-23.
+\end_layout
+
+\end_inset
+
+ This translates to a small yet measurable performance increase, particularly
+ useful inside inner-loops, for the microprocessor will need to issue fewer
+ instruction fetches for the same amount of work done.
+ It also reduces the size of a program by roughly halving the number of
+ instruction words fetched for a given number of operands fetched.
+ It decreases the best-case instruction delays from 1.250 cycles to 1.125
+ cycles.
+\end_layout
+
+\begin_layout Itemize
+If we widen the instructions to 5 bits, we can add support for many missing
+ features, such as an internal return stack for fast subroutine support,
+ bit-shift operators, multiply-step instructions, etc.
+ We pay for this by packing fewer instructions per instruction word, however;
+ with 5-bit opcodes, we can reliably pack only 6 5-bit opcodes.
+ Good code density can still be expected, but not as good as having 8.
+\end_layout
+
+\begin_layout Itemize
+Support for a flat 4GiB address space, providing more than enough storage
+ space for large bitmapped displays or extensive look-up tables.
+\end_layout
+
+\begin_layout Standard
+A 64-bit variant of the architecture may not offer any useful advantage,
+ again excepting for the case of larger address space.
+ This poses an interesting design challenge: does one simply widen everything
+ to 64-bits including the instruction word, or can one be made which retains
+ an essentially 32-bit instruction word (for the purposes of best code density)
+ while retaining an essentially 64-bit data word width? If the latter approaches
+ are taken, how do we handle 64-bit literals in an otherwise 32-bit instruction
+ stream? A 64-bit Steamer adaptation will require further research before
+ any predictions on its characteristics can be made.
 \end_layout
 
 \begin_layout Subsection
 Macro-instruction Execution
 \end_layout
 
+\begin_layout Standard
+Many instruction patterns emerge as you become more familiar with assembly-level
+ programming of the S16X4 processor.
+ For example, pushing a literal address then executing a GO instruction,
+ takes two cycles to execute, not including instruction word fetches.
+ It's conceivable, then, that the processor can recognize this sequence
+ of instructions (opcodes 1, E, in that order) and implement an inline jump
+ behavior in a single cycle.
+ Conditional branches most likely would benefit the most from this optimization,
+ as they're most likely to be found inside loop bodies.
+\end_layout
+
+\begin_layout Standard
+Fetching a word from memory and using it to operate on the parameter stack
+ happens quite frequently.
+ For example, to add two variables in memory together, and store it in a
+ third, you might use this code:
+\end_layout
+
+\begin_layout LyX-Code
+LIT var1
+\end_layout
+
+\begin_layout LyX-Code
+FWM
+\end_layout
+
+\begin_layout LyX-Code
+LIT var2
+\end_layout
+
+\begin_layout LyX-Code
+FWM
+\end_layout
+
+\begin_layout LyX-Code
+ADD
+\end_layout
+
+\begin_layout LyX-Code
+LIT var3
+\end_layout
+
+\begin_layout LyX-Code
+SWM
+\end_layout
+
+\begin_layout Standard
+The first and perhaps most obvious optimization involves the processor recognizi
+ng a fetch/operate pattern (in this case, opcodes 2, 4 in that order).
+ The processor, in this case, would have a modified data path inside the
+ ALU circuitry, allowing Z to appear on the address bus, while the DAT_I
+ signals route directly to the ALU Z input.
+ In this way, fetching a value and adding, ANDing, or XORing can be accomplished
+ in a single cycle instead of two.
+\end_layout
+
+\begin_layout Standard
+You might think it'd be worth optimizing LIT/FWM combinations since they
+ happen frequently as well.
+ However, doing so continues to require two bus cycles (one to fetch the
+ address, and one to fetch what's at that address), so the net result is
+ a wash.
+\end_layout
+
+\begin_layout Standard
+Since it'd generally prove difficult to recognize instruction sequences
+ across instruction word boundaries, this optimization would make more sense
+ on wider Steamer architectures (32-bit or larger), where greater opportunities
+ for larger patterns exist to be recognized.
+\end_layout
+
 \begin_layout Section
 Original Steamer16 Announcement
+\end_layout
+
+\begin_layout Standard
+The following e-mail message has been edited only so as to fit the typesetting
+ limitations used in this data-sheet.
 \end_layout
 
 \begin_layout LyX-Code
@@ -1366,192 +2021,327 @@ From: "Myron Plichota" <myron.plichota@xxxxxxxxxxxx>
 \end_layout
 
 \begin_layout LyX-Code
-Date: Fri, 31 Dec 1999 11:01:53 -0500 
+Date: Fri, 31 Dec 1999 11:01:53 -0500
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+I have developed a 16-bit zero-operand stack machine that I call 
 \end_layout
 
 \begin_layout LyX-Code
-
+Steamer16.
+ It fits on the Cypress CY37128 CPLD in an 84-pin PLCC
 \end_layout
 
 \begin_layout LyX-Code
-I have developed a 16-bit zero-operand stack machine that I call Steamer16.
- It fits on the Cypress CY37128 CPLD in an 84-pin PLCC package.
- Using the 125 MHz speed grade, wirewrapped operation at 20 MHz is predicted
- by the simulator.
+package.
+ Using the 125 MHz speed grade, wirewrapped operation at
 \end_layout
 
 \begin_layout LyX-Code
+20 MHz is predicted by the simulator.
+\begin_inset Newline newline
+\end_inset
 
+
+\begin_inset Newline newline
+\end_inset
+
+Unfortunately, a dual-stack Forth architecture doesn't fit in the
 \end_layout
 
 \begin_layout LyX-Code
-Unfortunately, a dual-stack Forth architecture doesn't fit in the 128 macrocells
- available.
- Consequently the design isn't a true Forth chip, but it is a zero-operand
- stack machine nonetheless.
- In the future I would like to fit a true Forth architecture to one of the
- CPLD or FPGA architectures that include on-chip RAM blocks for the stacks.
+128 macrocells available.
+ Consequently the design isn't a true Forth
 \end_layout
 
 \begin_layout LyX-Code
-
+chip, but it is a zero-operand stack machine nonetheless.
+ In the
 \end_layout
 
 \begin_layout LyX-Code
-Being fearfull of actually fitting the design to the target device, the
- instruction set and architecture was minimized to a ridiculous extent,
- and it indeed just barely fits.
- In the future, more elaborate implementations may be implemented on larger
- devices not suitable for hobby projects due to exotic packaging.
- For this reason, the documentation contains nerdy phrases typical of growth-pat
-h specifications, but don't let that distract you from understanding the
- Steamer16 initial implementation that exists today.
+future I would like to fit a true Forth architecture to one of the
 \end_layout
 
 \begin_layout LyX-Code
-
+CPLD or FPGA architectures that include on-chip RAM blocks for the
 \end_layout
 
 \begin_layout LyX-Code
-I plan to design a companion chip, also using the CY37128 to provide a timer,
- parallel I/O, a funnel shifter, memory decoder/wait state logic, and glue
- logic for a 16-bit 3-port multiplier/accumulator.
+stacks.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Being fearfull of actually fitting the design to the target device,
 \end_layout
 
 \begin_layout LyX-Code
-
+the instruction set and architecture was minimized to a ridiculous
 \end_layout
 
 \begin_layout LyX-Code
-I think it might be bad netiqette to attach the 40Kbyte zip file I have
- available because of the load on the MISC server.
- It contains the assembler, JEDEC file, and side documentation.
- Interested parties should e-mail me for a copy.
- Please withold any technical questions until having read the documentation
- package.
+extent, and it indeed just barely fits.
+ In the future, more elaborate
 \end_layout
 
 \begin_layout LyX-Code
-
+implementations may be implemented on larger devices not suitable for
 \end_layout
 
 \begin_layout LyX-Code
-BTW, I am well aware of the shortcomings of the Steamer16 implementation,
- so please don't take me to task over it.
- My defense is: 1) it fits on a low-cost CPLD in a package hobbyists can
- deal with 2) companion chips can alleviate some of the shortcomings 3)
- at 20 MHz, it can clunk through inelegant code sequences quickly
+hobby projects due to exotic packaging.
+ For this reason, the document-
 \end_layout
 
 \begin_layout LyX-Code
-
+ation contains nerdy phrases typical of growth-path specifications,
 \end_layout
 
 \begin_layout LyX-Code
-Following is an excerpt from the assembler documentation (STASM.TXT), part
- of the zipped package.
+but don't let that distract you from understanding the Steamer16 init-
 \end_layout
 
 \begin_layout LyX-Code
+ial implementation that exists today.
+\begin_inset Newline newline
+\end_inset
 
+
+\begin_inset Newline newline
+\end_inset
+
+I plan to design a companion chip, also using the CY37128 to provide
 \end_layout
 
 \begin_layout LyX-Code
+a timer, parallel I/O, a funnel shifter, memory decoder/wait state
+\end_layout
+
+\begin_layout LyX-Code
+logic, and glue logic for a 16-bit 3-port multiplier/accumulator.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+I think it might be bad netiqette to attach the 40Kbyte zip file I
+\end_layout
+
+\begin_layout LyX-Code
+have available because of the load on the MISC server.
+ It contains
+\end_layout
+
+\begin_layout LyX-Code
+the assembler, JEDEC file, and side documentation.
+ Interested parties
+\end_layout
+
+\begin_layout LyX-Code
+should e-mail me for a copy.
+ Please withold any technical questions
+\end_layout
+
+\begin_layout LyX-Code
+until having read the documentation package.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+BTW, I am well aware of the shortcomings of the Steamer16 implement-
+\end_layout
+
+\begin_layout LyX-Code
+ation, so please don't take me to task over it.
+ My defense is: 1) it
+\end_layout
+
+\begin_layout LyX-Code
+fits on a low-cost CPLD in a package hobbyists can deal with 2) com-
+\end_layout
+
+\begin_layout LyX-Code
+panion chips can alleviate some of the shortcomings 3) at 20 MHz, it
+\end_layout
+
+\begin_layout LyX-Code
+can clunk through inelegant code sequences quickly  (sic)
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Following is an excerpt from the assembler documentation (STASM.TXT),
+\end_layout
+
+\begin_layout LyX-Code
+part of the zipped package.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
 Happy New Millenium, MISCers! Myron Plichota
-\end_layout
+\begin_inset Newline newline
+\end_inset
 
-\begin_layout LyX-Code
 
-\end_layout
+\begin_inset Newline newline
+\end_inset
 
-\begin_layout LyX-Code
 ************************************************************
-\end_layout
+\begin_inset Newline newline
+\end_inset
 
-\begin_layout LyX-Code
 
-\end_layout
+\begin_inset Newline newline
+\end_inset
 
-\begin_layout LyX-Code
 Programming Model:
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The Steamer architecture consists of a program counter (P) and a 3-
 \end_layout
 
 \begin_layout LyX-Code
-
-\end_layout
-
-\begin_layout LyX-Code
-The Steamer architecture consists of a program counter (P) and a 3-deep
- RPN evaluation stack (TOP, 2ND, 3RD).
+deep RPN evaluation stack (TOP, 2ND, 3RD).
  P is cleared on reset.
- The stack registers are undefined until loaded under program control.
- There is no program status word or carry flag.
- P addresses instruction groups, not necessarily individual instructions.
- Steamer architecture mandates operations on natural size words without
- forbidding other data types.
 \end_layout
 
 \begin_layout LyX-Code
-
+The stack registers are undefined until loaded under program control.
 \end_layout
 
 \begin_layout LyX-Code
-Steamer16 implements the Steamer architecture in 16 bits, with no enhancements.
+There is no program status word or carry flag.
+ P addresses instruction
 \end_layout
 
 \begin_layout LyX-Code
-
+groups, not necessarily individual instructions.
+ Steamer architecture
 \end_layout
 
 \begin_layout LyX-Code
+mandates operations on natural size words without forbidding other
+\end_layout
+
+\begin_layout LyX-Code
+data types.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Steamer16 implements the Steamer architecture in 16 bits, with no
+\end_layout
+
+\begin_layout LyX-Code
+enhancements.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
 Stack diagrams:
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+Stack diagrams are used to describe instruction behavior by showing
 \end_layout
 
 \begin_layout LyX-Code
-
+both the inputs on the stack and the results in a concise notation.
 \end_layout
 
 \begin_layout LyX-Code
-Stack diagrams are used to describe instruction behavior by showing both
- the inputs on the stack and the results in a concise notation.
- The input list is on the left-hand side of the "--" before/after separator,
- the results are on the right-hand side.
+The input list is on the left-hand side of the "--" before/after
+\end_layout
+
+\begin_layout LyX-Code
+separator, the results are on the right-hand side.
   eg.
- ( 3RD 2ND TOP -- 3RD 2ND TOP)
+ ( 3RD 2ND
 \end_layout
 
 \begin_layout LyX-Code
+TOP -- 3RD 2ND TOP)
+\begin_inset Newline newline
+\end_inset
 
+
+\begin_inset Newline newline
+\end_inset
+
+The input list shows the proper order of input entry in left-to-
 \end_layout
 
 \begin_layout LyX-Code
-The input list shows the proper order of input entry in left-to-right order.
+right order.
  The input list shows only the requisite stack entries.
-\end_layout
+\begin_inset Newline newline
+\end_inset
 
-\begin_layout LyX-Code
 
-\end_layout
+\begin_inset Newline newline
+\end_inset
 
-\begin_layout LyX-Code
 The output list shows all three entries.
- The symbols x, y, and z, are used to denote the original values of any
- surviving independent stack entries.
+ The symbols x, y, and z,
 \end_layout
 
 \begin_layout LyX-Code
-
+are used to denote the original values of any surviving independent
 \end_layout
 
 \begin_layout LyX-Code
+stack entries.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
 Instruction Descriptions: opcodes are in hexadecimal order
-\end_layout
+\begin_inset Newline newline
+\end_inset
 
-\begin_layout LyX-Code
 
-\end_layout
+\begin_inset Newline newline
+\end_inset
 
-\begin_layout LyX-Code
 NOP, {0} ( -- x y z)           no operation
 \end_layout
 
@@ -1584,14 +2374,18 @@ XOR, {E} ( n1 n2 -- x x n1^n2) exclusive-or 2ND to TOP
 \end_layout
 
 \begin_layout LyX-Code
-zgo, {F} ( flg addr -- x x x)  if flg equals 0 then jump to addr else continue
+zgo, {F} ( flg addr -- x x x)  if flg equals 0 then jump to addr 
 \end_layout
 
 \begin_layout LyX-Code
+                               else continue
+\begin_inset Newline newline
+\end_inset
 
-\end_layout
 
-\begin_layout LyX-Code
+\begin_inset Newline newline
+\end_inset
+
 Notes:
 \end_layout
 
@@ -1601,63 +2395,93 @@ Notes:
 \end_layout
 
 \begin_layout LyX-Code
-  2) lit, is the only instruction that grows the stack, destroying 3RD.
+  2) lit, is the only instruction that grows the stack, 
 \end_layout
 
 \begin_layout LyX-Code
-  3) The Steamer16 instruction set contains no additions to the Steamer
- required instruction set.
+destroying 3RD.
 \end_layout
 
 \begin_layout LyX-Code
-  4) Opcodes {1..7} are implemented as no operation and are not part of the
- Steamer required instruction set.
+  3) The Steamer16 instruction set contains no additions to the 
 \end_layout
 
 \begin_layout LyX-Code
-
+Steamer required instruction set.
 \end_layout
 
 \begin_layout LyX-Code
+  4) Opcodes {1..7} are implemented as no operation and are not 
+\end_layout
+
+\begin_layout LyX-Code
+part of the Steamer required instruction set.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
 Instruction Timing:
-\end_layout
+\begin_inset Newline newline
+\end_inset
 
-\begin_layout LyX-Code
 
-\end_layout
+\begin_inset Newline newline
+\end_inset
 
-\begin_layout LyX-Code
 Steamer16 executes all instructions in 1 clock cycle.
- A quartet fetch cycle is required when the current quartet has finished
- executing or a jump is taken.
- For sequential execution, quartets are fetched and executed in 5 clocks.
+ A quartet
 \end_layout
 
 \begin_layout LyX-Code
-
+fetch cycle is required when the current quartet has finished
 \end_layout
 
 \begin_layout LyX-Code
-Software delays are deterministic and may be counted from the fetch of any
- quartet.
+executing or a jump is taken.
+ For sequential execution, quartets
 \end_layout
 
 \begin_layout LyX-Code
+are fetched and executed in 5 clocks.
+\begin_inset Newline newline
+\end_inset
 
+
+\begin_inset Newline newline
+\end_inset
+
+Software delays are deterministic and may be counted from the
 \end_layout
 
 \begin_layout LyX-Code
-The adder for the +, instruction is implemented as a cascade of 8 2-bit
- ripple-carry adder cells.
- Running on a 125 MHz part, the maximum clock frequency is 20 MHz for unambiguou
-s results.
+fetch of any quartet.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
+The adder for the +, instruction is implemented as a cascade of
 \end_layout
 
 \begin_layout LyX-Code
-
+8 2-bit ripple-carry adder cells.
+ Running on a 125 MHz part, the
 \end_layout
 
 \begin_layout LyX-Code
+maximum clock frequency is 20 MHz for unambiguous results.
+\begin_inset Newline newline
+\end_inset
+
+
+\begin_inset Newline newline
+\end_inset
+
 Instruction timing is not mandated in the Steamer architecture.
 \end_layout
 
