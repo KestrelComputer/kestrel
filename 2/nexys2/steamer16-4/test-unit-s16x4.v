@@ -51,12 +51,21 @@ module TEST_UNIT_S16X4();
 		wait(clk_o); wait(~clk_o);
 		
 		// AS A hardware engineer
-		// I WANT the CPU to start execution at address $..FFF0
+		// I WANT the CPU to start execution at address $...000
 		// SO THAT I can jump to the appropriate initialization code.
 		
 		story_o <= 16'h0000;
 		res_o <= 1;
 		ack_o <= 1;
+		wait(clk_o); wait(~clk_o);
+		if(cyc_i) begin
+			$display("Per Wishbone B3 standards, bus must be idle for one cycle after reset."); $stop;
+		end
+		if(stb_i) begin
+			$display("Per Wishbone B3 standards, bus must be idle for one cycle after reset."); $stop;
+		end
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
 		wait(clk_o); wait(~clk_o);
 		if(adr_i != (`RESET_ORIGIN >> 1)) begin
 			$display("CPU should fetch its first instruction at $..FF0"); $stop;
@@ -85,13 +94,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 0;
 		wait(clk_o); wait(~clk_o);
-		if(adr_i != (`RESET_ORIGIN >> 1)) begin
-			$display("CPU should be fetching first instruction here."); $stop;
-		end
 		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		if(adr_i != (`RESET_ORIGIN >> 1)) begin
-			$display("CPU should still be fetching first instruction here."); $stop;
+			$display("CPU should be fetching first instruction here."); $stop;
 		end
 		ack_o <= 1;
 		dat_o <= 16'h1000;
@@ -108,13 +115,15 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		if(vpa_i != 1) begin
 			$display("CPU should be trying to fetch from program space right now."); $stop;
 		end
 		if(vda_i != 0) begin
 			$display("CPU should not be fetching an operand to an instruction."); $stop;
 		end
-		res_o <= 0;
 		dat_o <= 16'h1000;
 		wait(clk_o); wait(~clk_o);
 		if(vpa_i != 1) begin
@@ -140,13 +149,15 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		if(vpa_i != 1) begin
 			$display("CPU should be trying to fetch from program space right now."); $stop;
 		end
 		if(vda_i != 0) begin
 			$display("CPU should not be fetching an operand to an instruction."); $stop;
 		end
-		res_o <= 0;
 		dat_o <= 16'h0010;
 		wait(clk_o); wait(~clk_o);
 		if(bus_accessed) begin
@@ -209,9 +220,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		
 		dat_o <= 16'h1130;		// LI $BBBB:LI $AAAA:SWM:NOP
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'hBBBB;
 		wait(clk_o); wait(~clk_o);
@@ -260,9 +273,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 
 		dat_o <= 16'h11B0;		// LI $BBBB:LI $AAAA:SBM:NOP
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'hBBBB;
 		wait(clk_o); wait(~clk_o);
@@ -312,9 +327,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 
 		dat_o <= 16'h11B0;		// LI $BBBB:LI $AAAB:SBM:NOP
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'hBBBB;
 		wait(clk_o); wait(~clk_o);
@@ -363,9 +380,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 
 		dat_o <= 16'h11B0;		// LI $BBBB:LI $AAAB:SBM:NOP
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'hBBBB;
 		wait(clk_o); wait(~clk_o);
@@ -438,9 +457,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		
 		dat_o <= 16'h1213;		// LI $BBBB:FWM:LI $AAAA:SWM
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'hBBBB;
 		wait(clk_o); wait(~clk_o);
@@ -515,9 +536,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		
 		dat_o <= 16'h1A13;		// LI $BBBB:FBM:LI $AAAA:SWM
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'hBBBB;
 		wait(clk_o); wait(~clk_o);
@@ -592,9 +615,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		
 		dat_o <= 16'h1141;		// LI $7FFF:LI $0001:ADD:LI $xxxx
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'h7FFF;
 		wait(clk_o); wait(~clk_o);
@@ -620,9 +645,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		
 		dat_o <= 16'h1151;		// LI $7FFF:LI $0001:AND:LI $xxxx
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'h7FFF;
 		wait(clk_o); wait(~clk_o);
@@ -648,9 +675,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		
 		dat_o <= 16'h1161;		// LI $7FFF:LI $0001:XOR:LI $xxxx
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'h7FFF;
 		wait(clk_o); wait(~clk_o);
@@ -676,9 +705,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		
 		dat_o <= 16'h1173;		// LI 0:LI $AAAA:ZGO:SWM (Avoiding early instruction fetch ensures ZGO is the cause of immediate instruction fetch.)
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'h0000;
 		wait(clk_o); wait(~clk_o);
@@ -700,9 +731,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		
 		dat_o <= 16'h1173;		// LI 1:LI $AAAA:ZGO:SWM (Avoiding early instruction fetch ensures ZGO is the cause of immediate instruction fetch.)
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'h0001;
 		wait(clk_o); wait(~clk_o);
@@ -734,9 +767,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		
 		dat_o <= 16'h11F3;		// LI 0:LI $AAAA:NZGO:SWM (Avoiding early instruction fetch ensures ZGO is the cause of immediate instruction fetch.)
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'h0000;
 		wait(clk_o); wait(~clk_o);
@@ -769,9 +804,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		
 		dat_o <= 16'h11F3;		// LI 1:LI $AAAA:NZGO:SWM (Avoiding early instruction fetch ensures ZGO is the cause of immediate instruction fetch.)
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'h0001;
 		wait(clk_o); wait(~clk_o);
@@ -793,9 +830,11 @@ module TEST_UNIT_S16X4();
 		res_o <= 1;
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
 		
 		dat_o <= 16'h1E33;		// LI $AAAA:GO:SWM:SWM  (Avoiding early instruction fetch ensures ZGO is the cause of immediate instruction fetch.)
-		res_o <= 0;
 		wait(clk_o); wait(~clk_o);
 		dat_o <= 16'hAAAA;
 		wait(clk_o); wait(~clk_o);

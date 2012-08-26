@@ -5,7 +5,7 @@
      behavior or data corruption.  It is strongly advised that
      users do not edit the contents of this file. -->
 <messages>
-<msg type="warning" file="HDLCompiler" num="568" delta="unknown" >"/home/kc5tja/Projects/kestrel/2/nexys2/steamer16-4/steamer16x4.v" Line 68: Constant value is truncated to fit in &lt;<arg fmt="%d" index="1">5</arg>&gt; bits.
+<msg type="warning" file="HDLCompiler" num="568" delta="unknown" >"/home/kc5tja/Projects/kestrel/2/nexys2/steamer16-4/steamer16x4.v" Line 70: Constant value is truncated to fit in &lt;<arg fmt="%d" index="1">5</arg>&gt; bits.
 </msg>
 
 </messages>

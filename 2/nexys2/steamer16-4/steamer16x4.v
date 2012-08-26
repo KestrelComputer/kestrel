@@ -56,22 +56,36 @@ module STEAMER16X4(
 	reg	[15:1]	p;
 	reg	[15:0]	x, y, z, next_x, next_y, next_z;
 	reg	[15:0]	ir;
-
+	reg				res1, res2;
+	
+	wire				reset = (res1 | res2);
+	wire				y_is_zero = y == 0;
 	wire				t0 = t[0];
 	wire				no_more_instructions = t0 ? (dat_i == 16'h0000) : (ir[11:0] == 12'h000);
 	wire	[3:0]		current_opcode = ir[15:12];
 	wire				increment_p = t0 | (current_opcode == `OPC_LIT);
 	wire				branch_taken = ((current_opcode == `OPC_ZGO) && y_is_zero) | ((current_opcode == `OPC_NZGO) && ~y_is_zero) | (current_opcode == `OPC_GO);
-	wire				goto_t0 = res_i | no_more_instructions | branch_taken;
-	wire				y_is_zero = y == 0;
-	wire	[15:1]	next_p = res_i ? 0 : (increment_p ? p+1 : (branch_taken ? z[15:1] : p));
+	wire				goto_t0 = reset | no_more_instructions | branch_taken;
+	wire	[15:1]	next_p = reset ? 0 : (increment_p ? p+1 : (branch_taken ? z[15:1] : p));
 	wire	[4:0]		next_t = goto_t0 ? 5'hb00001 : (t << 1);
 	wire	[15:0]	sum = y + z;
 	wire	[15:0]	mask = y & z;
 	wire	[15:0]	flips = y ^ z;
 
 	always @(*) begin
-		if(t0)	begin
+		if(reset) begin
+			adr <= 0;
+			we <= 0;
+			cyc <= 0;
+			sel <= 2'b00;
+			vda <= 0;
+			vpa <= 0;
+			dat <= 0;
+			next_x <= x;
+			next_y <= y;
+			next_z <= z;
+		end
+		else if(t0)	begin
 			adr <= p;
 			we <= 0;
 			cyc <= 1;
@@ -242,7 +256,10 @@ module STEAMER16X4(
 	end
 
 	always @(posedge clk_i) begin
-		if(res_i || cycle_done) begin
+		res2 <= res1;
+		res1 <= res_i;
+
+		if(reset || cycle_done) begin
 			t <= next_t;
 			p <= next_p;
 		end
