@@ -22,7 +22,7 @@ VARIABLE pibptr
 : pibc!		inside >pib c! ;
 : pibc@		inside >pib c@ ;
 : pib,		pibptr @ pib!  1 TWORDS pibptr +! ;
-: pibc,		pibptr @ pibc!  1 pibptr +! ;
+: pibc,		pibptr @ pibc!	1 pibptr +! ;
 
 \ \ \ VERILOG DUMPER
 
@@ -50,6 +50,7 @@ variable slot
 
 : enforce	pibptr @ iptr !  0 pib,  $F000 slot ! ;
 : bblk		slot @ $F000 XOR IF align, enforce THEN ;
+: eject		0 slot ! ;
 : slot>>	slot @ 2/ 2/ 2/ 2/ $0FFF AND slot ! ;
 : repl		15 AND DUP 2* 2* 2* 2* OR DUP $0100 * OR ;
 : pack		repl slot @ AND iptr @ pib@ OR iptr @ pib! slot>> ;
@@ -82,6 +83,7 @@ VARIABLE rpa ( Return Pointer Address )
 
 : call,		bblk pibptr @ 4 + #, #, GO, ;
 : DEFER,	bblk CREATE iptr @ , 0 #, GO, DOES> @ call, ;
+: IS,		' >body @ 1 TWORDS + pib! ;
 : preamble	iptr @ -1 TWORDS + #, !, bblk ;
 : rtnword	bblk iptr @ rpa ! 1 TWORDS iptr +! 0 pib, ;
 : :,		CREATE rtnword iptr @ , preamble DOES> @ call, ;
@@ -95,6 +97,10 @@ VARIABLE rpa ( Return Pointer Address )
 		\ starting new instruction packets.
 : then,		bblk iptr @ swap pib! ;
 : again,	rpa @ 3 TWORDS + #, go, ;
-: int,		align, CREATE pibptr @ ,  0 slot !  0 pib, DOES> @ #, ;
-: char,		CREATE pibptr @ ,  0 slot !  0 pibc, DOES> @ #, ;
+: int,		align, CREATE pibptr @ ,  eject  0 pib, DOES> @ #, ;
+: char,		CREATE pibptr @ ,  eject  0 pibc, DOES> @ #, ;
+
+\ \ \ Miscellanious
+
+: origin	pibptr !  eject ;
 
