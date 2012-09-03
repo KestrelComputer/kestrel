@@ -81,7 +81,7 @@ variable slot
 
 VARIABLE rpa ( Return Pointer Address )
 
-: call,		bblk pibptr @ 4 + #, #, GO, ;
+: call,		bblk pibptr @ 2 TWORDS + #, #, GO, ;
 : DEFER,	bblk CREATE iptr @ , 0 #, GO, DOES> @ call, ;
 : IS,		' >body @ 1 TWORDS + pib! ;
 : preamble	iptr @ -1 TWORDS + #, !, bblk ;
