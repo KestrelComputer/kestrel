@@ -67,7 +67,7 @@ module STEAMER16X4(
 	wire				branch_taken = ((current_opcode == `OPC_ZGO) && y_is_zero) | ((current_opcode == `OPC_NZGO) && ~y_is_zero) | (current_opcode == `OPC_GO);
 	wire				goto_t0 = reset | no_more_instructions | branch_taken;
 	wire	[15:1]	next_p = reset ? 0 : (increment_p ? p+1 : (branch_taken ? z[15:1] : p));
-	wire	[4:0]		next_t = goto_t0 ? 5'hb00001 : (t << 1);
+	wire	[4:0]		next_t = goto_t0 ? 5'b00001 : (t << 1);
 	wire	[15:0]	sum = y + z;
 	wire	[15:0]	mask = y & z;
 	wire	[15:0]	flips = y ^ z;
@@ -250,6 +250,21 @@ module STEAMER16X4(
 								next_y <= x;
 								next_z <= x;
 								// See also the branch_taken wire.
+							end
+
+			// To make Verilog compiler happy only.  It can be proven that this
+			// condition never actually occurs in practice.
+			default:		begin
+								adr <= 0;
+								we <= 0;
+								cyc <= 0;
+								sel <= 2'b00;
+								vda <= 0;
+								vpa <= 0;
+								dat <= 0;
+								next_x <= x;
+								next_y <= y;
+								next_z <= z;
 							end
 			endcase
 		end

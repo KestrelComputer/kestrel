@@ -29,6 +29,9 @@ VARIABLE pibptr
 variable ptr
 variable param
 variable even?
+30 constant /program_name
+create   program_name	/program_name allot
+variable #program_name
 
 : b		ptr @ pibc@ HEX S>D <# # # #> TYPE -1 TWORDS ptr +! ;
 : 16bytes	b b b b  b b b b  b b b b  b b b b ;
@@ -36,12 +39,13 @@ variable even?
 : .32bytes	16bytes 16bytes ;
 : .param	param @ S>D HEX <# # # #> TYPE ;
 : .eod		[CHAR] _ EMIT ptr @ 1 AND S" EO" DROP + C@ EMIT ;
-: .program	." FOO" ;
+: .program	program_name #program_name @ TYPE ;
 : ptr0		param @ 2* 2* 2* 2* 2* 2* 62 OR even? @ OR ptr ! ;
 : .eq		ptr0 .program .eod ." .INIT_" .param ."  = 256'h" .32bytes ?., CR ;
 : image		0 param ! BEGIN param @ 32 = IF EXIT THEN .eq 1 param +! AGAIN ;
 : even		0 even? ! ;
 : odd		1 even? ! ;
+: program	32 parse /program_name min dup #program_name ! program_name swap move ;
 
 \ \ \ INSTRUCTION ACCUMULATOR/BUILDER
 
@@ -99,8 +103,12 @@ VARIABLE rpa ( Return Pointer Address )
 : again,	rpa @ 3 TWORDS + #, go, ;
 : int,		align, CREATE pibptr @ ,  eject  0 pib, DOES> @ #, ;
 : char,		CREATE pibptr @ ,  eject  0 pibc, DOES> @ #, ;
+: create,	CREATE pibptr @ ,  eject  DOES> @ #, ;
+: const,	CREATE , DOES> @ #, ;
 
 \ \ \ Miscellanious
 
 : origin	pibptr !  eject ;
+: C,,		pibc, ;
+: ,,		pib, ;
 
