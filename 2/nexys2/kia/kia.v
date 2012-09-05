@@ -66,7 +66,7 @@ module KIA_M(
 	wire kqstat_addressed	= (ADR_I == `KQSTAT) & ack & ~WE_I;
 	wire kqdata_addressed	= (ADR_I == `KQDATA) & ack & ~WE_I;
 	wire kqpop_addressed		= (ADR_I == `KQDATA) & ack & WE_I & ~queue_empty;
-	wire kqstat_value			= {6'h00, queue_full, queue_empty};
+	wire [7:0] kqstat_value	= {6'h00, queue_full, queue_empty};
 	wire [7:0] kqdata_value	= queue[rp];
 	wire [3:0] next_rp		= RES_I ? 4'h0 : (kqpop_addressed ? rp+1 : rp);
 	assign DAT_O = ({8{kqstat_addressed}} & kqstat_value) | ({8{kqdata_addressed}} & kqdata_value);
