@@ -1,0 +1,16 @@
+NET "N2_50MHZ_I"     LOC = B8;
+NET "N2_RST_I"       LOC = B18;
+NET "N2_AN0n_O"      LOC = F17;
+NET "N2_AN1n_O"      LOC = H17;
+NET "N2_AN2n_O"      LOC = C18;
+NET "N2_AN3n_O"      LOC = F15;
+NET "N2_CAn_O"       LOC = L18;
+NET "N2_CBn_O"       LOC = F18;
+NET "N2_CCn_O"       LOC = D17;
+NET "N2_CDn_O"       LOC = D16;
+NET "N2_CEn_O"       LOC = G14;
+NET "N2_CFn_O"       LOC = J17;
+NET "N2_CGn_O"       LOC = H14;
+NET "N2_CDPn_O"      LOC = C17;
+NET "N2_PS2CLK_I"    LOC = R12;
+NET "N2_PS2DAT_IO"   LOC = P11;

@@ -16,10 +16,20 @@ module KIA_M(
 	input STB_I,
 	output ACK_O,
 	output [7:0] DAT_O,
-	
+
 	input D_I,
 	input C_I
 );
+
+	reg [7:0] queue[0:15];
+	reg [3:0] rp;
+	reg [3:0] wp;
+	wire [3:0] next_wp = wp+1;
+	wire queue_full = (next_wp == rp);
+	wire queue_empty = (rp == wp);
+
+	reg ack;
+	assign ACK_O = ack;
 
 // STORY 0000
 // We want the KIA to respond to bus transactions as close to a single cycle as
@@ -27,12 +37,11 @@ module KIA_M(
 // _two_ cycle turn-around.  The CPU sets up the bus during cycle N, and we assert
 // ACK_O during cycle N+1.  The CPU would then commence the next cycle at N+2.
 
-	reg ack;
-	assign ACK_O = ack;
-
 	always @(posedge CLK_I) begin
 		if(~RES_I) begin
 			ack <= CYC_I & STB_I;
+		end else begin
+			ack <= 0;
 		end
 	end
 
@@ -54,25 +63,16 @@ module KIA_M(
 // When the CPU writes to the keyboard queue head register, it pops the queue.  We ignore the value
 // actually written.  If the queue is already empty, take no action.
 	
-
-	reg [7:0] dat;
-	assign DAT_O = dat;
-
-	reg byte_received;
+	wire kqstat_addressed	= (ADR_I == `KQSTAT) & ack & ~WE_I;
+	wire kqdata_addressed	= (ADR_I == `KQDATA) & ack & ~WE_I;
+	wire kqpop_addressed		= (ADR_I == `KQDATA) & ack & WE_I & ~queue_empty;
+	wire kqstat_value			= {6'h00, queue_full, queue_empty};
+	wire [7:0] kqdata_value	= queue[rp];
+	wire [3:0] next_rp		= RES_I ? 4'h0 : (kqpop_addressed ? rp+1 : rp);
+	assign DAT_O = ({8{kqstat_addressed}} & kqstat_value) | ({8{kqdata_addressed}} & kqdata_value);
 
 	always @(posedge CLK_I) begin
-		if(~RES_I) begin
-			if(~WE_I) begin
-				case(ADR_I)
-					`KQSTAT: dat <= {7'b000000, queue_full, queue_empty};
-					`KQDATA: dat <= queue[rp];
-				endcase
-			end else begin
-				case(ADR_I)
-					`KQDATA: rp <= (queue_empty)? rp : rp+1;
-				endcase
-			end
-		end
+		rp <= next_rp;
 	end
 
 // STORY 0010
@@ -116,6 +116,12 @@ module KIA_M(
 				bits_received <= 0;
 			end
 			prev_C <= cur_C;
+		end else begin
+			sr <= 11'h7FF;
+			prev_C <= 1;
+			cur_C <= 1;
+			bits_received <= 0;
+			wp <= 0;
 		end
 	end
 
@@ -127,41 +133,4 @@ module KIA_M(
 	// by the read pointer.
 	//
 	// Likewise, the queue is considered empty when the read pointer matches the write pointer.
-
-	reg [7:0] queue[0:15];
-	reg [3:0] rp;
-	reg [3:0] wp;
-	wire [3:0] next_wp = wp+1;
-	wire queue_full = (next_wp == rp);
-	wire queue_empty = (rp == wp);
-
-	always @(posedge CLK_I) begin
-		if(RES_I) begin
-			ack <= 0;
-			dat <= 8'h00;
-			sr <= 11'h7FF;
-			prev_C <= 1;
-			cur_C <= 1;
-			byte_received <= 0;
-			bits_received <= 0;
-			queue[0] <= 8'hC0;			// This is entirely for debugging purposes.
-			queue[1] <= 8'hC1;			// After active development, we can remove these.
-			queue[2] <= 8'hC2;			// Even the unit tests won't depend on these values.
-			queue[3] <= 8'hC3;
-			queue[4] <= 8'hC4;
-			queue[5] <= 8'hC5;
-			queue[6] <= 8'hC6;
-			queue[7] <= 8'hC7;
-			queue[8] <= 8'hC8;
-			queue[9] <= 8'hC9;
-			queue[10] <= 8'hCA;
-			queue[11] <= 8'hCB;
-			queue[12] <= 8'hCC;
-			queue[13] <= 8'hCD;
-			queue[14] <= 8'hCE;
-			queue[15] <= 8'hCF;
-			wp <= 0;
-			rp <= 0;
-		end
-	end
 endmodule

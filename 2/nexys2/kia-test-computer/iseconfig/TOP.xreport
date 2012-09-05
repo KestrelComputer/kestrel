@@ -1,11 +1,11 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <report-views version="2.0" >
  <header>
-  <DateModified>2012-09-03T18:08:53</DateModified>
+  <DateModified>2012-09-04T13:51:45</DateModified>
   <ModuleName>TOP</ModuleName>
   <SummaryTimeStamp>2012-09-03T17:53:23</SummaryTimeStamp>
   <SavedFilePath>/home/kc5tja/Projects/kestrel/2/nexys2/kia-test-computer/iseconfig/TOP.xreport</SavedFilePath>
-  <ImplementationReportsDirectory>/home/kc5tja/Projects/kestrel/2/nexys2/kia-test-computer</ImplementationReportsDirectory>
+  <ImplementationReportsDirectory>/home/kc5tja/Projects/kestrel/2/nexys2/kia-test-computer/</ImplementationReportsDirectory>
   <DateInitialized>2012-09-03T16:14:28</DateInitialized>
   <EnableMessageFiltering>false</EnableMessageFiltering>
  </header>

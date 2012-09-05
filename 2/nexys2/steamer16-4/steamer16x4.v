@@ -220,7 +220,7 @@ module STEAMER16X4(
 								vda <= 1;
 								vpa <= 0;
 								adr <= z[15:1];
-								dat <= y;
+								dat <= z[0] ? {y[7:0], 8'b00000000} : {8'b00000000, y[7:0]};
 								next_x <= x;
 								next_y <= x;
 								next_z <= x;
