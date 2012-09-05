@@ -266,7 +266,7 @@ module TEST_UNIT_S16X4();
 		end
 
 		// AS A software engineer
-		// I WANT the ability to store a byte to an odd memory address
+		// I WANT the ability to store a byte to an even memory address
 		// SO THAT I can update program state or, probably, I/O peripherals.
 
 		story_o <= 16'h0050;
@@ -301,8 +301,8 @@ module TEST_UNIT_S16X4();
 		if(vpa_i) begin
 			$display("CPU can never write to program space.  EVER."); $stop;
 		end
-		if(dat_i != 16'hBBBB) begin
-			$display("CPU should be writing $BBBB during this cycle."); $stop;
+		if(dat_i != 16'h00BB) begin
+			$display("CPU should be writing $00BB during this cycle."); $stop;
 		end
 		wait(clk_o); wait(~clk_o);
 		if(adr_i != (`RESET_ORIGIN>>1)+3) begin
@@ -320,7 +320,7 @@ module TEST_UNIT_S16X4();
 
 		
 		// AS A software engineer
-		// I WANT the ability to store a byte to an even memory address
+		// I WANT the ability to store a byte to an odd memory address
 		// SO THAT I can update program state or, probably, I/O peripherals.
 		
 		story_o <= 16'h0060;
@@ -355,8 +355,8 @@ module TEST_UNIT_S16X4();
 		if(vpa_i) begin
 			$display("CPU can never write to program space.  EVER."); $stop;
 		end
-		if(dat_i != 16'hBBBB) begin
-			$display("CPU should be writing $BBBB during this cycle."); $stop;
+		if(dat_i != 16'hBB00) begin
+			$display("CPU should be writing $BB00 during this cycle."); $stop;
 		end
 		wait(clk_o); wait(~clk_o);
 		if(adr_i != (`RESET_ORIGIN>>1)+3) begin
@@ -408,8 +408,8 @@ module TEST_UNIT_S16X4();
 		if(vpa_i) begin
 			$display("CPU can never write to program space.  EVER."); $stop;
 		end
-		if(dat_i != 16'hBBBB) begin
-			$display("CPU should be writing $BBBB during this cycle."); $stop;
+		if(dat_i != 16'hBB00) begin
+			$display("CPU should be writing $BB00 during this cycle."); $stop;
 		end
 		ack_o <= 0;
 		wait(clk_o); wait(~clk_o);
@@ -431,8 +431,8 @@ module TEST_UNIT_S16X4();
 		if(vpa_i) begin
 			$display("CPU can never write to program space.  EVER."); $stop;
 		end
-		if(dat_i != 16'hBBBB) begin
-			$display("CPU should still be writing $BBBB during this cycle."); $stop;
+		if(dat_i != 16'hBB00) begin
+			$display("CPU should still be writing $BB00 during this cycle."); $stop;
 		end
 		ack_o <= 1;
 		wait(clk_o); wait(~clk_o);
