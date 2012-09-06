@@ -1,0 +1,585 @@
+#LyX 2.0 created this file. For more info see http://www.lyx.org/
+\lyxformat 413
+\begin_document
+\begin_header
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman default
+\font_sans default
+\font_typewriter default
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100
+\font_tt_scale 100
+
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_amsmath 1
+\use_esint 1
+\use_mhchem 1
+\use_mathdots 1
+\cite_engine basic
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+KIA Data Sheet
+\end_layout
+
+\begin_layout Author
+Samuel A.
+ Falvo II
+\end_layout
+
+\begin_layout Date
+2012-Sep-5
+\end_layout
+
+\begin_layout Itemize
+8-Bit Wishbone Slave Interface
+\end_layout
+
+\begin_layout Itemize
+16-Byte FIFO Queue
+\end_layout
+
+\begin_layout Itemize
+Queue Full and Empty Status Flags
+\end_layout
+
+\begin_layout Itemize
+Software Explicit Dequeue
+\end_layout
+
+\begin_layout Itemize
+Perfect for Processors With or Without Interrupts
+\end_layout
+
+\begin_layout Itemize
+Registered Interface Provides One Cycle Latency
+\end_layout
+
+\begin_layout Section
+Introduction
+\end_layout
+
+\begin_layout Standard
+The Keyboard Interface Adapter, or KIA, provides a very easy to use PS/2
+ keyboard interface.
+ It features a 16-byte first-in, first-out (FIFO) queue to hold incoming
+ data long enough for busy software to respond to the keyboard without requiring
+ an interrupt subsystem.
+ A dedicated signal indicating when the queue is empty is exposed, in support
+ for those processors which prefer interrupts for such events.
+ The software-driven explicit dequeue feature allows the keyboard driver
+ software to avoid the use of 
+\begin_inset Quotes eld
+\end_inset
+
+shadow registers
+\begin_inset Quotes erd
+\end_inset
+
+ in ordinary RAM.
+ Combined, these features makes the KIA ideal for use in small, deep-embedded
+ applications where RAM may be at a premium.
+\end_layout
+
+\begin_layout Section
+Internal Architecture
+\end_layout
+
+\begin_layout Standard
+Figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:Block-Diagram-of-KIA"
+
+\end_inset
+
+ illustrates the block diagram of the KIA.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename block-diagram.pdf
+	scale 85
+	BoundingBox 0.5in 4.2000000000000002in 8in 11in
+	clip
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+Block Diagram of the Keyboard Interface Adapter.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:Block-Diagram-of-KIA"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Shift Register and Frame Detection
+\end_layout
+
+\begin_layout Standard
+The D_I and C_I signals couple to the serial-in, parallel-out shift register.
+ Additionally, feedback from the shift register, coupled with the C_I input,
+ helps the frame detection logic decide when a full PS/2 frame of data has
+ been received.
+ Upon detection of a byte, it pushes it into the queue.
+\end_layout
+
+\begin_layout Subsection
+Operation of the FIFO Queue
+\end_layout
+
+\begin_layout Standard
+The queue contains 16 bytes of storage space.
+ Of this space, up to 15 bytes may hold pending data before the QF bit asserts,
+ and no further data will be accepted.
+ Internally, a 4-bit 
+\emph on
+read_pointer
+\emph default
+ and a 
+\emph on
+write_pointer
+\emph default
+ register exists, both reset to zero when the KIA is reset.
+ The 
+\emph on
+write_pointer
+\emph default
+ register increments for each successful data byte received.
+ The queue is considered full when the 
+\emph on
+write_pointer
+\emph default
+ approaches the 
+\emph on
+read_pointer
+\emph default
+ from behind, threatening to overwrite unread data.
+\end_layout
+
+\begin_layout Standard
+Likewise, when data is read from the KIA, the 
+\emph on
+read_pointer
+\emph default
+ register increments.
+ The queue becomes empty when the 
+\emph on
+read_pointer
+\emph default
+ equals the 
+\emph on
+write_pointer
+\emph default
+ register.
+\end_layout
+
+\begin_layout Subsection
+The Register Map
+\end_layout
+
+\begin_layout Standard
+The register map appears in figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:KIA-Register-Map"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename register-map.pdf
+	scale 80
+	BoundingBox 0.25in 7.7000000000000002in 6.5in 11in
+	clip
+
+\end_inset
+
+
+\begin_inset Caption
+
+\begin_layout Plain Layout
+KIA Register Map.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:KIA-Register-Map"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Description
+KQSTAT.
+ This read-only register contains the queue status bits.
+ Two bits exist: QE (bit 0) indicates when the queue contains no further
+ data for reading, while QF (bit 1) indicates whether the queue is so full
+ that it cannot accept any additional data.
+ Bits 7 through 2 officially are undefined, and software must ignore their
+ values.
+\end_layout
+
+\begin_layout Description
+KQDATA.
+ This read-only register provides visibility into the head of the queue.
+ Reading this register does not automatically pop the queue.
+ After software has completed working with the current byte, it must dequeue
+ that byte by writing to the KQDATA/KQPOP register.
+\end_layout
+
+\begin_layout Description
+KQPOP.
+ This write-only register stores no value; however, the act of writing to
+ this register causes the FIFO to dequeue the current head byte, thus revealing
+ (if present) the next byte to read.
+ If the queue becomes exhausted, the QE bit of KQSTAT asserts.
+ Writes to KQPOP with QE asserted do nothing.
+\end_layout
+
+\begin_layout Section
+Hardware Interface
+\end_layout
+
+\begin_layout Subsection
+Logic Symbol
+\end_layout
+
+\begin_layout Standard
+The logic symbol for the KIA appears in figure 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "fig:KIA-Logic-Symbol"
+
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Float figure
+wide false
+sideways false
+status open
+
+\begin_layout Plain Layout
+\begin_inset Graphics
+	filename logic-symbol.pdf
+	scale 80
+	BoundingBox 0.5in 7.5in 4.5in 11in
+	clip
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+\begin_inset Caption
+
+\begin_layout Plain Layout
+KIA Logic Symbol.
+\begin_inset CommandInset label
+LatexCommand label
+name "fig:KIA-Logic-Symbol"
+
+\end_inset
+
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Plain Layout
+
+\end_layout
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Signal Descriptions
+\end_layout
+
+\begin_layout Standard
+The KIA complies with Wishbone B3 bus slave standards with an 8-bit port
+ size and 8-bit granularity.
+\end_layout
+
+\begin_layout Subsubsection
+SYSCON Signals
+\end_layout
+
+\begin_layout Description
+CLK_I.
+ Provides the standard time-base for the peripheral.
+ All bus state transitions occur on the rising edge of this signal.
+\end_layout
+
+\begin_layout Description
+RES_I.
+ When asserted during the rising edge of CLK_I, the KIA resets to its power-on
+ default state, empties its queue, and discards any PS/2 data frame in progress.
+\end_layout
+
+\begin_layout Subsubsection
+SLAVE Signals
+\end_layout
+
+\begin_layout Description
+ACK_O.
+ The KIA generates its own acknowledgement for a single-beat Wishbone bus
+ transaction.
+\end_layout
+
+\begin_layout Description
+ADR_I.
+ This 1-bit input selects the I/O register to read from, or to write to
+ if supported.
+\end_layout
+
+\begin_layout Description
+CYC_I.
+ This signal serves as a flag to external bus arbitration logic that a bus
+ master wishes to use the bus, asserting it when it has data to transfer,
+ and negating it otherwise.
+ As such, CYC_I qualifies 
+\emph on
+all
+\emph default
+ other bus signals except for RES_I and CLK_I.
+\end_layout
+
+\begin_layout Description
+DAT_O(7:0).
+ The KIA places the contents of the addressed register during a read cycle;
+ during a write cycle, however, this bus remains undefined.
+\end_layout
+
+\begin_layout Description
+QE_O.
+ If asserted, the queue lacks any data bytes to read.
+ When at least one byte exists to be read by the host processor, the KIA
+ will negate QE_O, and keep it negated until all bytes have been read.
+ This signal may be used to generate external interrupts to a host microprocesso
+r.
+\end_layout
+
+\begin_layout Description
+STB_I.
+ This signal qualifies a single bus transfer specifically to the KIA.
+ The current bus master (typically a microprocessor) and its associated
+ address decoding logic collaborate to assert this signal when the master
+ addresses the KIA and is ready for the data.
+\end_layout
+
+\begin_layout Description
+WE_I.
+ If asserted, the current bus transaction is a write cycle, used to dequeue
+ the FIFO.
+ In this case, DAT_O(7:0) will remain undefined.
+ If negated, the master will expect the addressed register's contents on
+ the DAT_O(7:0) bus.
+ Note that the KIA lacks a corresponding data input bus, so any data written
+ to the KIA will be ignored.
+\end_layout
+
+\begin_layout Subsubsection
+PS/2 Signals
+\end_layout
+
+\begin_layout Description
+C_I.
+ The clock signal generated by the attached PS/2 peripheral.
+\end_layout
+
+\begin_layout Description
+D_I.
+ The data signal generated by the attached PS/2 peripheral.
+ The peripheral synchronizes the bits of data on this pin against C_I.
+\end_layout
+
+\begin_layout Subsection
+Timing Diagrams
+\end_layout
+
+\begin_layout Subsubsection
+Reset Timing
+\end_layout
+
+\begin_layout Standard
+Reset timing follows standard Wishbone B3 recommendations.
+ For any rising clock edge, the KIA will reset immediately if RES_I becomes
+ asserted, and will continue to reset for as long as RES_I remains asserted.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename reset-timing.pdf
+	scale 80
+	BoundingBox 1in 7in 7.5in 10in
+	clip
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Register Read
+\end_layout
+
+\begin_layout Standard
+Read timing follows standard Wishbone B3 recommendations.
+ The KIA incurs a one-cycle latency for read operations due to its fully
+ synchronous design.
+ To prevent internal glitching, the KIA and the addressing bus master should
+ run from the same clock.
+ Directly crossing clock domains may result in undesirable behavior.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename register-read.pdf
+	scale 80
+	BoundingBox 2.5in 7in 6in 10.25in
+	clip
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+Register Write
+\end_layout
+
+\begin_layout Standard
+Write timing follows standard Wishbone B3 recommendations.
+ The KIA incurs a one-cycle latency for write operations due to its fully
+ synchronous design.
+ To prevent internal glitching, the KIA and the addressing bus master should
+ run from the same clock.
+ Directly crossing clock domains may result in undesirable behavior.
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename register-write.pdf
+	scale 80
+	BoundingBox 2.5in 7in 6in 10.25in
+	clip
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsubsection
+PS/2 Data Frame Reception
+\end_layout
+
+\begin_layout Standard
+\begin_inset Graphics
+	filename ps2-timing.pdf
+	scale 80
+	BoundingBox 0.75in 8in 8in 9.25in
+	clip
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document

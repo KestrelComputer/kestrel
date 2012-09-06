@@ -1,0 +1,6 @@
+{ "signal" : [
+ {"name":"clk_i",      "wave":"p.|.."},
+ {"name":"res_i",      "wave":"01|0."},
+ {"name": "qe_o",      "wave":"x.1.."},
+]}
+ 

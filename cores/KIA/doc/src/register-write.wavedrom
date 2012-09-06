@@ -1,0 +1,10 @@
+{ "signal" : [
+ {"name":"clk_i",      "wave":"p..."},
+ {"name":"cyc_i",      "wave":"=1.="},
+ {"name":"stb_i",      "wave":"01.0"},
+ {"name":"adr_i",      "wave":"x=.x"},
+ {"name":"we_i",       "wave":"=1.="},
+ {"name":"ack_o",      "wave":"0.10"},
+ {"name":"dat_o(7:0)", "wave":"0.x0"},
+]}
+ 

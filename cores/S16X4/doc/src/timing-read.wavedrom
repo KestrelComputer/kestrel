@@ -1,0 +1,13 @@
+{ "signal" : [
+ { "name": "clk_i",        "wave": "P....."},
+ { "name": "adr_o(15:1)",  "wave": "x34..=", data: ["0", "1"]},
+ { "name": "vpa_o",        "wave": "x22..="},
+ { "name": "vda_o",        "wave": "x22..="},
+ { "name": "we_o",         "wave": "x0...="},
+ { "name": "sel_o(1:0)",   "wave": "x22..="},
+ { "name": "dat_i(15:0)",  "wave": "x3x.42", data: ["0","1"]},
+ { "name": "dat_o(15:0)",  "wave": "x....="},
+ { "name": "ack_i",        "wave": "x10.1="},
+ { "name": "stb_o",        "wave": "x1...="},
+ { "name": "cyc_o",        "wave": "x1...="},
+]}
