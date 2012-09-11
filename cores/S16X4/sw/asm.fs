@@ -8,6 +8,7 @@
 
 2048 CONSTANT #WORDS
 #WORDS TWORDS CONSTANT /pib
+64 CONSTANT #INITS
 
 CREATE pib	/pib CHARS ALLOT
 
@@ -37,14 +38,14 @@ variable #program_name
 
 : b		ptr @ pibc@ HEX S>D <# # # #> TYPE -1 TWORDS ptr +! ;
 : 16bytes	b b b b  b b b b  b b b b  b b b b ;
-: ?.,		[CHAR] ;  param @ 31 <> $17 AND XOR EMIT ;
+: ?.,		[CHAR] ;  param @ [ #INITS 1- ] LITERAL <> $17 AND XOR EMIT ;
 : .32bytes	16bytes 16bytes ;
 : .param	param @ S>D HEX <# # # #> TYPE ;
 : .eod		[CHAR] _ EMIT ptr @ 1 AND S" EO" DROP + C@ EMIT ;
 : .program	program_name #program_name @ TYPE ;
 : ptr0		param @ 2* 2* 2* 2* 2* 2* 62 OR even? @ OR ptr ! ;
 : .eq		ptr0 .program .eod ." .INIT_" .param ."  = 256'h" .32bytes ?., CR ;
-: image		0 param ! BEGIN param @ 32 = IF EXIT THEN .eq 1 param +! AGAIN ;
+: image		0 param ! BEGIN param @ #INITS = IF EXIT THEN .eq 1 param +! AGAIN ;
 : even		0 even? ! ;
 : odd		1 even? ! ;
 : program	32 parse /program_name min dup #program_name ! program_name swap move ;
