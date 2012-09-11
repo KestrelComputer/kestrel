@@ -114,3 +114,19 @@ VARIABLE rpa ( Return Pointer Address )
 : C,,		pibc, ;
 : ,,		pib, ;
 
+\ \ \ Support for binary file inclusion
+
+4096 constant /incbuf
+create incbuf	/incbuf allot
+variable #bytes
+variable fh
+
+: copy		incbuf pibptr @ >pib #bytes @ MOVE  #bytes @ pibptr +!  eject ;
+: close		fh @ CLOSE-FILE THROW ;
+: ?fit		pibptr @ #bytes @ + /pib U>= IF close -1 ABORT" too big" THEN ;
+: ?eof		DUP IF #bytes ! EXIT THEN  close r> drop ;
+: ?err		DUP IF close THROW THEN DROP ;
+: get		incbuf /incbuf fh @ READ-FILE ;
+: open		[CHAR] " PARSE R/O BIN OPEN-FILE THROW fh ! ;
+: incbin"	open BEGIN get ?err ?eof ?fit copy AGAIN ;
+
