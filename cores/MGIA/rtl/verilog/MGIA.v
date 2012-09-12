@@ -28,9 +28,6 @@ module MGIA(
 	wire	[15:0]	vfb_dat;
 	wire				vfb_we;
 
-
-	assign	unused	= 12'h000;	// drive unused outputs on Nexys2 board
-
 	assign 	RED_O		= {3{pen}};
 	assign 	GRN_O		= {3{pen}};
 	assign 	BLU_O		= {2{pen}};
