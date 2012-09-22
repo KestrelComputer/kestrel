@@ -5,10 +5,10 @@ defer, bootstrap
 $B000 const, kqstat
 $B002 const, kqdata
 
-$69 const, kEnd
-$6C const, kHome
-$7A const, kPgDn
-$7D const, kPgUp
+$69 const, kcEnd
+$6C const, kcHome
+$7A const, kcPgDn
+$7D const, kcPgUp
 
 $00 const, kNOP
 $01 const, kEND
@@ -21,28 +21,7 @@ $30 const, kBOX
 $31 const, kFBOX
 $40 const, kVLINE
 
-create, sda
-  3 ,, ' sda >body @ 36 + ,,
-
-  ( 0004 )
-  $10 c,, 5 c,, 5 c,, 5 c,,
-    char H c,, char e c,, char l c,, char l c,, char o c,, 0 c,,
-  $01 ,,
-
-  ( 0010 )
-  $10 c,, 5 c,, 10 c,, 2 c,,
-    char ! c,,  char ! c,,
-  $01 ,,
-
-  ( 0018 )
-  $10 c,, 6 c,, 5 c,, 6 c,,
-    char W c,, char o c,, char r c,, char l c,, char d c,, char ! c,,
-  $01 ,,
-
-  ( 0024 )
-  ' sda >body @ 4 + ,,
-  ' sda >body @ 16 + ,,
-  ' sda >body @ 24 + ,,
+$1000 const, sda
 
 create, font
 : m,	dup 8 rshift c,, c,, ;
@@ -240,7 +219,7 @@ int, chr
 :, i		opc kNOP xor, if, class2 ;, then, 2inc ;,
 :, algn		ip @, 1 #, and, if, 1 #, inc then, ;,
 :, exec		algn opc kEND xor, if, i again, then, 2inc ;,
-:, start	sda 2 #, +, @, cslide @, cslide @, +, +, @, ip !, ;,
+:, start	sda 2 #, +, @, cslide @, cslide @, +, +, sda +, @, sda +, ip !, ;,
 :, slide	cls start exec ;,
 
 :, next		cslide @, 1 #, +, nslides @, -1 #, xor, 1 #, +, +, $8000 #, and,
@@ -248,13 +227,13 @@ int, chr
 :, previous	cslide @, if, -1 #, cslide @, +, cslide !, then, ;,
 :, first	0 #, cslide !, ;,
 :, last		nslides @, -1 #, +, cslide !, ;,
-:, end		k @, kEnd xor, if, ;, then, last slide ;,
-:, home		k @, kHome xor, if, ;, then, first slide ;,
-:, pgdn		k @, kPgDn xor, if, ;, then, next slide ;,
-:, pgup		k @, kPgUp xor, if, ;, then, previous slide ;,
+:, end		k @, kcEnd xor, if, ;, then, last slide ;,
+:, home		k @, kcHome xor, if, ;, then, first slide ;,
+:, pgdn		k @, kcPgDn xor, if, ;, then, next slide ;,
+:, pgup		k @, kcPgUp xor, if, ;, then, previous slide ;,
 :, count	sda @, nslides !, ;,
 :, pressed	kqdata c@, k !, kqdata c!, ;,
-:, released	kqdata c@, $8000 #, xor, k !,  k @, $C052 #, !, kqdata c!, ;,
+:, released	kqdata c@, $8000 #, xor, k !,  kqdata c!, ;,
 :, wait		kqstat c@, 1 #, and, if, again, then, ;,
 :, event	kqdata c@, $F0 #, xor, if, pressed ;, then, kqdata c!, wait released ;,
 :, key		wait kqdata c@, $E0 #, xor, if, event ;, then, kqdata c!, again, ;,
