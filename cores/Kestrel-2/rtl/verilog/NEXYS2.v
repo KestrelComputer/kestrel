@@ -70,7 +70,7 @@ module NEXYS2(
 
 	assign cpu_bus_cycle 				= cpu_cyc_o & cpu_stb_o;
 	assign progmem_stb_i 				= cpu_bus_cycle & (cpu_adr_o[15:14] == 2'b00);		// 0000-3FFF : Program Memory
-	assign kia_stb_i						= cpu_bus_cycle & (cpu_adr_o[15:12] == 4'b1011);	// B000-B001 : KIA (B002-BFFF = repeats)
+	assign kia_stb_i						= cpu_bus_cycle & (cpu_adr_o[15:4] == 12'hB00);		// B000-B003 : KIA (B004-BFFF = repeats)
 	assign vidmem_stb_i  				= cpu_bus_cycle & (cpu_adr_o[15:14] == 2'b11);		// C000-FFFF : Video Memory
 	assign no_peripheral_addressed 	= (~progmem_stb_i & ~kia_stb_i & ~vidmem_stb_i);
 
