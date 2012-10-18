@@ -50,6 +50,10 @@ module NEXYS2(
 	wire	[7:0]		kia_dat_o;
 	wire				kia_stb_i;
 
+	wire				gpia_ack_o;
+	wire	[15:0]	gpia_dat_o;
+	wire				gpia_stb_i;
+
 	wire				progmem_ack_o;
 	wire	[15:0]	progmem_dat_o;
 	wire				progmem_stb_i;
@@ -70,15 +74,17 @@ module NEXYS2(
 
 	assign cpu_bus_cycle 				= cpu_cyc_o & cpu_stb_o;
 	assign progmem_stb_i 				= cpu_bus_cycle & (cpu_adr_o[15:14] == 2'b00);		// 0000-3FFF : Program Memory
-	assign kia_stb_i						= cpu_bus_cycle & (cpu_adr_o[15:4] == 12'hB00);		// B000-B003 : KIA (B004-BFFF = repeats)
+	assign kia_stb_i						= cpu_bus_cycle & (cpu_adr_o[15:4] == 12'hB00);		// B000-B003 : KIA
+	assign gpia_stb_i						= cpu_bus_cycle & (cpu_adr_o[15:4] == 12'hB01);		// B010-B013 : GPIA 
 	assign vidmem_stb_i  				= cpu_bus_cycle & (cpu_adr_o[15:14] == 2'b11);		// C000-FFFF : Video Memory
 	assign no_peripheral_addressed 	= (~progmem_stb_i & ~kia_stb_i & ~vidmem_stb_i);
 
 	wire	[15:0]	progmem_mask 		= {16{progmem_stb_i}};
 	wire	[7:0]		kia_mask				= {8{kia_stb_i}};
 	wire	[15:0]	vidmem_mask			= {16{vidmem_stb_i}};
-	assign			cpu_dat_i			= (progmem_mask & progmem_dat_o) | (vidmem_mask & vidmem_dat_o) | {8'b00000000, (kia_mask & kia_dat_o)};
-	assign			cpu_ack_i			= (progmem_stb_i & progmem_ack_o) | (vidmem_stb_i & vidmem_ack_o) | (kia_stb_i & kia_ack_o) | no_peripheral_addressed;
+	wire	[15:0]	gpia_mask			= {16{gpia_stb_i}};
+	assign			cpu_dat_i			= (progmem_mask & progmem_dat_o) | (vidmem_mask & vidmem_dat_o) | {8'b00000000, (kia_mask & kia_dat_o)} | (gpia_mask & gpia_dat_o);
+	assign			cpu_ack_i			= (progmem_stb_i & progmem_ack_o) | (vidmem_stb_i & vidmem_ack_o) | (kia_stb_i & kia_ack_o) | (gpia_stb_i & gpia_ack_o) | no_peripheral_addressed;
 
 	always begin
 		an0n <= 1'b1;
@@ -120,6 +126,18 @@ module NEXYS2(
 
 		.D_I  (N2_PS2DAT_IO),
 		.C_I  (N2_PS2CLK_I)
+	);
+
+	GPIA gpia(
+		.RST_I(N2_BTN0_I),
+		.CLK_I(mgia_25mhz_o),
+		.ADR_I(cpu_adr_o[1]),
+		.CYC_I(cpu_cyc_o),
+		.STB_I(gpia_stb_i),
+		.WE_I(cpu_we_o),
+		.DAT_I(cpu_dat_o),
+		.DAT_O(gpia_dat_o),
+		.ACK_O(gpia_ack_o)
 	);
 
 	VRAM16K progmem(
