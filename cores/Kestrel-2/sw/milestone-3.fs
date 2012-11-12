@@ -33,8 +33,8 @@ $B010 const, gpip
   $0004 const, kMISO
 
 $B012 const, gpop
-  $0001 const, kSDLEDOFF
-  $FFFE const, kSDLEDON
+  $FFFE const, kSDLEDOFF
+  $0001 const, kSDLEDON
 
 
 2 base !
