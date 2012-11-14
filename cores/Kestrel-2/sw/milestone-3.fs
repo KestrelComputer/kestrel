@@ -29,7 +29,10 @@ int, _r3l
 int, inw
 int, outw
 int, t.o.
+int, count
 
+
+$C000 const, BootBuffer
 
 $0001 const, CARD_MMC
 $0002 const, CARD_V1
@@ -94,11 +97,6 @@ decimal
 :, v1|mmc?	cardtype @, CARD_V1MMC and, ;,
 :, v2hc?	cardtype @, CARD_V2HC and, ;,
 
-
-\ STUBS
-:, read1k	1023 #, #read !, ;,
-
-
 :, clk0		gpop @, $FFF7 #, and, gpop !, ;,
 :, mosi0	gpop @, $FFFB #, and, gpop !, ;,
 :, cs0		gpop @, $FFFD #, and, gpop !, ;,
@@ -112,7 +110,7 @@ decimal
 
 :, sleep	dct @, -1 #, +, dct !,   dct @, if, again, then, ;,
 :, 50ms		1000 #, dct !, sleep ;,
-:, 5ms		100 #, dct !, sleep ;,
+:, 5ms		3 #, dct !, sleep ;,
 :, clk		5ms clk+- ;,
 
 :, mosi		if, mosi1 ;, then, mosi0 ;,
@@ -131,6 +129,13 @@ decimal
 :, timeout?	t.o. @, ;,
 :, -timeout?	timeout? 1 #, xor, ;,
 
+:, idle?	_r1 c@, $01 #, and, ;,
+:, -idle?	idle? 1 #, xor, ;,
+:, illegal?	_r1 c@, $04 #, and, ;,
+:, -illegal?	illegal? 1 #, xor, ;,
+:, -ready?	_r1 c@, ;,
+:, ccs?		_r3h @, $4000 #, and, ;,
+
 :, b		in c@, in c@, +, in c!,  miso if, in c@, 1 #, xor, in c!, then,  clk clk ;,
 :, r1		0 #, in c!,  b b b b b b b b in c@, _r1 c!, ;,
 :, rcv		0 #, in c!,  b b b b b b b b ;,
@@ -138,30 +143,22 @@ decimal
 :, (r3)		rcvw inw @, _r3h !,  rcvw inw @, _r3l !, ;,
 :, r3		r1 _r1 c@, $7C #, and, if, ;, then, (r3) ;,
 :, r7		r3 ;,
+:, bytes	count @, if, rcv in c@, p @, c!,  p @, 1 #, +, p !,  #read @, 1 #, +, #read !,  count @, -1 #, +, count !, again, then, ;,
+:, data		512 #, count !, bytes ;,
+:, start	rcv in c@, $FF #, xor, if, ;, then, again, ;,
+:, 512bytes	start data rcv rcv ;,
+:, sector	-ready? if, ;, then,  512bytes ;,
 
 :, param0	0 #, paraml !, 0 #, paramh !, ;,
 :, cmd0		cs0 $40 #, cmdbyte c!, param0 $95 #, crcbyte c!, issue -timeout? if, r1 then, cs1 pad ;,
 :, cmd1		cs0 $41 #, cmdbyte c!, param0 issue -timeout? if, r1 then, cs1 pad ;,
 :, cmd8		cs0 $48 #, cmdbyte c!, param0 $01AA paraml !, issue -timeout? if, r7 then, cs1 pad ;,
 :, cmd16	cs0 $50 #, cmdbyte c!, 512 #, paraml !, 0 #, paramh !, issue -timeout? if, r1 then, cs1 pad ;,
+:, cmd17	cs0 $51 #, cmdbyte c!, param0 q @, paraml !, issue -timeout? if, r1 sector then, cs1 pad ;,
 :, cmd55	cs0 $77 #, cmdbyte c!, param0 issue -timeout? if, r1 then, cs1 pad ;,
 :, hcs		v2hc? if, $4000 #, ;, then, 0 #, ;,
 :, acmd41	cmd55 cs0 $69 #, cmdbyte c!, hcs paramh !, 0 #, paraml !, issue -timeout? if, r1 then, cs1 pad ;,
 :, cmd58	cs0 $7A #, cmdbyte c!, param0 issue -timeout? if, r3 then, cs1 pad ;,
-
-\ :, -idle?	1 #, ;,
-\ :, idle?	-idle? 1 #, xor, ;,
-\ :, illegal?	0 #, ;,
-\ :, -ready?	1 #, ;,
-\ :, timeout?	0 #, ;,
-\ :, ccs?		0 #, ;,
-
-:, idle?	_r1 c@, $01 #, and, ;,
-:, -idle?	idle? 1 #, xor, ;,
-:, illegal?	_r1 c@, $04 #, and, ;,
-:, -illegal?	illegal? 1 #, xor, ;,
-:, -ready?	_r1 c@, ;,
-:, ccs?		_r3h @, $4000 #, and, ;,
 
 :, 10cyc	clk clk clk clk clk  clk clk clk clk clk ;,
 :, 80cyc	10cyc 10cyc 10cyc 10cyc  10cyc 10cyc 10cyc 10cyc ;,
@@ -173,6 +170,7 @@ decimal
 : to. 		timeout? if, -valid $8001 #, invalid !, ;, then, ;
 : valid		invalid @, if, ;, then, ;
 
+:, read1k	BootBuffer p !,  0 #, #read !,  0 #, q !, cmd17  sector1 @, q !, cmd17 ;,
 :, size		valid  cmd16 to.  -ready? if, -valid $A001 #, invalid !, then, ;,
 :, bytes	512 #, sector1 !, ;,
 :, sdhc		CARD_HC cardtype !,    1 #, sector1 !, ;,
@@ -181,7 +179,9 @@ decimal
 :, addressing	valid  v1|mmc? if, bytes ;, then, check ;,
 :, cmd		cardtype @, CARD_MMC xor, if, acmd41 ;, then, cmd1 ;,
 :, poll		cmd to. ;,
-:, wait		valid  50ms  poll
+:, inca		$C0A0 #, @, 1 #, +, $C0A0 #, !, ;,
+:, incb		$C0A2 #, @, 1 #, +, $C0A2 #, !, ;,
+:, wait		valid  inca 50ms incb poll
                 illegal? if,
 		  cardtype @, CARD_V2HC and, if, $98F1 #, invalid !, ;, then,
 		  -v1? if, -valid $98A1 #, invalid !, ;, then,
@@ -209,7 +209,7 @@ decimal
 :, wait		present if, validate... then, again, ;,
 :, wait...	off sd p !, icon wait ;,
 
-:, start	off cls 15360 #, go, ;,
+:, start	off cls BootBuffer go, ;,
 :, boot...	read1k  present if, #read @, 1024 #, xor, if, $AAAA #, invalid !, bad... then, start then, wait... ;,
 
 :, bad		present if, invalid @, $C000 #, !,  _r1 c@, $C002 #, c!,  _r1 c@, -1 #, xor, $C052 #, c!, again, then, wait... ;,
