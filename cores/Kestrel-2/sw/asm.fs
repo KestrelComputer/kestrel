@@ -6,8 +6,30 @@
 
 : TWORDS		2* ;
 
-2048 CONSTANT #WORDS
+\ Number of words in the assemble buffer itself.  This determines how long
+\ a program you can compile before you encounter a buffer overflow and crash
+\ your assembler.
+8192 CONSTANT #WORDS
+
+\ The number of words for the largest program you can assemble.
+\ This is set independently because, although the Kestrel-2A can
+\ address 16KB of program memory, it's really only convenient to
+\ copy-and-paste Verilog defparams for 4KB.  The limit, then,
+\ helps avoid a bug where you're assembling more code than you're
+\ pasting into the Verilog source code.  Useful only for bootstrap
+\ code.
+\ 
+\ It also is useful to avoid the buffer overflow that I mentioned
+\ above.  Thus, #LIMIT <= #WORDS.
+8192 CONSTANT #LIMIT
+
+: check		#WORDS #LIMIT U< ABORT" #WORDS must be at least equal to #LIMIT, if not greater." ;
+check
+
+\ The byte-size of the PIB.
 #WORDS TWORDS CONSTANT /pib
+
+\ Number of initialization lines to produce per defparam block.
 64 CONSTANT #INITS
 
 CREATE pib	/pib CHARS ALLOT
@@ -17,7 +39,7 @@ VARIABLE pibptr
 : align,	pibptr @ 1+ -2 AND pibptr ! ;
 : >pib		pib + ;
 : even		DUP 1 AND ABORT" Attempt to write a word to an odd address." ;
-: inside	DUP /pib u>= ABORT" Attempt to write outside the Program Image Buffer." ;
+: inside	DUP [ #LIMIT TWORDS ] LITERAL u>= ABORT" Attempt to write outside the Program Image Buffer." ;
 : le!		2DUP C! 1+ SWAP 8 RSHIFT SWAP C! ;
 : le@		DUP C@ $FF AND SWAP 1+ C@ 8 LSHIFT OR ;
 : pib!		even inside >pib le! ;
