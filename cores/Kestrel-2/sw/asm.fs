@@ -153,3 +153,9 @@ variable fh
 : open		[CHAR] " PARSE R/O BIN OPEN-FILE THROW fh ! ;
 : incbin"	open BEGIN get ?err ?eof ?fit copy AGAIN ;
 
+\ \ \ Support for binary file creation
+
+: write		pib pibptr @ fh @ WRITE-FILE THROW .s ;
+: create	[CHAR] " PARSE R/W BIN CREATE-FILE THROW fh ! ;
+: out"		create write close ;
+
