@@ -180,7 +180,6 @@ decimal
 :, poll		cmd to. ;,
 :, wait		valid  50ms poll
                 illegal? if,
-\		  cardtype @, CARD_V2HC and, if, $98F1 #, invalid !, ;, then,
 		  -v1? if, -valid ;, then,
                   v1|mmc? if, CARD_MMC cardtype !, again, then,
 		then,
@@ -208,14 +207,6 @@ decimal
 :, wait...	off cls sd p !, icon wait ;,
 
 :, start	off cls BootBuffer go, ;,
-\ :, deadlock	again, ;,
-\ int, xorm
-\ :, w 		p @, @, xorm @, xor, q @, !,  p @, 2 #, +, p !,  q @, 2 #, +, q !, ;,
-\ :, 10w		w w w w w  w w w w w ;,
-\ :, 40w		0 #, xorm !, 10w 10w 10w 10w ;,
-\ :, -40w		$FFFF #, xorm !, 10w 10w 10w 10w ;,
-\ :, dump		$3C00 #, p !, $C000 #, q !, 40w  $3C00 #, p !, $C050 #, q !, -40w ;,
-\ :, start	off cls dump deadlock ;,
 :, boot...	read1k  present if, #read @, 1024 #, xor, if, bad... then, start then, wait... ;,
 
 :, bad		present if, again, then, wait... ;,

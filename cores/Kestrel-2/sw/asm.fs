@@ -155,7 +155,7 @@ variable fh
 
 \ \ \ Support for binary file creation
 
-: write		pib pibptr @ fh @ WRITE-FILE THROW .s ;
+: write		pib pibptr @ fh @ WRITE-FILE THROW ;
 : create	[CHAR] " PARSE R/W BIN CREATE-FILE THROW fh ! ;
 : out"		create write close ;
 
