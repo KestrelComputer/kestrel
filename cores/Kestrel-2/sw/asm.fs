@@ -33,6 +33,7 @@ check
 64 CONSTANT #INITS
 
 CREATE pib	/pib CHARS ALLOT
+$CD pib /pib FILL
 
 VARIABLE pibptr
 
