@@ -54,6 +54,7 @@ VARIABLE pibptr
 variable ptr
 variable param
 variable even?
+variable bank
 30 constant /program_name
 create   program_name	/program_name allot
 variable #program_name
@@ -65,12 +66,15 @@ variable #program_name
 : .param	param @ S>D HEX <# # # #> TYPE ;
 : .eod		[CHAR] _ EMIT ptr @ 1 AND S" EO" DROP + C@ EMIT ;
 : .program	program_name #program_name @ TYPE ;
-: ptr0		param @ 2* 2* 2* 2* 2* 2* 62 OR even? @ OR ptr ! ;
+: 64*		2* 2* 2* 2* 2* 2* ;
+: ptr0		param @ bank @ 64* OR 64* 62 OR even? @ OR ptr ! ;
 : .eq		ptr0 .program .eod ." .INIT_" .param ."  = 256'h" .32bytes ?., CR ;
 : image		0 param ! BEGIN param @ #INITS = IF EXIT THEN .eq 1 param +! AGAIN ;
 : even		0 even? ! ;
 : odd		1 even? ! ;
 : program	32 parse /program_name min dup #program_name ! program_name swap move ;
+
+0 bank !
 
 \ \ \ INSTRUCTION ACCUMULATOR/BUILDER
 
