@@ -82,3 +82,11 @@ variable top
 
 : bullet	S" * " text 2 left +! text -2 left +! 1 top +! ;
 
+\ \ \ Support for binary file creation
+
+variable fh
+: close		fh @ CLOSE-FILE THROW ;
+: write		pib pibptr @ fh @ WRITE-FILE THROW ;
+: create	[CHAR] " PARSE R/W BIN CREATE-FILE THROW fh ! ;
+: out"		create write close ;
+

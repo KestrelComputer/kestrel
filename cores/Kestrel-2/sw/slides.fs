@@ -1,10 +1,10 @@
 program progmem.ram10
 start slide
 
-35 left !  7 top ! S" MILESTONE-2" text
+35 left !  7 top ! S" MILESTONE-4" text
 25 left !  8 top ! S" First Application for Kestrel-2" text
 31 left ! 10 top ! S" Samuel A. Falvo II" text
-35 left ! 11 top ! S" 2012-Sep-22" text
+35 left ! 11 top ! S" 2012-Dec-10" text
 
 slide S" Some Kestrel-2 Background" title
 
@@ -146,4 +146,15 @@ S" Fin." bullet
 S" Q & A" bullet
 
 end done
+
+out" slides.bin"
+\ To make the final binary, do the following script:
+\ 
+\ $ gforth asm.fs sdimage.fs				( compile Milestone 2 executable )
+\ $ gforth slide-asm.fs slides.fs			( compile slides )
+\ $ dd if=slides.bin of=sd.bin bs=1024 count=4 seek=8	( embed slide data into binary image )
+\ $ sudo cp sd.bin /dev/sdi				( write blocks to SD card )
+\ $ sync						( verify Linux flushes buffers )
+\ 
+\ The iamge should then boot on any Kestrel with the Milestone-3 bootstrap image.
 

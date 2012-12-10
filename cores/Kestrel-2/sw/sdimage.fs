@@ -1,3 +1,6 @@
+$0400 origin
+S" milestone-4.fs" included
+
 $3C00 origin
 defer, bootstrap
 
@@ -51,13 +54,10 @@ $B010 const, gpip
 :, led1		(led0) kLED1 xor, gpop !, ;,
 :, sector	led1 cs0 cmd17 r1 data crc cs1 gap led0 ;,
 :, load		loadcnt @, if, sector  loadcnt @, -1 #, +, loadcnt !, again, then, ;,
-:, go		$A5A5 #, $E000 #, !, again, ;,
-:, cold		$C000 #, loadptr !,  $0000 #, loadorg !,  15 #, loadcnt !, load go ;,
+:, go		$0400 #, go, ;,
+:, cold		$0400 #, loadptr !,  $0400 #, loadorg !,  24 #, loadcnt !, load go ;,
 ' cold >body @ is, bootstrap
 pib $3C00 + pib 1024 move
-
-$0400 origin
-S" m2.fs" included
 
 out" sd.bin"
 
