@@ -6,7 +6,7 @@
 
 : TWORDS		2* ;
 
-2048 CONSTANT #WORDS
+81920 CONSTANT #WORDS
 #WORDS TWORDS CONSTANT /pib
 64 CONSTANT #INITS
 
@@ -70,9 +70,19 @@ variable top
 : end		$0001 ,, ;
 : text		>r $10 c,, top @ c,, left @ c,, r@ c,, pibptr @ >pib r@ move r> pibptr +! align, ;
 
-: start		4 origin  0 ssf ! ;
-: done		ssf @ 0 pib!  pibptr @ 2 pib!  slidetab, ;
-: slide		end 1 ssf +!  pibptr @ ssf @ 1- cells slidetab + ! ;
+\ : start		4 origin  0 ssf ! ;
+\ : done		ssf @ 0 pib!  pibptr @ 2 pib!  slidetab, ;
+\ : slide		end 1 ssf +!  pibptr @ ssf @ 1- cells slidetab + ! ;
+
+: ssf!		0 pib! ;
+: ssf0		0 ssf! ;
+: ssf		0 pib@ ;
+: ssf++		ssf 1 + ssf! ;
+: tbl		pibptr @ ssf 2* pib! ;
+
+: start		1022 origin ssf0 ;
+: done		;
+: slide		end ssf++ pibptr @ 1023 + -1024 and pibptr ! tbl ;
 
 \ \ \ Useful utilities and "macros"
 

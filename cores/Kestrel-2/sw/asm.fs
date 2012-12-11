@@ -49,6 +49,7 @@ VARIABLE pibptr
 : pibc@		inside >pib c@ ;
 : pib,		pibptr @ pib!  1 TWORDS pibptr +! ;
 : pibc,		pibptr @ pibc!	1 pibptr +! ;
+: allot,	pibptr +! align, ;
 
 \ \ \ VERILOG DUMPER
 
