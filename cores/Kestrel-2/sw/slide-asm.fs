@@ -86,7 +86,7 @@ variable top
 
 \ \ \ Useful utilities and "macros"
 
-: home		left off  top off ;
+: home		2 left !  top off ;
 : org		2 left ! 2 top ! ;
 : title		home text org ;
 

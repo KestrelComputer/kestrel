@@ -60,4 +60,4 @@ $B010 const, gpip
 pib $3C00 + pib 1024 move
 
 out" sd.bin"
-
+bye
