@@ -1,6 +1,9 @@
 \ Bootstrap entry point.  The DEFER must always be the first thing compiled.
 defer, entry-point
 
+\ Not technically part of the CMD, but useful for Kestrel-specific testing.
+$C000 16000 + const, gap
+
 \ Character Map Descriptor Accessors
 $C000 const, bitplane
    80 const, #ch/row
@@ -56,12 +59,29 @@ int, test
 :, fail		cls testid halt ;,
 
 \ Edge case negative tests (remaining tests serve as positive tests)
+
+:, =AAAA	p @, @, $AAAA #, xor, if, fail then, ;,
+:, (screen0)	p @, gap xor, if, =AAAA incp again, then, ;,
+:, (gap0)	p @, if, =AAAA incp again, then, ;,
+:, screen	bitplane p !, (screen0) ;,
+:, gap		gap p !, (gap0) ;,
+:, (setscr0)	p @, gap xor, if, $AAAA #, p @, !, incp again, then, ;,
+:, setscr	bitplane p !, (setscr0) ;,
+
+:, t		if, screen gap exit, then, fail ;,
+:, t10		$0017 #, test !,  setscr 0 #, Left !, #rows Top !, #ch/row Right !, #rows -1 #, +, Bottom !,  ErrFlag @, $20 #, and, t ;,
+:, t20		$0027 #, test !,  setscr 0 #, Left !, #rows 1 #, +, Top !, #ch/row Right !, #rows Bottom !,  ErrFlag @, $10 #, and, t ;,
+:, t30		$0037 #, test !,  setscr 0 #, Left !, 0 #, Top !, #ch/row Right !, #rows 1 #, +, Bottom !,  ErrFlag @, $08 #, and, t ;,
+:, t40		$0047 #, test !,  setscr #ch/row Left !, 0 #, Top !, #ch/row -1 #, +, Right !, #rows Bottom !, ErrFlag @, $04 #, and, t ;,
+:, t50		$0057 #, test !,  setscr 0 #, Left !, 0 #, Top !, #ch/row Right !,  #rows Bottom !, ErrFlag @, $02 #, and, t ;,
+:, t60		$0067 #, test !,  setscr #ch/row 1 #, +, Left !, 0 #, Top !, #ch/row Right !,  #rows Bottom !, ErrFlag @, $01 #, and, t ;,
+
 \ Zero-width tests
 \ Zero-height tests
 \ Positive tests
 
 :, all-tests
-\	t10 t20 t30 t40 t50 t60
+	t10 t20 t30 t40 t50 t60
 \	t100 t110 t120
 \	t200 t210 t220
 \	t300 t310
