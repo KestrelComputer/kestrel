@@ -48,12 +48,15 @@ int, r			( current raster counter )
 include framebuffer.fs
 
 
+\ Re-used and useful phrases
+:, incp		p @, 2 #, +, p !, ;,
+
+
 \ Unit Testing Support
 int, test
 
 :, halt		again, ;,
 :, testid	test @, $C000 #, !,  test @, -1 #, xor, $C050 #, !, ;,
-:, incp		p @, 2 #, +, p !, ;,
 :, (cls0)	p @, if, 0 #, p @, !, incp again, then, ;,
 :, cls		bitplane p !, (cls0) ;,
 :, fail		cls testid halt ;,
@@ -63,18 +66,18 @@ int, test
 :, =AAAA	p @, @, $AAAA #, xor, if, fail then, ;,
 :, (screen0)	p @, gap xor, if, =AAAA incp again, then, ;,
 :, (gap0)	p @, if, =AAAA incp again, then, ;,
-:, screen	bitplane p !, (screen0) ;,
-:, gap		gap p !, (gap0) ;,
-:, (setscr0)	p @, gap xor, if, $AAAA #, p @, !, incp again, then, ;,
-:, setscr	bitplane p !, (setscr0) ;,
+:, scrAA	bitplane p !, (screen0) ;,
+:, gapAA	gap p !, (gap0) ;,
+:, (setup0)	p @, if, $AAAA #, p @, !, incp again, then, ;,
+:, setup	bitplane p !, (setup0) ;,
 
-:, t		if, screen gap exit, then, fail ;,
-:, t10		$0017 #, test !,  setscr 0 #, Left !, #rows Top !, #ch/row Right !, #rows -1 #, +, Bottom !,  ErrFlag @, $20 #, and, t ;,
-:, t20		$0027 #, test !,  setscr 0 #, Left !, #rows 1 #, +, Top !, #ch/row Right !, #rows Bottom !,  ErrFlag @, $10 #, and, t ;,
-:, t30		$0037 #, test !,  setscr 0 #, Left !, 0 #, Top !, #ch/row Right !, #rows 1 #, +, Bottom !,  ErrFlag @, $08 #, and, t ;,
-:, t40		$0047 #, test !,  setscr #ch/row Left !, 0 #, Top !, #ch/row -1 #, +, Right !, #rows Bottom !, ErrFlag @, $04 #, and, t ;,
-:, t50		$0057 #, test !,  setscr 0 #, Left !, 0 #, Top !, #ch/row Right !,  #rows Bottom !, ErrFlag @, $02 #, and, t ;,
-:, t60		$0067 #, test !,  setscr #ch/row 1 #, +, Left !, 0 #, Top !, #ch/row Right !,  #rows Bottom !, ErrFlag @, $01 #, and, t ;,
+:, t		if, scrAA gapAA exit, then, fail ;,
+:, t10		$0017 #, test !,  setup 0 #, Left !, #rows Top !, #ch/row Right !, #rows -1 #, +, Bottom !,  BlackRect  ErrFlag @, $20 #, and, t ;,
+:, t20		$0037 #, test !,  setup 0 #, Left !, 0 #, Top !, #ch/row Right !, #rows 1 #, +, Bottom !,  BlackRect  ErrFlag @, $10 #, and, t ;,
+:, t30		$0027 #, test !,  setup 0 #, Left !, #rows 1 #, +, Top !, #ch/row Right !, #rows Bottom !,  BlackRect  ErrFlag @, $08 #, and, t ;,
+:, t40		$0047 #, test !,  setup #ch/row Left !, 0 #, Top !, #ch/row -1 #, +, Right !, #rows Bottom !, BlackRect  ErrFlag @, $04 #, and, t ;,
+:, t50		$0057 #, test !,  setup 0 #, Left !, 0 #, Top !, #ch/row 1 #, +, Right !,  #rows Bottom !,  BlackRect  ErrFlag @, $02 #, and, t ;,
+:, t60		$0067 #, test !,  setup #ch/row 1 #, +, Left !, 0 #, Top !, #ch/row Right !,  #rows Bottom !,  BlackRect  ErrFlag @, $01 #, and, t ;,
 
 \ Zero-width tests
 \ Zero-height tests
