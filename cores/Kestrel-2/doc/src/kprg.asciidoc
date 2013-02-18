@@ -1,0 +1,120 @@
+Kestrel-2 Programmer's Reference Guide
+======================================
+Samuel A. Falvo II
+V1, 2013-Feb-17
+:doctype: book
+:toc:
+
+
+Basic Input/Output System
+-------------------------
+
+Framebuffer
+~~~~~~~~~~~
+
+The Kestrel-2 lacks video hardware capable of directly displaying text.
+Software must exist to render character-oriented BIOS output to the screen for the human operator to make sense of it.
+The +framebuffer+ module provides the lowest-level primitives to accomplish this goal.
+This module provides a kind of hardware-abstraction layer for the BIOS, allowing it to work with most kinds of graphical frame buffers with only minor modifications necessary.
+
+At present, this module is considered internal to the BIOS.
+Although +framebuffer+ exposes end-points which may be useful for your application programs,
+ be aware that this interface can change at any time in the future,
+ without regard for backward compatibility with existing applications.
+
+Concepts
+^^^^^^^^
+
+A framebuffer consists of a matrix of pixels, stored eight to a byte.
+The MGIA arranges the bytes sequentially in memory, but displays them in a rectangular matrix;
+ the first 80 correspond to the first row of 640 pixels,
+ the next 80 correspond to the next row of 640 pixels, and so on.
+
+Dividing the video screen into 8-by-8 pixel blocks, then, provides a natural and convenient matrix of "character cells."
+Each character cell consists of eight bytes, whose pattern of 1s and 0s form white and black pixels, respectively.
+Properly formed, these patterns may produce human-readable text.
+The pattern of 1s and 0s in <<letter-a,table 1>>, for example, would produce the letter "A" on the screen.  These 8-by-8 pixel images are called _glyphs_.
+
+.The Letter A rendered in glyph form.
+[[letter-a]]
+[width="15%"]
+|===============
+|0|0|0|1|1|0|0|0
+|0|0|1|1|1|1|0|0
+|0|0|1|1|1|1|0|0
+|0|1|1|0|0|1|1|0
+|0|1|1|1|1|1|1|0
+|1|1|0|0|0|0|1|1
+|1|1|0|0|0|0|1|1
+|0|0|0|0|0|0|0|0
+|===============
+
+With a 640-pixel wide display, and with 8 pixel wide characters, the screen may express up to 80 characters per character row.
+With a 200 pixel tall display, again given 8 pixel tall characters, the screen may express up to 25 character rows.
+Thus, the MGIA's 640x200 display allows a typical 80 by 25 character display.
+
+The +framebuffer+ module, strictly speaking, isn't aware of these details except by way of a _character matrix descriptor_, or CMD.
+The CMD provides the +framebuffer+ module knowledge of how to lay out characters on an otherwise free-form bitmapped framebuffer.
+
+When drawing or otherwise working on behalf of a client application,
+ the +framebuffer+ module will need some place to store its running state.
+Additionally, functions offered by the +framebuffer+ module often take inputs provided by client applications.
+In the event of an error, the +framebuffer+ module must be capable of reporting the nature of the error back to the caller.
+The _framebuffer control block_, or FBCB, provides all the storage that the +framebuffer+ needs, which includes internal or private variables as well.
+
+Character Matrix Descriptor
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The CMD provides the +framebuffer+ software with the configuration of the framebuffer it'll be rendering into.
+It provides this through a series of parameters acquired through executing several Forth words.
++framebuffer+ treats these words as constants;
+ they must be defined prior to including +framebuffer+.
+
+[options="header"]
+|========
+|CMD Accessor| Stack Effect| Description
+|+bitplane+| ( -- a ) | Base address of the framebuffer.  +framebuffer+ assumes that each pixel row of the framebuffer are adjacent; that is, no gaps exist in the bitmap.
+|+#ch/row+| ( -- n ) | The maximum number of integral characters the bitmap may express in a single character row.  +framebuffer+ does not support partial columns.
+|+#rows+| ( -- n ) | The maximum number of integral character rows the bitmap may express.  +framebuffer+ does not support partial rows.
+|+#px/row+| ( -- n ) | The number of pixel rows per character row.  This figure need not be a power of two.
+|+#mt/rows+| ( -- a ) | A multiplication table, consisting of +#rows+ unsigned cells.  The S16X4 processor lacks multiplication facilities, so this multiplication table makes up for the lack when computing screen offsets.
+|+#mt/px+| ( -- a ) | A multiplication table, consisting of +#px/row+ unsigned cells.  +framebuffer+ uses this to help compute offsets within a character row.
+|========
+
+Framebuffer Control Block
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The FBCB provides +framebuffer+ with working storage and a means of interacting with programs that call it.
++framebuffer+ treats these words as variables;
+ they must be defined prior to including +framebuffer+.
+Since +framebuffer+ treats all fields as variables, all accessors must return an address (e.g., all words expose the ( -- a) stack effect).
+
+[options="header"]
+|====
+|FBCB Locator|+framebuffer+ Internal|Description|Invariant
+|+Left+|No|Specifies the left-edge of a bounding rectangle|0 <= +Left+ <= +Right+ <= +#ch/row+
+|+Top+|No|Specifies the top-edge of a bounding rectangle|0 <= +Top+ <= +Bottom+ <= +#rows+
+|+Right+|No|Specifies the right-edge of a bounding rectangle|0 <= +Right+ <= +#ch/row+
+|+Bottom+|No|Specifies the bottom-edge of a bounding rectangle|0 <= +Bottom+ <= +#rows+
+|+ErrFlag+|No|Provides an error report to the calling application.|
+|+p+|Yes|Pointer into framebuffer.|
+|+w+|Yes|Width counter.|
+|+y+|Yes|Character row counter.|
+|+r+|Yes|Pixel counter within character row ("Raster line")|
+|====
+
+BlackRect
+^^^^^^^^^
+
+The +BlackRect+ procedure clears a rectangular portion of the framebuffer to black.
+The FBCB +Left+, +Top+, +Right+, and +Bottom+ fields specify the _character_ coordinates of the rectangle to chear.
+
+The +ErrFlag+ field will contain an error report upon return.
++BlackRect+ may set the following flags:
+
+[options="header"]
+|====
+|15|14|13|12|11|10|9|8|7|6|5|4|3|2|1|0
+|  |  |  |  |  |  | | | | |+Top+ > +Bottom+|+Bottom+ > +#Rows+|+Top+ > +#Rows+|+Left+ > +Right+|+Right+ > +#ch/row+|+Left+ > +#ch/row+
+|====
+
