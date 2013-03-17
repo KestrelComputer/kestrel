@@ -72,21 +72,31 @@
 ' #ch/row >body @ negate 1- const, -W-1    ( used for checking if x <= #ch/row )
 ' #rows >body @ negate 1- const, -H-1    ( used for checking if y <= #rows )
 
-\ Code to draw a black, character-aligned rectangle
+\ Common code to handle rectangular regions of the display.
+\ Depending on the configuration of the AND- and XOR-masks,
+\ this code can either clear, set, or reverse video in a character-aligned
+\ rectangular region of the display.
+char, andmask
+char, xormask
+
 :, incy		y @, 1 #, +, y !, ;,
 :, decw		w @, -1 #, +, w !, ;,
 :, incp		p @, 1 #, +, p !, ;,
-:, stz		0 #, p @, 1 #, xor, c!, ;,  ( 1 #, xor, because of way MGIA maps bytes versus words in Kestrel-2 )
-:, blackr	w @, if, stz incp decw again, then, ;,
+:, addr		p @, 1 #, xor, ;,  ( 1 #, xor, because of the way MGIA maps bytes versus words in Kestrel-2 )
+:, byte		addr c@, andmask c@, and, xormask c@, xor, addr c!, ;,
+:, bytes	w @, if, byte incp decw again, then, ;,
 :, edge		y @, y @, +,  mt/rows +, @,
 		r @, r @, +,  mt/px +, @, +,
 		bitplane +, Left @, +, p !, ;,
 :, width	Left @, -1 #, xor, 1 #, +, Right @, +, w !, ;,
-:, clrr		edge width blackr ;,
-:, crs		r @, #px/row xor, if, clrr r @, 1 #, +, r !, again, then, ;,
-:, clrrow	0 #, r !,  crs ;,
-:, allrows	y @, Bottom @, xor, if, clrrow incy again, then, ;,
-:, (br)		Top @, y !, allrows ;,
+:, raster	edge width bytes ;,
+:, rasters	r @, #px/row xor, if, raster r @, 1 #, +, r !, again, then, ;,
+:, row		0 #, r !,  rasters ;,
+:, allrows	y @, Bottom @, xor, if, row incy again, then, ;,
+:, rect		Top @, y !, allrows ;,
+
+:, (br)		$00 #, andmask c!, $00 #, xormask c!,  rect ;,
+:, (rv)		$FF #, andmask c!, $FF #, xormask c!,  rect ;,
 
 \ Error conditions preventing BlackRect from working
 :, L>W		ErrFlag @, 1 #, xor, ErrFlag !, ;,
@@ -109,4 +119,5 @@
 
 \ Public API
 :, BlackRect	validate  ErrFlag @, if, exit, then,  (br) ;,
+:, ReverseVideo validate  ErrFlag @, if, exit, then,  (rv) ;,
 

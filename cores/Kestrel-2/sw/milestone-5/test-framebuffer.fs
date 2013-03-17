@@ -58,7 +58,7 @@ pibptr @ swap - . .( bytes in module compiled) cr
 int, test
 
 :, halt		again, ;,
-:, testid	test @, $C000 #, !,  test @, -1 #, xor, $C050 #, !, ;,
+:, testid	test @, $C000 #, !,  test @, -1 #, xor, $C050 #, !, $1111 #, $C0A0 #, !, ;,
 :, (cls0)	p @, if, 0 #, p @, !, incp again, then, ;,
 :, cls		bitplane p !, (cls0) ;,
 :, fail		cls testid halt ;,
@@ -68,9 +68,11 @@ int, test
 :, =AAAA	p @, @, $AAAA #, xor, if, fail then, ;,
 :, (scrAA)	p @, gap xor, if, =AAAA incp again, then, ;,
 :, (scr00)	p @, gap xor, if, p @, @, if, fail then, incp again, then, ;,
+:, (scr55)	p @, gap xor, if, p @, @, $5555 #, xor, if, fail then, incp again, then, ;,
 :, (gap0)	p @, if, =AAAA incp again, then, ;,
 :, scrAA	bitplane p !, (scrAA) ;,
 :, scr00	bitplane p !, (scr00) ;,
+:, scr55	bitplane p !, (scr55) ;,
 :, gapAA	gap p !, (gap0) ;,
 :, (setup0)	p @, if, $AAAA #, p @, !, incp again, then, ;,
 :, setup	bitplane p !, (setup0) ;,
@@ -106,8 +108,21 @@ int, test
                 $C1E0 #, @, $00AA #, xor, if, fail then,
                 $C230 #, @, $00AA #, xor, if, fail then, ;,
 
-:, t300		$0300 #, test !,  setup  0 #, Left !,  0 #, Top !,  1 #, Right !,  1 #, Bottom !,  BlackRect  noerr 1glyph00 gapAA ;,
+:, t300		$0307 #, test !,  setup  0 #, Left !,  0 #, Top !,  1 #, Right !,  1 #, Bottom !,  BlackRect  noerr 1glyph00 gapAA ;,
 :, t310		$0317 #, test !,  setup  0 #, Left !,  0 #, Top !,  #ch/row Right !,  #rows Bottom !,  BlackRect  noerr scr00 gapAA ;,
+
+\ Reverse Video tests
+:, 1glyph55	$C000 #, @, $55AA #, xor, if, fail then,		( only a single glyph should be cleared )
+                $C050 #, @, $55AA #, xor, if, fail then,
+                $C0A0 #, @, $55AA #, xor, if, fail then,
+                $C0F0 #, @, $55AA #, xor, if, fail then,
+                $C140 #, @, $55AA #, xor, if, fail then,
+                $C190 #, @, $55AA #, xor, if, fail then,
+                $C1E0 #, @, $55AA #, xor, if, fail then,
+                $C230 #, @, $55AA #, xor, if, fail then, ;,
+
+:, t400		$0407 #, test !,  setup  0 #, Left !,  0 #, Top !,  1 #, Right !,  1 #, Bottom !,  ReverseVideo  noerr  1glyph55 gapAA ;,
+:, t410		$0417 #, test !,  setup  0 #, Left !,  0 #, Top !,  #ch/row Right !,  #rows Bottom !,  ReverseVideo  noerr  scr55 gapAA ;,
 
 
 :, all-tests
@@ -115,6 +130,7 @@ int, test
 	t100 t110 t120
 	t200 t210 t220
 	t300 t310
+	t400 t410
 	0 #, test !, fail ;,
 
 ' all-tests >body @ is, entry-point
