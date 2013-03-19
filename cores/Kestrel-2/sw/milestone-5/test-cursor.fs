@@ -45,8 +45,7 @@ int, p
 :, t060		$0060 #, t hide reveal tt ;,
 :, t070		$0070 #, t hide toggle tt ;,
 
-:, t080		$0080 #, t reveal hide hidden? if, exit, then, fail ;,
-:, t081		$0081 #, t reveal hide visible? if, fail then, ;,
+:, t080		$0080 #, t reveal hide tt ;,
 :, t090		$0090 #, t reveal reveal tr ;,
 :, t0A0		$00A0 #, t reveal toggle th ;,
 
@@ -142,8 +141,8 @@ int, p
 	t200 t210 t220 t230 t240 t250 t260 t270 t280 t290 t2A0 t2B0 t2C0 t2D0 t2E0 t2F0
 	t300 t310 t320 t330 t340 t350 t360 t370 t380 t390 t3A0 t3B0 t3C0 t3D0 t3E0 t3F0
 	t400 t410 t420 t430 t440 t450 t460 t470 t480 t490 t4A0 t4B0 t4C0 t4D0 t4E0 t4F0
-	t500 t510 t520 t530
-	
+	t500 t510 t520 t530      t261 t2C1 t321 t381 t3E1
+
 	0 #, test !, fail ;,
 
 ' all-tests >body @ is, entry-point
