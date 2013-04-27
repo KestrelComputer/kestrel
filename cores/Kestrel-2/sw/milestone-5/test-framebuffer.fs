@@ -36,6 +36,8 @@ int, Left
 int, Top
 int, Right
 int, Bottom
+int, Glyph
+int, Stride
 int, ErrFlag
   ( Private state )
 int, p			( general memory pointer )
@@ -124,6 +126,24 @@ int, test
 :, t400		$0407 #, test !,  setup  0 #, Left !,  0 #, Top !,  1 #, Right !,  1 #, Bottom !,  ReverseVideo  noerr  1glyph55 gapAA ;,
 :, t410		$0417 #, test !,  setup  0 #, Left !,  0 #, Top !,  #ch/row Right !,  #rows Bottom !,  ReverseVideo  noerr  scr55 gapAA ;,
 
+\ Glyph Painting tests
+create, myGlyph
+	$50 c,, $51 c,, $52 c,, $53 c,, $54 c,, $55 c,, $56 c,, $57 c,,
+
+:, tile
+	$C000 #, @, $50AA #, xor, if, fail then,
+	$C050 #, @, $51AA #, xor, if, fail then,
+	$C0A0 #, @, $52AA #, xor, if, fail then,
+	$C0F0 #, @, $53AA #, xor, if, fail then,
+	$C140 #, @, $54AA #, xor, if, fail then,
+	$C190 #, @, $55AA #, xor, if, fail then,
+	$C1E0 #, @, $56AA #, xor, if, fail then,
+	$C230 #, @, $57AA #, xor, if, fail then, ;,
+
+:, t500		$0500 #, test !,  setup  #ch/row Left !, 0 #, Top !,  Stamp  ErrFlag @, 1 #, and, if, exit, then, fail ;,
+:, t510		$0510 #, test !,  setup  0 #, Left !,  #rows Top !,  Stamp  ErrFlag @, 8 #, and, if, exit, then, fail ;,
+:, t520		$0520 #, test !,  setup  0 #, Left !, 0 #, Top !,  myGlyph Glyph !,  1 #, Stride !,  Stamp  ErrFlag @, if, fail then, ;,
+:, t530		$0530 #, test !,  setup  0 #, Left !, 0 #, Top !,  myGlyph Glyph !,  1 #, Stride !,  Stamp  tile ;,
 
 :, all-tests
 	t10 t20 t30 t40 t50 t60
@@ -131,7 +151,9 @@ int, test
 	t200 t210 t220
 	t300 t310
 	t400 t410
+	t500 t510 t520 t530
 	0 #, test !, fail ;,
 
 ' all-tests >body @ is, entry-point
 
+\ gforth ../asm.fs sd-test-framebuffer.fs

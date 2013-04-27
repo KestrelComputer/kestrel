@@ -56,6 +56,8 @@
 \ Top		The top edge of a bounding rectangle.
 \ Right		The right-hand edge of a bounding rectangle.
 \ Bottom	The bottom edge of a bounding rectangle.
+\ Glyph		The pointer to the first byte of the glyph to stamp.
+\ Stride	The number of bytes between rows of the glyph image.
 \ ErrFlag	This field always represents any error condition that prevented
 \		the framebuffer code from completing the procedure.  The inter-
 \		pretation of this field depends entirely upon the procedure
@@ -71,6 +73,8 @@
 \ Constants useful for range checking
 ' #ch/row >body @ negate 1- const, -W-1    ( used for checking if x <= #ch/row )
 ' #rows >body @ negate 1- const, -H-1    ( used for checking if y <= #rows )
+' #ch/row >body @ negate const, -W
+' #rows >body @ negate const, -H
 
 \ Common code to handle rectangular regions of the display.
 \ Depending on the configuration of the AND- and XOR-masks,
@@ -95,8 +99,14 @@ char, xormask
 :, allrows	y @, Bottom @, xor, if, row incy again, then, ;,
 :, rect		Top @, y !, allrows ;,
 
+:, adv		Glyph @, Stride @, +, Glyph !,  p @, #ch/row +, p !,  r @, 1 #, +, r !, ;,
+:, cpy		Glyph @, c@, addr c!, ;,
+:, row		cpy adv ;,
+:, tile		r @, #px/row xor, if, row again, then, ;,
+
 :, (br)		$00 #, andmask c!, $00 #, xormask c!,  rect ;,
 :, (rv)		$FF #, andmask c!, $FF #, xormask c!,  rect ;,
+:, (s)		0 #, r !,  edge  tile ;,
 
 \ Error conditions preventing BlackRect from working
 :, L>W		ErrFlag @, 1 #, xor, ErrFlag !, ;,
@@ -117,7 +127,12 @@ char, xormask
 :, T<=B		Bottom @, -1 #, xor, Top @, +, $8000 #, and, if, exit, then, T>B ;,
 :, validate	0 #, ErrFlag !,  L<=W R<=W L<=R  T<=H B<=H T<=B ;,
 
+\ Guards against errors relevant to glyph-painting.
+:, L<W		Left @, -W +, $8000 #, and, if, exit, then, L>W ;,
+:, T<H		Top @, -H +, $8000 #, and, if, exit, then, T>H ;,
+:, validateS 0 #, ErrFlag !,  L<W T<H ;,
+
 \ Public API
 :, BlackRect	validate  ErrFlag @, if, exit, then,  (br) ;,
 :, ReverseVideo validate  ErrFlag @, if, exit, then,  (rv) ;,
-
+:, Stamp		validateS  ErrFlag @, if, exit, then,  (s) ;,
