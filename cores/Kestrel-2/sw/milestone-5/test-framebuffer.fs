@@ -32,6 +32,8 @@ create, mt/px		( multiplication table for pixel row offsets within a single row 
 \ : Right  current_fbcb @ [ 2 cells ] literal + ;
 \ 
 \ and so on.
+int, ToLeft
+int, ToTop
 int, Left
 int, Top
 int, Right
@@ -41,8 +43,10 @@ int, Stride
 int, ErrFlag
   ( Private state )
 int, p			( general memory pointer )
+int, q			( general memory pointer )
 int, w			( width counter )
 int, y			( current row counter )
+int, y'			( alternate row counter )
 int, r			( current raster counter )
 
 
@@ -145,6 +149,23 @@ create, myGlyph
 :, t520		$0520 #, test !,  setup  0 #, Left !, 0 #, Top !,  myGlyph Glyph !,  1 #, Stride !,  Stamp  ErrFlag @, if, fail then, ;,
 :, t530		$0530 #, test !,  setup  0 #, Left !, 0 #, Top !,  myGlyph Glyph !,  1 #, Stride !,  Stamp  tile ;,
 
+\ Scroll test
+
+:, line1	0 #, Left !, 1 #, Top !, myGlyph Glyph !, 1 #, Stride !, Stamp ;,
+
+:, blank	( Heuristic; if the first word is clear, assume the rest of the line is clear too. )
+	$FC00 #, @, if, fail then,
+	$FC50 #, @, if, fail then,
+	$FCA0 #, @, if, fail then,
+	$FCF0 #, @, if, fail then,
+	$FD40 #, @, if, fail then,
+	$FD90 #, @, if, fail then,
+	$FDE0 #, @, if, fail then,
+	$FE30 #, @, if, fail then, ;,
+
+:, t600		$0600 #, test !,  setup line1 Scroll  tile ;,
+:, t610		$0610 #, test !,  setup line1 Scroll  blank ;,
+
 :, all-tests
 	t10 t20 t30 t40 t50 t60
 	t100 t110 t120
@@ -152,6 +173,7 @@ create, myGlyph
 	t300 t310
 	t400 t410
 	t500 t510 t520 t530
+	t600 t610
 	0 #, test !, fail ;,
 
 ' all-tests >body @ is, entry-point

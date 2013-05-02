@@ -1,6 +1,7 @@
 \ Dependencies:
 \
 \ #ch/row ( -- n )	This word gives the number of characters on a single row.
+\ #rows ( -- n )  This word gives the usable number of rows on the screen.
 \
 \ x ( -- a )	this variable contains the horizontal component of a coordinate pair.
 \ y ( -- a )	this variable contains the vertical component of a coordinate pair.
@@ -64,6 +65,9 @@ int, cy
 \ for unit-testing only.
 :, redge		#ch/row-1 cx !, ;,
 
+\ REdge? returns true if the cursor sits on the right-hand edge of the screen.
+:, REdge?		cx @, #ch/row-1 xor, if, 0 #, exit, then, -1 #, ;,
+
 \ mvup moves the cursor up one line, if it can.
 :, mvup			cy @, if, cy @, -1 #, +, cy !, then, ;,
 
@@ -82,6 +86,9 @@ int, cy
 \ bedge moves the cursor to the bottom of the screen.  This word is useful for unit-testing
 \ only.
 :, bedge		#rows-1 cy !, ;,
+
+\ BEdge? returns true if the cursor sits on the bottom edge of the screen.
+:, BEdge?		cy @, #rows-1 xor, if, 0 #, exit, then, -1 #, ;,
 
 \ home relocates the cursor to the upper-lefthand corner of the screen.
 :, home			0 #, cx !,  0 #, cy !, ;,

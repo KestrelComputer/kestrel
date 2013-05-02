@@ -63,7 +63,7 @@
 \		pretation of this field depends entirely upon the procedure
 \		invoked.
 \ 
-\ The following fields are private: p, w, y, and r.
+\ The following fields are private: p, q, w, y, y', and r.
 \ 
 \ BEWARE: Make sure none of the aforelisted FBCB fields refer to previously
 \ defined fields, or the framebuffer code will almost certainly crash.  They
@@ -75,6 +75,7 @@
 ' #rows >body @ negate 1- const, -H-1    ( used for checking if y <= #rows )
 ' #ch/row >body @ negate const, -W
 ' #rows >body @ negate const, -H
+' #rows >body @ 1- const, #rows-1
 
 \ Common code to handle rectangular regions of the display.
 \ Depending on the configuration of the AND- and XOR-masks,
@@ -98,6 +99,18 @@ char, xormask
 :, row		0 #, r !,  rasters ;,
 :, allrows	y @, Bottom @, xor, if, row incy again, then, ;,
 :, rect		Top @, y !, allrows ;,
+
+( block move - degenerate case of bit-blit.  Maybe I should implement a full blitter? )
+:, wrd		p @, @, q @, !,  p @, 2 #, +, p !,  q @, 2 #, +, q !,  w @, -2 #, +, w !, ;,
+:, wrds		w @, if, wrd again, then, ;,
+:, 0p		y @, y @, +, mt/rows +, @,  r @, r @, +, mt/px +, @, +, bitplane +, Left @, p !, ;,
+:, 0q		y' @, y' @, +, mt/rows +, @,  r @, r @, +, mt/px +, @, +, bitplane +, ToLeft @, q !, ;,
+:, scanline	0p 0q width wrds r @, 1 #, +, r !, ;,
+:, rasters	r @, #px/row xor, if, scanline again, then, ;,
+:, row		0 #, r !, rasters ;,
+:, incy'	y' @, 1 #, +, y' !, ;,
+:, allrows	y @, Bottom @, xor, if, row incy incy' again, then, ;,
+:, (mr)		Top @, y !,  ToTop @, y' !,  allrows ;,
 
 :, adv		Glyph @, Stride @, +, Glyph !,  p @, #ch/row +, p !,  r @, 1 #, +, r !, ;,
 :, cpy		Glyph @, c@, addr c!, ;,
@@ -136,3 +149,7 @@ char, xormask
 :, BlackRect	validate  ErrFlag @, if, exit, then,  (br) ;,
 :, ReverseVideo validate  ErrFlag @, if, exit, then,  (rv) ;,
 :, Stamp		validateS  ErrFlag @, if, exit, then,  (s) ;,
+:, Scroll		0 #, Left !,  0 #, ToLeft !,
+				1 #, Top !,  0 #, ToTop !,
+				#ch/row Right !,  #rows Bottom !, (mr)
+				0 #, Left !,  #rows-1 Top !,  #ch/row Right !,  #rows Bottom !,  BlackRect ;,
