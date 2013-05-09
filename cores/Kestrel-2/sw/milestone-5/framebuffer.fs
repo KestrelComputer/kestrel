@@ -103,8 +103,8 @@ char, xormask
 ( block move - degenerate case of bit-blit.  Maybe I should implement a full blitter? )
 :, wrd		p @, @, q @, !,  p @, 2 #, +, p !,  q @, 2 #, +, q !,  w @, -2 #, +, w !, ;,
 :, wrds		w @, if, wrd again, then, ;,
-:, 0p		y @, y @, +, mt/rows +, @,  r @, r @, +, mt/px +, @, +, bitplane +, Left @, p !, ;,
-:, 0q		y' @, y' @, +, mt/rows +, @,  r @, r @, +, mt/px +, @, +, bitplane +, ToLeft @, q !, ;,
+:, 0p		y @, y @, +, mt/rows +, @,  r @, r @, +, mt/px +, @, +, bitplane +, Left @, +, p !, ;,
+:, 0q		y' @, y' @, +, mt/rows +, @,  r @, r @, +, mt/px +, @, +, bitplane +, ToLeft @, +, q !, ;,
 :, scanline	0p 0q width wrds r @, 1 #, +, r !, ;,
 :, rasters	r @, #px/row xor, if, scanline again, then, ;,
 :, row		0 #, r !, rasters ;,
@@ -119,7 +119,7 @@ char, xormask
 
 :, (br)		$00 #, andmask c!, $00 #, xormask c!,  rect ;,
 :, (rv)		$FF #, andmask c!, $FF #, xormask c!,  rect ;,
-:, (s)		0 #, r !,  edge  tile ;,
+:, (s)		0 #, r !,  Top @, y !,  edge  tile ;,
 
 \ Error conditions preventing BlackRect from working
 :, L>W		ErrFlag @, 1 #, xor, ErrFlag !, ;,

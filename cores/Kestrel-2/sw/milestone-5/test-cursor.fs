@@ -13,10 +13,23 @@ $C000 const, bitplane
 int, x
 int, y
 
+\ FCB fields
+int, Left
+int, Top
+int, Right
+int, Bottom
+
+\ Test state
+int, ReverseVideos
+:, ReverseVideo  ReverseVideos @, 1 #, +, ReverseVideos !, ;,
+:, 0st		0 #, ReverseVideos !, ;,
+
+
 \ Module Under Test
 pibptr @
 include cursor.fs
 pibptr @ swap - . .( bytes in module compiled) cr
+
 
 \ Unit Testing Support
 int, test
@@ -28,7 +41,7 @@ int, p
 :, cls		bitplane p !, (cls0) ;,
 :, fail		cls testid halt ;,
 
-:, t		test !, 0cursor ;,
+:, t		test !, 0st 0cursor ;,
 
 :, tt		hidden? if, invisible? if, exit, then, then, fail ;,
 :, tr		hidden? if, fail then,  invisible? if, fail then, ;,
@@ -134,6 +147,10 @@ int, p
 :, t520		$0520 #, t bedge redge  getxy x=W-1 y=H-1 ;,
 :, t530		$0530 #, t bedge bedge  getxy x=0 y=H-1 ;,
 
+:, t600		$0600 #, t ReverseVideos @, if, fail then, ;,
+:, t610		$0610 #, t reveal ReverseVideos @, 1 #, xor, if, fail then, ;,
+:, t620		$0620 #, t reveal mvleft ReverseVideos @, 3 #, xor, if, fail then, ;,
+
 :, all-tests
 	     t010 t020 t030 t040 t050 t060 t070 t080 t090 t0A0 t0B0 t0C0 t0D0 t0E0 t0F0
 	t100 t110 t120 t130
@@ -142,6 +159,8 @@ int, p
 	t300 t310 t320 t330 t340 t350 t360 t370 t380 t390 t3A0 t3B0 t3C0 t3D0 t3E0 t3F0
 	t400 t410 t420 t430 t440 t450 t460 t470 t480 t490 t4A0 t4B0 t4C0 t4D0 t4E0 t4F0
 	t500 t510 t520 t530      t261 t2C1 t321 t381 t3E1
+
+	t600 t610 t620
 
 	0 #, test !, fail ;,
 
