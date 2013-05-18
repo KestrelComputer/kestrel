@@ -151,6 +151,12 @@ int, p
 :, t610		$0610 #, t reveal ReverseVideos @, 1 #, xor, if, fail then, ;,
 :, t620		$0620 #, t reveal mvleft ReverseVideos @, 3 #, xor, if, fail then, ;,
 
+( Should the following functionality actually reside within the tty module instead? )
+
+:, t700		$0700 #, t mvright mvright setbm resetbm  getxy x @, 2 #, xor, if, fail then, ;,
+:, t710		$0710 #, t mvright mvright setbm mvdown mvdown resetbm getxy y @, if, fail then, ;,
+:, t720		$0720 #, t mvdown setbm bedge redge mvright resetbm getxy y @, if, fail then, ;,
+
 :, all-tests
 	     t010 t020 t030 t040 t050 t060 t070 t080 t090 t0A0 t0B0 t0C0 t0D0 t0E0 t0F0
 	t100 t110 t120 t130
@@ -162,6 +168,10 @@ int, p
 
 	t600 t610 t620
 
+	t700 t710 t720
+
 	0 #, test !, fail ;,
 
 ' all-tests >body @ is, entry-point
+
+\ gforth ../asm.fs sd-test-cursor.fs
