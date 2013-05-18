@@ -38,11 +38,30 @@ int, w
 int, p
 int, q
 int, r
+int, strp
+int, strl
+int, #ib
+int, ckey
+int, shiftst
+char, ps2code
+
+$FF00 const, ib
+256 const, /ib
 
 include framebuffer.fs
 include font.fs
 include cursor.fs
 include tty.fs
+
+$B000 const, kqstat
+$B002 const, kqdata
+
+:, waitps2	kqstat c@, 1 #, and, if, again, then, ;,
+:, ackps2	kqdata c!, ;,
+:, headps2	kqdata c@, ps2code c!, ;,
+
+include keyboard.fs
+include cli.fs
 
 \ Main entry point.
 
@@ -52,13 +71,15 @@ include tty.fs
 			#rows Bottom !,
 			BlackRect ;,
 
-:, hellos	char H #, chr c!, PrintCh
-			char e #, chr c!, PrintCh
-			char l #, chr c!, PrintCh PrintCh
-			char o #, chr c!, PrintCh
-			32 #, chr c!, PrintCh again, ;,
+create, rdymsg
+	char R c,, char e c,, char a c,, char d c,, char y c,, char . c,,
+6 const, /rdymsg
 
-:, reset	0cursor 0tty ;,
-:, ep		reset clr home hellos ;,
+:, rdy		rdymsg strp !,  /rdymsg strl !, PrintStr .cr ;,
+:, reset	0cursor 0tty 0keyboard ;,
+:, spc		32 #, chr c!, PrintCh ;,
+:, prompt	char > #, chr c!, PrintCh spc ;,
+:, lines	prompt accept .cr again, ;,
+:, ep		reset clr home rdy lines ;,
 
 ' ep >body @ is, entry-point

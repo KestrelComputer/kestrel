@@ -23,7 +23,10 @@
 \ Stride ( -- a ) Variable indicating how wide of a bitmap (in bytes) the glyph image resides in.
 \
 \ Tty-specific:
-\ chr ( -- a ) Variable containing character to emit.  (Emit-only)
+\ chr ( -- a ) Variable containing character to emit.  (PrintCh only)
+\ strp ( -- a ) Variable pointing to the beginning of an 8-bit text string (PrintStr only)
+\ strl ( -- a ) Variable measuring the length of the string PrintStr should print
+
 
 :, 0tty		home ;,
 
@@ -37,3 +40,14 @@ create, wheretab
 :, eol		where @, 2 #, xor, if, exit, then, .ch return mvdown ;,
 :, corner	where @, 3 #, xor, if, exit, then, .ch return scroll ;,
 :, PrintCh	hide  either midline eol corner  reveal ;,
+:, ClearEol	getxy x @, Left !, y @, Top !, #ch/row Right !, y @, 1 #, +, Bottom !, BlackRect ;,
+
+:, .ch		strp @, c@, chr c!, PrintCh ;,
+:, incstrp	strp @, 1 #, +, strp !, ;,
+:, decstrl	strl @, -1 #, +, strl !, ;,
+:, PrintStr	strl @, if, .ch incstrp decstrl again, then, ;,
+
+:, either	BEdge? 1 #, and, where !, ;,
+:, mid		where @, if, exit, then,  mvdown return ;,
+:, btm		where @, 1 #, xor, if, exit, then,  return scroll ;,
+:, .cr		hide either mid btm reveal ;,
