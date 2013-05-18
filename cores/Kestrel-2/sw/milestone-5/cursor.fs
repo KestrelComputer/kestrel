@@ -37,6 +37,8 @@ int, vis
 
 int, cx
 int, cy
+int, bx
+int, by
 
 \ getxy will return the cursor's current position (in x and y variables) on the screen.
 :, getxy		cx @, x !,  cy @, y !, ;,
@@ -74,8 +76,11 @@ int, cy
 \ mvup moves the cursor up one line, if it can.
 :, mvup			hide  cy @, if, cy @, -1 #, +, cy !, then,  reveal ;,
 
+\ bookmark moves the current bookmark _up_ one line without scrolling it off the edge of the screen.
+:, bookmark		by @, if, by @, -1 #, +, by !, then, ;,
+
 \ mvdown moves the cursor down one line, if it can.
-:, mvdown		hide  cy @, #rows-1 xor, if, cy @, 1 #, +, cy !, then,  reveal ;,
+:, mvdown		hide  cy @, #rows-1 xor, if, cy @, 1 #, +, cy !,  reveal exit, then,  reveal bookmark ;,
 
 \ return performs a carriage return.
 :, return		hide  0 #, cx !,  reveal ;,
@@ -104,3 +109,14 @@ int, cy
 \ screen (0,0).
 :, 0cursor		1 #, hidden !,  0 #, vis !, home ;,
 
+\ setbm remembers the current cursor position in a bookmark.
+\ The caller can use resetbm to reset the cursor position to the most recently bookmarked position.
+\ If the screen scrolls, the bookmark scrolls with the screen.
+\ However, the bookmark never falls off the top edge of the screen.
+\ This allows, for instance, a line editor to support input text larger than the screen width despite
+\ providing input near the bottom of the screen, where scrolling has a higher probability of happening.
+:, setbm		cx @, bx !,  cy @, by !, ;,
+
+\ resetbm restores the cursor to the most recently set bookmark position.
+\ Use setbm to set the bookmark.
+:, resetbm		bx @, cx !,  by @, cy !, ;,
