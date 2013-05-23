@@ -16,3 +16,4 @@ out" sd.bin"
 .( to ./sd.bin) cr
 bye
 
+\ gforth ../asm.fs sd-test-cursor.fs

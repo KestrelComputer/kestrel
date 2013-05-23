@@ -13,10 +13,23 @@ $C000 const, bitplane
 int, x
 int, y
 
+\ FCB fields
+int, Left
+int, Top
+int, Right
+int, Bottom
+
+\ Test state
+int, ReverseVideos
+:, ReverseVideo  ReverseVideos @, 1 #, +, ReverseVideos !, ;,
+:, 0st		0 #, ReverseVideos !, ;,
+
+
 \ Module Under Test
 pibptr @
 include cursor.fs
 pibptr @ swap - . .( bytes in module compiled) cr
+
 
 \ Unit Testing Support
 int, test
@@ -28,7 +41,7 @@ int, p
 :, cls		bitplane p !, (cls0) ;,
 :, fail		cls testid halt ;,
 
-:, t		test !, 0cursor ;,
+:, t		test !, 0st 0cursor ;,
 
 :, tt		hidden? if, invisible? if, exit, then, then, fail ;,
 :, tr		hidden? if, fail then,  invisible? if, fail then, ;,
@@ -134,6 +147,16 @@ int, p
 :, t520		$0520 #, t bedge redge  getxy x=W-1 y=H-1 ;,
 :, t530		$0530 #, t bedge bedge  getxy x=0 y=H-1 ;,
 
+:, t600		$0600 #, t ReverseVideos @, if, fail then, ;,
+:, t610		$0610 #, t reveal ReverseVideos @, 1 #, xor, if, fail then, ;,
+:, t620		$0620 #, t reveal mvleft ReverseVideos @, 3 #, xor, if, fail then, ;,
+
+( Should the following functionality actually reside within the tty module instead? )
+
+:, t700		$0700 #, t mvright mvright setbm resetbm  getxy x @, 2 #, xor, if, fail then, ;,
+:, t710		$0710 #, t mvright mvright setbm mvdown mvdown resetbm getxy y @, if, fail then, ;,
+:, t720		$0720 #, t mvdown setbm bedge redge mvright resetbm getxy y @, if, fail then, ;,
+
 :, all-tests
 	     t010 t020 t030 t040 t050 t060 t070 t080 t090 t0A0 t0B0 t0C0 t0D0 t0E0 t0F0
 	t100 t110 t120 t130
@@ -143,6 +166,12 @@ int, p
 	t400 t410 t420 t430 t440 t450 t460 t470 t480 t490 t4A0 t4B0 t4C0 t4D0 t4E0 t4F0
 	t500 t510 t520 t530      t261 t2C1 t321 t381 t3E1
 
+	t600 t610 t620
+
+	t700 t710 t720
+
 	0 #, test !, fail ;,
 
 ' all-tests >body @ is, entry-point
+
+\ gforth ../asm.fs sd-test-cursor.fs
