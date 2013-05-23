@@ -35,7 +35,18 @@ int, vis
 \ invisible? returns true only if the cursor image is not visible to the user.
 :, invisible?	visible? -1 #, xor, ;,
 
-:, blink		vis @, 1 #, xor, vis !, ;,
+int, cx
+int, cy
+int, bx
+int, by
+
+\ getxy will return the cursor's current position (in x and y variables) on the screen.
+:, getxy		cx @, x !,  cy @, y !, ;,
+
+:, inverse		cx @, Left !,  cx @, 1 #, +, Right !,
+				cy @, Top !,   cy @, 1 #, +, Bottom !,  ReverseVideo ;,
+
+:, blink		vis @, 1 #, xor, vis !, inverse ;,
 :, off			vis @, if, blink then, ;,
 
 \ toggle alters the cursor image (reverse video to normal video, or
@@ -55,43 +66,40 @@ int, vis
 \ a single call to hide to hide the cursor again.
 :, reveal		hidden @, if, hidden @, -1 #, +, hidden !, toggle then, ;,
 
-int, cx
-int, cy
-
-\ getxy will return the cursor's current position (in x and y variables) on the screen.
-:, getxy		cx @, x !,  cy @, y !, ;,
-
 \ redge moves the cursor to the far right-hand edge of the screen.  This word is useful
 \ for unit-testing only.
-:, redge		#ch/row-1 cx !, ;,
+:, redge		hide  #ch/row-1 cx !,  reveal ;,
 
 \ REdge? returns true if the cursor sits on the right-hand edge of the screen.
 :, REdge?		cx @, #ch/row-1 xor, if, 0 #, exit, then, -1 #, ;,
 
 \ mvup moves the cursor up one line, if it can.
-:, mvup			cy @, if, cy @, -1 #, +, cy !, then, ;,
+:, mvup			hide  cy @, if, cy @, -1 #, +, cy !, then,  reveal ;,
+
+\ bookmark moves the current bookmark _up_ one line without scrolling it off the edge of the screen.
+:, bookmark		by @, if, by @, -1 #, +, by !, then, ;,
 
 \ mvdown moves the cursor down one line, if it can.
-:, mvdown		cy @, #rows-1 xor, if, cy @, 1 #, +, cy !, then, ;,
+:, mvdown		hide  cy @, #rows-1 xor, if, cy @, 1 #, +, cy !,  reveal exit, then,  reveal bookmark ;,
 
 \ return performs a carriage return.
-:, return		0 #, cx !, ;,
+:, return		hide  0 #, cx !,  reveal ;,
 
 \ mvleft moves the cursor one place to the left, if it can.
-:, mvleft		cx @, if, cx @, -1 #, +, cx !, exit, then, cy @, if, mvup redge then, ;,
+:, mvleft		hide  cx @, if, cx @, -1 #, +, cx !,  reveal exit, then, cy @, if, mvup redge then,  reveal ;,
 
 \ mvright moves the cursor one place to the right, if it can.
-:, mvright		cx @, #ch/row-1 xor, if, cx @, 1 #, +, cx !, exit, then, return mvdown ;,
+:, mvright		hide  cx @, #ch/row-1 xor, if, cx @, 1 #, +, cx !,  reveal exit, then, return mvdown  reveal ;,
 
 \ bedge moves the cursor to the bottom of the screen.  This word is useful for unit-testing
 \ only.
-:, bedge		#rows-1 cy !, ;,
+:, bedge		hide  #rows-1 cy !,  reveal ;,
 
 \ BEdge? returns true if the cursor sits on the bottom edge of the screen.
 :, BEdge?		cy @, #rows-1 xor, if, 0 #, exit, then, -1 #, ;,
 
 \ home relocates the cursor to the upper-lefthand corner of the screen.
-:, home			0 #, cx !,  0 #, cy !, ;,
+:, home			hide  0 #, cx !,  0 #, cy !,  reveal ;,
 
 \ 0cursor resets the cursor subsystem to its default, power-on state.
 \ To ensure the video framebuffer is synchronized with the expectations of the cursor
@@ -101,3 +109,14 @@ int, cy
 \ screen (0,0).
 :, 0cursor		1 #, hidden !,  0 #, vis !, home ;,
 
+\ setbm remembers the current cursor position in a bookmark.
+\ The caller can use resetbm to reset the cursor position to the most recently bookmarked position.
+\ If the screen scrolls, the bookmark scrolls with the screen.
+\ However, the bookmark never falls off the top edge of the screen.
+\ This allows, for instance, a line editor to support input text larger than the screen width despite
+\ providing input near the bottom of the screen, where scrolling has a higher probability of happening.
+:, setbm		cx @, bx !,  cy @, by !, ;,
+
+\ resetbm restores the cursor to the most recently set bookmark position.
+\ Use setbm to set the bookmark.
+:, resetbm		bx @, cx !,  by @, cy !, ;,

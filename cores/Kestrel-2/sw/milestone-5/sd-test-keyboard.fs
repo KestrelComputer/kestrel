@@ -1,8 +1,8 @@
-page .( *** KESTREL BIOS CURSOR TEST ) cr
+page .( *** KESTREL BIOS KEYBOARD DRIVER TEST ) cr
 warnings off
 
 $0400 origin
-include test-cursor.fs
+include test-keyboard.fs
 
 pibptr @ $0400 - . .( payload bytes compiled/assembled) cr
 
@@ -16,4 +16,4 @@ out" sd.bin"
 .( to ./sd.bin) cr
 bye
 
-\ gforth ../asm.fs sd-test-cursor.fs
+\ gforth ../asm.fs sd-test-keyboard.fs
