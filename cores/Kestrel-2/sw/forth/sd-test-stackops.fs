@@ -1,4 +1,4 @@
-page .( *** KESTREL BIOS TTY TEST ) cr
+page .( *** KESTREL FORTH STACK PERMUTATION TEST ) cr
 warnings off
 
 $0400 origin
