@@ -1,6 +1,7 @@
 \ Dependencies
 \ 
 \ pc ( -- a )	Variable	Virtual Program Counter
+\ rc ( -- a )	Variable	Virtual Return stack Counter
 \ w  ( -- a )	Variable	Virtual Word to Execute (aka Execution Token)
 
 :, _nxt		pc @, @, w !,  pc @, 2 #, +, pc !,  w @, @, go, ;,
