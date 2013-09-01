@@ -7,47 +7,62 @@
 variable kind
 variable sz
 variable seg
+variable offset
 
-: rdsz		sz inbuf !  2 count !  Read
+: rdword	2 count !  Read
 		count @ 2 xor if
-			p @ if relmem then
-			Close  0 result !  EBASE reason !  r> drop
+			seg @
+			if	seg @ p !  relmem
+			then
+			0 result !  EBASE reason !
+			r> r> 2drop
 		then  ;
+: rdsz		sz inbuf !  rdword ;
+: rdkind	kind inbuf !  rdword ;
+: rdoffset	offset inbuf !  rdword ;
+: (loadseg)	rdkind  kind @ T_HUNK xor if
+			0 result ! EBASE reason ! exit
+		then
+		begin	kind @ T_END xor
+		while	rdkind
+			kind @ T_CODE =
+			if	rdsz sz @ reqsize ! getmem
+				result @
+				if	0 result ! exit
+				then
+				p @ seg !  p @ inbuf !  sz @ count !  Read
+				count @ sz @ xor
+				if	relmem
+					0 result ! EBASE reason ! exit
+				then
+			then
+			kind @ T_RELOC =
+			seg @ 0= and
+			if	0 result !  EBASE reason ! exit
+			then
+			kind @ T_RELOC =
+			seg @ and
+			if	rdsz
+				begin	sz @
+				while	rdoffset
+					\ This prototype assumes a 2-byte word on a 64-bit Forth machine.
+					\ This gyration goes away when word size and machine integer size matches.
+					\     offset @ seg @ + @  seg @ +  offset @ seg @ + !
+					\ What follows is for demonstration purposes only.
+					offset @ seg @ + @
+					seg @ + $FFFF and
+					offset @ seg @ +
+					2dup c! 1+ swap 8 rshift swap c!
+					-1 sz +!
+				repeat
+			then
+		repeat
+		seg @ result !  0 reason ! ;
 
-: rdkind	kind inbuf !  2 count !  Read
-		count @ 2 xor if
-			p @ if relmem then
-			Close  0 result !  EBASE reason !  r> drop
-		then  ;
-
-: loadseg	0 kind !   0 p !  0 reqsize !
-
+: loadseg	0 kind ! 0 p ! 0 reqsize ! 0 seg !
 		Open
 		result @ 0= if exit then
 		result @ cin !
-
-		rdkind
-		kind @ T_HUNK xor if
-			Close  0 result !  EBASE reason !  exit
-		then
-
-		begin	kind @ T_END xor
-		while	rdkind
-			kind @ T_CODE = if
-				rdsz
-				sz @ reqsize !  getmem
-				result @ if
-					0 result ! exit
-				then
-				p @ seg !
-				p @ inbuf !
-				sz @ count !  Read
-				count @ sz @ xor if
-					relmem
-					Close  0 result !  EBASE reason ! exit
-				then
-			then
-		repeat
-		seg @ result !  0 reason !
-;
+		(loadseg)
+		cin @ p !  Close ;
 

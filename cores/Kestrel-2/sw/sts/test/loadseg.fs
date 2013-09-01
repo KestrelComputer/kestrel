@@ -39,6 +39,7 @@ variable dosvecs
 
 \ Real getmem interface
 create pool  8192 allot
+pool 8192 $cc fill
 include ../getmem.fs
 pool p !  8192 reqsize !  fmtmem
 pool poolbase !
@@ -64,6 +65,28 @@ create file_4
 	$08 c, $00 c,				\ size
 	$41 c, $42 c, $43 c, $44 c,
 	$45 c, $46 c, $47 c, $48 c,
+	$72 c, $03 c,				\ T_END
+
+create file_5
+	$70 c, $03 c,				\ T_HUNK
+	$73 c, $03 c,				\ T_RELOC
+	$04 c, $00 c,				\ size = 4 entries
+	$00 c, $00 c, $02 c, $00 c,
+	$04 c, $00 c, $06 c, $00 c,
+	$72 c, $03 c,				\ T_END
+
+create file_6
+	$70 c, $03 c,				\ T_HUNK
+	$71 c, $03 c,				\ T_CODE
+	$08 c, $00 c,				\ code size
+	$00 c, $1E c,
+	$00 c, $00 c,
+	$00 c, $1E c,
+	$04 c, $00 c,
+	$73 c, $03 c,				\ T_RELOC
+	$02 c, $00 c,				\ two entries (four bytes)
+	$02 c, $00 c,
+	$06 c, $00 c,
 	$72 c, $03 c,				\ T_END
 
 : notfound	0 result !  ENOTFOUND reason ! ;
@@ -145,10 +168,25 @@ create 'api_4
 : t140.3	s  loadseg  reason @ abort" t140.3" ;
 : t140.4	s  loadseg  result @ @ $4847464544434241 xor abort" t140.4" ;
 
+\ If given a valid segment file with a relocation record before a code record, it's an error.
+: s		stdfn api_4 file_5 testscb ! ;
+: t150.1	s  loadseg  result @ abort" t150.1" ;
+: t150.2	s  loadseg  reason @ EBASE xor abort" t150.2" ;
+
+\ If given a code then a relocation chunk in a valid file, we should see it loaded, and with relocations applied relative to the chunk's place in memory.
+: s		stdfn api_4 file_6 testscb ! ;
+: t160.1	s  loadseg  result @ 0= abort" t160.1" ;
+: t160.2	s  loadseg  result @ @ $FFFF and $1E00 xor abort" t160.2" ;
+: t160.3	s  loadseg  result @ 2 + @ $FFFF and result @ $FFFF and xor abort" t160.3" ;
+: t160.4	s  loadseg  result @ 4 + @ $FFFF and $1E00 xor abort" t160.4" ;
+: t160.5	s  loadseg  result @ 6 + @ $FFFF and result @ 4 + $FFFF and xor abort" t160.5" ;
+
 : t		t100.1 t100.2 
 		t110.1 t110.2
 		t120.1 t120.2 t120.3 t120.4
 		t130.1 t130.2 t130.3 t130.4
 		t140.1 t140.2 t140.3 t140.4
+		t150.1 t150.2
+		t160.1 t160.2 t160.3 t160.4 t160.5
 		;
 
