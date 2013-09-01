@@ -1,9 +1,8 @@
-\ test-getmem.fs
+\ test-loadseg.fs
 \ 
-\ These routines provide a dynamic memory management facility, allowing
-\ applications to request blocks of memory of a given size, and to release it
-\ later if required.
-
+\ This code provides a means of loading executable program code into memory at an
+\ undetermined address, and still have it work.  Relocation happens at load-time,
+\ not at compile-, link-, or run-time.
 
 include ../errors.fs
 
