@@ -52,7 +52,8 @@
 		       p @ @ @ p @ !
 		REPEAT
 		p @ cell+ @ reqsize @ U< if p @ @ p ! exit then
-		gmsplit  /node p +!  0 result ! ;
+		p @ cell+ @ reqsize @ /node 2* + U>= if gmsplit  /node p +!  0 result !  exit then
+		p @ cell+ @ 1 or p @ cell+ !  /node p +!  0 result ! ;
 
 : getmem	EBASE reason !  -1 result !  poolbase @ 0= if exit then
 		ESIZE reason !  poolbase @ p !  reqsize @ roundup + -/node and reqsize !

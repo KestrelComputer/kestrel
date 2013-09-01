@@ -5,7 +5,7 @@
 \ later if required.
 
 
-include errors.fs
+include ../errors.fs
 
 
 8192 constant /pool
@@ -18,14 +18,15 @@ variable result
 variable reason
 variable poolbase
 
-include getmem.fs
+include ../getmem.fs
 
 \ Memory pool metadata itself requires storage.
 \ This prevents one from allocating the pool as a whole.
 
 : 0=		if 0 exit then -1 ;
+: 0pool		pool /pool $cc fill  pool p ! /pool reqsize ! fmtmem  pool poolbase ! ;
 
-: s		pool p !  /pool reqsize !  fmtmem ;
+: s		0pool ;
 : t100.1	s  /pool reqsize !  getmem  result @ 0= abort" t100.1" ;
 : t100.2	s  0 poolbase !  /pool reqsize !  getmem  reason @ EBASE xor abort" t100.2" ;
 : t100.3	s  pool poolbase !  /pool reqsize !  getmem  reason @ ESIZE xor abort" t100.3" ;
@@ -33,7 +34,7 @@ include getmem.fs
 \ Allocating something smaller than the whole pool should
 \ succeed, however.
 
-: s		pool p !  /pool reqsize !  fmtmem  pool poolbase ! ;
+: s		0pool ;
 : t110.1	s  4000 reqsize !  getmem  result @ abort" t110.1" ;
 : t110.2	s  4000 reqsize !  getmem  p @ pool /node + xor abort" t110.2" ;
 : t110.3	s  4000 reqsize !  getmem getmem result @ abort" t110.3" ;
@@ -77,11 +78,27 @@ variable v
 : t140.1	s  256 reqsize !  getmem  result @ abort" t140.1" ;
 : t140.2	s  256 reqsize !  getmem  p @  q @  xor abort" t140.2" ;
 
+\ Allocate 8 bytes.  Release that block.  Re-allocate 8 bytes.
+\ This should re-use the previously allocated block.
+\ It should not corrupt the subsequent node in the memory list.
+: s		pool /pool $CC fill  pool p !  /pool reqsize !  fmtmem  pool poolbase !
+		8 reqsize !  getmem  p @ q !
+		relmem
+		8 reqsize !  getmem  p @ r ! ;
+
+: t150.1	s  q @ r @ xor abort" t150.1" ;
+: t150.2	s  pool @ cell+ @ /pool /node 3 * - xor abort" t150.2" ;
+		( 3 * because 1 is for the 1st block's header, )
+		( 1 is for the space consumed by the "8-byte" reservation, )
+		( and 1 more for the split node's header. )
+
+
 : t		." 100" cr t100.1 t100.2 t100.3
 		." 110" cr t110.1 t110.2 t110.3 t110.4
 		." 120" cr t120.1 t120.2 
 		." 130" cr t130.1 t130.2 
-		." 140" cr t140.1 t140.2 ;
+		." 140" cr t140.1 t140.2 
+		." 150" cr t150.1 t150.2 ;
 
 \ t
 
