@@ -47,9 +47,10 @@
 		reqsize @ 1 or p @ cell+ ! ;
 
   : gmstep	p @ cell+ @ 1 and if p @ @ p ! exit then
-		BEGIN  p @ @ cell+ @ 1 and 0=  p @ @ @ poolbase @ = 0= and
-		WHILE  p @ @ cell+ @ /node + p @ cell+ +!
-		       p @ @ @ p @ !
+		BEGIN	p @ @ cell+ @ 1 and 0=
+			p @ @ poolbase @ = 0= and
+		WHILE	p @ @ cell+ @ /node + p @ cell+ +!
+			p @ @ @ p @ !
 		REPEAT
 		p @ cell+ @ reqsize @ U< if p @ @ p ! exit then
 		p @ cell+ @ reqsize @ /node 2* + U>= if gmsplit  /node p +!  0 result !  exit then
