@@ -31,10 +31,7 @@ variable dosvecs
 : Read		dosvecs @ cell+ @ execute ;
 : Close		dosvecs @ 2 cells + @ execute ;
 
-880 constant T_HUNK
-881 constant T_CODE
-882 constant T_END
-883 constant T_RELOC
+include ../constants.fs
 
 \ Real getmem interface
 create pool  8192 allot
