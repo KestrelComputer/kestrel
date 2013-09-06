@@ -11,3 +11,6 @@ EBASE constant EINIT
 \ ENOTFOUND errors occur when a resource cannot be found.
 102 constant ENOTFOUND
 
+\ ENAME errors occur when a resource name doesn't follow the expected syntax.
+103 constant ENAME
+

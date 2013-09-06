@@ -84,12 +84,27 @@
 variable filenamelen
 variable filenameptr
 variable result
+variable reason
 
+include ../errors.fs
 include ../fs.fs
 
 : s		S" foo" filenamelen ! filenameptr ! ;
 : t100.1	s  Open  result @ abort" t100.1" ;
+: t100.2	s  Open  reason @ ENAME xor abort" t100.2" ;
 
-: t		t100.1
+: s		S" :foo" filenamelen !  filenameptr ! ;
+: t100.3	s  Open  result @ abort" t100.3" ;
+: t100.4	s  Open  reason @ ENOTFOUND xor abort" t100.4" ;
+
+: s		S" bar:" filenamelen !  filenameptr ! ;
+: t100.5	s  Open  result @ abort" t100.5" ;
+: t100.6	s  Open  reason @ ENOTFOUND xor abort" t100.6" ;
+
+: s		S" bar:foo" filenamelen !  filenameptr ! ;
+: t100.7	s  Open  result @ abort" t100.7" ;
+: t100.8	s  Open  reason @ ENOTFOUND xor abort" t100.8" ;
+
+: t		t100.1 t100.2 t100.3 t100.4 t100.5 t100.6 t100.7 t100.8
 		;
 
