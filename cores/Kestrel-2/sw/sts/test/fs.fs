@@ -81,30 +81,84 @@
 
 \ OPEN
 
+variable blkptr
 variable filenamelen
 variable filenameptr
-variable result
+variable p
+variable poolbase
 variable reason
+variable reqsize
+variable result
+variable sector
+
+variable #devgets
+variable lastsectread
+: devget	1 #devgets +!  sector @ lastsectread !  0 reason ! 
+		sector @ 2/ block sector @ 1 and 512 * +  blkptr @  512 move ;
 
 include ../errors.fs
+include ../constants.fs
+include ../getmem.fs
+
+8192 constant /pool
+create pool	/pool allot
+pool p !  /pool reqsize !  fmtmem
+pool poolbase !
+
+variable xxx
+
 include ../fs.fs
 
-: s		S" foo" filenamelen ! filenameptr ! ;
+: 000		0 #devgets !  pool p !  /pool reqsize !  fmtmem  ;
+
+: s		S" foo" filenamelen ! filenameptr ! 000 ;
 : t100.1	s  Open  result @ abort" t100.1" ;
 : t100.2	s  Open  reason @ ENAME xor abort" t100.2" ;
+: t100.3	s  Open  #devgets @ abort" t100.3" ;
 
-: s		S" :foo" filenamelen !  filenameptr ! ;
-: t100.3	s  Open  result @ abort" t100.3" ;
-: t100.4	s  Open  reason @ ENOTFOUND xor abort" t100.4" ;
+: s		S" :foo" filenamelen !  filenameptr ! 000 ;
+: t110.1	s  Open  result @ abort" t110.1" ;
+: t110.2	s  Open  reason @ ENOTFOUND xor abort" t110.2" ;
+: t110.3	s  Open  #devgets @ abort" t110.3" ;
 
-: s		S" bar:" filenamelen !  filenameptr ! ;
-: t100.5	s  Open  result @ abort" t100.5" ;
-: t100.6	s  Open  reason @ ENOTFOUND xor abort" t100.6" ;
+: s		S" bar:" filenamelen !  filenameptr ! 000 ;
+: t120.1	s  Open  result @ abort" t120.1" ;
+: t120.2	s  Open  reason @ ENOTFOUND xor abort" t120.2" ;
+: t120.3	s  Open  #devgets @ abort" t120.3" ;
 
-: s		S" bar:foo" filenamelen !  filenameptr ! ;
-: t100.7	s  Open  result @ abort" t100.7" ;
-: t100.8	s  Open  reason @ ENOTFOUND xor abort" t100.8" ;
+: s		S" bar:foo" filenamelen !  filenameptr ! 000 ;
+: t130.1	s  Open  result @ abort" t130.1" ;
+: t130.2	s  Open  reason @ ENOTFOUND xor abort" t130.2" ;
+: t130.3	s  Open  #devgets @ abort" t130.3" ;
 
-: t		t100.1 t100.2 t100.3 t100.4 t100.5 t100.6 t100.7 t100.8
+: s		S" SYS:$DIR" filenamelen !  filenameptr !  S" blkf.open.happy" open-blocks  000 ;
+: t140.1	s  Open  result @ 0= abort" t140.1" ;
+: t140.2	s  Open  #devgets @ 1 xor abort" t140.2" ;
+: t140.3	s  Open  lastsectread @ 16 xor abort" t140.3" ;
+: t140.4	s  Open  result @ scb_starts + @ 16 xor abort" t140.4" ;
+: t140.5	s  Open  result @ scb_ends + @ 18 xor abort" t140.5" ;
+: t140.6	s  Open  result @ scb_buffer + @ 0= abort" t140.6" ;
+: t140.7	s  Open  reason @ abort" t140.7" ;
+
+: s		S" SYS:file.missing" filenamelen !  filenameptr !  S" blkf.open.happy" open-blocks  000 ;
+: t150.1	s  Open  result @ abort" t150.1" ;
+: t150.2	s  Open  reason @ ENOTFOUND xor abort" t150.2" ;
+
+: s		S" SYS:$DIR" filenamelen !  filenameptr !  S" blkf.open.happy" open-blocks  000  /pool 256 - reqsize ! getmem ;
+: t160.1	s  Open  result @ abort" t160.1" ;
+: t160.2	s  Open  reason @ ESIZE xor abort" t160.2" ;
+
+: s		S" SYS:file.present" filenamelen !  filenameptr !  S" blkf.open.happy" open-blocks  000 ;
+: t170.1	s  Open  result @ 0= abort" t170.1" ;
+: t170.2	s  Open  reason @ abort" t170.2" ;
+: t170.3	s  Open  result @ scb_starts + @  $BEEF xor abort" t170.3" ;
+: t170.4	s  Open  result @ scb_ends + @  $FACE xor abort" t170.4" ;
+
+: t		t100.1 t100.2 t110.1 t110.2 t120.1 t120.2 t130.1 t130.2 
+		t100.3 t110.3 t120.3 t130.3
+		t140.1 t140.2 t140.3 t140.4 t140.5 t140.6 t140.7
+		t150.1 t150.2
+		t160.1 t160.2
+		t170.1 t170.2 t170.3 t170.4
 		;
 

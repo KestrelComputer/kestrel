@@ -16,10 +16,66 @@ variable devnamelen
 		again ;
 
 
+variable lfstarts
+variable lfends
+
+: f		lfstarts @ lfends @ or
+		if	exit
+		then
+		blkptr @ c@ filenamelen @ xor
+		if	64 blkptr +!  exit
+		then
+		blkptr @ dir_type + c@  1 xor
+		if	64 blkptr +!  exit
+		then
+		blkptr @ 1+ filenamelen @  filenameptr @ filenamelen @ compare
+		if	64 blkptr +!  exit
+		then
+		blkptr @ dirt1_starts + @ $FFFF and lfstarts !
+		blkptr @ dirt1_ends + @ $FFFF and lfends !
+		;
+
+: locatefile	p @ scb_buffer + @ blkptr !
+		16 sector !  devget
+		reason @
+		if	exit
+		then
+
+		0 lfstarts !  0 lfends !
+		f f f f  f f f f
+		lfstarts @ 0=
+		if	ENOTFOUND reason !
+		then
+		;
+
+: (open)	/scb 512 + reqsize !  getmem
+		result @
+		if	0 result !  exit
+		then
+		p @ /scb + p @ scb_buffer + !
+		locatefile
+		reason @
+		if	relmem  0 result !  exit
+		then
+
+		lfstarts @ p @ scb_starts + !
+		lfends @ p @ scb_ends + !
+		p @ /scb +  p @ scb_buffer + !
+		p @ result !  0 reason ! ;
+
 : Open		finddevname
 		reason @
 		if	0 result ! exit
 		then
-		0 result !  ENOTFOUND reason ! ;
-
+		devnamelen @ 0=
+		if	0 result !  ENOTFOUND reason !  exit
+		then
+		filenamelen @ 0=
+		if	0 result !  ENOTFOUND reason !  exit
+		then
+		devnameptr @ devnamelen @ S" SYS" compare
+		if	0 result !  ENOTFOUND reason !  exit
+		then
+		0 result !  ENOTFOUND reason !
+		(open) ;
 

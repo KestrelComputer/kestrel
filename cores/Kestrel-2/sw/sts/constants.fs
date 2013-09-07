@@ -12,3 +12,23 @@
 \ Each offset points to a 16-bit word in the T_CODE which is to be relocated relative to the segment.
 883 constant T_RELOC
 
+
+\ Stream Control Block
+0 cells constant scb_starts
+1 cells constant scb_ends
+2 cells constant scb_buffer
+3 cells constant /scb
+
+\ Type 1 Book Keeping Area
+
+ 0 constant dir_filenamelen
+ 1 constant dir_filename
+48 constant dir_type
+
+50 constant dirt1_starts
+52 constant dirt1_ends
+
+0 constant dirtype_empty
+1 constant dirtype_file
+2 constant dirtype_volumelabel
+
