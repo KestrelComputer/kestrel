@@ -154,11 +154,18 @@ include ../fs.fs
 : t170.3	s  Open  result @ scb_starts + @  $BEEF xor abort" t170.3" ;
 : t170.4	s  Open  result @ scb_ends + @  $FACE xor abort" t170.4" ;
 
+: s		S" SYS:file.present.3rdblock" filenamelen !  filenameptr !  S" blkf.open.happy" open-blocks 000 ;
+: t180.1	s  Open  result @ 0= abort" t180.1" ;
+: t180.2	s  Open  reason @ abort" t180.2" ;
+: t180.3	s  Open  result @ scb_starts + @ $1111 xor abort" t180.3" ;
+: t180.4	s  Open  result @ scb_ends + @ $2222 xor abort" t180.4" ;
+
 : t		t100.1 t100.2 t110.1 t110.2 t120.1 t120.2 t130.1 t130.2 
 		t100.3 t110.3 t120.3 t130.3
 		t140.1 t140.2 t140.3 t140.4 t140.5 t140.6 t140.7
 		t150.1 t150.2
 		t160.1 t160.2
 		t170.1 t170.2 t170.3 t170.4
+		t180.1 t180.2 t180.3 t180.4
 		;
 

@@ -18,6 +18,8 @@ variable devnamelen
 
 variable lfstarts
 variable lfends
+variable dirends
+variable dirnext
 
 : f		lfstarts @ lfends @ or
 		if	exit
@@ -36,16 +38,22 @@ variable lfends
 		;
 
 : locatefile	p @ scb_buffer + @ blkptr !
-		16 sector !  devget
+		16 sector !  17 dirnext !  devget
 		reason @
 		if	exit
 		then
+		p @ scb_buffer + @ dirt1_ends + @ $FFFF and dirends !
 
 		0 lfstarts !  0 lfends !
-		f f f f  f f f f
-		lfstarts @ 0=
-		if	ENOTFOUND reason !
-		then
+		begin	dirnext @ dirends @ 1+ U<=
+		while	f f f f  f f f f
+			lfstarts @
+			if	0 reason !  exit
+			then
+			dirnext @ sector !  devget
+			1 dirnext +!
+		repeat
+		ENOTFOUND reason !
 		;
 
 : (open)	/scb 512 + reqsize !  getmem
