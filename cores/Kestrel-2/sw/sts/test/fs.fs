@@ -176,6 +176,14 @@ create mybuf	512 allot
 : t190.6	s  mybuf inbuf !  512 count !  Read  Read  count @ abort" t190.6" ;
 : t190.7	s  mybuf inbuf !  512 count !  Read  Read  reason @ EEOF xor abort" t190.7" ;
 
+: s		S" SYS:hello.world.big" filenamelen !  filenameptr !
+		S" blkf.open.happy" open-blocks 000
+		Open  result @ cin !  result @ 0= abort" t200 setup" ;
+: t200.1	s  mybuf inbuf !  512 count !  Read  count @ 512 xor abort" t200.1" ;
+: t200.2	s  mybuf inbuf !  512 count !  Read  Read  count @ 512 xor abort" t200.2" ;
+: t200.3	s  mybuf inbuf !  512 count !  Read  Read  Read count @ 512 xor abort" t200.3" ;
+: t200.4	s  mybuf inbuf !  512 count !  Read  Read  Read  Read count @ abort" t200.4" ;
+
 : t		t100.1 t100.2 t110.1 t110.2 t120.1 t120.2 t130.1 t130.2 
 		t100.3 t110.3 t120.3 t130.3
 		t140.1 t140.2 t140.3 t140.4 t140.5 t140.6 t140.7
@@ -184,5 +192,6 @@ create mybuf	512 allot
 		t170.1 t170.2 t170.3 t170.4
 		t180.1 t180.2 t180.3 t180.4
 		t190.1 t190.2 t190.3 t190.4 t190.5 t190.6 t190.7
+		t200.1 t200.2 t200.3 t200.4
 		;
 

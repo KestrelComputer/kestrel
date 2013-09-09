@@ -103,7 +103,17 @@ variable dirnext
 		(open) ;
 
 : Read		cin @ scb_index + @  512 =
-		if	EEOF reason !  0 count !  exit
+		if	cin @ scb_sector + @ cin @ scb_ends + @ xor
+			if	1 cin @ scb_sector + +!
+				cin @ scb_buffer + @ blkptr !
+				rdsect
+				reason @
+				if	-1 cin @ scb_sector + +!  0 result !  exit
+				then
+				0 cin @ scb_index + !
+				recurse  exit
+			else	EEOF reason !  0 count !  exit
+			then
 		then
 
 		cin @ scb_index + @  count @  +  512  min
