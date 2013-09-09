@@ -25,7 +25,7 @@ variable blen
 : c		hex bstr @ 2 evaluate plop  2 bstr +!  -2 blen +! decimal ;
 : stuff		begin blen @ while c repeat ;
 : bytes		blen ! bstr !  stuff  sec @ .sector ;
-: ascii		512 wof @ - min  dup >r sec @ sector wof @ + swap move  r> wof +! sec @ .sector ;
+: ascii		512 wof @ - min  dup >r sec @ sector wof @ + swap move update r> wof +! sec @ .sector ;
 : n		1 sec +!  sec @ 65535 min sec !  sec @ .sector ;
 : p		-1 sec +!  sec @ 0 max sec !  sec @ .sector ;
 

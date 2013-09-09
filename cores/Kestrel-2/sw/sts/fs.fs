@@ -37,8 +37,10 @@ variable dirnext
 		blkptr @ dirt1_ends + @ $FFFF and lfends !
 		;
 
+: rdsect	p @ scb_sector + @ sector ! devget ;
+
 : locatefile	p @ scb_buffer + @ blkptr !
-		16 sector !  17 dirnext !  devget
+		16 p @ scb_sector + !  17 dirnext !  rdsect
 		reason @
 		if	exit
 		then
@@ -50,7 +52,10 @@ variable dirnext
 			lfstarts @
 			if	0 reason !  exit
 			then
-			dirnext @ sector !  devget
+			dirnext @ p @ scb_sector + !  rdsect
+			reason @
+			if	exit
+			then
 			1 dirnext +!
 		repeat
 		ENOTFOUND reason !
@@ -69,6 +74,16 @@ variable dirnext
 		lfstarts @ p @ scb_starts + !
 		lfends @ p @ scb_ends + !
 		p @ /scb +  p @ scb_buffer + !
+		0 p @ scb_index + !
+
+		lfstarts @ p @ scb_sector + @ xor
+		if	lfstarts @ p @ scb_sector + !
+			p @ scb_buffer + @  blkptr !
+			rdsect
+			reason @
+			if	relmem 0 result ! exit
+			then
+		then
 		p @ result !  0 reason ! ;
 
 : Open		finddevname
@@ -86,4 +101,18 @@ variable dirnext
 		then
 		0 result !  ENOTFOUND reason !
 		(open) ;
+
+: Read		cin @ scb_index + @  512 =
+		if	EEOF reason !  0 count !  exit
+		then
+
+		cin @ scb_index + @  count @  +  512  min
+		cin @ scb_index + @  -  count !
+
+		cin @ scb_buffer + @   cin @ scb_index + @  +
+		inbuf @
+		count @
+		move
+		count @  cin @ scb_index + +!
+		;
 

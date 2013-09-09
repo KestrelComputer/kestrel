@@ -82,8 +82,11 @@
 \ OPEN
 
 variable blkptr
+variable cin
+variable count
 variable filenamelen
 variable filenameptr
+variable inbuf
 variable p
 variable poolbase
 variable reason
@@ -108,6 +111,8 @@ pool poolbase !
 variable xxx
 
 include ../fs.fs
+
+create mybuf	512 allot
 
 : 000		0 #devgets !  pool p !  /pool reqsize !  fmtmem  ;
 
@@ -160,6 +165,17 @@ include ../fs.fs
 : t180.3	s  Open  result @ scb_starts + @ $1111 xor abort" t180.3" ;
 : t180.4	s  Open  result @ scb_ends + @ $2222 xor abort" t180.4" ;
 
+: s		S" SYS:hello.world" filenamelen !  filenameptr !
+		S" blkf.open.happy" open-blocks 000
+		Open  result @ cin !  result @ 0= abort" t190 setup" ;
+: t190.1	s  mybuf inbuf !  5 count !  Read  count @ 5 xor abort" t190.1" ;
+: t190.2	s  mybuf inbuf !  5 count !  Read  reason @ abort" t190.2" ;
+: t190.3	s  mybuf inbuf !  5 count !  Read  mybuf 5 S" Hello" compare abort" t190.3" ;
+: t190.4	s  mybuf inbuf !  5 count !  Read  6 count !  Read  mybuf 6 S"  world" compare abort" t190.4" ;
+: t190.5	s  mybuf inbuf !  512 count !  Read  count @ 512 xor abort" t190.5" ;
+: t190.6	s  mybuf inbuf !  512 count !  Read  Read  count @ abort" t190.6" ;
+: t190.7	s  mybuf inbuf !  512 count !  Read  Read  reason @ EEOF xor abort" t190.7" ;
+
 : t		t100.1 t100.2 t110.1 t110.2 t120.1 t120.2 t130.1 t130.2 
 		t100.3 t110.3 t120.3 t130.3
 		t140.1 t140.2 t140.3 t140.4 t140.5 t140.6 t140.7
@@ -167,5 +183,6 @@ include ../fs.fs
 		t160.1 t160.2
 		t170.1 t170.2 t170.3 t170.4
 		t180.1 t180.2 t180.3 t180.4
+		t190.1 t190.2 t190.3 t190.4 t190.5 t190.6 t190.7
 		;
 

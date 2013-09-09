@@ -14,3 +14,6 @@ EBASE constant EINIT
 \ ENAME errors occur when a resource name doesn't follow the expected syntax.
 103 constant ENAME
 
+\ EEOF errors occur when attempting I/O outside of allocated boundaries.
+104 constant EEOF
+

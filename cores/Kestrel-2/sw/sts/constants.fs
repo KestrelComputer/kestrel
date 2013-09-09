@@ -17,7 +17,9 @@
 0 cells constant scb_starts
 1 cells constant scb_ends
 2 cells constant scb_buffer
-3 cells constant /scb
+3 cells constant scb_index	( 0 <= scb_index < sizeof scb_buffer )
+4 cells constant scb_sector	( scb_starts <= scb_sector <= scb_ends )
+5 cells constant /scb
 
 \ Type 1 Book Keeping Area
 
