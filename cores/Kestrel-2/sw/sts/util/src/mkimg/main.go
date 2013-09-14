@@ -25,7 +25,7 @@ var nSectors = flag.Int("sectors", 2048, "Number of sectors in volume")
 var bytesPerSector = flag.Int("bpsect", 512, "Bytes per sector")
 var volumeName = flag.String("vol", "WorkDisk", "Volume name of the image")
 var outputName = flag.String("out", "sdimage.bin", "Output file containing filesystem image")
-var impName = flag.String("import", "imgs", "Directory containing files to import into image")
+var impName = flag.String("import", "imgs", "Directory containing files to import into image.")
 
 func main() {
 	flag.Parse()
@@ -68,8 +68,8 @@ func main() {
 		if fi.IsDir() {
 			continue
 		}
-		fmt.Println(*impName + fi.Name())
-		start, end := f.place(*impName + fi.Name())
+		fmt.Println(*impName + "/" + fi.Name())
+		start, end := f.place(*impName + "/" + fi.Name())
 		fmt.Println("  start ", start, "end ", end)
 	}
 
