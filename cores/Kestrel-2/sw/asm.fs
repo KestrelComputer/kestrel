@@ -29,11 +29,17 @@ check
 \ The byte-size of the PIB.
 #WORDS TWORDS CONSTANT /pib
 
+\ Number of entries in the relocation offset buffer
+#WORDS CONSTANT /relocb
+
 \ Number of initialization lines to produce per defparam block.
 64 CONSTANT #INITS
 
 CREATE pib	/pib CHARS ALLOT
 pib /pib $CD FILL
+
+CREATE relocb	/relocb CELLS ALLOT
+relocb /relocb CELLS $CD FILL
 
 VARIABLE pibptr
 
@@ -82,6 +88,8 @@ variable #program_name
 
 variable iptr
 variable slot
+variable relocptr
+0 relocptr !
 
 : enforce	pibptr @ iptr !  0 pib,  $F000 slot ! ;
 : bblk		slot @ $F000 XOR IF align, enforce THEN ;
@@ -91,6 +99,8 @@ variable slot
 : pack		repl slot @ AND iptr @ pib@ OR iptr @ pib! slot>> ;
 : opc ( n -- )	slot @ 0= IF bblk THEN pack ;
 : #, ( n -- )	1 opc pib, ;
+: reloc,	pibptr @  relocb relocptr @ + !  1 cells relocptr +! ;
+: &, ( n -- )   reloc, #, ;
 : prim		CREATE , DOES> DUP @ opc @ 14 = IF bblk THEN ;
 
 \ \ \ BASIC CPU PRIMITIVES
@@ -116,33 +126,33 @@ variable slot
 
 VARIABLE rpa ( Return Pointer Address )
 
-: call,		bblk pibptr @ 2 TWORDS + #, #, GO, ;
-: DEFER,	bblk CREATE iptr @ , 0 #, GO, DOES> @ call, ;
+: call,		bblk pibptr @ 2 TWORDS + &, &, GO, ;
+: DEFER,	bblk CREATE iptr @ , 0 &, GO, DOES> @ call, ;
 : IS,		' >body @ 1 TWORDS + pib! ;
-: preamble	iptr @ -1 TWORDS + #, !, bblk ;
+: preamble	iptr @ -1 TWORDS + &, !, bblk ;
 : rtnword	bblk iptr @ rpa ! 1 TWORDS iptr +! 0 pib, ;
 : :,		CREATE rtnword iptr @ , preamble DOES> @ call, ;
-: EXIT,		rpa @ #, @, GO, ;
+: EXIT,		rpa @ &, @, GO, ;
 : ;,		EXIT, ;
 
 \ \ \ Structured Programming Primitives
 
-: if,		lit, pibptr @ 0 pib, zgo, ;
+: if,		lit, pibptr @ reloc, 0 pib, zgo, ;
 		\ pibptr @ 0 #, zgo, doesn't work because the assembler is lazy about
 		\ starting new instruction packets.
 : then,		bblk iptr @ swap pib! ;
-: again,	rpa @ 3 TWORDS + #, go, ;
-: int,		align, CREATE pibptr @ ,  eject  0 pib, DOES> @ #, ;
-: char,		CREATE pibptr @ ,  eject  0 pibc, DOES> @ #, ;
-: create,	CREATE pibptr @ ,  eject  DOES> @ #, ;
+: again,	rpa @ 3 TWORDS + &, go, ;
+: int,		align, CREATE pibptr @ ,  eject  0 pib, DOES> @ &, ;
+: char,		CREATE pibptr @ ,  eject  0 pibc, DOES> @ &, ;
+: create,	CREATE pibptr @ ,  eject  DOES> @ &, ;
 : const,	CREATE , DOES> @ #, ;
 
 \ \ \ Support for recursive subroutine calls.
 
 $FFFE const, %fp
 
-: callr,	bblk pibptr @ 3 TWORDS + #, %fp @, !, #, GO, ;
-: icallr,	bblk pibptr @ 3 TWORDS + #, %fp @, !, GO, ;
+: callr,	bblk pibptr @ 3 TWORDS + &, %fp @, !, &, GO, ;
+: icallr,	bblk pibptr @ 3 TWORDS + &, %fp @, !, GO, ;
 
 : +fp@,		TWORDS #, %fp @, +, @, ;
 : +fp!,		TWORDS #, %fp @, +, !, ;
