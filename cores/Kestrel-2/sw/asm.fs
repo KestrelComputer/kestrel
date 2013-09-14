@@ -189,3 +189,19 @@ variable fh
 : _create	[CHAR] " PARSE R/W BIN CREATE-FILE THROW fh ! ;
 : out"		_create write close ;
 
+\ \ \ Support for Hunk-format file creation (relocatable)
+
+880 constant T_HUNK
+881 constant T_CODE
+882 constant T_END
+883 constant T_RELOC
+
+variable wrd
+: wrword	wrd 2 fh @ WRITE-FILE THROW ;
+: thunk		T_HUNK wrd !  wrword ;
+: tcode		T_CODE wrd !  wrword  pibptr @ wrd !  wrword ;
+: treloc	T_RELOC wrd !  wrword  relocptr @ 1 CELLS / wrd !  wrword ;
+: tend		T_END wrd !  wrword ;
+: relocs	0 BEGIN DUP relocptr @ < WHILE  DUP relocb + @ wrd ! wrword  CELL+ REPEAT DROP ;
+: reloc"	_create thunk tcode write treloc relocs tend close ;
+
