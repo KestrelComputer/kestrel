@@ -144,6 +144,10 @@ $FFFE const, %fp
 : callr,	bblk pibptr @ 3 TWORDS + #, %fp @, !, #, GO, ;
 : icallr,	bblk pibptr @ 3 TWORDS + #, %fp @, !, GO, ;
 
+: +fp@,		TWORDS #, %fp @, +, @, ;
+: +fp!,		TWORDS #, %fp @, +, !, ;
+: fp+!,		TWORDS #, %fp @, +, %fp !, ;
+
 \ \ \ Miscellanious
 
 : origin	pibptr !  eject ;
