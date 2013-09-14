@@ -142,6 +142,7 @@ VARIABLE rpa ( Return Pointer Address )
 $FFFE const, %fp
 
 : callr,	bblk pibptr @ 3 TWORDS + #, %fp @, !, #, GO, ;
+: icallr,	bblk pibptr @ 3 TWORDS + #, %fp @, !, GO, ;
 
 \ \ \ Miscellanious
 
