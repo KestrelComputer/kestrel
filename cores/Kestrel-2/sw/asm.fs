@@ -100,7 +100,7 @@ variable relocptr
 : opc ( n -- )	slot @ 0= IF bblk THEN pack ;
 : #, ( n -- )	1 opc pib, ;
 : reloc,	pibptr @  relocb relocptr @ + !  1 cells relocptr +! ;
-: &, ( n -- )   reloc, #, ;
+: &, ( n -- )   slot @ 0= IF bblk THEN reloc, #, ;
 : prim		CREATE , DOES> DUP @ opc @ 14 = IF bblk THEN ;
 
 \ \ \ BASIC CPU PRIMITIVES
@@ -151,7 +151,7 @@ VARIABLE rpa ( Return Pointer Address )
 
 $FFFE const, %fp
 
-: callr,	bblk pibptr @ 3 TWORDS + &, %fp @, !, &, GO, ;
+: callr,	bblk pibptr @ 4 TWORDS + &, %fp @, !, &, GO, ;
 : icallr,	bblk pibptr @ 3 TWORDS + &, %fp @, !, GO, ;
 
 : +fp@,		TWORDS #, %fp @, +, @, ;
