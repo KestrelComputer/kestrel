@@ -137,6 +137,12 @@ VARIABLE rpa ( Return Pointer Address )
 : create,	CREATE pibptr @ ,  eject  DOES> @ #, ;
 : const,	CREATE , DOES> @ #, ;
 
+\ \ \ Support for recursive subroutine calls.
+
+$FFFE const, %fp
+
+: callr,	bblk pibptr @ 3 TWORDS + #, %fp @, !, #, GO, ;
+
 \ \ \ Miscellanious
 
 : origin	pibptr !  eject ;
