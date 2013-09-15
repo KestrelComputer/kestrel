@@ -129,6 +129,14 @@ sub: fmtmem
 	-1 +fp@, /node +, 2 +fp!,  0 #, 3 +fp!,
 	rfs,
 
+:, gmCombine
+	-1 +fp@, @, 2 #, +, @, 1 #, and, if, exit, then,
+	-1 +fp@, @, poolbase @, xor, if,
+		-1 +fp@, 2 #, +, -3 +fp!,
+		-1 +fp@, @, 2 #, +, @, /node +, -3 +fp@, @, +, -3 +fp@, !,
+		-1 +fp@, @, @, -1 +fp@, !,
+	then, ;,
+
 :, gm1
 	-1 +fp@, 2 #, +, @, -2 +fp!,
 
@@ -137,6 +145,10 @@ sub: fmtmem
 		-1 +fp@, poolbase @, xor, if, again, then,
 		0 #, 2 +fp!,  ESIZE $100 #, +, 3 +fp!, rfs,
 	then,
+
+	gmCombine
+
+	-1 +fp@, 2 #, +, @, -2 +fp!,
 
 	1 +fp@,  -1 #, xor, 1 #, +,  -2 +fp@, +,  $8000 #, and,
 	if,	-1 +fp@, @, -1 +fp!,
@@ -159,6 +171,17 @@ sub: getmem
 		gm1
 	then,
 	0 #, 2 +fp!,  EBASE 3 +fp!,
+	rfs,
+
+\ relmem is used to release previously allocated memory, as returned by getmem.
+\ Arguments:
+\	+0	Return PC
+\	+1	Block of memory to release, as returned by getmem.
+\ Nothing is returned.
+
+sub: relmem
+	1 +fp@,  -/node +,  1 +fp!,
+	1 +fp@, 2 #, +, @,  -/node and,  1 +fp@, 2 #, +, !,
 	rfs,
 
 \ First instruction of STS starts here.  coldstart vectors here.
@@ -199,22 +222,31 @@ sub: getmem
 			256 #, 1 +fp!,
 			getmem
 			3 +fp@,
-			if,	3 +fp@, crash halt,
+			if,	$F640 #, crash halt,
 			then,
 			2 +fp@, 0=
-			if,	2 +fp@, crash halt,
+			if,	$F642 #, crash halt,
 			then,
 			2 +fp@, -3 +fp!,
 			256 #, 1 +fp!,
 			getmem
-			poolbase @, @, @, @, poolbase @, xor, crash halt,
-nop, nop, nop, nop, nop,
-\			3 +fp@,
-\			if,	3 +fp@, crash halt,
-\			then,
-\			2 +fp@, -3 +fp@, xor, 0=
-\			if,	$F642 #, crash halt,
-\			then,
+			3 +fp@,
+			if,	$F644 #, crash halt,
+			then,
+			2 +fp@, -3 +fp@, xor, 0=
+			if,	$F646 #, crash halt,
+			then,
+
+			2 +fp@, 1 +fp!, relmem
+			-3 +fp@, 1 +fp!, relmem
+
+			512 #, 1 +fp!,
+			getmem
+			3 +fp@,
+			if,	$F740 #, crash halt,
+			then,
+
+			2 +fp@,  poolbase @, /node +, xor, crash
 		8 fp+!,
 
 		
@@ -223,6 +255,8 @@ nop, nop, nop, nop, nop,
 \ Let the start of free memory begin here.
 \ This tag structure is discovered dynamically at boot time.
 \ It must be the very last piece of code actually compiled; otherwise, the dynamic memory manager will corrupt valid program code.
+
+pibptr @ 3 + -4 and pibptr !  ( Ensure proper structure alignment for getmem's benefit )
 
 create, memtag
 	$C0DE ,, ' memtag >BODY @ ,, $DA7A ,, $C0DE $DA7A + ' memtag >BODY @ + $FFFF xor ,,
