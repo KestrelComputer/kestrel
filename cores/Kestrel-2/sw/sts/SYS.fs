@@ -192,7 +192,7 @@ sub: getmem
 			40 #, wrdperrow !,
 			80 #, rowendres !,
 			100 #, rowperbox !,
-			$0000 #, bitmapdat !,
+			$AAAA #, bitmapdat !,
 			fillRect
 
 			0 #, fndtagsta !,	( locate free memory pool and initialize it. )
@@ -207,45 +207,16 @@ sub: getmem
 				fillRect
 				halt,
 			then,
-			fndtagsta @, $C000 #, +, mplsta !,
+			fndtagsta @, mplsta !,
 			fndtagsta @, -1 #, xor, 1 #, +, $4000 #, +, mplsiz !,
 			fmtmem
 
-\			$C000 #, 1 +fp!,	( Memory pool updated.  Time to mount our filesystem. )
-\			40 #, 2 +fp!,
-\			80 #, 3 +fp!,
-\			100 #, 4 +fp!,
-\			$0000 #, 5 +fp!,
-\			fillRect
-
-			256 #, memsiz !,
-			getmem
-			rsn @,
-			if,	$F640 #, crash halt,
-			then,
-			memptr @, 0=
-			if,	$F642 #, crash halt,
-			then,
-			memptr @, -1 +fp!,
-			256 #, memsiz !,
-			getmem
-			rsn @,
-			if,	$F644 #, crash halt,
-			then,
-			memptr @, -1 +fp@, xor, 0=
-			if,	$F646 #, crash halt,
-			then,
-
-			relmem
-			-1 +fp@, memptr !, relmem
-
-			512 #, memsiz !,
-			getmem
-			rsn @,
-			if,	$F740 #, crash halt,
-			then,
-
-			memptr @,  mplsta @, /node +, xor, crash
+			$C050 #, bitmapptr !,	( Memory pool initialized; time to mount the system filesystem. )
+			40 #, wrdperrow !,
+			80 #, rowendres !,
+			100 #, rowperbox !,
+			$5555 #, bitmapdat !,
+			fillRect
 		8 fp+!,
 
 		
