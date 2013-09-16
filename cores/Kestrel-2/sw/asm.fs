@@ -125,13 +125,15 @@ variable relocptr
 \ \ \ combine the two into a single layer).
 
 VARIABLE rpa ( Return Pointer Address )
+defer again,
 
 : call,		bblk pibptr @ 2 TWORDS + &, &, GO, ;
 : DEFER,	bblk CREATE iptr @ , 0 &, GO, DOES> @ call, ;
 : IS,		' >body @ 1 TWORDS + pib! ;
 : preamble	iptr @ -1 TWORDS + &, !, bblk ;
 : rtnword	bblk iptr @ rpa ! 1 TWORDS iptr +! 0 pib, ;
-: :,		CREATE rtnword iptr @ , preamble DOES> @ call, ;
+: loop,		rpa @ 3 TWORDS + &, go, ;
+: :,		['] loop, is again,  CREATE rtnword iptr @ , preamble DOES> @ call, ;
 : EXIT,		rpa @ &, @, GO, ;
 : ;,		EXIT, ;
 
@@ -140,8 +142,14 @@ VARIABLE rpa ( Return Pointer Address )
 : if,		lit, pibptr @ reloc, 0 pib, zgo, ;
 		\ pibptr @ 0 #, zgo, doesn't work because the assembler is lazy about
 		\ starting new instruction packets.
+: else,		lit, pibptr @ reloc, 0 pib, go,  swap  bblk iptr @ swap pib! ;
 : then,		bblk iptr @ swap pib! ;
-: again,	rpa @ 3 TWORDS + &, go, ;
+: (again,)	&, go, ;
+: begin,	['] (again,) is again,  bblk iptr @ ;
+: while,	if, swap ;
+: repeat,	&, go,  then, ;
+: until,	&, zgo, ;
+
 : int,		align, CREATE pibptr @ ,  eject  0 pib, DOES> @ &, ;
 : char,		CREATE pibptr @ ,  eject  0 pibc, DOES> @ &, ;
 : create,	CREATE pibptr @ ,  eject  DOES> @ &, ;
