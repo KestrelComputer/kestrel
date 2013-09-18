@@ -214,3 +214,16 @@ int, filend
 		then,
 	then, ;,
 
+\ close will free resources consumed by open.  NOTE: This filesystem is
+\ read-only at this time.  Thus, no buffers can be dirty, and so we can simply
+\ just free memory without having to write anything back.  However, don't
+\ depend on this behavior.  Assume that the filesystem can go read/write with
+\ any future version of STS.
+\ 
+\ The scb to close should be in the filscb variable,
+\ This function currently doesn't return anything, but for future compatibility,
+\ it sets rsn to 0.
+
+:, close
+	filscb @, memptr !,  relmem ;,
+
