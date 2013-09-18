@@ -33,6 +33,8 @@ int, filscb
 int, volsecbuf
 int, volnamptr
 int, volnamlen
+int, voldirsta
+int, -voldirend
 
 create, "$DIR"
 	C", $DIR"
@@ -74,6 +76,8 @@ create, "SYS"
 
 	volsecbuf @, 64 #, +, c@, volnamlen !,
 	volsecbuf @, 65 #, +, volnamptr !,
+	volsecbuf @, dirt1_starts +, @, voldirsta !,
+	volsecbuf @, dirt1_ends +, @, -1 #, xor, 1 #, +, -voldirend !,
 	;,
 
 \ fnddevnam splits out the device name (everything to the left of the first colon)
@@ -94,6 +98,60 @@ create, "SYS"
 		devnamlen @, 1 #, +, devnamlen !,
 	again, ;,
 
+int, ndirents
+int, dirptr
+
+\ Read a sector into an SCB's buffer.  Update the SCB's sector field, then call rdsec
+\ to make sure the SCB's buffer is synchronized with the sector field.  Relies upon
+\ devget, so see devget for more information.
+
+:, rdsec
+	filscb @, scb_sector +, @, devsec !,
+	filscb @, scb_buffer +, @, devbufptr !,
+	devget ;,
+
+\ fndfil performs a directory scan for the volume.  If it cannot be found, rsn
+\ indicates why, and filsta and filend are undefined.  Otherwise, rsn is zero, and
+\ filsta indicates the file's first sector, and filend indicates the last sector.
+\ Note that filsta <= filend.
+
+int, filsta
+int, filend
+
+:, fndfil
+	voldirsta @, filscb @, scb_sector +, !,
+	begin,	filscb @, scb_sector +, @,  -voldirend @, +, -1 #, +, $8000 #, and,
+		( while filscb.sector < [voldirend+1] )
+	while,	rdsec
+		rsn @,
+		if,	exit,
+		then,
+
+		8 #, ndirents !,	( 8 dirents per 512-byte sector )
+		filscb @, scb_buffer +, @, dirptr !,
+		begin,	ndirents @,
+		while,	dirptr @, c@, filnamlen @, xor, 0=
+			if,	dirptr @, dir_type +, c@, dirtype_file xor, 0=
+				if,	dirptr @, 1 #, +, strptr1 !,
+					dirptr @, c@, strlen1 !,
+					filnamptr @, strptr2 !,
+					filnamlen @, strlen2 !,
+					compare
+					strres @, 0=
+					if,	dirptr @, dirt1_starts +, @, filsta !,
+						dirptr @, dirt1_ends +, @, filend !,
+						0 #, rsn !,
+						exit,
+					then,
+				then,
+			then,
+			dirptr @, 64 #, +, dirptr !,
+			ndirents @, -1 #, +, ndirents !,
+		repeat,
+		filscb @, scb_sector +, @, 1 #, +, filscb @, scb_sector +, !,
+	repeat,
+	ENOTFOUND rsn !, ;,
+
 \ open attempts to open the file named in the filnamptr/filnamlen variables.
 \ Note that all filenames MUST include the volume or device on which to locate
 \ the file.  STS lacks any concept of a "process" in the Unix or Windows sense,
@@ -104,30 +162,55 @@ create, "SYS"
 \ will be set accordingly.
 
 :, open
+	0 #, filscb !,  0 #, rsn !,
+
 	volsecbuf @, 0=
-	if,	0 #, filscb !,  EVOLUME rsn !,  exit,
+	if,	EVOLUME rsn !,  exit,
 	then,
 
 	fnddevnam
 	rsn @,
-	if,	0 #, filscb !,  exit,
+	if,	exit,
 	then,
 
 	devnamlen @, 0=
-	if,	0 #, filscb !,  ENOTFOUND rsn !,  exit,
+	if,	ENOTFOUND rsn !,  exit,
 	then,
 
 	filnamlen @, 0=
-	if,	0 #, filscb !,  ENOTFOUND rsn !,  exit,
+	if,	ENOTFOUND rsn !,  exit,
 	then,
 
 	devnamptr @, strptr1 !,  devnamlen @, strlen1 !,  "SYS" 1 #, +, strptr2 !,  3 #, strlen2 !,  compare
 	strres @,
 	if,	devnamptr @, strptr1 !, devnamlen @, strlen1 !,   volnamptr @, strptr2 !, volnamlen @, strlen2 !,  compare
 		strres @,
-		if,	0 #, filscb !,  ENOTFOUND rsn !,  exit,
+		if,	ENOTFOUND rsn !,  exit,
 		then,
 	then,
 
-	-1 #, filscb !,  0 #, rsn !, ;,
+
+	/scb 512 #, +, memsiz !, getmem
+	rsn @,
+	if,	exit,
+	then,
+
+	memptr @, filscb !,
+	filscb @, /scb +, filscb @, scb_buffer +, !,
+
+	fndfil
+	rsn @,
+	if,	relmem   0 #, filscb !,   exit,
+	then,
+	filsta @,  filscb @, scb_starts +, !,
+	filend @,  filscb @, scb_ends +, !,
+	0 #, filscb @, scb_index +, !,
+
+	filsta @,  filscb @, scb_sector +, @, xor,
+	if,	filsta @,  filscb @, scb_sector +, !,
+		rdsec
+		rsn @,
+		if,	relmem  0 #, filscb !,  exit,
+		then,
+	then, ;,
 

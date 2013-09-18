@@ -102,7 +102,7 @@ include SYS.filesys.fs
 
 
 create, myfn
-	C", DiskWork:Filename"
+	C", WorkDisk:Filename"
 
 \ First instruction of STS starts here.  coldstart vectors here.
 
