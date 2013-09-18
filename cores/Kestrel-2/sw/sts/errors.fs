@@ -17,3 +17,6 @@
 \ EEOF errors occur when attempting I/O outside of allocated boundaries.
 104 const, EEOF
 
+\ EVOLUME errors occur when attempting to conduct filesystem operations without a mounted volume.
+105 const, EVOLUME
+

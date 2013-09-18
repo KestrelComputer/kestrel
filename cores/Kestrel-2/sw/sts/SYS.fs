@@ -12,12 +12,55 @@ defer, coldstart
 
 :, halt,	again, ;,
 :, crash	$C000 #, !,  $C000 #, @, -1 #, xor, $C050 #, !,  $AAAA #, $C0A0 #, !, ;,
-:, 0=		if, 0 #, exit, then, -1 #, ;,
+
+: 0=		if, 0 #, else, -1 #, then, ;		( macro )
 
 \ rsn stores the reason for a service's failure to deliver the expected results.
 \ Numerous system calls can fail for a number of reasons.  See the errors.fs file
 \ for a list of reasons and their most common circumstances.
 int, rsn
+
+\ strdif determines if two strings are different from each other.  Strings are
+\ assumed to be in BCPL- or counted-format.  This means the first byte is the
+\ length of the string, and subsequent bytes contain the string's content.
+\ The first string's address must be placed in strptr1, and the second string's
+\ in strptr2.  If the strings are equal, the strres variable will be 0.  If
+\ non-equal in some way, strres will be non-zero.
+
+int, strptr1
+int, strlen1
+int, strptr2
+int, strlen2
+int, strres
+
+int, strlen
+
+:, compare
+	strlen2 @, -1 #, xor, 1 #, +,  strlen1 @, +, strres !,
+	strres @, $8000 #, and,
+	if,	strlen1 @, strlen !,
+	else,	strlen2 @, strlen !,
+	then,
+
+	begin,	strlen @,
+	while,	strptr1 @, c@,  strptr2 @, c@,  xor,
+		if,	-1 #, strres !, exit,
+		then,
+		strptr1 @, 1 #, +, strptr1 !,
+		strptr2 @, 1 #, +, strptr2 !,
+		strlen @, -1 #, +, strlen !,
+	repeat, ;,
+
+:, count1
+	strptr1 @, c@, strlen1 !,
+	strptr1 @, 1 #, +, strptr1 !, ;,
+
+:, count2
+	strptr2 @, c@, strlen2 !,
+	strptr2 @, 1 #, +, strptr2 !, ;,
+
+:, strdif
+	count1 count2 compare ;,
 
 \ fillRect draws very simple rectangular patterns on the screen.
 \ This can be used to clear the screen, or to let the user in on the current progress of something.
@@ -58,6 +101,9 @@ include SYS.sdcard.fs
 include SYS.filesys.fs
 
 
+create, myfn
+	C", DiskWork:Filename"
+
 \ First instruction of STS starts here.  coldstart vectors here.
 
 :, cold		$4000 #, %fp !,			( Initialize the STS frame pointer )
@@ -93,8 +139,8 @@ include SYS.filesys.fs
 			fillRect
 
 			mount
-			rsn @, if,
-				$C000 #, bitmapptr !,
+			rsn @,
+			if,	$C000 #, bitmapptr !,
 				40 #, wrdperrow !,
 				0 #, rowendres !,
 				200 #, rowperbox !,
@@ -109,6 +155,27 @@ include SYS.filesys.fs
 			100 #, rowperbox !,
 			$FFFF #, bitmapdat !,
 			fillRect
+
+			myfn 1 #, +, filnamptr !,
+			myfn c@, filnamlen !,
+			open
+			rsn @,
+			if,	$C000 #, bitmapptr !,
+				40 #, wrdperrow !,
+				0 #, rowendres !,
+				200 #, rowperbox !,
+				$F0F0 #, bitmapdat !,
+				fillRect
+				halt,
+			then,
+
+			$C050 #, bitmapptr !,
+			40 #, wrdperrow !,
+			80 #, rowendres !,
+			100 #, rowperbox !,
+			$FFFF #, bitmapdat !,
+			fillRect
+
 		8 fp+!,
 
 		
