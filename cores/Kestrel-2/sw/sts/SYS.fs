@@ -55,6 +55,8 @@ int, rowctr		( internal )
 include SYS.findtag.fs
 include SYS.getmem.fs
 include SYS.sdcard.fs
+include SYS.filesys.fs
+
 
 \ First instruction of STS starts here.  coldstart vectors here.
 
@@ -90,17 +92,23 @@ include SYS.sdcard.fs
 			$5555 #, bitmapdat !,
 			fillRect
 
-			512 #, memsiz !,
-			getmem
+			mount
+			rsn @, if,
+				$C000 #, bitmapptr !,
+				40 #, wrdperrow !,
+				0 #, rowendres !,
+				200 #, rowperbox !,
+				$8888 #, bitmapdat !,
+				fillRect
+				halt,
+			then,
 
-			16 #, devsec !,
-			memptr @, devbufptr !,
-			devget
-			memptr @, 0 #, +, c@,  $04 #, xor, if, 1 #, crash halt, then,
-			memptr @, 1 #, +, c@,  $24 #, xor, if, 2 #, crash halt, then,
-			memptr @, 2 #, +, c@,  $44 #, xor, if, 3 #, crash halt, then,
-			memptr @, 3 #, +, c@,  $49 #, xor, if, 4 #, crash halt, then,
-			memptr @, 4 #, +, c@,  $52 #, xor, if, 5 #, crash halt, then,
+			$C000 #, bitmapptr !,	( filesystem mounted; time to load user interface/shell )
+			40 #, wrdperrow !,
+			80 #, rowendres !,
+			100 #, rowperbox !,
+			$FFFF #, bitmapdat !,
+			fillRect
 		8 fp+!,
 
 		
