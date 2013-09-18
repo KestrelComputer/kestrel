@@ -174,6 +174,7 @@ $FFFE const, %fp
 : origin	pibptr !  eject ;
 : C,,		pibc, ;
 : ,,		pib, ;
+: C",		34 parse dup c,, pibptr @ >pib swap dup allot, move ;
 
 \ \ \ Support for binary file inclusion
 
@@ -212,4 +213,5 @@ variable wrd
 : tend		T_END wrd !  wrword ;
 : relocs	0 BEGIN DUP relocptr @ < WHILE  DUP relocb + @ wrd ! wrword  CELL+ REPEAT DROP ;
 : reloc"	_create thunk tcode write treloc relocs tend close ;
+
 
