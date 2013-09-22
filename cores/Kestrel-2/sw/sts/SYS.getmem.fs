@@ -97,7 +97,7 @@ int, memsiz
 	memptr @, /node +, memptr !,  0 #, rsn !,
 	rfs, ;,
 
-sub: getmem
+sub: p_getmem
 	mplsta @,
 	if,	mplsta @, memptr !,
 		memsiz @, roundup +, -/node and, memsiz !,
@@ -105,6 +105,9 @@ sub: getmem
 	then,
 	0 #, memptr !,  EBASE rsn !,
 	rfs,
+
+:, getmem
+	-1 fp+!, p_getmem 1 fp+!, ;,
 
 \ relmem is used to release previously allocated memory, as returned by getmem.
 \ relmem expects the block to release in memptr.
