@@ -227,3 +227,57 @@ int, filend
 :, close
 	filscb @, memptr !,  relmem ;,
 
+
+\ read will transfer up to inplen bytes of data from the file referenced by the
+\ inpscb variable, into a buffer pointed to by inpbuf.  Upon completion, inpcnt
+\ indicates how many bytes were actually transferred, and rsn indicates any reason
+\ for stopping prematurely, if any.  Note that, except for inpscb, all input
+\ variables are altered, and will need to be reset for the next call to read.
+
+int, inpcnt
+int, inpscb
+int, inpbuf
+int, inplen
+
+int, (inplen)
+int, (inpcnt)
+
+:, (read)
+	inpscb @, scb_index +, @,  512 #, xor, 0=
+	if,	inpscb @, scb_sector +, @, inpscb @, scb_ends +, @, xor,
+		if,	inpscb @, scb_sector +, @, 1 #, +, inpscb @, scb_sector +, !,
+			inpscb @, filscb !,  rdsec
+			rsn @,
+			if,	inpscb @, scb_sector +, @, -1 #, inpscb @, scb_sector +, !,
+				0 #, (inpcnt) !,
+				exit,
+			then,
+			0 #, inpscb @, scb_index +, !,
+			again,
+		else,	EEOF rsn !,  0 #, (inpcnt) !,  exit,
+		then,
+	then,
+
+	inpscb @, scb_index +, @, (inplen) @, +,  -512 #, +, $8000 #, and,
+	if,	inpscb @, scb_index +, @, (inplen) @, +, (inplen) !,
+	else,	512 #, (inplen) !,
+	then,
+	inpscb @, scb_index +, @, -1 #, xor, 1 #, +, (inplen) @, +, (inplen) !,
+
+	inpscb @, scb_buffer +, @,  inpscb @, scb_index +, @,  +,  strptr1 !,
+	inpbuf @, strptr2 !,
+	(inplen) @, strlen1 !,
+	movmem
+	inpscb @, scb_index +, @, (inplen) @, +, inpscb @, scb_index +, !,
+	(inplen) @, (inpcnt) !,
+	0 #, rsn !,  ;,
+
+:, read
+	0 #, inpcnt !,
+	begin,	rsn @, 0=  inplen @, and,
+	while,	inplen @, (inplen) !, (read)
+		(inpcnt) @, inpbuf @, +, inpbuf !,
+		(inpcnt) @, -1 #, xor, 1 #, +,  inplen @, +, inplen !,
+		(inpcnt) @, inpcnt @, +, inpcnt !,
+	repeat, ;,
+

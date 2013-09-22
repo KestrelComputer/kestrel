@@ -62,6 +62,17 @@ int, strlen
 :, strdif
 	count1 count2 compare ;,
 
+\ movmem is used to copy a block of memory from strptr1 to strptr2, of length strlen1.
+
+:, movmem
+	strlen1 @,
+	if,	strptr1 @, c@,  strptr2 @, c!,
+		strlen1 @, -1 #, +, strlen1 !,
+		strptr1 @,  1 #, +, strptr1 !,
+		strptr2 @,  1 #, +, strptr2 !,
+		again,
+	then, ;,
+
 \ fillRect draws very simple rectangular patterns on the screen.
 \ This can be used to clear the screen, or to let the user in on the current progress of something.
 \ This procedure does not return anything.
@@ -102,7 +113,7 @@ include SYS.filesys.fs
 
 
 create, myfn
-	C", WorkDisk:Filename"
+	C", WorkDisk:$DIR"
 
 \ First instruction of STS starts here.  coldstart vectors here.
 
@@ -169,13 +180,36 @@ create, myfn
 				halt,
 			then,
 
-			$C050 #, bitmapptr !,
-			40 #, wrdperrow !,
-			80 #, rowendres !,
-			100 #, rowperbox !,
-			$FFFF #, bitmapdat !,
-			fillRect
+			filscb @, inpscb !,
+			1024 #, inplen !,
+			$D000 #, inpbuf !,
+			read
+			rsn @,
+			if,	$C000 #, bitmapptr !,
+				40 #, wrdperrow !,
+				0 #, rowendres !,
+				200 #, rowperbox !,
+				$F5F5 #, bitmapdat !,
+				fillRect
+				halt,
+			then,
+			inpcnt @, 1024 #, xor,
+			if,	$C000 #, bitmapptr !,
+				40 #, wrdperrow !,
+				0 #, rowendres !,
+				200 #, rowperbox !,
+				$00FF #, bitmapdat !,
+				fillRect
+				halt,
+			then,
 
+\			$C050 #, bitmapptr !,
+\			40 #, wrdperrow !,
+\			80 #, rowendres !,
+\			100 #, rowperbox !,
+\			$FFFF #, bitmapdat !,
+\			fillRect
+\
 		8 fp+!,
 
 		
