@@ -166,7 +166,7 @@ $FFFE const, %fp
 : +fp!,		TWORDS #, %fp @, +, !, ;
 : fp+!,		TWORDS #, %fp @, +, %fp !, ;
 
-: sub:		CREATE iptr @ , DOES> @ callr, ;
+: sub:		CREATE bblk iptr @ , DOES> @ callr, ;
 : rfs,		%fp @, @, go, ;
 
 \ \ \ Miscellanious
