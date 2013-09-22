@@ -15,6 +15,12 @@ defer, coldstart
 
 : 0=		if, 0 #, else, -1 #, then, ;		( macro )
 
+int, tt
+int, ts
+:, wait,	0 #, tt !, begin, tt @, -1 #, +, tt !,  tt @, 0= until, ;,
+:, waitlonger,	256 #, ts !, begin, wait, ts @, -1 #, +, ts !,  ts @, 0= until, ;,
+
+
 \ rsn stores the reason for a service's failure to deliver the expected results.
 \ Numerous system calls can fail for a number of reasons.  See the errors.fs file
 \ for a list of reasons and their most common circumstances.
@@ -106,14 +112,17 @@ int, rowctr		( internal )
 	rowperbox @, rowctr !, fillrows  ;,
 
 
+:, cp		$0000 #, strptr1 !,  $C000 #, strptr2 !, 16000 #, strlen1 !,  movmem  ;,
+
 include SYS.findtag.fs
 include SYS.getmem.fs
 include SYS.sdcard.fs
 include SYS.filesys.fs
+include SYS.loadseg.fs
 
 
 create, myfn
-	C", WorkDisk:$DIR"
+	C", SYS:prg.happykes"
 
 \ First instruction of STS starts here.  coldstart vectors here.
 
@@ -150,8 +159,8 @@ create, myfn
 			fillRect
 
 			mount
-			rsn @,
-			if,	$C000 #, bitmapptr !,
+			rsn @,			( If filesystem could not be mounted, ... )
+			if,	$C000 #, bitmapptr !,	( let user know. )
 				40 #, wrdperrow !,
 				0 #, rowendres !,
 				200 #, rowperbox !,
@@ -165,51 +174,29 @@ create, myfn
 			80 #, rowendres !,
 			100 #, rowperbox !,
 			$FFFF #, bitmapdat !,
+			cp
+
+			myfn c@, filnamlen !,
+			myfn 1 #, +, filnamptr !,
+			loadseg
+			rsn @,			( If initial program could not be loaded for some reason... )
+			if,	$C000 #, bitmapptr !,	( let user know. )
+				40 #, wrdperrow !,
+				0 #, rowendres !,
+				200 #, rowperbox !,
+				$EEEE #, bitmapdat !,
+				fillRect
+				halt,
+			then,
+
+			$C050 #, bitmapptr !,
+			40 #, wrdperrow !,
+			80 #, rowendres !,
+			100 #, rowperbox !,
+			$FFFF #, bitmapdat !,
 			fillRect
 
-			myfn 1 #, +, filnamptr !,
-			myfn c@, filnamlen !,
-			open
-			rsn @,
-			if,	$C000 #, bitmapptr !,
-				40 #, wrdperrow !,
-				0 #, rowendres !,
-				200 #, rowperbox !,
-				$F0F0 #, bitmapdat !,
-				fillRect
-				halt,
-			then,
-
-			filscb @, inpscb !,
-			1024 #, inplen !,
-			$D000 #, inpbuf !,
-			read
-			rsn @,
-			if,	$C000 #, bitmapptr !,
-				40 #, wrdperrow !,
-				0 #, rowendres !,
-				200 #, rowperbox !,
-				$F5F5 #, bitmapdat !,
-				fillRect
-				halt,
-			then,
-			inpcnt @, 1024 #, xor,
-			if,	$C000 #, bitmapptr !,
-				40 #, wrdperrow !,
-				0 #, rowendres !,
-				200 #, rowperbox !,
-				$00FF #, bitmapdat !,
-				fillRect
-				halt,
-			then,
-
-\			$C050 #, bitmapptr !,
-\			40 #, wrdperrow !,
-\			80 #, rowendres !,
-\			100 #, rowperbox !,
-\			$FFFF #, bitmapdat !,
-\			fillRect
-\
+			segptr @, go,
 		8 fp+!,
 
 		
