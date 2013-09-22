@@ -248,7 +248,7 @@ int, (inpcnt)
 		if,	inpscb @, scb_sector +, @, 1 #, +, inpscb @, scb_sector +, !,
 			inpscb @, filscb !,  rdsec
 			rsn @,
-			if,	inpscb @, scb_sector +, @, -1 #, inpscb @, scb_sector +, !,
+			if,	inpscb @, scb_sector +, @, -1 #, +, inpscb @, scb_sector +, !,
 				0 #, (inpcnt) !,
 				exit,
 			then,
@@ -273,11 +273,15 @@ int, (inpcnt)
 	0 #, rsn !,  ;,
 
 :, read
-	0 #, inpcnt !,
+	0 #, inpcnt !,  0 #, rsn !,
 	begin,	rsn @, 0=  inplen @, and,
 	while,	inplen @, (inplen) !, (read)
 		(inpcnt) @, inpbuf @, +, inpbuf !,
 		(inpcnt) @, -1 #, xor, 1 #, +,  inplen @, +, inplen !,
 		(inpcnt) @, inpcnt @, +, inpcnt !,
-	repeat, ;,
+	repeat,
+	rsn @, EEOF xor, 0=
+	if,	0 #, rsn !,
+	then,
+;,
 
