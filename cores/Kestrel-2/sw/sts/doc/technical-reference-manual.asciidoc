@@ -281,11 +281,11 @@ Your display should show the following:
 070 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
 ----
 
-Next we need to set the file type and its extent range.  Type the following:
+Next we need to set the file type and its extent range.  Remember to set reserved/undefined fields to zero.  Type the following:
 
 ----
 $070 at
-S" 010044005500" bytes
+S" 01004400550000000000000000000000" bytes
 ----
 
 You should now have a display like so:
@@ -294,7 +294,7 @@ You should now have a display like so:
 040 | 08 54 65 73 74 46 69 6C  65 CC CC CC CC CC CC CC | _TestFil e������
 050 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
 060 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
-070 | 01 00 44 00 55 00 CC CC  CC CC CC CC CC CC CC CC | __D_U_�� �������
+070 | 01 00 44 00 55 00 00 00  00 00 00 00 00 00 00 00 | __D_U___ ________
 ----
 
 At this point, your file is allocated (17 sectors long, starting at sector 68).  You can now use the editor to (tediously) enter the contents of your new file, or, just leave it as-is for another STS program to fill in.
