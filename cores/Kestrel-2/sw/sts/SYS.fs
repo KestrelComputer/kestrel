@@ -6,7 +6,31 @@ include errors.fs
 include constants.fs
 
 $0400 origin
+
+\ The very first thing in STS is its entry-point table.
+\ One entry point, coldstart, is mandated by hardware.
+\ Three additional reserved entry points exist because
+\ I might want to add additional features to the CPU (e.g., interrupts), and
+\ I don't want to break STS compatibility if/when I do.
+\ Finally, we have the list of dispatchers for the set of system calls supported by STS.
+
 defer, coldstart
+defer, ---
+defer, ---
+defer, ---
+defer, fndtag-epv
+defer, getmem-epv
+defer, relmem-epv
+defer, open-epv
+defer, close-epv
+defer, read-epv
+defer, loadseg-epv
+defer, unloadseg-epv
+defer, exec-epv
+defer, exit.-epv
+defer, compare-epv		( utility )
+defer, strdif-epv		( utility )
+defer, movmem-epv		( utility )
 
 \ Global state for all OS services.
 
@@ -123,6 +147,7 @@ include SYS.getmem.fs
 include SYS.sdcard.fs
 include SYS.filesys.fs
 include SYS.loadseg.fs
+include SYS.endpoints.fs
 
 
 \ First instruction of STS starts here.  coldstart vectors here.
