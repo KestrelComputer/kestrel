@@ -147,7 +147,7 @@ include SYS.getmem.fs
 include SYS.sdcard.fs
 include SYS.filesys.fs
 include SYS.loadseg.fs
-include SYS.endpoints.fs
+include SYS.entrypoints.fs
 
 
 \ First instruction of STS starts here.  coldstart vectors here.
