@@ -32,5 +32,5 @@ decimal
 :, deadlock	again, ;,
 :, happy 	cls icon deadlock ;,
 ' happy >body @ is, happyboot
-reloc" imgs/prg.happykes"
+reloc" imgs/prg.start"
 

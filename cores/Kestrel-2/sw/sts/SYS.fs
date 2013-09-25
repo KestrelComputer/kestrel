@@ -114,15 +114,16 @@ int, rowctr		( internal )
 
 :, cp		$0000 #, strptr1 !,  $C000 #, strptr2 !, 16000 #, strlen1 !,  movmem  ;,
 
+
+create, 1stProgram
+	C", SYS:prg.start"
+
 include SYS.findtag.fs
 include SYS.getmem.fs
 include SYS.sdcard.fs
 include SYS.filesys.fs
 include SYS.loadseg.fs
 
-
-create, myfn
-	C", SYS:prg.happykes"
 
 \ First instruction of STS starts here.  coldstart vectors here.
 
@@ -176,9 +177,11 @@ create, myfn
 			$FFFF #, bitmapdat !,
 			cp
 
-			myfn c@, filnamlen !,
-			myfn 1 #, +, filnamptr !,
-			loadseg
+			0 #, taskseg !,
+			0 #, parambuf !,
+			1stProgram c@, filnamlen !,
+			1stProgram 1 #, +, filnamptr !,
+			exec
 			rsn @,			( If initial program could not be loaded for some reason... )
 			if,	$C000 #, bitmapptr !,	( let user know. )
 				40 #, wrdperrow !,
@@ -189,14 +192,12 @@ create, myfn
 				halt,
 			then,
 
-			$C050 #, bitmapptr !,
+			$C050 #, bitmapptr !,	( Theoretically, we should never reach this point. )
 			40 #, wrdperrow !,
 			80 #, rowendres !,
 			100 #, rowperbox !,
 			$FFFF #, bitmapdat !,
 			fillRect
-
-			segptr @, go,
 		8 fp+!,
 
 		

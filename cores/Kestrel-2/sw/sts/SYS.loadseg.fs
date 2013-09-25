@@ -90,3 +90,55 @@ sub: p_loadseg
 :, loadseg
 	-1 fp+!,  p_loadseg  1 fp+!, ;,
 
+\ unloadseg cleans up all resources related to loading a segment, and disposes of the loaded segment.
+\ unloadseg WILL NOT dispose of resources acquired by the program in the segment, however.
+
+:, unloadseg
+	segptr @, memptr !,
+	relmem
+;,
+
+\ exec terminates the current program so that it can bring another into memory.
+\ The filenameptr/filenamelen variables points to the program to load and run.
+\ The paramseg variable points to an agreed upon buffer used to pass parameters and/or results.
+
+int, parambuf
+
+int, taskseg
+
+:, exec
+	taskseg @,
+	if,	taskseg @, segptr !,
+		unloadseg
+		0 #, taskseg !,
+	then,
+
+	loadseg
+	rsn @,
+	if,	1stProgram c@, filnamlen !,
+		1stProgram 1 #, +, filnamptr !,
+		loadseg
+		rsn @,
+		if,	( panic I guess; I don't know what to do here. )
+			exit,
+		then,
+	then,
+
+	segptr @, taskseg !,
+	segptr @, go,
+;,
+
+\ exit terminates the current program and forces the user's 1st program to be brought into
+\ memory.  It will also dispose of the parameter buffer if any still exists.
+
+:, exit.
+	parambuf @,
+	if,	parambuf @, memptr !,
+		relmem
+		0 #, parambuf !,
+	then,
+	1stProgram 1 #, +, filnamptr !,
+	1stProgram c@, filnamlen !,
+	exec
+;,
+
