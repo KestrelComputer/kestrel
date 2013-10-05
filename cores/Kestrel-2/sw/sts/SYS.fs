@@ -192,7 +192,6 @@ include SYS.entrypoints.fs
 				200 #, rowperbox !,
 				$8888 #, bitmapdat !,
 				fillRect
-				halt,
 			then,
 
 			$C000 #, bitmapptr !,	( filesystem mounted; time to load user interface/shell )
@@ -200,7 +199,7 @@ include SYS.entrypoints.fs
 			80 #, rowendres !,
 			100 #, rowperbox !,
 			$FFFF #, bitmapdat !,
-			cp
+			fillRect
 
 			0 #, taskseg !,
 			0 #, parambuf !,
