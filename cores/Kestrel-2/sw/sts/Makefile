@@ -5,10 +5,12 @@ IPLIMG=sys/\$$IPL
 SYSIMG=sys/\$$SYS
 SYSSRCS=SYS.*
 
-card: sdimage.bin
-	dd if=sdimage.bin of=/dev/sdg bs=512 count=25 && sync
+PRGSRCS=PRG.*
 
-sdimage.bin: ${SYSIMG} ${IPLIMG}
+card: sdimage.bin
+	dd if=sdimage.bin of=/dev/sdg bs=512 count=64 && sync
+
+sdimage.bin: ${SYSIMG} ${IPLIMG} ${PRGIMG} ${PRGSRCS} Makefile
 	util/bin/mkimg
 
 ${SYSIMG}: ${SYSSRCS}
