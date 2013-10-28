@@ -1,0 +1,51 @@
+Backlog
+
+    Set up Kestrel repository blog. (??)
+    Blog: How Byte-banding Works
+    Assembler must produce binary, hunk-format, relocatable objects from assembly listing.
+    We need a tool to translate hunk-format executables into ROM files.
+    Only CODE, RODATA, and BSS section allowed for ROMable software.
+    Monitor's CODE+RODATA sections must fit within 2048 words of ROM (16KB).
+    Load monitor ROM image from specified file into emulated ROM.
+    Evented emulation
+    Blog: How Processor Bootstrap Works
+    Debugger serial port output emulation
+    Direct all output to dedicated debugging serial port.
+    Monitor identifies upon start-up.
+    CPU Interrupt mechanism
+    Let user interrupt CPU and drop directly into debugger
+    Blog: How CPU Interrupts Work
+    Debugger serial port input emulation
+    Blog: How debugger serial port emulation works
+    Accept all input from dedicated debugging serial port.
+    Monitor responds to alphanumeric, space, backspace, and ENTER keys only.
+    Monitor interprets commands and hexadecimal values without regard to case.
+    Let user read memory
+    Let user update memory
+    Let user read registers
+    Let user update registers
+    Let user run code
+    Memory dumps contain both ASCII and hexadecimal views.
+    CPU Breakpoint/Watchpoint registers
+    CPU Trap mechanism
+    Trap on memory access match with any break/watchpoint register.
+    Let user create break/watchpoints
+    Let user destroy break/watchpoints
+    Blog: CPU Debug Registers and their Trap Handlers
+    Let user disassemble memory
+    Let user single-step code
+    Let user run code until PC hits specified target address
+    Let user load block of binary image from SD card
+    SDSC card read emulation
+    Let user assemble into memory
+    Let user save block of binary image to SD card
+    SDSC card write emulation
+    Blog: How SPI and SDSC Emulation Works
+    Let user read breakpoints
+    Let user change breakpoints
+    Let user create breakpoint predicate
+    Let user destroy breakpoint predicate
+    Let user read breakpoint predicates
+    Let user update breakpoint predicates
+    Blog: How debugger break/watchpoint predicates work
+
