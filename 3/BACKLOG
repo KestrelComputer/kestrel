@@ -1,6 +1,5 @@
 Backlog
 
-    Set up Kestrel repository blog. (??)
     Blog: How Byte-banding Works
     Assembler must produce binary, hunk-format, relocatable objects from assembly listing.
     We need a tool to translate hunk-format executables into ROM files.
