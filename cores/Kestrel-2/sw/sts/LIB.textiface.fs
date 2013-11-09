@@ -9,6 +9,9 @@ defer, ---
 defer, ---
 defer, ---
 defer, BlackRect-epv
+defer, CR-epv
+defer, PrintStr-epv
+defer, Accept-epv
 
 \ Frame Buffer Control Block.
 
@@ -55,10 +58,15 @@ char, ps2code
 $FF00 const, ib
 160 const, /ib
 
+pibptr @ constant S0
 include textiface/framebuffer.fs
+pibptr @ constant S1
 include textiface/font.fs
+pibptr @ constant S2
 include textiface/cursor.fs
+pibptr @ constant S3
 include textiface/tty.fs
+pibptr @ constant S4
 
 $B000 const, kqstat
 $B002 const, kqdata
@@ -67,10 +75,23 @@ $B002 const, kqdata
 :, ackps2	kqdata c!, ;,
 :, headps2	kqdata c@, ps2code c!, ;,
 
+pibptr @ constant S5
 include textiface/keyboard.fs
+pibptr @ constant S6
 include textiface/cli.fs
+pibptr @ constant S7
 
 include textiface/epv.fs
+pibptr @ constant S8
 
 reloc" imgs/lib.textiface"
+
+." Framebuffer: " S1 S0 - . cr
+."        Font: " S2 S1 - . cr
+."      Cursor: " S3 S2 - . cr
+."         TTY: " S4 S3 - . cr
+."  KBD Driver: " S5 S4 - . cr
+."    Keyboard: " S6 S5 - . cr
+."         CLI: " S7 S6 - . cr
+."         EPV: " S8 S7 - . cr
 
