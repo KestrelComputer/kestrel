@@ -152,7 +152,7 @@ include SYS.entrypoints.fs
 
 \ First instruction of STS starts here.  coldstart vectors here.
 
-:, cold		$4000 #, %fp !,			( Initialize the STS frame pointer )
+:, cold		$8000 #, %fp !,			( Initialize the STS frame pointer )
 		-8 fp+!,			( Let user know we're running )
 			$C000 #, bitmapptr !,
 			40 #, wrdperrow !,
@@ -174,7 +174,7 @@ include SYS.entrypoints.fs
 				halt,
 			then,
 			fndtagsta @, mplsta !,
-			fndtagsta @, -1 #, xor, 1 #, +, $4000 #, +, mplsiz !,
+			fndtagsta @, -1 #, xor, 1 #, +, $8000 #, +, mplsiz !,
 			fmtmem
 
 			$C050 #, bitmapptr !,	( Memory pool initialized; time to mount the system filesystem. )
