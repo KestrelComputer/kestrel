@@ -9,3 +9,20 @@ sub: BlackRect-dsp
 
 ' BlackRect-dsp >body @ is, BlackRect-epv
 
+sub: CR-dsp
+	.cr rfs,
+' CR-dsp >body @ is, CR-epv
+
+sub: PrintStr-dsp
+	1 +fp@, strp !,
+	2 +fp!, strl !,
+	PrintStr
+	rfs,
+' PrintStr-dsp >body @ is, PrintStr-epv
+
+sub: Accept-dsp
+	Accept
+	#ib @, 1 +fp!,
+	rfs,
+' Accept-dsp >body @ is, Accept-epv
+
