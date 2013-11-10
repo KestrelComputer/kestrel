@@ -1,0 +1,14 @@
+{ "signal" : [
+ { "name": "clk_i",  "wave": "P..|..."},
+ { "name": "res_i",  "wave": "x1=|0.."},
+ { "name": "adr_o(15:1)",  "wave": "x.0|..2", data: ["0"]},
+ { "name": "vpa_o",  "wave": "xx0|..1"},
+ { "name": "vda_o",  "wave": "xx0|..."},
+ { "name": "we_o",   "wave": "xx0|..."},
+ { "name": "sel_o(1:0)",  "wave": "xx0|..1"},
+ { "name": "dat_i(15:0)",  "wave": "x..|..."},
+ { "name": "dat_o(15:0)",  "wave": "xx0|..."},
+ { "name": "ack_i",  "wave": "x..|..="},
+ { "name": "stb_o",  "wave": "xx0|..1"},
+ { "name": "cyc_o",  "wave": "xx0|..1"},
+]}
