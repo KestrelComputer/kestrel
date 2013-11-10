@@ -118,7 +118,7 @@ module NEXYS2(
 		cdpn <= 1'b1;
 	end
 	
-	S16X4 cpu(
+	S16X4A cpu(
 		.adr_o(cpu_adr_o),
 		.we_o (cpu_we_o),
 		.cyc_o(cpu_cyc_o),
@@ -128,7 +128,8 @@ module NEXYS2(
 		.ack_i(cpu_ack_i),
 		.dat_i(cpu_dat_i),
 		.clk_i(mgia_25mhz_o),
-		.res_i(N2_BTN0_I)
+		.res_i(N2_BTN0_I),
+		.abort_i(1'b0)
 	);
 	
 	KIA kia(
