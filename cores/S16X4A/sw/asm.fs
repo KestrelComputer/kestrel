@@ -101,7 +101,7 @@ variable relocptr
 : #, ( n -- )	1 opc pib, ;
 : reloc,	pibptr @  relocb relocptr @ + !  1 cells relocptr +! ;
 : &, ( n -- )   slot @ 0= IF bblk THEN reloc, #, ;
-: prim		CREATE , DOES> DUP @ opc @ 14 = IF bblk THEN ;
+: prim		CREATE , DOES> DUP @ opc @ 12 15 WITHIN IF bblk THEN ;
 
 \ \ \ BASIC CPU PRIMITIVES
 

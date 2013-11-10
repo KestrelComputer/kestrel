@@ -1,6 +1,6 @@
 #! /usr/bin/gforth
 
-\ Assembler for the S16X4 (written in ANS Forth)
+\ Assembler for the S16X4A (written in ANS Forth)
 
 \ \ \ PROGRAM IMAGE BUFFER, and how to read and write from/to it.
 
@@ -101,7 +101,7 @@ variable relocptr
 : #, ( n -- )	1 opc pib, ;
 : reloc,	pibptr @  relocb relocptr @ + !  1 cells relocptr +! ;
 : &, ( n -- )   slot @ 0= IF bblk THEN reloc, #, ;
-: prim		CREATE , DOES> DUP @ opc @ 14 = IF bblk THEN ;
+: prim		CREATE , DOES> DUP @ opc @ 12 15 WITHIN IF bblk THEN ;
 
 \ \ \ BASIC CPU PRIMITIVES
 
@@ -117,6 +117,9 @@ variable relocptr
 
 10 prim C@,	( -- )
 11 prim C!,	( -- )
+
+12 prim LCALL,  ( -- )
+13 prim ICALL,  ( -- )
 14 prim GO,	( -- )
 15 prim NZGO,	( -- )
 
@@ -127,7 +130,7 @@ variable relocptr
 VARIABLE rpa ( Return Pointer Address )
 defer again,
 
-: call,		bblk pibptr @ 2 TWORDS + &, &, GO, ;
+: call,		bblk &, ICALL, ;
 : DEFER,	bblk CREATE iptr @ , 0 &, GO, DOES> @ call, ;
 : IS,		' >body @ 1 TWORDS + pib! ;
 : preamble	iptr @ -1 TWORDS + &, !, bblk ;
