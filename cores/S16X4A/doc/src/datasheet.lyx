@@ -644,6 +644,8 @@ SWM
 \begin_inset Text
 
 \begin_layout Plain Layout
+
+\emph on
 3
 \end_layout
 
@@ -653,6 +655,8 @@ SWM
 \begin_inset Text
 
 \begin_layout Plain Layout
+
+\emph on
 3
 \end_layout
 
@@ -1114,12 +1118,13 @@ MASTER Signals
 \begin_layout Description
 ABORT_I.
  If asserted during an instruction execution cycle, this causes the S16X4A
- to prevent any register updates, and forces the next cycle to fetch a new
- instruction packet.
+ to prevent any parameter stack register updates, and forces the next cycle
+ to fetch a new instruction packet.
  External memory management hardware typically relies this signal to force
  the processor to execute a trap handler in a way that preserves restartability
  of the offending instruction.
- The S16X4A ignores this signal while fetching instruction packets.
+ The S16X4A ignores this signal while fetching instruction packets; therefore,
+ this signal cannot prevent updates to the program counter.
 \end_layout
 
 \begin_layout Description

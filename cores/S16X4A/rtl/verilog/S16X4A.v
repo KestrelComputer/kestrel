@@ -29,7 +29,8 @@ module S16X4A(
 	output				vpa_o,
 	output	[15:0]	dat_o,
 	input					ack_i,
-	input		[15:0]	dat_i
+	input		[15:0]	dat_i,
+	input					abort_i
 );
 
 	reg	[15:1]	adr;
@@ -67,7 +68,7 @@ module S16X4A(
 	wire				branch_taken = ((current_opcode == `OPC_ZGO) && y_is_zero) | ((current_opcode == `OPC_NZGO) && ~y_is_zero) | (current_opcode == `OPC_GO) | (current_opcode == `OPC_ICALL);
 	wire				lcall_taken = current_opcode == `OPC_LCALL;
 	wire	[15:1]	lcall_address = p + {ir[11], ir[11], ir[11], ir[11:0]};
-	wire				goto_t0 = reset | no_more_instructions | branch_taken | lcall_taken;
+	wire				goto_t0 = reset | no_more_instructions | branch_taken | lcall_taken | abort_i;
 	wire	[15:1]	next_p = reset ? 0 : (increment_p ? p+1 : (branch_taken ? z[15:1] : (lcall_taken ? lcall_address : p)));
 	wire	[4:0]		next_t = goto_t0 ? 5'b00001 : (t << 1);
 	wire	[15:0]	sum = y + z;
@@ -360,12 +361,14 @@ module S16X4A(
 		if(cycle_done) begin
 			if(t0)		ir <= dat_i;
 			else			ir <= {ir[11:0], 4'b0000};
-			u <= next_u;
-			v <= next_v;
-			w <= next_w;
-			x <= next_x;
-			y <= next_y;
-			z <= next_z;
+			if(~abort_i) begin
+				u <= next_u;
+				v <= next_v;
+				w <= next_w;
+				x <= next_x;
+				y <= next_y;
+				z <= next_z;
+			end
 		end
 	end
 	

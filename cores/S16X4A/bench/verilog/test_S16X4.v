@@ -9,6 +9,7 @@ module test_S16X4A();
 	reg res_o;
 	reg ack_o;
 	reg [15:0] dat_o;
+	reg abort_o;
 
 	wire [15:1] adr_i;
 	wire we_i;
@@ -35,7 +36,8 @@ module test_S16X4A();
 		.dat_o(dat_i),
 		
 		.ack_i(ack_o),
-		.dat_i(dat_o)
+		.dat_i(dat_o),
+		.abort_i(abort_o)
 	);
  
 	always begin
@@ -47,6 +49,7 @@ module test_S16X4A();
 		res_o <= 0;
 		ack_o <= 0;
 		dat_o <= 16'hDEAD;
+		abort_o <= 0;
 
 		wait(clk_o); wait(~clk_o);
 		
@@ -906,6 +909,45 @@ module test_S16X4A();
 		wait(clk_o); wait(~clk_o);
 		if(adr_i != 15'h000000000000001) begin
 			$display("Return address is wrong"); $stop;
+		end
+
+		// AS A hardware engineer interested in coupling the S16X4A to a memory management unit
+		// I WANT a signal to convince the CPU to not update the parameter stack
+		// SO THAT reads or writes that fault can be restarted.
+		
+		story_o <= 16'h0210;
+		res_o <= 1;
+		ack_o <= 1;
+		dat_o <= 16'h0000;
+		wait(clk_o); wait(~clk_o);
+		res_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
+		
+		dat_o <= 16'h1111;
+		wait(clk_o); wait(~clk_o);
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h2222;
+		wait(clk_o); wait(~clk_o);
+		dat_o <= 16'h3333;
+		abort_o <= 1;
+		wait(clk_o); wait(~clk_o);
+
+		if(~vpa_i) begin
+			$display("Expected insn word fetch cycle here."); $stop;
+		end
+		if(vda_i) begin
+			$display("Expected insn word fetch cycle here."); $stop;
+		end
+
+		dat_o <= 16'h3000;
+		abort_o <= 0;
+		wait(clk_o); wait(~clk_o);
+		if(adr_i != 15'b001000100010001) begin
+			$display("Expected write to address $2222"); $stop;
+		end
+		if(dat_i != 16'h1111) begin
+			$display("Expected write of value $1111"); $stop;
 		end
 
 		story_o <= 16'hFFFF;
