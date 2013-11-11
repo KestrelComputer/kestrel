@@ -50,6 +50,13 @@ int, ts
 \ for a list of reasons and their most common circumstances.
 int, rsn
 
+\ frameBase is used to reset the %fp frame pointer whenever control transfers to a
+\ new program.  The frame buffer provided by the system is 256 bytes long, which
+\ should be more than enough for most applications.  If an application needs a
+\ bigger buffer, they can use getmem to allocate a bigger one, and set %fp
+\ itself.
+int, frameBase
+
 \ strdif determines if two strings are different from each other.  Strings are
 \ assumed to be in BCPL- or counted-format.  This means the first byte is the
 \ length of the string, and subsequent bytes contain the string's content.
@@ -152,7 +159,7 @@ include SYS.entrypoints.fs
 
 \ First instruction of STS starts here.  coldstart vectors here.
 
-:, cold		$8000 #, %fp !,			( Initialize the STS frame pointer )
+:, cold		$FFA0 #, %fp !,			( Initialize the STS frame pointer; temporary buffer )
 		-8 fp+!,			( Let user know we're running )
 			$C000 #, bitmapptr !,
 			40 #, wrdperrow !,
@@ -176,6 +183,20 @@ include SYS.entrypoints.fs
 			fndtagsta @, mplsta !,
 			fndtagsta @, -1 #, xor, 1 #, +, $8000 #, +, mplsiz !,
 			fmtmem
+
+		256 #, memsiz !, getmem		( Now that mem mgt is up, allocate a space for our frame )
+		rsn @,
+		if,
+			$C050 #, bitmapptr !,
+			40 #, wrdperrow !,
+			80 #, rowendres !,
+			100 #, rowperbox !,
+			$F0F0 #, bitmapdat !,
+			fillRect halt,
+		then,
+		memptr @, 256 #, +, frameBase !,
+		frameBase @, %fp !,		( Finally, we have a permanent frame pointer location )
+		-8 fp+!,
 
 			$C050 #, bitmapptr !,	( Memory pool initialized; time to mount the system filesystem. )
 			40 #, wrdperrow !,

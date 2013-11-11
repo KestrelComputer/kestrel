@@ -123,8 +123,8 @@ int, taskseg
 			exit,
 		then,
 	then,
-
 	segptr @, taskseg !,
+	frameBase @, %fp !,
 	segptr @, go,
 ;,
 
@@ -132,6 +132,7 @@ int, taskseg
 \ memory.  It will also dispose of the parameter buffer if any still exists.
 
 :, exit.
+	frameBase @, %fp !,  -8 fp+!,
 	parambuf @,
 	if,	parambuf @, memptr !,
 		relmem
