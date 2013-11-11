@@ -19,6 +19,7 @@ int, #cmdbuf
 int, psch
 int, pdch
 int, n
+int, rsn
 
 
 :, stop
@@ -44,6 +45,12 @@ create, prompt$
 
 create, banner$
 	C", STS/K2 V1"
+
+create, ErrorMsg
+	C", Error: "
+
+create, rsnTab
+	C", SZINNFNMEFVV"
 
 :, prompt
 	prompt$ 1 #, +, 1 +fp!,
@@ -91,10 +98,6 @@ create, banner$
                 if,     exit,
                 then,
                 
-\		n @, #cmdbuf @, -1 #, xor, +, 1 #, +, $8000 #, and, $8000 #, xor,
-\		if,	exit,
-\		then,
-
                 psch @, c@, -33 #, +, $8000 #, and,
                 if,     exit,
                 then,
@@ -110,12 +113,35 @@ create, banner$
 :, run
 	cmdbuf 1 +fp!,
 	n @, 2 +fp!,
-	PrintStr CR
+	loadseg
+	4 +fp@,
+	if,	4 +fp@, -100 #, +, rsn !,
+		3 +fp@, 1 +fp!,
+		unloadseg
+		exit,
+	then,
+	3 +fp@, 1 +fp!,
+	unloadseg
+
+	textifaceBase @, 1 +fp!, unloadseg
+
+	cmdbuf 1 +fp!,
+	n @, 2 +fp!,
+	0 #, 3 +fp!,
+	Exec
+	4 +fp@, -100 #, +, rsn !,
 ;,
 
 :, try
 	CR
 	skipws copy2ws run
+	( If we made it this far, a problem happened with loading the application )
+	ErrorMsg 1 #, +, 1 +fp!,
+	ErrorMsg c@, 2 +fp!,
+	PrintStr
+	rsn @, rsn @, +, rsnTab +, 1 #, +, 1 +fp!,
+	2 #, 2 +fp!,
+	PrintStr CR
 ;,
 
 :, banner
