@@ -1,0 +1,379 @@
+= STS Technical Reference Manual =
+
+== STS Filing System ==
+
+This chapter details the STS V1 filing system.  Additionally, information on the disk editor used to develop, verify, and validate STS filing system software is included.  This editor proves useful for repairing corrupted filing systems, or for allocating file space off-line.
+
+=== STS Volume Structure ===
+
+An STS V1 volume consists of several reserved areas at the beginning of the volume, followed right after with the volume directory, followed thereafter by the files stored on the volume.  See the overview below:
+
+----
+0            2               16                     n+1
++------------+---------------+----------------------+-------------------------------------------+
+| Boot Block | Kernel Image  | Directory            | Reserved for file data                    |
++------------+---------------+----------------------+-------------------------------------------+
+            1              15                      n                                           m
+----
+
+==== Boot Block ====
+
+As can be seen, sectors 0 and 1 of the volume are reserved for initial program load, also known as bootstrapping.  This 1KB chunk of space contains just enough software to bring in the rest of the operating system from the same medium.  This code is loaded into memory starting at location $3C00.
+
+==== Kernel Image ====
+
+The STS kernel image resides between sectors 2 and 15 inclusive.  This binary image is loaded into address $0000, overwriting the power-on bootstrap firmware.
+
+==== Directory ====
+
+The directory contains records describing every file on the volume, and as well, names the volume itself.  A "file", in turn, is defined as a contiguous range of sectors starting and ending somewhere on the volume with no interruptions (also known as an "extent").
+
+Each directory sector holds 8 records.  The operator establishes the number of directory sectors a volume contains when formatting the volume.  It cannot be changed later without purpose-designed tools.
+
+Each record, in turn, consists of 64 bytes.  Byte 48 identifies the specific type of record.  The first 48 bytes contains the filename, allowing filenames as long as 47 characters.  The last 15 bytes of each record contains different kinds of data for different types of directory entries.
+
+===== Type 0: Available Entry =====
+
+Typically, type-0 entries correspond to files which have been deleted, meaning their entries are available for re-use with subsequent allocations.
+
+----
+        +-----------------------+
++0      | Previous contents     |
+       /\/                     \/\
++47     |                       |
+        +-----------------------+
++48     | Entry Type (0)        |
+        +-----------------------+
++49     | Previous contents     |
+       /\/                     \/\
++63     |                       |
+        +-----------------------+
+----
+
+Warning: *Never* delete the volume label.  Doing so will make the volume unmountable and, if a bootable volume, unbootable.
+
+===== Type 1: File =====
+
+File entries (also known as "allocations") formally reserve a region of the volume.  They bind a name with an extent on the volume.
+
+----
+        +-----------------------+
++0      | Filename Length       |
+        +-----------------------+
++1      | Filename starts       |
+       /\/                     \/\
++47     | Filename ends         |
+        +-----------------------+
++48     | Entry Type (1)        |
+        +-----------------------+
++49     | Reserved (0)          |
+        +-----------------------+
++50     | Start Sector          |
++51     |                       |
+        +-----------------------+
++52     | Last Sector           |
++53     |                       |
+        +-----------------------+
++54     | Unused (0)            |
+       /\/                     \/\
++63     |                       |
+        +-----------------------+
+----
+
+Several special files exist, which are bound to specific locations on the volume:
+
+[options="header"]
+|===============================================
+|Filename|Start Sector|Last Sector|Purpose
+|$IPL|0|1|Reserves the space for the bootstrap
+|$SYS|2|15|Reserves the space for the STS kernel
+|$DIR|16|n|Reserves the directory itself
+|===============================================
+
+Note: $DIR **must** reside in the very first entry of the very first directory sector.  Other file entries may appear anywhere in the structure.
+
+===== Type 2: Volume Descriptor =====
+
+Volume descriptors label the volume.  For example, if a volume is named "WorkDisk", then the user could reference the volume using either the name of the device it's mounted (e.g., SD0:) or by volume name directly (WorkDisk:).  The latter is strongly preferred, for it allows the operator to remove the volume and, if desired, remount it in another device at a later time.  Applications which reference the volume by name need not, then, have to update its filename strings.
+
+----
+        +-----------------------+
++0      | Volume Name Length    |
+        +-----------------------+
++1      | Volume Name start     |
+       /\/                     \/\
++47     | Volume Name end       |
+        +-----------------------+
++48     | Entry Type (2)        |
+        +-----------------------+
++49     | Reserved (0)          |
+       /\/                     \/\
++63     |                       |
+        +-----------------------+
+----
+
+Currently, at most one volume descriptor may reside in the directory, and it must be in the directory's first sector.
+
+===== Other Types =====
+
+It's possible to see other types of entries, particularly if a formatting tool only affects those sectors it has data for.  When reading a directory structure, entries with unrecognized types may safely be skipped.  When writing new entries, or looking for a new slot to fill in an allocation with, it is explicitly not safe to consider an unrecognized type as free for use with a new allocation.
+
+=== disked.fs Disk Editor for GForth 0.7.0 or Later ===
+
+The disked.fs file in the sts/util subdirectory can be run with the gforth command to bring up a disk image editor.  For example:
+
+----
+$ cd $STS_INSTALL_DIR
+$ gforth util/disked.fs
+----
+
+You should see the normal GForth sign-on banner, except for the occasional warning of redefined symbols:
+
+----
+redefined ascii  Gforth 0.7.0, Copyright (C) 1995-2008 Free Software Foundation, Inc.
+Gforth comes with ABSOLUTELY NO WARRANTY; for details type `license'
+Type `bye' to exit
+
+_
+----
+
+At this point, several commands are at your disposal, explained below.  After each command is explained, an example section will help you to see how these commands are used to affect changes to a typical STS volume.
+
+==== USE ====
+
+Syntax: USE filename
+
+The 'use' command tells the disk editor which "block file" to use.  The disk editor uses Forth-style, 1024-byte blocks as a cheap and efficient mechanism for working with Kestrel-2 filesystem images.
+
+==== .sector ====
+
+Syntax: expr .sector
+
+The '.sector' command is used to display a certain sector.  The sector is shown in hexadecimal and ASCII formats, side by side.
+
+==== n and p ====
+
+Syntax: n
+Syntax: p
+
+The 'n' command simply advances the display by one sector.  The 'p' command moves back one sector.
+
+==== at ====
+
+Syntax: expr at
+
+The 'at' command changes the editor's write location.  Text and/or binary data you specify will be placed in the sector starting at this location.  The expression must evaluate to a number between 0 and 511, inclusive.
+
+==== ascii ====
+
+Syntax: S" text here" ascii
+
+The 'ascii' command lays text down into the current sector (set by .sector), and advances the write pointer accordingly.
+
+==== bytes ====
+
+Syntax: S" hexadecimal-values" bytes
+
+The 'bytes' command works somewhat analogously to ascii; however, instead of laying the text raw, it interprets the string as hexadecimal values and lays down the raw bytes.
+
+==== Example: Creating a New File Allocation ====
+
+Now that you've been exposed to the different commands, an example will now show how to use them together to affect changes to a typical volume image.
+
+As is typical when cross-compiling STS, you end up with a block file named sdimage.bin.  We want to edit this file to add a new directory entry for a new file.  First, we start by running the editor:
+
+----
+$ gforth util/disked.fs
+----
+
+This will show the sign-on banner.
+
+----
+redefined ascii  Gforth 0.7.0, Copyright (C) 1995-2008 Free Software Foundation, Inc.
+Gforth comes with ABSOLUTELY NO WARRANTY; for details type `license'
+Type `bye' to exit
+
+_
+----
+
+We tell disked that we want to edit the sdimage.bin file:
+
+----
+use sdimage.bin
+----
+
+It will respond with an OK prompt, but nothing else will appear to happen.  This is normal.  Next, we'll want to show the first sector of the directory:
+
+----
+16 .sector
+----
+
+This should provide a dump of the sector.  Your results will likely vary, but it should look somewhat like this:
+
+----
+Sector: 16 
+
+000 | 04 24 44 49 52 CC CC CC  CC CC CC CC CC CC CC CC | _$DIR��� �������
+010 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+020 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+030 | 01 00 10 00 17 00 00 00  00 00 00 00 00 00 00 00 | ________ ________
+040 | 08 57 6F 72 6B 44 69 73  6B CC CC CC CC CC CC CC | _WorkDis k������
+050 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+060 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+070 | 02 00 00 00 00 00 00 00  00 00 00 00 00 00 00 00 | ________ ________
+080 | 04 24 49 50 4C CC CC CC  CC CC CC CC CC CC CC CC | _$IPL��� �������
+090 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+0A0 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+0B0 | 01 00 00 00 01 00 00 00  00 00 00 00 00 00 00 00 | ________ ________
+0C0 | 04 24 53 59 53 CC CC CC  CC CC CC CC CC CC CC CC | _$SYS��� �������
+0D0 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+0E0 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+0F0 | 01 00 02 00 0B 00 00 00  00 00 00 00 00 00 00 00 | ________ ________
+100 | 0C 70 72 67 2E 68 61 70  70 79 6B 65 73 CC CC CC | _prg.hap pykes��
+110 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+120 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+130 | 01 00 18 00 18 00 00 00  00 00 00 00 00 00 00 00 | ________ ________
+140 | 09 73 79 73 2E 72 65 6C  6F 63 CC CC CC CC CC CC | _sys.rel oc�����
+150 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+160 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+170 | 01 00 19 00 19 00 00 00  00 00 00 00 00 00 00 00 | ________ ________
+180 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+190 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+1A0 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+1B0 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+1C0 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+1D0 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+1E0 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+1F0 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+
+Next write at: 000 
+ ok
+----
+
+We see that we have an open slot at offsets $180 and $1C0.  However, suppose we want to test STS's ability to find files further into the directory.  Enter 'n' followed by ENTER twice.  Note how each time you do so, the display updates.  When you're finished, you might see something like this:
+
+----
+Sector: 18 
+
+000 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+010 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+020 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+030 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+040 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+050 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+...etc...
+----
+
+Just for giggles, we're going to place our directory entry at offset $040.  I find it easier to work by counting the length of your filename first, and then just writing the data sequentially.  For example, if we name our file "TestFile", we know it contains 8 characters.  Thus, we can type the following:
+
+----
+$040 at
+S" 08" bytes
+S" TestFile" ascii
+----
+
+Your display should show the following:
+
+----
+040 | 08 54 65 73 74 46 69 6C  65 CC CC CC CC CC CC CC | _TestFil e������
+050 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+060 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+070 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+----
+
+Next we need to set the file type and its extent range.  Remember to set reserved/undefined fields to zero.  Type the following:
+
+----
+$070 at
+S" 01004400550000000000000000000000" bytes
+----
+
+You should now have a display like so:
+
+----
+040 | 08 54 65 73 74 46 69 6C  65 CC CC CC CC CC CC CC | _TestFil e������
+050 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+060 | CC CC CC CC CC CC CC CC  CC CC CC CC CC CC CC CC | �������� �������
+070 | 01 00 44 00 55 00 00 00  00 00 00 00 00 00 00 00 | __D_U___ ________
+----
+
+At this point, your file is allocated (17 sectors long, starting at sector 68).  You can now use the editor to (tediously) enter the contents of your new file, or, just leave it as-is for another STS program to fill in.
+
+When you have completed your editing, you may type the following to exit the editor:
+
+----
+flush
+bye
+----
+
+The first command is just a double-check feel-good to make sure that the Forth environment has flushed all of its modified disk buffers.  'bye' actually exits the editor; in most cases, bye will invoke flush for you.
+
+
+
+== Binary Load File Structure ==
+
+This chapter describes the structure of binary load files under STS V1, as produced by compatible assemblers and compilers.
+
+=== Terminology ===
+
+Load File::
+        A linker, compiler, or assembler may produce binary image from a number of object or source files. This binary image is called a load file.  A load file does not contain any unresolved external references.
+
+Hunk::
+        A hunk consists of a block of code or relocation information.
+
+=== Load Files ===
+
+Load files are structured, sequential files following a recursive descent syntax suitable for one-pass processing.  The loader (STS function 'loadseg') processes load files to bring in software at some unknown address, then to correct any pointers to addresses within the loaded software, so that it may run at the address chosen.
+
+==== T_HUNK ($370/880) ====
+
+All load files start with a 2-byte identifier, which has the integer value of 880 ($370).  If a file does not start with this number, it is not a load file compatible with STS V1 and/or the S16X4 processor instruction set.  This hunk type has no size field, but instead relies on T_END for its delimiter.
+
+==== T_CODE ($371/881) ====
+
+Code hunks contain a size word indicating the size of the image in bytes, followed by the binary image of exactly that size.  Note that the size word must be even, as the S16X4 instruction set only works with words.
+
+NOTE: These images must be compiled or assembled at origin 0 to work with the STS loader.
+
+All load files contain one T_CODE hunk.
+
+WARNING: As of STS V1, including more than one T_CODE hunk is explicitly not supported, and may produce erratic or undefined behavior.
+
+==== T_RELOC ($372/882) ====
+
+Relocation hunks contain a size word indicating how many relocations exist.  Observe: it is _not_ a byte size.  Following the size word are that many relocation offsets into the code hunk.  Relocation hunks are optional.
+
+==== T_END ($373/883) ====
+
+STS contains an awareness only of how many sectors belong to a file.  It does not currently keep track of byte sizes.  The T_END hunk informs the loader when it has reached the end of the load file.  This is a required hunk.
+
+==== Example ====
+
+----
++-----------------------+
+| T_HUNK                | +0
++-----------------------+
+| T_CODE                | +2
++-----------------------+
+| 256 (bytes)           | +4
++-----------------------+
+| ... image here ...    | ...
++-----------------------+
+| T_RELOC               | +260
++-----------------------+
+| 12 (relocations)      | +262
++-----------------------+
+| Reloc Offset #1       | +264
++-----------------------+
+| ...                   | ...
++-----------------------+
+| Reloc Offset #12      | +286
++-----------------------+
+| T_END                 | +288
++-----------------------+
+
+----
+
+Total file size: 290 bytes.
+

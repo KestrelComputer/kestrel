@@ -75,6 +75,10 @@ module NEXYS2(
 	wire	[15:0]	progmem_dat_o;
 	wire				progmem_stb_i;
 
+	wire				progmem1_ack_o;
+	wire	[15:0]	progmem1_dat_o;
+	wire				progmem1_stb_i;
+
 	wire				vidmem_ack_o;
 	wire	[15:0]	vidmem_dat_o;
 	wire				vidmem_stb_i;
@@ -91,31 +95,41 @@ module NEXYS2(
 
 	assign cpu_bus_cycle 				= cpu_cyc_o & cpu_stb_o;
 	assign progmem_stb_i 				= cpu_bus_cycle & (cpu_adr_o[15:14] == 2'b00);		// 0000-3FFF : Program Memory
+	assign progmem1_stb_i 				= cpu_bus_cycle & (cpu_adr_o[15:14] == 2'b01);		// 4000-7FFF : Program Memory
 	assign kia_stb_i						= cpu_bus_cycle & (cpu_adr_o[15:4] == 12'hB00);		// B000-B003 : KIA
 	assign gpia_stb_i						= cpu_bus_cycle & (cpu_adr_o[15:4] == 12'hB01);		// B010-B013 : GPIA 
 	assign vidmem_stb_i  				= cpu_bus_cycle & (cpu_adr_o[15:14] == 2'b11);		// C000-FFFF : Video Memory
-	assign no_peripheral_addressed 	= (~progmem_stb_i & ~kia_stb_i & ~vidmem_stb_i & ~gpia_stb_i);
+	assign no_peripheral_addressed 	= (~progmem_stb_i & ~progmem1_stb_i & ~kia_stb_i & ~vidmem_stb_i & ~gpia_stb_i);
 
 	wire	[15:0]	progmem_mask 		= {16{progmem_stb_i}};
+	wire	[15:0]	progmem1_mask		= {16{progmem1_stb_i}};
 	wire	[7:0]		kia_mask				= {8{kia_stb_i}};
 	wire	[15:0]	vidmem_mask			= {16{vidmem_stb_i}};
 	wire	[15:0]	gpia_mask			= {16{gpia_stb_i}};
-	assign			cpu_dat_i			= (progmem_mask & progmem_dat_o) | (vidmem_mask & vidmem_dat_o) | {8'b00000000, (kia_mask & kia_dat_o)} | (gpia_mask & gpia_dat_o);
-	assign			cpu_ack_i			= (progmem_stb_i & progmem_ack_o) | (vidmem_stb_i & vidmem_ack_o) | (kia_stb_i & kia_ack_o) | (gpia_stb_i & gpia_ack_o) | no_peripheral_addressed;
 
-	always begin
+	assign			cpu_dat_i			= (progmem_mask & progmem_dat_o) | (progmem1_mask & progmem1_dat_o) | (vidmem_mask & vidmem_dat_o) | {8'b00000000, (kia_mask & kia_dat_o)} | (gpia_mask & gpia_dat_o);
+	assign			cpu_ack_i			= (progmem_stb_i & progmem_ack_o) | (progmem1_stb_i & progmem1_ack_o) | (vidmem_stb_i & vidmem_ack_o) | (kia_stb_i & kia_ack_o) | (gpia_stb_i & gpia_ack_o) | no_peripheral_addressed;
+
+	always @(mgia_dat_i) begin
 		an0n <= 1'b1;
 		an1n <= 1'b1;
 		an2n <= 1'b1;
 		an3n <= 1'b1;
-		can  <= 1'b1;
-		cbn  <= 1'b1;
-		ccn  <= 1'b1;
-		cdn  <= 1'b1;
-		cen  <= 1'b1;
-		cfn  <= 1'b1;
-		cgn  <= 1'b1;
-		cdpn <= 1'b1;
+		// I don't know why, but without these assignments, no video output appears
+		// as long as progmem1 remains in the Verilog.  My hunch is that the synthesis
+		// tool optimizes away the bus, but NOT the block-RAM nor the MGIA.
+		// As a result, the MGIA always reads zero values from "RAM", which results in
+		// a black display.  As long as we "snoop" the bus like this, though, synthesis
+		// seems to put the bus back, and video display works as intended.
+		// WebPack/ISE 14.2.
+		can  <= mgia_dat_i[0];
+		cbn  <= mgia_dat_i[2];
+		ccn  <= mgia_dat_i[4];
+		cdn  <= mgia_dat_i[6];
+		cen  <= mgia_dat_i[8];
+		cfn  <= mgia_dat_i[10];
+		cgn  <= mgia_dat_i[12];
+		cdpn <= mgia_dat_i[14];
 	end
 	
 	S16X4A cpu(
@@ -170,6 +184,26 @@ module NEXYS2(
 		.A_DAT_I(cpu_dat_o),
 		.A_SEL_I(cpu_sel_o),
 		.A_STB_I(progmem_stb_i),
+		.A_WE_I (cpu_we_o),
+
+		.B_ADR_I(13'b1111111111111),
+		.B_CYC_I(1'b1),
+		.B_DAT_I(16'hFFFF),
+		.B_SEL_I(2'b11),
+		.B_STB_I(1'b0),
+		.B_WE_I (1'b1)
+	);
+
+	VRAM16K progmem1(
+		.CLK_I  (mgia_25mhz_o),
+
+		.A_ACK_O(progmem1_ack_o),
+		.A_DAT_O(progmem1_dat_o),
+		.A_ADR_I(cpu_adr_o[13:1]),
+		.A_CYC_I(cpu_cyc_o),
+		.A_DAT_I(cpu_dat_o),
+		.A_SEL_I(cpu_sel_o),
+		.A_STB_I(progmem1_stb_i),
 		.A_WE_I (cpu_we_o),
 
 		.B_ADR_I(13'b1111111111111),
