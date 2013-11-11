@@ -55,6 +55,7 @@ create, banner$
 	prompt 
 	Accept
 	1 +fp@, #cmdbuf !,
+	32 #, #cmdbuf @, $FF00 #, +, c!,
 ;,
 
 :, skipws
@@ -76,7 +77,7 @@ create, banner$
 ;,
 
 :, copy2ws
-	cmdbuf 4 #, +, pdch !,
+	cmdbuf 8 #, +, pdch !,
         8 #, n !,
         begin,  psch @, -$FF00 #, +, $8000 #, and,
                 if,     exit,
@@ -90,9 +91,9 @@ create, banner$
                 if,     exit,
                 then,
                 
-		n @, #cmdbuf @, -1 #, xor, +, 1 #, +, $8000 #, and, $8000 #, xor,
-		if,	exit,
-		then,
+\		n @, #cmdbuf @, -1 #, xor, +, 1 #, +, $8000 #, and, $8000 #, xor,
+\		if,	exit,
+\		then,
 
                 psch @, c@, -33 #, +, $8000 #, and,
                 if,     exit,

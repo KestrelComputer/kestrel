@@ -15,7 +15,7 @@ sub: CR-dsp
 
 sub: PrintStr-dsp
 	1 +fp@, strp !,
-	2 +fp!, strl !,
+	2 +fp@, strl !,
 	PrintStr
 	rfs,
 ' PrintStr-dsp >body @ is, PrintStr-epv
