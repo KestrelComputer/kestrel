@@ -8,9 +8,9 @@ SYSSRCS=SYS.*
 PRGSRCS=PRG.*
 
 card: sdimage.bin
-	dd if=sdimage.bin of=/dev/sdg bs=512 count=64 && sync
+	dd if=sdimage.bin of=/dev/sdg bs=512 count=128 && sync
 
-sdimage.bin: ${SYSIMG} ${IPLIMG} ${PRGIMG} ${PRGSRCS} Makefile
+sdimage.bin: ${SYSIMG} ${IPLIMG} ${PRGIMG} ${PRGSRCS} imgs/* Makefile
 	util/bin/mkimg
 
 ${SYSIMG}: ${SYSSRCS}
@@ -18,4 +18,7 @@ ${SYSIMG}: ${SYSSRCS}
 
 ${IPLIMG}: IPL.fs
 	${ASM} IPL.fs
+
+imgs/prg.m2: PRG.m2.fs
+	gforth ../asm.fs $<
 
