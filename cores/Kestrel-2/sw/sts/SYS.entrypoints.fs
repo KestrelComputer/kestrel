@@ -115,3 +115,13 @@ sub: movmem-v
 	rfs,
 
 ' movmem-v >body @ is, movmem-epv
+
+sub: seekblk-v
+	1 +fp@, inpscb !,
+	2 +fp@, bytofs !,
+	3 +fp@, secofs !,
+	seekblk
+	rsn @, 4 +fp!,
+	rfs,
+' seekblk-v >body @ is, seekblk-epv
+

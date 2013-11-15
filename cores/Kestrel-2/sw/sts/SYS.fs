@@ -31,6 +31,7 @@ defer, exit.-epv
 defer, compare-epv		( utility )
 defer, strdif-epv		( utility )
 defer, movmem-epv		( utility )
+defer, seekblk-epv
 
 \ Global state for all OS services.
 

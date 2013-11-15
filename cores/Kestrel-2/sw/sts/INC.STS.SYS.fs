@@ -12,4 +12,5 @@ sub:  exit.		52 1024 + #, go,
 sub:  compare		56 1024 + #, go,
 sub:  strdif		60 1024 + #, go,
 sub:  movmem		64 1024 + #, go,
+sub:  seekblk		68 1024 + #, go,
 

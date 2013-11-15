@@ -285,3 +285,34 @@ int, (inpcnt)
 	then,
 ;,
 
+\ Seekblk attempts to seek a file's read pointer to the given offset.
+\ The bytofs variable holds a byte offset relative to the provided
+\ secofs (sector offset), allowing up to 64KB offset relative to a
+\ sector.  The file handle appears in the inpscb variable.
+
+int, bytofs
+int, secofs
+
+:, normalize
+	begin,	bytofs @,  -512 #, +,  $8000 #, and,
+		if,	exit,
+		then,
+		bytofs @, -512 #, +, bytofs !,
+		secofs @, 1 #, +, secofs !,
+	again,
+;,
+
+:, seekblk
+	0 #, rsn !,
+	inpscb @, filscb !,
+	normalize
+	( if inpscb.starts + secofs <= inpscb.ends then ... )
+	inpscb @, scb_starts +, @,  secofs @, +,  inpscb @, scb_ends +, @, 1 #, +, -1 #, xor, 1 #, +,  +,  $8000 #, and,
+	if,	inpscb @, scb_starts +, @, secofs @, +, inpscb @, scb_sector +, !,
+		bytofs @, inpscb @, scb_index +, !,
+		rdsec
+		exit,
+	then,
+	ESIZE rsn !,
+;,
+
