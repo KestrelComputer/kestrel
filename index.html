@@ -21,7 +21,7 @@ title: Kestrel
 		<h3>Latest Posts</h3>
 		<dl class="dl-horizontal">
 			{% for post in site.posts %}
-				<dt>{{ post.date | date_to_string }}</dt><dd><a href="{{ post.url }}">{{ post.title }}</a></dd>
+				<dt>{{ post.date | date_to_string }}</dt><dd><a href="kestrel/{{ post.url }}">{{ post.title }}</a></dd>
 			{% endfor %}
 		</dl>
 	</div>
