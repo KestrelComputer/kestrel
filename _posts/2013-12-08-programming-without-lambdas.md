@@ -26,7 +26,42 @@ date:   2013-12-08 19:00:00
  <small>Charles H. Moore, 1999, on the topic of local variables in Forth software.  <a href="https://www.youtube.com/watch?v=NK0NwqF8F0k">From a video recording made at iTVc, Inc.</a>, around 52 minutes, 55 seconds into the video.</small>
 </blockquote>
 
-With traditional Forth, words may take one of several different forms.
+Forth embodies a very libertarian philosophy of program construction.
+You're free to make software as shoddy or as elegant as you want,
+as carelessly or as meticulously as you desire,
+as aloof or as structured as you desire,
+as informal or as formally proven as you desire.
+Because Forth lacks in-built conventions on how a program should "look", Forth earned itself a dubious "write-only" reputation.
+Paradoxically, while some languages like Haskell have a reputation for requiring excessive discipline to use well,
+I've yet to see a language as dependent on discipline and personal responsibility as I have with Forth.
+I argue, the stronger the type-checker, the less discipline you need to produce reliable, readable software.
+
+A set of programming conventions or patterns helps produce easily maintained software that also satisfies high reliability requirements, while minimizing the cognitive load on the programmer(s).
+About three years ago, I published a "programming pattern" for Forth titled [Declarative, Imperative, then Inquisitive](http://sam-falvo.github.io/2010/02/27/declarative-imperative-then-inquisitive/).
+It served me very well in the years since, and continues to serve me well today.
+However, the DItI pattern assumes a minimum level of capability in the Forth run-time environment which the Kestrel-2's S16X4 family of processors cannot meet in hardware alone.
+Therefore, I needed to arrive at a new set of programming techniques specifically for more limited environments, such as the S16X4 family of MISC processors.
+In writing out what I've learned, I now have a better understanding of what Chuck Moore tried to teach the greater Forth community back around the turn of the century.
+
+This article contains a collection of independent yet related techniques which I've developed on my own over the last three years of Kestrel-2 development and enjoyment.
+First, I review the DItI pattern and discuss the slight changes necessary to adapt it to the Kestrel-2.
+If you haven't read the DItI pattern yet, [you might benefit from doing so now](http://sam-falvo.github.io/2010/02/27/declarative-imperative-then-inquisitive/).
+I then discuss treating software as units of virtual hardware, a modularization technique suitable for Forth in general, but the S16X4 Machine Forth in particular.
+I explain why a preference for global variables exists over locals and record fields, and provide two strategies for overcoming their limitations when working with a plurality of records.
+Finally, I briefly talk about tasks, in the multitasking sense of the word.
+
+I mentioned enjoyment previously.
+Do not underestimate the value of the enjoyment factor:
+I typically have only a few hours per week for actual Kestrel development, so
+it remains in my best interest to balance carefully my desire to document all of my software against minimizing the time taken to see something that works.
+Therefore, any coding pattern must meet two important criteria:
+1) It must apply generally to all classes of software, from application development to low-level systems software development, and,
+2) It must directly support my writing of comment-free code in a manner that allows me to re-acquaint myself with the code no less than a year or two later, after not reading it until then.
+I believe the techniques presented in this article fulfill both criteria at least as well as the DItI pattern.
+
+### Adapting the Declarative, Imperative, then Inquisitive Pattern
+
+Forth words may take one of several different forms.
 A word may *enforce state*.
 For instance, when writing a video game, you might find a word `-collision` which *guarantees* all subsequent code that a collision between the player and some other object has not yet happened.
 If a collision occurred, then the burden of handling this exceptional case falls, directly or indirectly, on `-collision`.
@@ -37,9 +72,7 @@ For instance, a word `cls` might clear the screen by zeroing out the video frame
 Finally, a word may *ask a question*.
 For example, as part of its implementation, `-collision` might use a word `collided?` to determine if the player has intersected any other object on the screen.
 
-These observations helped me document the [Declarative, Imperative, then Inquisitive pattern](http://sam-falvo.github.io/2010/02/27/declarative-imperative-then-inquisitive/).
-If you haven't read it by now, you probably should.
-Reusing our video game example from above, a simple example will help illustrate the pattern succinctly:
+A simple example, framed in the context of a hypothetical video game, will help illustrate the pattern succinctly:
 
     : -collision    collided? IF explode  R> DROP THEN ;
     : player-stuff  -collision ...stuff here... ;
@@ -63,15 +96,10 @@ In effect, this one line of code is equivalent to the following C code:
         /* ... */
     }
 
-However, when working with a processor as minimal as the S16X4, the means by which the programmer implements the pattern's semantics necessarily changes.
-Enforcing words, for example, no longer enjoy the ability to directly handle exceptional cases by manipulating the return stack,
-for the S16X4 lacks such a structure.
-Instead, we must use gaurds in front of options to gate whether or not a word executes at run-time, more like traditional C programming.
-Indeed, the lack of a return stack coupled with only a very shallow data stack forces strict structured-programming approaches to problem solutions,
-where you may enter a block of code at precisely one point,
-and you leave it at precisely one other point.
-Traditional Forth programming styles, used to their comfortable amounts of both return and data stack resources, simply don't apply to many MISC architectures.
-Our example would necessarily become closer to the following:
+However, the S16X4 family lacks a return stack all-together.
+Words that enforce state, then, no longer enjoy the ability to manipulate a return stack to alter control flow.
+Instead, we must use gaurds in front of options to gate whether or not a word executes at run-time.
+We rewrite our example as follows:
 
     :, +collision       collided? if, explode then, ;,
     :, -collision       collided? -1 #, xor, if, ( stuff here ) then, ;,
@@ -79,6 +107,11 @@ Our example would necessarily become closer to the following:
 
 Slightly more complex, yet no less declarative in nature.
 `+collision` and `-collision` become *options* in a set of decisions that `player-stuff` must perform.
+
+The lack of a return stack coupled with only a very shallow data stack forces strict structured-programming approaches to problem solutions,
+where you may enter a block of code at precisely one point,
+and you leave it at precisely one other point.
+Traditional Forth programming styles, used to their comfortable amounts of both return and data stack resources, simply don't apply to many MISC architectures.
 
 This now begs the question &mdash; how does one write reliable software productively on the Kestrel with acceptable levels of performance?
 Or, for that matter, any other MISC-based computing environment?
@@ -96,6 +129,7 @@ Write software as if you're building hardware.
 Just as with digital electronics, it pays to design software in a manner that you can connect on some common substrate.
 In the physical domain, these components connect to each other through *buses* (one or more wires intended to send a value to receivers);
 with software, through variables in memory, global or local.
+A variable holds some output of a module, and may serve as an input to another.
 
 <a name="ruleofthumb"></a>
 You should always declare variables in connection code.
@@ -418,11 +452,12 @@ Tasks represent a special class of imperative functionality:
 it potentially may perform a different operation on each activation.
 Philosophically, tasks view *returning* as a kind of system call operation,
 while invoking the task word implies *resuming* from where the task left off when it last returned.
+Put another way, a return instruction relinguishes the task's claim on the CPU, while
+a program which invokes it again "schedules" it.
 For those familiar with Jackson Structured Programming, you may recognize this as "program inversion."
 
 A task's *variables* defines its entire state.
 Put another way, a task regularly updates its variables for later resumption prior to returning.
 Unlike more traditional threading,
 CPU state plays no role in defining the task's current state.
-
 
