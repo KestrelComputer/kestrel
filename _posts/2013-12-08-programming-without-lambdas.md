@@ -113,29 +113,25 @@ where you may enter a block of code at precisely one point,
 and you leave it at precisely one other point.
 Traditional Forth programming styles, used to their comfortable amounts of both return and data stack resources, simply don't apply to many MISC architectures.
 
-This now begs the question &mdash; how does one write reliable software productively on the Kestrel with acceptable levels of performance?
-Or, for that matter, any other MISC-based computing environment?
-We must address the computer for what it really is:
-a physical, general-purpose machine which multiplexes its time amongst one or more virtual, purpose-built machines.
-We must eschew the abstractions that lambda calculus tempts us with,
-not because we consider them evil,
-but rather because they depend heavily on local state, often hidden from the programmer.
-One defining characteristic of machines as distinct from equations involves the reliance upon *global* state.
-The question reduces, then, to how do we manage global state in a meaningful, rational manner?
-
 ### Software as Logical Hardware
 
 Write software as if you're building hardware.
+We must address the computer for what it really is:
+a physical, general-purpose machine which multiplexes its time amongst one or more virtual, purpose-built machines.
 Just as with digital electronics, it pays to design software in a manner that you can connect on some common substrate.
 In the physical domain, these components connect to each other through *buses* (one or more wires intended to send a value to receivers);
-with software, through variables in memory, global or local.
+with software, through variables in memory.
 A variable holds some output of a module, and may serve as an input to another.
 
 <a name="ruleofthumb"></a>
-You should always declare variables in connection code.
+Separate software that implements some important piece of functionality (a *module*) and software that connects them together (a *connection* or *configuration*).
+While a module makes free reference to the variables it needs,
+you should only declare those variables in connection code.
 Avoid, where possible, declaring variables inside components themselves (later, [I'll discuss an exception](#modulelocalvariables) to this rule of thumb).
-As long as you remain aware of the separation between component logic and connectivity logic,
-you should not fear variables.
+A *component*, as in the physical world, consists of one or more modules inter-connected through some connection logic.
+
+As long as you maintain your components hierarchically,
+you should not fear a proliferation of variables.
 They work exactly the same way as buses in digital electronics design, as the following table illustrates.
 
 <table class="table">
@@ -153,11 +149,11 @@ They work exactly the same way as buses in digital electronics design, as the fo
     </tr>
     <tr>
         <td>An engineer remains fully aware of every bus in the system, <i>at the appropriate level of abstraction.</i>  A block diagram of a digital electronics subsystem typically shows only a subset of the buses comprising the actual hardware.  However, undisclosed buses rarely transcend a single functional unit's boundaries.</td>
-        <td>Through state/logic separation appropriate for the desired level of abstraction, a software engineer remains fully aware of every variable used at that level of the design hierarchy.  Though a variable might sit in global memory as far as the programming language cares, a programmer might stipulate that some variables make sense only at certain levels of abstraction.</td>
+        <td>Through the hierarchical composition of components, a software engineer remains fully aware of every variable used at that level of the design hierarchy.  Though a variable might sit in global memory as far as the programming language cares, a programmer stipulates that some variables make sense only at certain levels of abstraction.</td>
     </tr>
     <tr>
         <td>Buses exist <i>outside</i> of the components that rely on them.  A speaker doesn't care if you use lamp cord or 24-karat gold-plated Monster cable to hook up your sound system with.  A CMOS transistor doesn't care if the fabricator uses aluminum or copper metalization layer.  Etc.</td>
-        <td>With state/logic separation, the programmer allocates storage for variables <i>outside</i> of the components he configures to use them with.  A module relies on a logical name identifying a storage location.  The programmer determines how that name maps to actual memory for his application.</td>
+        <td>With module/connection separation, the programmer allocates storage for variables <i>outside</i> of the units he configures to use them with.  A module relies on a logical name identifying a storage location.  The programmer determines how that name maps to actual memory for his application.</td>
     </tr>
 </table>
 
@@ -223,7 +219,7 @@ We define a set of configuration modules, which exist only to configure how thes
 
 For those who've read Leo Brodie's [Thinking Forth](http://thinking-forth.sourceforge.net), these configuration modules correspond closely to "load blocks."
 
-### Performance Comparison between Global and Local Variables
+### Prefer Global Variables over Local Variables or Records
 
 Common wisdom suggests avoiding global variables at all costs.
 This wisdom certainly applies to common lambda-based programming techniques,
@@ -278,24 +274,116 @@ An engineer using global variables may witness more drastic performance gains wi
             <td>3-4</td>
             <td>12</td>
             <td>16</td>
-            <td>7</td>
+            <td>5</td>
             <td>5</td>
         </tr>
         <tr>
             <th>R-M-W</th>
             <td>14</td>
-            <td>4-6</td>
-            <td>32</td>
-            <td>5-6</td>
-            <td>9-10</td>
-            <td>4-5</td>
+            <td>8</td>
+            <td>15</td>
+            <td>8</td>
+            <td>12</td>
+            <td>7</td>
             <td>20</td>
             <td>24</td>
-            <td>&mdash;</td>
+            <td>8<sup>1</sup></td>
             <td>8</td>
         </tr>
     </tbody>
 </table>
+<p class="small"><sup>1</sup>  If, and only if, the direct page register points to the activation frame on the processor stack.</p>
+
+The following code fragments illustrate why.
+
+<table class="table table-responsive table-striped">
+    <caption>
+        Table 2.  Code fragments for global vs. local/record accesses.
+    </caption>
+    <thead>
+        <tr>
+            <th>&nbsp;</th>
+            <th colspan="2">S16X4(A)</th>
+            <th colspan="2">F18A</th>
+            <th colspan="2">eP64</th>
+            <th colspan="2">MC68000</th>
+            <th colspan="2">WD65C816 (native)</th>
+        </tr>
+        <tr>
+            <th>&nbsp;</th>
+            <th>Local</th>
+            <th>Global</th>
+            <th>Local</th>
+            <th>Global</th>
+            <th>Local</th>
+            <th>Global</th>
+            <th>Local</th>
+            <th>Global</th>
+            <th>Local</th>
+            <th>Global</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <th>Single</th>
+            <td><pre>base @,
+offset #,
++,
+@,</pre></td>
+            <td><pre>var @,</pre></td>
+            <td><pre>base a!, @a,
+offset #,
+nop, +,
+a!, @a,</pre></td>
+            <td><pre>var a!, @a,</pre></td>
+            <td><pre>base x!, @x,
+offset #, +,
+x!, @x,</pre></td>
+            <td><pre>var x!, @x,</pre></td>
+            <td><pre>MOVE.W  123(A4),D5</pre></td>
+            <td><pre>MOVE.W  var,D5</pre></td>
+            <td><pre>LDA offset,S</pre></td>
+            <td><pre>LDA var</pre></td>
+        </tr>
+        <tr>
+            <th>R-M-W</th>
+            <td><pre>base @,
+offset #,
++,
+@,
+1 #, xor,
+base @,
+offset #,
++,
+!,</pre></td>
+            <td><pre>var @,
+1 #, xor,
+var !,</pre></td>
+            <td><pre>base a!, @a,
+offset #,
+nop, +,
+a!, @a,
+1 #, xor,
+!a,</pre></td>
+            <td><pre>var a!, @a,
+1 #, xor,
+!a,</pre></td>
+            <td><pre>base x!, @x,
+offset #, +,
+x!, @x,
+1 #, xor,
+!x,</pre></td>
+            <td><pre>var x!, @x,
+1 #, xor,
+!x,</pre></td>
+            <td><pre>BSET D5,123(A4)</pre></td>
+            <td><pre>BSET D5,var</pre></td>
+            <td><pre>INC offset</pre><sup>1</sup></td>
+            <td><pre>INC var</pre></td>
+        </tr>
+    </tbody>
+</table>
+<p class="small"><sup>1</sup>  If, and only if, the direct page register points to the activation frame on the processor stack.</p>
 
 ### Working with Multiple Objects
 
