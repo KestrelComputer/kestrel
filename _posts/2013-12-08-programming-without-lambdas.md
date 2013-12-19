@@ -298,7 +298,7 @@ The following code fragments illustrate why.
 
 <table class="table table-responsive table-striped">
     <caption>
-        Table 2.  Code fragments for global vs. local/record accesses.
+        Table 2.  Code fragments for global vs. local/record accesses.  <b>B</b> and <b>V</b> represent <tt>base</tt> and <tt>var</tt> variables.  <b>O</b> represents a numeric offset.
     </caption>
     <thead>
         <tr>
@@ -326,60 +326,57 @@ The following code fragments illustrate why.
     <tbody>
         <tr>
             <th>Single</th>
-            <td><pre>base @,
-offset #,
-+,
-@,</pre></td>
-            <td><pre>var @,</pre></td>
-            <td><pre>base a!, @a,
-offset #,
-nop, +,
-a!, @a,</pre></td>
-            <td><pre>var a!, @a,</pre></td>
-            <td><pre>base x!, @x,
-offset #, +,
-x!, @x,</pre></td>
-            <td><pre>var x!, @x,</pre></td>
+            <td><pre><b>B</b> @
+<b>O</b> #
++ @</pre></td>
+            <td><pre><b>V</b> @</pre></td>
+            <td><pre><b>B</b> a! @a
+<b>O</b> #
+nop +
+a! @a</pre></td>
+            <td><pre><b>V</b> a! @a</pre></td>
+            <td><pre><b>B</b> x! @x
+<b>O</b> # +
+x! @x</pre></td>
+            <td><pre><b>V</b> x! @x</pre></td>
             <td><pre>MOVE.W  123(A4),D5</pre></td>
-            <td><pre>MOVE.W  var,D5</pre></td>
-            <td><pre>LDA offset,S</pre></td>
-            <td><pre>LDA var</pre></td>
+            <td><pre>MOVE.W  <b>V</b>,D5</pre></td>
+            <td><pre>LDA <b>O</b>,S</pre></td>
+            <td><pre>LDA <b>V</b></pre></td>
         </tr>
         <tr>
             <th>R-M-W</th>
-            <td><pre>base @,
-offset #,
-+,
-@,
-1 #, xor,
-base @,
-offset #,
-+,
-!,</pre></td>
-            <td><pre>var @,
-1 #, xor,
-var !,</pre></td>
-            <td><pre>base a!, @a,
-offset #,
-nop, +,
-a!, @a,
-1 #, xor,
-!a,</pre></td>
-            <td><pre>var a!, @a,
-1 #, xor,
-!a,</pre></td>
-            <td><pre>base x!, @x,
-offset #, +,
-x!, @x,
-1 #, xor,
-!x,</pre></td>
-            <td><pre>var x!, @x,
-1 #, xor,
-!x,</pre></td>
+            <td><pre><b>B</b> @
+<b>O</b> #
++ @
+1 # xor
+<b>B</b> @
+<b>O</b> #
++ !</pre></td>
+            <td><pre><b>V</b> @
+1 # xor
+<b>V</b> !</pre></td>
+            <td><pre><b>B</b> a! @a
+<b>O</b> #
+nop +
+a! @a
+1 # xor
+!a</pre></td>
+            <td><pre><b>V</b> a! @a
+1 # xor
+!a</pre></td>
+            <td><pre><b>B</b> x! @x
+<b>O</b> # +
+x! @x
+1 # xor
+!x</pre></td>
+            <td><pre><b>V</b> x! @x
+1 # xor
+!x</pre></td>
             <td><pre>BSET D5,123(A4)</pre></td>
-            <td><pre>BSET D5,var</pre></td>
-            <td><pre>INC offset</pre><sup>1</sup></td>
-            <td><pre>INC var</pre></td>
+            <td><pre>BSET D5,<b>V</b></pre></td>
+            <td><pre>INC <b>O</b><sup>1</sup></pre></td>
+            <td><pre>INC <b>V</b></pre></td>
         </tr>
     </tbody>
 </table>
