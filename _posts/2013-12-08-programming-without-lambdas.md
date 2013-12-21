@@ -2,7 +2,6 @@
 layout: post
 title:  "Programming Without Lambdas"
 date:   2013-12-08 19:00:00
-published: false
 ---
 
 <blockquote>
@@ -30,8 +29,8 @@ published: false
 Forth embodies a very libertarian philosophy of program construction.
 You're free to make software as shoddy or as elegant as you want,
 as carelessly or as meticulously as you desire,
-as aloof or as structured as you desire,
-as informal or as formally proven as you desire.
+as aloof or as structured as you care,
+and as informal or as formally proven as you wish.
 Because Forth lacks in-built conventions on how a program should "look", Forth earned itself a dubious "write-only" reputation.
 Paradoxically, while some languages like Haskell have a reputation for requiring excessive discipline to use well,
 I've yet to see a language as dependent on discipline and personal responsibility as I have with Forth.
@@ -219,6 +218,8 @@ We define a set of configuration modules, which exist only to configure how thes
     include muler.fs
 
 For those who've read Leo Brodie's [Thinking Forth](http://thinking-forth.sourceforge.net), these configuration modules correspond closely to "load blocks."
+For those who have experience programming FPGAs or [GreenArrays chips](http://www.greenarraychips.com), these configuration modules resemble floorplanning.
+The differences lie in dimensionality; memory exposes only a single dimension (address), and you place modules relative to each other.
 
 ### Prefer Global Variables over Local Variables or Records
 
@@ -383,6 +384,15 @@ x! @x
 </table>
 <p class="small"><sup>1</sup>  If, and only if, the direct page register points to the activation frame on the processor stack.</p>
 
+Another advantage from looking at table 2 reveals itself through the instruction counts.
+Contemporary processors rely on complex addressing modes or pipelines to hide the cost of effective address calculations.
+MISC architectures expose these costs directly.
+Thus, the more sophisticated the addressing mode, the more instructions necessary to calculate them.
+Considering MISC's average instruction density, this may consume considerable memory resources.
+
+Thus, on MISC architectures, globals hold a distinct advantage over local or structured field variables.
+They remain considerably faster to access, and the accessing code consumes considerably fewer memory resources.
+
 ### Working with Multiple Objects
 
 With a single set of variables declared in a configuration, a software developer may invoke a module to work with a single set of state.
@@ -463,8 +473,8 @@ However, we must reload all four fields from our new gap-buffer instance.
 
 From a performance consideration, each reference to `bs`, `gs`, `ge`, and `be` includes the amortized cost of the most recent cache fill.
 Thus, caching works best with relatively small objects which do not change often.
-However, dereferencing through a pointer incurs a constant overhead with each field reference.
-If performance generally doesn't matter, choose the approach which enhances program maintenance.
+However, dereferencing through a pointer also incurs a constant overhead with each field reference.
+If performance generally doesn't matter, choose the approach which enhances program *maintenance*.
 Otherwise, make sure to profile your application to determine which is best for your needs.
 
 <a name="modulelocalvariables"></a>
@@ -546,4 +556,12 @@ A task's *variables* defines its entire state.
 Put another way, a task regularly updates its variables for later resumption prior to returning.
 Unlike more traditional threading,
 CPU state plays no role in defining the task's current state.
+You call a task to schedule CPU time to the task, and it returns when it volunteers to relinguish it.
+
+### Conclusion
+
+I discussed several techniques which, used collectively, enable me to write reliable software for the Kestrel at its lowest level.
+Developed out of necessity, these techniques resonate well with what Chuck Moore advocated throughout the years.
+Many in the Forth community dismissed his contributions as unnecessarily controversial.
+Hopefully, this documentation will help other interested Forth programmers get a better understanding on the best practices long thought so controversial.
 
