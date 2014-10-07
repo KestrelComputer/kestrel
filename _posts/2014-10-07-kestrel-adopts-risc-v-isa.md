@@ -62,7 +62,7 @@ Consider the simple case of incrementing one pointer by 80 bytes and another by 
 
 The memory layout for these instructions appears below:
 
-![S16X4(A) instruction and operand layout to increment P and Q by 80 and 256, respectively.](/images/s16x4-ptr-inc.svg)
+![S16X4(A) instruction and operand layout to increment P and Q by 80 and 256, respectively.]({{site.baseurl}}/images/s16x4-ptr-inc.svg)
 
 As you can see, incrementing P consumes a total of 4.5 words, or 9 bytes, as does incrementing Q.
 Compare this to the equivalent code for any typical RISC architecture processor you might find on the market today:
@@ -83,7 +83,7 @@ So why not just widen the processor to 32-bits to cover more memory?
 This has the added benefit of packing more instructions in an instruction word, which can potentially save space too, right?
 Well, if we did that, our software above would still not pack any better:
 
-![Hypothetical S32X8 instruction and operand layout to increment P, Q by 80, 256, respectively.](/images/s32x8-ptr-inc.svg)
+![Hypothetical S32X8 instruction and operand layout to increment P, Q by 80, 256, respectively.]({{site.baseurl}}/images/s32x8-ptr-inc.svg)
 
 We've saved one processor word of memory, but the words now pack twice as many bits.
 Instead of 9 16-bit words, the software now consumes the equivalent of 15 16-bit words (half of one instruction word isn't used).
