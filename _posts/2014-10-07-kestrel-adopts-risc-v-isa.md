@@ -62,25 +62,7 @@ Consider the simple case of incrementing one pointer by 80 bytes and another by 
 
 The memory layout for these instructions appears below:
 
-    +---+---+---+---+
-    | # | @ | # | + |
-    +---+---+---+---+
-    | addr of P     |
-    +---+---+---+---+
-    | constant 80   |
-    +---+---+---+---+
-    | # | ! | # | @ |
-    +---+---+---+---+
-    | addr of P     |
-    +---+---+---+---+
-    | addr of Q     |
-    +---+---+---+---+
-    | # | + | # | ! |
-    +---+---+---+---+
-    | constant 256  |
-    +---+---+---+---+
-    | addr of Q     |
-    +---+---+---+---+
+![S16X4(A) instruction and operand layout to increment P and Q by 80 and 256, respectively.](/images/s16x4-ptr-inc.svg)
 
 As you can see, incrementing P consumes a total of 4.5 words, or 9 bytes, as does incrementing Q.
 Compare this to the equivalent code for any typical RISC architecture processor you might find on the market today:
@@ -101,33 +83,17 @@ So why not just widen the processor to 32-bits to cover more memory?
 This has the added benefit of packing more instructions in an instruction word, which can potentially save space too, right?
 Well, if we did that, our software above would still not pack any better:
 
-    +---+---+---+---+---+---+---+---+
-    | # | @ | # | + | # | ! | # | @ |
-    +---+---+---+---+---+---+---+---+
-    | addr of P                     |
-    +---+---+---+---+---+---+---+---+
-    | constant 80                   |
-    +---+---+---+---+---+---+---+---+
-    | addr of P                     |
-    +---+---+---+---+---+---+---+---+
-    | addr of Q                     |
-    +---+---+---+---+---+---+---+---+
-    | # | + | # | ! | ///////////// |
-    +---+---+---+---+---+---+---+---+
-    | constant 256                  |
-    +---+---+---+---+---+---+---+---+
-    | addr of Q                     |
-    +---+---+---+---+---+---+---+---+
+![Hypothetical S32X8 instruction and operand layout to increment P, Q by 80, 256, respectively.](/images/s32x8-ptr-inc.svg)
 
 We've saved one processor word of memory, but the words now pack twice as many bits.
 Instead of 9 16-bit words, the software now consumes the equivalent of 15 16-bit words (half of one instruction word isn't used).
-Now our 32-bit MISC has the same instruction density as a 64-bit RISC with 64-bit wide instructions.
+Our 32-bit MISC has the same instruction density as a 64-bit RISC with 64-bit wide instructions.
 If we sacrifice some slots to widen the opcodes to, say, 5- or 6-bits wide, we can introduce stack manipulation primitives which helps reduce the number of literals.
 However, because we pack fewer opcodes per instruction word, we now need more instruction words to achieve the same task.
 The result, it can be shown, will be just about a wash.
 
 MISC is a great architecture for narrow word widths.
-Fast, nimble, simple to implement and trivial to debug, I strongly recommend considering MISC for control-oriented applications.
+They're fast, nimble, simple to implement and trivial to debug; I strongly recommend considering MISC for control-oriented applications.
 I'm still considering using the S16X4A or a future variant for an I/O coprocessor for the the Kestrel.
 However, based on their instruction density, I cannot recommend them, at least in the general case, for anything wider than 16 to 24 bits.
 
@@ -136,6 +102,7 @@ However, based on their instruction density, I cannot recommend them, at least i
 I ultimately ended up choosing a homebrew, 64-bit, [RISC-V architecture](http://riscv.org) processor design I call Polaris, named after my fiance's red-tailed hawk.
 I chose this architecture for these reasons:
 
+* The entire instruction set architecture falls under the BSD license, which I applaud and wish to support.
 * Being RISC, it'll exhibit no worse code density than the MISC.
 * It uses 32-bit instructions, which implies it'll actually be twice to four times more compact than a comparable 64-bit MISC.
 * The RISC-V instruction set encourages modular instruction set extensions, including future support for a 16-bit instruction encoding.
@@ -152,11 +119,12 @@ Recall that incrementing a pointer in the MISC instruction set took six instruct
 Even if we build the RISC processor to touch 16-bit RAM, thus requiring two cycles per instruction fetch, we're still looking at a factor of four improvement in performance for that operation.
 After looking at the code I've written so far, porting it to the RISC should give me close to a 2x performance boost, bus overheads included.
 
-Finally, and perhaps at long last for many of my readers, Polaris will have a software emulator.
-With the S16X4-based architecture, I am glued to the FPGA development board while hacking.
+Finally, and perhaps at long last for many of my readers, Polaris will have a real software emulator.
+Not since the J1-based incarnation of the Kestrel-2 did I have an emulator.
+Starting with the S16X4-based architecture, though, I became glued to the FPGA development board while hacking.
 But, with my return to software emulation, it means I can hack Kestrel stuff while watching TV next to my future wife.
 I haven't been able to do that since early 2011.
-But, more importantly, it also means *you* get to play with the Kestrel, at least initially in a reduced, simpler form.
+Perhaps more importantly, it also means *you* get to play with the Kestrel, at least initially in a reduced, simpler form.
 For example, I'll probably start with an MGIA-based display, for emulating the MGIA is relatively simple, but the CGIA will be substantially more difficult to emulate.
 Yet, it's very simple to make a hardware CGIA implementation come up in "MGIA-mode."
 Thus, there should be "upward" compatibility (from emulator to hardware) at the very least.
@@ -169,5 +137,11 @@ When it's finished, you can bet I'll blog about it here.
 After the assembler, I'll need to make a linker for the object files it produces.
 Once that's done, I can start working on the new Kestrel emulator.
 
+It takes a fair amount of time to compose a blog article for posting.
+This largely accounts for why I've not updated frequently in the past.
+If you're interested in more frequent updates, but smaller in scale, feel free to [follow my Twitter account](http://twitter.com/SamuelAFalvoII).
+I should warn you, though, being my personal account, I also post and/or retweet non-Kestrel-related material there as well.
+
 Here's hoping for another three to four years of successful Kestrel hacking, and hope you stick around to see it!
+And here's hoping I can develop the self-discipline to post here more regularly.
 
