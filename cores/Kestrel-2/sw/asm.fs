@@ -222,4 +222,5 @@ variable wrd
 
 : redo-create	S" REDO_OUT" getenv R/W BIN CREATE-FILE THROW fh ! ;
 : redo-out	redo-create hunkout ;
+: redo-raw	redo-create write close ;
 
