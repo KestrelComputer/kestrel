@@ -215,6 +215,11 @@ variable wrd
 : treloc	T_RELOC wrd !  wrword  relocptr @ 1 CELLS / wrd !  wrword ;
 : tend		T_END wrd !  wrword ;
 : relocs	0 BEGIN DUP relocptr @ < WHILE  DUP relocb + @ wrd ! wrword  CELL+ REPEAT DROP ;
-: reloc"	_create thunk tcode write treloc relocs tend close ;
+: hunkout	thunk tcode write treloc relocs tend close ;
+: reloc"	_create hunkout ;
 
+\ \ \ Support for redo build scripting
+
+: redo-create	S" REDO_OUT" getenv R/W BIN CREATE-FILE THROW fh ! ;
+: redo-out	redo-create hunkout ;
 
