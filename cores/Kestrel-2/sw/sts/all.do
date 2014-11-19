@@ -1,0 +1,2 @@
+redo-ifchange sdimage.bin
+
