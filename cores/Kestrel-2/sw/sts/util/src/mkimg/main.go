@@ -55,9 +55,9 @@ func main() {
 	startIPL, endIPL := f.place("sys/$IPL")
 	startSYS, endSYS := f.place("sys/$SYS")
 
-	fmt.Println("startIPL ", startIPL, "endIPL ", endIPL)
-	fmt.Println("startSYS ", startSYS, "endSYS ", endSYS)
-	fmt.Println("startDIR ", *startDIR, "endDIR ", endDIR)
+	fmt.Fprintln(os.Stderr, "startIPL ", startIPL, "endIPL ", endIPL)
+	fmt.Fprintln(os.Stderr, "startSYS ", startSYS, "endSYS ", endSYS)
+	fmt.Fprintln(os.Stderr, "startDIR ", *startDIR, "endDIR ", endDIR)
 
 	f.wptr = *bytesPerSector * (endDIR+1)
 	filesAndDirs, err := ioutil.ReadDir(*impName)
@@ -68,9 +68,9 @@ func main() {
 		if fi.IsDir() {
 			continue
 		}
-		fmt.Println(*impName + "/" + fi.Name())
+		fmt.Fprintln(os.Stderr, *impName + "/" + fi.Name())
 		start, end := f.place(*impName + "/" + fi.Name())
-		fmt.Println("  start ", start, "end ", end)
+		fmt.Fprintln(os.Stderr, "  start ", start, "end ", end)
 	}
 
 	r := bytes.NewReader(f.bytes)
