@@ -57,5 +57,6 @@ $B010 const, gpip
 pib $3C00 + pib 1024 move
 1024 pibptr !
 
-out" sys/$IPL"
+\ out" sys/$IPL"
+redo-raw
 bye

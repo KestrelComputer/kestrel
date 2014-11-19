@@ -171,5 +171,6 @@ create, rsnTab
 
 ' main >body @ is, go
 
-reloc" imgs/prg.start"
+\ reloc" imgs/prg.start"
+redo-out
 

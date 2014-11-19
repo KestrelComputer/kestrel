@@ -265,5 +265,6 @@ create, memtag
 \ Emit the $SYS file image.
 pib 1024 + pib pibptr @ 1024 - move
 -1024 pibptr +!
-out" sys/$SYS"
+redo-raw
+\ out" sys/$SYS"
 bye

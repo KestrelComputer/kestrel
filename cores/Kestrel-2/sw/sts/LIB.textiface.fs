@@ -84,14 +84,15 @@ pibptr @ constant S7
 include textiface/epv.fs
 pibptr @ constant S8
 
-reloc" imgs/lib.textiface"
+\ reloc" imgs/lib.textiface"
+redo-out
 
-." Framebuffer: " S1 S0 - . cr
-."        Font: " S2 S1 - . cr
-."      Cursor: " S3 S2 - . cr
-."         TTY: " S4 S3 - . cr
-."  KBD Driver: " S5 S4 - . cr
-."    Keyboard: " S6 S5 - . cr
-."         CLI: " S7 S6 - . cr
-."         EPV: " S8 S7 - . cr
+\ ." Framebuffer: " S1 S0 - . cr
+\ ."        Font: " S2 S1 - . cr
+\ ."      Cursor: " S3 S2 - . cr
+\ ."         TTY: " S4 S3 - . cr
+\ ."  KBD Driver: " S5 S4 - . cr
+\ ."    Keyboard: " S6 S5 - . cr
+\ ."         CLI: " S7 S6 - . cr
+\ ."         EPV: " S8 S7 - . cr
 

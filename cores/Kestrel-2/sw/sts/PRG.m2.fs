@@ -296,5 +296,6 @@ create, noskmsg
 
 :, boot		-8 fp+!, opnfil count first slide main ;,
 ' boot >body @ is, m2start
-reloc" imgs/prg.m2"
+\ reloc" prg.m2"
+redo-out
 
