@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 
 typedef struct InputSource InputSource;
@@ -109,7 +110,22 @@ char *input_source_next_name(InputSource *is) {
 }
 
 
+void doLineComment(InputSource *is, char *_) {
+	for(;;) {
+		if(is->point >= is->size) break;
+		if(is->contents[is->point] != '\n') {
+			is->point++;
+			continue;
+		} else {
+			is->point++;	/* Skip the \n character. */
+			break;
+		}
+	}
+}
+
+
 Word dictionary[] = {
+	{"\\", doLineComment},
 	{NULL, NULL},
 };
 
