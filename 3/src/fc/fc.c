@@ -6,7 +6,10 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
+
+typedef long long DWORD;
 
 typedef struct InputSource InputSource;
 typedef struct Word Word;
@@ -14,6 +17,18 @@ typedef struct Image Image;
 typedef struct Label Label;
 
 typedef void (*Handler)(InputSource *, char *, Image *);
+
+
+enum {
+	INSN_STORE	= 0x23,
+	FN3_SD		= 3,
+
+	INSN_OP_IMM	= 0x13,
+	FN3_ADDI	= 0,
+
+	REG_SP		= 14,
+	REG_T		= 16,
+};
 
 
 struct InputSource {
@@ -44,6 +59,9 @@ struct Label {
 	char * name;
 	long   address;
 };
+
+
+static int showListing = 0;
 
 
 long fsize(FILE *f) {
@@ -161,6 +179,8 @@ void image_place_byte(Image *img, char b) {
 	long oldp = img->point;
 	assert(img->point <= (img->size - 1));
 
+	if(showListing) printf("%02X ", b & 0xFF);
+
 	img->contents[img->point] = b;
 	img->point++;
 
@@ -194,7 +214,44 @@ void image_place_word(Image *img, long w) {
 
 
 void image_place_uj_insn(Image *img, long displacement, int xreg, int opcode) {
+	int d20, d11, d10_1, d19_12, d;
+
+	assert((-1048576 <= displacement) && (displacement <= 1048575));
+	assert((displacement & 1) == 0);
+	assert((0 <= xreg) && (xreg < 32));
+	assert(opcode < 128);
+
+	d20 = displacement & 0x100000;
+	d11 = (displacement & 0x800) >> 11;
+	d10_1 = (displacement & 0x7FE) >> 1;
+	d19_12 = (displacement & 0xFF000) >> 12;
+	d = (d20 << 20) | (d10_1 << 9) | (d11 << 8) | d19_12;
 	image_place_word(img, ((displacement & 0x1FFFFE) << 11) | ((xreg & 0x1F) << 7) | (opcode & 0x7F));
+}
+
+
+void image_place_s_insn(Image *img, int disp, int rs2, int rs1, int fn3, int opcode) {
+	int disp4_0 = disp & 0x1F;
+	int disp11_5 = disp >> 5;
+
+	assert((-2048 <= disp) && (disp <= 2047));
+	assert((0 <= rs2) && (rs2 <= 31));
+	assert((0 <= rs1) && (rs1 <= 31));
+	assert(fn3 < 8);
+	assert(opcode < 128);
+
+	image_place_word(img, (disp11_5 << 25) | (rs2 << 20) | (rs1 << 15) | (fn3 << 12) | (disp4_0 << 7) | (opcode & 0x7F));
+}
+
+
+void image_place_i_insn(Image *img, int immediate, int rs1, int fn3, int rd, int opcode) {
+	assert((-2048 <= immediate) && (immediate <= 2047));
+	assert((0 <= rs1) && (rs1 <= 31));
+	assert((0 <= rd) && (rd <= 31));
+	assert(fn3 < 8);
+	assert(opcode < 128);
+
+	image_place_word(img, (immediate << 20) | (rs1 << 15) | (fn3 << 12) | (rd << 7) | (opcode & 0x7F));
 }
 
 
@@ -215,6 +272,24 @@ Label *label_new(Label *next, char *name, long address) {
 }
 
 
+void asm_jal(Image *img, int rd, int displacement) {
+	image_place_uj_insn(img, displacement, rd, 0x6F);
+	if(showListing) printf("\tJAL \tX%d, %d\n", rd, displacement);
+}
+
+
+void asm_sd(Image *img, int rs1, int rs2, int displacement) {
+	image_place_s_insn(img, displacement, rs2, rs1, FN3_SD, INSN_STORE);
+	if(showListing) printf("\tSD  \tX%d, X%d, %d\n", rs1, rs2, displacement);
+}
+
+
+void asm_addi(Image *img, int rd, int rs1, int immediate) {
+	image_place_i_insn(img, immediate, rs1, FN3_ADDI, rd, INSN_OP_IMM);
+	if(showListing) printf("\tADDI\tX%d, X%d, %d\n", rd, rs1, immediate);
+}
+
+
 void doLineComment(InputSource *is, char *_, Image *__) {
 	for(;;) {
 		if(is->point >= is->size) break;
@@ -229,14 +304,10 @@ void doLineComment(InputSource *is, char *_, Image *__) {
 }
 
 
-void doDefer(InputSource *is, char *_, Image *img) {
-	long oldimgp = img->point;
-	long oldisp = is->point;
-	long address;
+void create_word(InputSource *is, Image *img) {
 	char *name;
+	long address;
 	Label *label;
-	assert(img->point <= (img->size - 4));
-	assert(is->point < img->size);
 
 	name = input_source_next_name(is);
 	address = image_address(img);
@@ -246,21 +317,40 @@ void doDefer(InputSource *is, char *_, Image *img) {
 		exit(1);
 	}
 	img->words = label;
+	if(showListing) printf("\n\t%s:\n", name);
 
-	image_place_uj_insn(img, 0, 0, 0x6F);	/* JAL X0,0 */
-
-	assert(img->point <= img->size);
-	assert(img->point == (oldimgp+4));
 	assert(img->words);
 	assert(!strcmp(img->words->name, name));
 	assert(img->words->address == address);
+}
+
+
+void doDefer(InputSource *is, char *_, Image *img) {
+	long oldimgp = img->point;
+	long oldisp = is->point;
+	Label *label;
+
+	assert(img->point <= (img->size - 4));
+	assert(is->point < img->size);
+
+	create_word(is, img);
+	asm_jal(img, 0, 0);
+
+	assert(img->point <= img->size);
+	assert(img->point == (oldimgp+4));
 	assert(is->point <= is->size);
 	assert(is->point > oldisp);
 }
 
 
+void doColon(InputSource *is, char *_, Image *img) {
+	create_word(is, img);
+}
+
+
 Word dictionary[] = {
 	{"\\", doLineComment},
+	{":", doColon},
 	{"DEFER", doDefer},
 	{NULL, NULL},
 };
@@ -276,13 +366,45 @@ Handler handlers_find(char *name) {
 }
 
 
+void compile_number(Image *img, DWORD value) {
+	assert(img->point < (img->size - 12));
+
+	asm_sd(img, REG_SP, REG_T, 0);
+	asm_addi(img, REG_SP, REG_SP, -8);
+
+	if((-2048 <= value) && (value <= 2047)) {
+		asm_addi(img, REG_T, 0, value);
+	} else {
+		fprintf(stderr, "WARNING: Numeric constant out of range: %lld ($%16llX)\n", value, value);
+	}
+
+	assert(img->point <= img->size);
+}
+
+
+int try_number(char *name, Image *img, DWORD *value) {
+	if(('0' <= *name) && (*name <= '9')) {
+		*value = strtoll(name, NULL, 10);
+		return (errno == 0);
+	} else if(*name == '$') {
+		*value = strtoll(&name[1], NULL, 16);
+		return (errno == 0);
+	} else if(*name == '-') {
+		try_number(&name[1], img, value);
+		*value = -(*value);
+		return (errno == 0);
+	}
+	return 0;
+}
+
+
 int main(int argc, char *argv[]) {
 	int i;
 	char *inputFilename = NULL, *name;
 	InputSource *is;
 	Handler handler;
 	Image *img;
-
+	DWORD value;
 
 	printf("This is fc, the machine Forth compiler.\n");
 	printf("Version 0.1.0\n");
@@ -295,15 +417,22 @@ int main(int argc, char *argv[]) {
 
 	i = 1;
 	for(;;) {
-		if(i >= (argc - 1)) break;
+		assert(i <= argc);
+		if(i >= argc) break;
 
-		if(!strcmp(argv[i], "from")) {
+		assert(i < argc);
+		if(!strcmp(argv[i], "list")) {
+			showListing = 1;
+			i++;
+		} else if(!strcmp(argv[i], "from")) {
+			if(i >= (argc - 1)) break;
 			inputFilename = argv[i+1];
 			i = i + 2;
 		} else {
 			fprintf(stderr, "WARNING: Unknown option %s\n", argv[i]);
 			i++;
 		}
+		assert(i <= argc);
 	}
 
 	if(!inputFilename) {
@@ -328,9 +457,13 @@ int main(int argc, char *argv[]) {
 		if(handler) {
 			handler(is, name, img);
 			continue;
+		} else if(try_number(name, img, &value)) {
+			compile_number(img, value);
+			continue;
 		} else {
 			fprintf(stderr, "Unknown word: %s ?\n", name);
 			input_source_dispose(is);
+			image_dispose(img);
 			exit(1);
 		}
 	}
