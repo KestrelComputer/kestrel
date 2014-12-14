@@ -15,11 +15,14 @@ typedef struct InputSource InputSource;
 typedef struct Word Word;
 typedef struct Image Image;
 typedef struct Label Label;
+typedef struct Buffer Buffer;
 
 typedef void (*Handler)(InputSource *, char *, Image *);
 
 
 enum {
+	KB		= 1024,
+
 	INSN_STORE	= 0x23,
 	FN3_SD		= 3,
 
@@ -45,10 +48,16 @@ struct Word {
 };
 
 
-struct Image {
+struct Buffer {
 	char * contents;
 	long   point;
 	long   size;
+};
+
+
+struct Image {
+	Buffer code;
+	Buffer rodata;
 	long   base;
 	Label *words;
 };
@@ -146,10 +155,71 @@ char *input_source_next_name(InputSource *is) {
 }
 
 
+int buffer_init(Buffer *buf, int size) {
+	buf->size = size;
+	buf->contents = (char *)malloc(size);
+	return buf->contents != NULL;
+}
+
+
+void buffer_free(Buffer *buf) {
+	if(buf->contents) {
+		free(buf->contents);
+		buf->contents = NULL;
+		buf->size = 0;
+		buf->point = 0;
+	}
+}
+
+
+void buffer_place_byte(Buffer *buf, char b) {
+	long oldp = buf->point;
+	assert(buf->point <= (buf->size - 1));
+
+	if(showListing) printf("%02X ", b & 0xFF);
+
+	buf->contents[buf->point] = b;
+	buf->point++;
+
+	assert(buf->point <= buf->size);
+	assert(buf->point == (oldp + 1));
+}
+
+
+void buffer_place_hword(Buffer *buf, short w) {
+	long oldp = buf->point;
+	assert(buf->point <= (buf->size - 2));
+
+	buffer_place_byte(buf, (w & 0xFF));
+	buffer_place_byte(buf, ((w >> 8) & 0xFF));
+
+	assert(buf->point <= buf->size);
+	assert(buf->point == (oldp + 2));
+}
+
+
+void buffer_place_word(Buffer *buf, long w) {
+	long oldp = buf->point;
+	assert(buf->point <= (buf->size - 4));
+
+	buffer_place_hword(buf, (w & 0xFFFF));
+	buffer_place_hword(buf, ((w >> 16) & 0xFFFF));
+
+	assert(buf->point <= buf->size);
+	assert(buf->point == (oldp + 4));
+}
+
+
+long buffer_address(Buffer *buf) {
+	return buf->point;
+}
+
+
 void image_dispose(Image *img) {
 	Label *label;
 
-	if(img->contents) free(img->contents);
+	buffer_free(&img->code);
+	buffer_free(&img->rodata);
 	for(;;) {
 		if(!img->words) break;
 		label = img->words;
@@ -160,56 +230,18 @@ void image_dispose(Image *img) {
 }
 
 
-Image *image_new(long size) {
+Image *image_new(long codeSize, long dataSize) {
 	Image *img = (Image *)malloc(sizeof(Image));
 	if(img) {
 		memset(img, 0, sizeof(Image));
-		img->size = size;
-		img->contents = (char *)malloc(size);
-		if(!img->contents) {
-			image_dispose(img);
-			img = NULL;
-		}
+		if(!buffer_init(&img->code, codeSize)) goto error;
+		if(!buffer_init(&img->rodata, dataSize)) goto error;
 	}
 	return img;
-}
 
-
-void image_place_byte(Image *img, char b) {
-	long oldp = img->point;
-	assert(img->point <= (img->size - 1));
-
-	if(showListing) printf("%02X ", b & 0xFF);
-
-	img->contents[img->point] = b;
-	img->point++;
-
-	assert(img->point <= img->size);
-	assert(img->point == (oldp + 1));
-}
-
-
-void image_place_hword(Image *img, short w) {
-	long oldp = img->point;
-	assert(img->point <= (img->size - 2));
-
-	image_place_byte(img, (w & 0xFF));
-	image_place_byte(img, ((w >> 8) & 0xFF));
-
-	assert(img->point <= img->size);
-	assert(img->point == (oldp + 2));
-}
-
-
-void image_place_word(Image *img, long w) {
-	long oldp = img->point;
-	assert(img->point <= (img->size - 4));
-
-	image_place_hword(img, (w & 0xFFFF));
-	image_place_hword(img, ((w >> 16) & 0xFFFF));
-
-	assert(img->point <= img->size);
-	assert(img->point == (oldp + 4));
+error:
+	image_dispose(img);
+	return NULL;
 }
 
 
@@ -226,7 +258,7 @@ void image_place_uj_insn(Image *img, long displacement, int xreg, int opcode) {
 	d10_1 = (displacement & 0x7FE) >> 1;
 	d19_12 = (displacement & 0xFF000) >> 12;
 	d = (d20 << 20) | (d10_1 << 9) | (d11 << 8) | d19_12;
-	image_place_word(img, ((displacement & 0x1FFFFE) << 11) | ((xreg & 0x1F) << 7) | (opcode & 0x7F));
+	buffer_place_word(&img->code, ((displacement & 0x1FFFFE) << 11) | ((xreg & 0x1F) << 7) | (opcode & 0x7F));
 }
 
 
@@ -240,7 +272,7 @@ void image_place_s_insn(Image *img, int disp, int rs2, int rs1, int fn3, int opc
 	assert(fn3 < 8);
 	assert(opcode < 128);
 
-	image_place_word(img, (disp11_5 << 25) | (rs2 << 20) | (rs1 << 15) | (fn3 << 12) | (disp4_0 << 7) | (opcode & 0x7F));
+	buffer_place_word(&img->code, (disp11_5 << 25) | (rs2 << 20) | (rs1 << 15) | (fn3 << 12) | (disp4_0 << 7) | (opcode & 0x7F));
 }
 
 
@@ -251,12 +283,12 @@ void image_place_i_insn(Image *img, int immediate, int rs1, int fn3, int rd, int
 	assert(fn3 < 8);
 	assert(opcode < 128);
 
-	image_place_word(img, (immediate << 20) | (rs1 << 15) | (fn3 << 12) | (rd << 7) | (opcode & 0x7F));
+	buffer_place_word(&img->code, (immediate << 20) | (rs1 << 15) | (fn3 << 12) | (rd << 7) | (opcode & 0x7F));
 }
 
 
-long image_address(Image *img) {
-	return img->point + img->base;
+long image_code_address(Image *img) {
+	return buffer_address(&img->code);
 }
 
 
@@ -310,7 +342,7 @@ void create_word(InputSource *is, Image *img) {
 	Label *label;
 
 	name = input_source_next_name(is);
-	address = image_address(img);
+	address = image_code_address(img);
 	label = label_new(img->words, name, address);
 	if(!label) {
 		fprintf(stderr, "Critical: Unable to create label structure for %s\n", name);
@@ -326,20 +358,8 @@ void create_word(InputSource *is, Image *img) {
 
 
 void doDefer(InputSource *is, char *_, Image *img) {
-	long oldimgp = img->point;
-	long oldisp = is->point;
-	Label *label;
-
-	assert(img->point <= (img->size - 4));
-	assert(is->point < img->size);
-
 	create_word(is, img);
 	asm_jal(img, 0, 0);
-
-	assert(img->point <= img->size);
-	assert(img->point == (oldimgp+4));
-	assert(is->point <= is->size);
-	assert(is->point > oldisp);
 }
 
 
@@ -367,8 +387,6 @@ Handler handlers_find(char *name) {
 
 
 void compile_number(Image *img, DWORD value) {
-	assert(img->point < (img->size - 12));
-
 	asm_sd(img, REG_SP, REG_T, 0);
 	asm_addi(img, REG_SP, REG_SP, -8);
 
@@ -377,8 +395,6 @@ void compile_number(Image *img, DWORD value) {
 	} else {
 		fprintf(stderr, "WARNING: Numeric constant out of range: %lld ($%16llX)\n", value, value);
 	}
-
-	assert(img->point <= img->size);
 }
 
 
@@ -409,7 +425,7 @@ int main(int argc, char *argv[]) {
 	printf("This is fc, the machine Forth compiler.\n");
 	printf("Version 0.1.0\n");
 
-	img = image_new(16384);
+	img = image_new(14*KB, 2*KB);
 	if(!img) {
 		fprintf(stderr, "Unable to allocate initial image.\n");
 		exit(1);
