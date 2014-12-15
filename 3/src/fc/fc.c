@@ -24,6 +24,8 @@ enum {
 	KB		= 1024,
 
 	INSN_STORE	= 0x23,
+	INSN_LOAD	= 0x03,
+	FN3_SB		= 0,
 	FN3_SD		= 3,
 
 	INSN_OP_IMM	= 0x13,
@@ -31,6 +33,8 @@ enum {
 
 	REG_SP		= 14,
 	REG_T		= 16,
+	REG_S		= 17,
+	REG_GP		= 31,
 };
 
 
@@ -60,6 +64,7 @@ struct Image {
 	Buffer rodata;
 	long   base;
 	Label *words;
+	long   current_word_address;
 };
 
 
@@ -210,6 +215,18 @@ void buffer_place_word(Buffer *buf, long w) {
 }
 
 
+void buffer_place_dword(Buffer *buf, DWORD w) {
+	long oldp = buf->point;
+	assert(buf->point <= (buf->size - 8));
+
+	buffer_place_word(buf, (w & 0xFFFFFFFF));
+	buffer_place_word(buf, ((w >> 32) & 0xFFFFFFFF));
+
+	assert(buf->point <= buf->size);
+	assert(buf->point == (oldp + 8));
+}
+
+
 long buffer_address(Buffer *buf) {
 	return buf->point;
 }
@@ -306,7 +323,8 @@ Label *label_new(Label *next, char *name, long address) {
 
 void asm_jal(Image *img, int rd, int displacement) {
 	image_place_uj_insn(img, displacement, rd, 0x6F);
-	if(showListing) printf("\tJAL \tX%d, %d\n", rd, displacement);
+	// Note: no +4 in effective address calculation here because point is already advanced by 4.
+	if(showListing) printf("\tJAL \tX%d, %d ($%08lX)\n", rd, displacement, displacement + image_code_address(img));
 }
 
 
@@ -316,9 +334,21 @@ void asm_sd(Image *img, int rs1, int rs2, int displacement) {
 }
 
 
+void asm_sb(Image *img, int rs1, int rs2, int displacement) {
+	image_place_s_insn(img, displacement, rs2, rs1, FN3_SB, INSN_STORE);
+	if(showListing) printf("\tSB  \tX%d, X%d, %d\n", rs1, rs2, displacement);
+}
+
+
 void asm_addi(Image *img, int rd, int rs1, int immediate) {
 	image_place_i_insn(img, immediate, rs1, FN3_ADDI, rd, INSN_OP_IMM);
 	if(showListing) printf("\tADDI\tX%d, X%d, %d\n", rd, rs1, immediate);
+}
+
+
+void asm_ld(Image *img, int rd, int rs1, int offset) {
+	image_place_i_insn(img, offset, rs1, FN3_SD, rd, INSN_LOAD);
+	if(showListing) printf("\tLD  \tX%d, X%d, %d\n", rd, rs1, offset);
 }
 
 
@@ -349,7 +379,8 @@ void create_word(InputSource *is, Image *img) {
 		exit(1);
 	}
 	img->words = label;
-	if(showListing) printf("\n\t%s:\n", name);
+	img->current_word_address = address;
+	if(showListing) printf("\n\t%s: ($%08lX)\n", name, address);
 
 	assert(img->words);
 	assert(!strcmp(img->words->name, name));
@@ -368,10 +399,27 @@ void doColon(InputSource *is, char *_, Image *img) {
 }
 
 
+void doCStore(InputSource *is, char *_, Image *img) {
+	asm_addi(img, REG_SP, REG_SP, 8);
+	asm_ld(img, REG_SP, REG_S, 0);
+	asm_sb(img, REG_S, REG_T, 0);
+}
+
+
+void doBis(InputSource *is, char *_, Image *img) {
+	// JAL's base address is NOT the JAL itself, but the subsequent instruction.
+	// Hence the -4.
+	long offset = img->current_word_address - image_code_address(img) - 4;
+	asm_jal(img, 0, offset);
+}
+
+
 Word dictionary[] = {
 	{"\\", doLineComment},
 	{":", doColon},
 	{"DEFER", doDefer},
+	{"C!", doCStore},
+	{"BIS", doBis},
 	{NULL, NULL},
 };
 
@@ -387,13 +435,17 @@ Handler handlers_find(char *name) {
 
 
 void compile_number(Image *img, DWORD value) {
+	long offset;
+
 	asm_sd(img, REG_SP, REG_T, 0);
 	asm_addi(img, REG_SP, REG_SP, -8);
 
 	if((-2048 <= value) && (value <= 2047)) {
 		asm_addi(img, REG_T, 0, value);
 	} else {
-		fprintf(stderr, "WARNING: Numeric constant out of range: %lld ($%16llX)\n", value, value);
+		offset = buffer_address(&img->rodata);
+		buffer_place_dword(&img->rodata, value);
+		asm_ld(img, REG_GP, REG_T, offset);
 	}
 }
 
