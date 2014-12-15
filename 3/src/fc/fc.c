@@ -23,6 +23,9 @@ typedef void (*Handler)(InputSource *, char *, Image *);
 enum {
 	KB		= 1024,
 
+	INSN_JUMP	= 0x67,
+	FN3_JALR	= 0,
+
 	INSN_STORE	= 0x23,
 	INSN_LOAD	= 0x03,
 	FN3_SB		= 0,
@@ -31,7 +34,10 @@ enum {
 	INSN_OP_IMM	= 0x13,
 	FN3_ADDI	= 0,
 
-	REG_SP		= 14,
+	REG_0		= 0,
+	REG_RA		= 1,
+	REG_SP		= 2,
+	REG_KP		= 14,
 	REG_T		= 16,
 	REG_S		= 17,
 	REG_GP		= 31,
@@ -328,15 +334,22 @@ void asm_jal(Image *img, int rd, int displacement) {
 }
 
 
-void asm_sd(Image *img, int rs1, int rs2, int displacement) {
-	image_place_s_insn(img, displacement, rs2, rs1, FN3_SD, INSN_STORE);
-	if(showListing) printf("\tSD  \tX%d, X%d, %d\n", rs1, rs2, displacement);
+void asm_jalr(Image *img, int rd, int rs1, int offset) {
+	image_place_i_insn(img, offset, rs1, FN3_JALR, rd, INSN_JUMP);
+	if(showListing) printf("\tJALR\tX%d, X%d, %d\n", rd, rs1, offset);
 }
 
 
-void asm_sb(Image *img, int rs1, int rs2, int displacement) {
+// We swap rs2 and rs1 from the normal assembly syntax to retain uniformity with LD and related insns.
+void asm_sd(Image *img, int rs2, int rs1, int displacement) {
+	image_place_s_insn(img, displacement, rs2, rs1, FN3_SD, INSN_STORE);
+	if(showListing) printf("\tSD  \tX%d, X%d, %d\n", rs2, rs1, displacement);
+}
+
+
+void asm_sb(Image *img, int rs2, int rs1, int displacement) {
 	image_place_s_insn(img, displacement, rs2, rs1, FN3_SB, INSN_STORE);
-	if(showListing) printf("\tSB  \tX%d, X%d, %d\n", rs1, rs2, displacement);
+	if(showListing) printf("\tSB  \tX%d, X%d, %d\n", rs2, rs1, displacement);
 }
 
 
@@ -396,13 +409,23 @@ void doDefer(InputSource *is, char *_, Image *img) {
 
 void doColon(InputSource *is, char *_, Image *img) {
 	create_word(is, img);
+	asm_sd(img, REG_RA, REG_KP, 0);
+	asm_addi(img, REG_KP, REG_KP, -8);
+}
+
+
+void doExit(InputSource *is, char *_, Image *img) {
+	asm_addi(img, REG_KP, REG_KP, 8);
+	asm_ld(img, REG_RA, REG_KP, 0);
+	asm_jalr(img, REG_0, REG_RA, 0);
 }
 
 
 void doCStore(InputSource *is, char *_, Image *img) {
-	asm_addi(img, REG_SP, REG_SP, 8);
-	asm_ld(img, REG_SP, REG_S, 0);
-	asm_sb(img, REG_S, REG_T, 0);
+	asm_ld(img, REG_S, REG_SP, 8);
+	asm_sb(img, REG_T, REG_S, 0);
+	asm_ld(img, REG_T, REG_SP, 16);
+	asm_addi(img, REG_SP, REG_SP, 16);
 }
 
 
@@ -410,16 +433,19 @@ void doBis(InputSource *is, char *_, Image *img) {
 	// JAL's base address is NOT the JAL itself, but the subsequent instruction.
 	// Hence the -4.
 	long offset = img->current_word_address - image_code_address(img) - 4;
-	asm_jal(img, 0, offset);
+	// But, we skip over the word's preamble, so we don't overflow our stacks.
+	asm_jal(img, 0, offset + 8);
 }
 
 
 Word dictionary[] = {
 	{"\\", doLineComment},
 	{":", doColon},
+	{";", doExit},
 	{"DEFER", doDefer},
 	{"C!", doCStore},
 	{"BIS", doBis},
+	{"EXIT", doExit},
 	{NULL, NULL},
 };
 
@@ -436,16 +462,19 @@ Handler handlers_find(char *name) {
 
 void compile_number(Image *img, DWORD value) {
 	long offset;
+	int oldShow = showListing;
 
-	asm_sd(img, REG_SP, REG_T, 0);
+	asm_sd(img, REG_T, REG_SP, 0);
 	asm_addi(img, REG_SP, REG_SP, -8);
 
 	if((-2048 <= value) && (value <= 2047)) {
 		asm_addi(img, REG_T, 0, value);
 	} else {
+		showListing = 0;
 		offset = buffer_address(&img->rodata);
 		buffer_place_dword(&img->rodata, value);
-		asm_ld(img, REG_GP, REG_T, offset);
+		showListing = oldShow;
+		asm_ld(img, REG_T, REG_GP, offset);
 	}
 }
 
