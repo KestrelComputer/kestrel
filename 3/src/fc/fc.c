@@ -269,19 +269,19 @@ error:
 
 
 void image_place_uj_insn(Image *img, long displacement, int xreg, int opcode) {
-	int d20, d11, d10_1, d19_12, d;
+	long d20, d11, d10_1, d19_12, d;
 
 	assert((-1048576 <= displacement) && (displacement <= 1048575));
 	assert((displacement & 1) == 0);
 	assert((0 <= xreg) && (xreg < 32));
 	assert(opcode < 128);
 
-	d20 = displacement & 0x100000;
-	d11 = (displacement & 0x800) >> 11;
-	d10_1 = (displacement & 0x7FE) >> 1;
-	d19_12 = (displacement & 0xFF000) >> 12;
-	d = (d20 << 20) | (d10_1 << 9) | (d11 << 8) | d19_12;
-	buffer_place_word(&img->code, ((displacement & 0x1FFFFE) << 11) | ((xreg & 0x1F) << 7) | (opcode & 0x7F));
+	d20    = (displacement & 0x100000) >> 20;
+	d19_12 = (displacement & 0x0FF000) >> 12;
+	d11    = (displacement & 0x000800) >> 11;
+	d10_1  = (displacement & 0x0007FE) >> 1;
+	d = (d20 << 19) | (d10_1 << 9) | (d11 << 8) | d19_12;
+	buffer_place_word(&img->code, (d << 12) | ((xreg & 0x1F) << 7) | (opcode & 0x7F));
 }
 
 
