@@ -23,6 +23,9 @@ typedef void (*Handler)(InputSource *, char *, Image *);
 enum {
 	KB		= 1024,
 
+	MAXCODE		= 14 * KB,
+	MAXDATA		= 2 * KB,
+
 	INSN_JUMP	= 0x67,
 	FN3_JALR	= 0,
 
@@ -41,6 +44,8 @@ enum {
 	REG_T		= 16,
 	REG_S		= 17,
 	REG_GP		= 31,
+
+	NSTACK		= 8,
 };
 
 
@@ -71,6 +76,8 @@ struct Image {
 	long   base;
 	Label *words;
 	long   current_word_address;
+	long   stack[NSTACK];
+	int    sx;
 };
 
 
@@ -221,6 +228,20 @@ void buffer_place_word(Buffer *buf, long w) {
 }
 
 
+void buffer_place_at_word(Buffer *buf, long at, long w) {
+	long oldp = buf->point;
+	buf->point = at;
+	assert(buf->point <= (buf->size - 4));
+
+	buffer_place_hword(buf, (w & 0xFFFF));
+	buffer_place_hword(buf, ((w >> 16) & 0xFFFF));
+	buf->point = oldp;
+
+	assert(buf->point <= buf->size);
+	assert(buf->point == oldp);
+}
+
+
 void buffer_place_dword(Buffer *buf, DWORD w) {
 	long oldp = buf->point;
 	assert(buf->point <= (buf->size - 8));
@@ -268,8 +289,26 @@ error:
 }
 
 
-void image_place_uj_insn(Image *img, long displacement, int xreg, int opcode) {
-	long d20, d11, d10_1, d19_12, d;
+long image_pop_number(Image *img) {
+	long x;
+	assert((0 < img->sx) && (img->sx <= NSTACK));
+	img->sx--;
+	x = img->stack[img->sx];
+	assert((0 <= img->sx) && (img->sx < NSTACK));
+	return x;
+}
+
+
+void image_push_number(Image *img, long n) {
+	assert((0 <= img->sx) && (img->sx < NSTACK));
+	img->stack[img->sx] = n;
+	img->sx++;
+	assert((0 < img->sx) && (img->sx <= NSTACK));
+}
+
+
+void uj_insn_common(long *d, long displacement, int xreg, int opcode) {
+	long d20, d11, d10_1, d19_12;
 
 	assert((-1048576 <= displacement) && (displacement <= 1048575));
 	assert((displacement & 1) == 0);
@@ -280,7 +319,20 @@ void image_place_uj_insn(Image *img, long displacement, int xreg, int opcode) {
 	d19_12 = (displacement & 0x0FF000) >> 12;
 	d11    = (displacement & 0x000800) >> 11;
 	d10_1  = (displacement & 0x0007FE) >> 1;
-	d = (d20 << 19) | (d10_1 << 9) | (d11 << 8) | d19_12;
+	*d = (d20 << 19) | (d10_1 << 9) | (d11 << 8) | d19_12;
+}
+
+
+void image_update_uj_insn(Image *img, long at, long displacement, int xreg, int opcode) {
+	long d;
+	uj_insn_common(&d, displacement, xreg, opcode);
+	buffer_place_at_word(&img->code, at, (d << 12) | ((xreg & 0x1F) << 7) | (opcode & 0x7F));
+}
+
+
+void image_place_uj_insn(Image *img, long displacement, int xreg, int opcode) {
+	long d;
+	uj_insn_common(&d, displacement, xreg, opcode);
 	buffer_place_word(&img->code, (d << 12) | ((xreg & 0x1F) << 7) | (opcode & 0x7F));
 }
 
@@ -312,6 +364,28 @@ void image_place_i_insn(Image *img, int immediate, int rs1, int fn3, int rd, int
 
 long image_code_address(Image *img) {
 	return buffer_address(&img->code);
+}
+
+
+int image_find_word(long *addr, Image *img, char *name) {
+	int found = 0;
+	Label *l = img->words;
+
+	*addr = -1;
+	for(;;) {
+		assert((l == NULL) || (l->name));
+		if(!l) break;
+		if(!strcmp(l->name, name)) {
+			*addr = l->address;
+			found = 1;
+			break;
+		}
+		l = l->next;
+	}
+
+	assert((0 <= found) && (found <= 1));
+	assert((*addr == -1) || ((0 <= *addr) && (*addr <= MAXCODE+MAXDATA)));
+	return found;
 }
 
 
@@ -438,11 +512,50 @@ void doBis(InputSource *is, char *_, Image *img) {
 }
 
 
+void doTick(InputSource *is, char *_, Image *img) {
+	char *name;
+	long address;
+	int found;
+
+	name = input_source_next_name(is);
+	found = image_find_word(&address, img, name);
+	if(found) {
+		image_push_number(img, address);
+	} else {
+		fprintf(stderr, "Unknown word: %s ?\n", name);
+		input_source_dispose(is);
+		image_dispose(img);
+		exit(1);
+	}
+}
+
+
+void doIs(InputSource *is, char *_, Image *img) {
+	char *name;
+	long displacement, target;
+	int found;
+
+	name = input_source_next_name(is);
+	found = image_find_word(&target, img, name);
+	if(found) {
+		displacement = image_pop_number(img) - target - 4;
+		image_update_uj_insn(img, target, displacement, REG_0, 0x6F);
+	} else {
+		fprintf(stderr, "Unknown word: %s ?\n", name);
+		input_source_dispose(is);
+		image_dispose(img);
+		exit(1);
+	}
+}
+
+
 Word dictionary[] = {
 	{"\\", doLineComment},
+	{"'", doTick},
 	{":", doColon},
 	{";", doExit},
 	{"DEFER", doDefer},
+	{"IS", doIs},
 	{"C!", doCStore},
 	{"BIS", doBis},
 	{"EXIT", doExit},
@@ -506,7 +619,7 @@ int main(int argc, char *argv[]) {
 	printf("This is fc, the machine Forth compiler.\n");
 	printf("Version 0.1.0\n");
 
-	img = image_new(14*KB, 2*KB);
+	img = image_new(MAXCODE, MAXDATA);
 	if(!img) {
 		fprintf(stderr, "Unable to allocate initial image.\n");
 		exit(1);
@@ -550,6 +663,8 @@ int main(int argc, char *argv[]) {
 
 		name = input_source_next_name(is);
 		assert(name);
+		if(!strlen(name)) break;
+
 		handler = handlers_find(name);
 		if(handler) {
 			handler(is, name, img);
