@@ -259,6 +259,17 @@ long buffer_address(Buffer *buf) {
 }
 
 
+void buffer_write(Buffer *buf, FILE *file) {
+	int n;
+
+	assert(buf);
+	assert(file);
+
+	n = fwrite(buf->contents, 1, buf->point, file);
+	if(n != buf->point) fprintf(stderr, "WARNING: Section output not same size as what was assembled.\n");
+}
+
+
 void image_dispose(Image *img) {
 	Label *label;
 
@@ -359,6 +370,12 @@ void image_place_i_insn(Image *img, int immediate, int rs1, int fn3, int rd, int
 	assert(opcode < 128);
 
 	buffer_place_word(&img->code, (immediate << 20) | (rs1 << 15) | (fn3 << 12) | (rd << 7) | (opcode & 0x7F));
+}
+
+
+void image_write(Image *img, FILE *file) {
+	buffer_write(&img->code, file);
+	buffer_write(&img->rodata, file);
 }
 
 
@@ -610,11 +627,12 @@ int try_number(char *name, Image *img, DWORD *value) {
 
 int main(int argc, char *argv[]) {
 	int i;
-	char *inputFilename = NULL, *name;
+	char *inputFilename = NULL, *name, *outputFilename = "bin.out";
 	InputSource *is;
 	Handler handler;
 	Image *img;
 	DWORD value;
+	FILE *output;
 
 	printf("This is fc, the machine Forth compiler.\n");
 	printf("Version 0.1.0\n");
@@ -638,6 +656,10 @@ int main(int argc, char *argv[]) {
 			if(i >= (argc - 1)) break;
 			inputFilename = argv[i+1];
 			i = i + 2;
+		} else if(!strcmp(argv[i], "to")) {
+			if(i >= (argc - 1)) break;
+			outputFilename = argv[i+1];
+			i = i + 2;
 		} else {
 			fprintf(stderr, "WARNING: Unknown option %s\n", argv[i]);
 			i++;
@@ -651,6 +673,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	assert(inputFilename);
+	assert(outputFilename);
 
 	is = input_source_new(inputFilename);
 	if(!is) {
@@ -680,6 +703,19 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	output = fopen(outputFilename, "wb+");
+	if(!output) {
+		fprintf(stderr, "Unable to create output file %s\n", outputFilename);
+		input_source_dispose(is);
+		image_dispose(img);
+		exit(1);
+	}
+
+	assert(output);
+
+	image_write(img, output);
+
+	fclose(output);
 	input_source_dispose(is);
 	image_dispose(img);
 }
