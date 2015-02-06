@@ -1,6 +1,18 @@
+\ The image buffer is where the assembler assembles its bytes.	The /image
+\ (pronounced "per-image") constant configures how large of a buffer it is.
+
 65536 CONSTANT /image
 CREATE image
 /image ALLOT
+
+\ lc0 contains the origin of the program.  Generally, you shouldn't have to
+\ care about the origin.  The RISC-V instruction set is fully
+\ position-independent for both data and code.	But, sometimes, if you want to
+\ perform address arithmetic on absolute addresses, setting the origin may
+\ prove useful.
+\ 
+\ The bc variable contains the offset into the above image buffer where the
+\ assembler should place the next byte.
 
 VARIABLE lc0
 VARIABLE bc
@@ -11,6 +23,16 @@ VARIABLE bc
 RESET
 
 : room ( n -- )		bc @ + /image U> ABORT" Image overflow" ;
+
+\ B, H, W, and D, place a byte, half-word, word, or double-word (8, 16, 32,
+\ or 64 bit, respectively) values verbatim into the image buffer.
+\ 
+\ Note that double-word values are awkward to use with 32-bit Forth systems,
+\ requiring double-sized values on the data stack.  E.g.,
+\ $DEADBEEF.0BADC0DE D, versus $DEADBEEF0BADC0DE for a proper 64-bit system.
+\ 
+\ Observe that the RISC-V architecture is a LITTLE-ENDIAN instruction set
+\ architecture.
 
 : (b,) ( c -- )		bc @ image + C!  1 bc +! ;
 : B, ( c -- )		1 room (b,) ;
@@ -35,24 +57,43 @@ DECIMAL
 : (d,) ( d -- )		dwcomponents (w,) (w,) ;
 : D, ( d -- )		8 room (d,) ;
 
+\ ALIGN helps establish alignment in a program.  The argument can be any power
+\ of two, up to and including the size of the image buffer.  Non-power-of-two
+\ values will leave the buffer counter variable in a weird location.
+
 : ALIGN ( n -- )	DUP 1- bc @ + SWAP NEGATE AND bc ! ;
 
-: (rs1)			SWAP 15 LSHIFT OR ;
-: (rs2)			SWAP 20 LSHIFT OR ;
+\ Supporting a RISC architecture, the RISC-V instruction set architecture
+\ attempts to minimize hardware required for instruction decoding by placing
+\ often used fields at standard locations in an instruction.  These words
+\ are used to fill those standard locations.
+
+: (rs1)			SWAP 31 AND 15 LSHIFT OR ;
+: (rs2)			SWAP 31 AND 20 LSHIFT OR ;
+: (imm12)		SWAP 4095 AND 20 LSHIFT OR ;
 : (rd)			SWAP 7 LSHIFT OR ;
 
+\ R, I, S, SB, U, and UJ, function like B, H, W, and D, above.  However, they
+\ place actual CPU instructions, and as such take additional parameters.
+\ Note that I, S, SB, U, and UJ, all take an immediate operand of some kind;
+\ however, each encodes its immediate value in a unique manner.  For example,
+\ U, records bits 12 through 31 of an immediate value, while UJ, records
+\ (in the same space) bits 1 through 21.
+
 : R, ( rs1 rs2 rd opmask -- )
-	(rd) (rs2) (rs1) W, ;
+	4 ALIGN (rd) (rs2) (rs1) W, ;
 
 : I, ( rs1 imm rd opmask -- )
-	(rd) (rs2) (rs1) W, ;
+	4 ALIGN (rd) (imm12) (rs1) W, ;
 
 : S, ( rs1 rs2 imm opmask -- )
+	4 ALIGN
 	OVER 31 AND 7 LSHIFT OR
 	SWAP 5 RSHIFT 25 LSHIFT OR
 	(rs2) (rs1) W, ;
 
 : SB, ( rs1 rs2 disp opmask -- )
+	4 ALIGN
 	OVER $01E AND 7 LSHIFT OR	( bits 4..1 )
 	OVER $800 AND 4 RSHIFT OR	( bits 4..1,11 )
 	OVER $7E0 AND 20 LSHIFT OR	( bits 10..5, 4..1, 11 )
@@ -60,10 +101,10 @@ DECIMAL
 	(rs2) (rs1) W, ;
 
 : U, ( imm rd opmask -- )
-	(rd) SWAP $FFFFF000 AND OR W, ;
+	4 ALIGN (rd) SWAP $FFFFF000 AND OR W, ;
 
 : UJ, ( disp rd opmask -- )
-	(rd)
+	4 ALIGN (rd)
 	OVER $100000 AND 11 LSHIFT OR
 	OVER $0007FE AND 20 LSHIFT OR
 	OVER $000800 AND 9 LSHIFT OR
@@ -123,11 +164,11 @@ HEX
 : SBREAK	( -- )			0 1 0 00000073 I, ;
 
 \ Convenient aliases.
-: RDCYCLE	( rd -- )		>R 0 0C00 R> CSRRS ;
-: RDCYCLEH	( rd -- )		>R 0 0C80 R> CSRRS ;
-: RDTIME	( rd -- )		>R 0 0C01 R> CSRRS ;
-: RDTIMEH	( rd -- )		>R 0 0C81 R> CSRRS ;
-: RDINSTRET	( rd -- )		>R 0 0C02 R> CSRRS ;
-: RDINSTRETH	( rd -- )		>R 0 0C82 R> CSRRS ;
+: RDCYCLE	( rd -- )		0 0C00 ROT CSRRS ;
+: RDCYCLEH	( rd -- )		0 0C80 ROT CSRRS ;
+: RDTIME	( rd -- )		0 0C01 ROT CSRRS ;
+: RDTIMEH	( rd -- )		0 0C81 ROT CSRRS ;
+: RDINSTRET	( rd -- )		0 0C02 ROT CSRRS ;
+: RDINSTRETH	( rd -- )		0 0C82 ROT CSRRS ;
 DECIMAL
 
