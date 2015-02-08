@@ -24,6 +24,20 @@ RESET
 
 : room ( n -- )		bc @ + /image U> ABORT" Image overflow" ;
 
+	\ CAREFUL!!
+	\ These assume we're running on a little-endian, 32-bit Forth host.
+: IB! ( c bo -- )	image + C! ;
+: IH! ( h bo -- )	2DUP IB! 1+ SWAP 8 RSHIFT SWAP IB! ;
+: IW! ( w bo -- )	image + ! ;
+: ID! ( d bo -- )	>R SWAP R> image + 2! ;
+
+	\ CAREFUL!!
+	\ These assume we're running on a little-endian, 32-bit Forth host.
+: IB@ ( bo -- c )	image + C@ ;
+: IH@ ( bo -- h )	DUP IB@ SWAP 1+ IB@ 8 LSHIFT OR ;
+: IW@ ( bo -- w )	image + @ ;
+: ID@ ( bo -- d )	image + 2@ SWAP ;
+
 \ B, H, W, and D, place a byte, half-word, word, or double-word (8, 16, 32,
 \ or 64 bit, respectively) values verbatim into the image buffer.
 \ 
@@ -34,7 +48,7 @@ RESET
 \ Observe that the RISC-V architecture is a LITTLE-ENDIAN instruction set
 \ architecture.
 
-: (b,) ( c -- )		bc @ image + C!  1 bc +! ;
+: (b,) ( c -- )		bc @ IB!  1 bc +! ;
 : B, ( c -- )		1 room (b,) ;
 
 HEX
@@ -83,14 +97,23 @@ DECIMAL
 : R, ( rs1 rs2 rd opmask -- )
 	4 ALIGN (rd) (rs2) (rs1) W, ;
 
+	\ Immediate instructions are also employed by the various load
+	\ instructions as well.
 : I, ( rs1 imm rd opmask -- )
 	4 ALIGN (rd) (imm12) (rs1) W, ;
 
-: S, ( rs1 rs2 imm opmask -- )
+	\ Note that we swap the two source registers for store instructions.
+	\ This is for the benefit of human beings trying to code in assembly
+	\ language directly.  The RISC-V ISA says that the store instructions
+	\ take data from rs2 and store them into address rs1+imm.  Swapping the
+	\ registers minimizes surprises for the human coder, as it preserves 
+	\ the convention that the destination of an instruction is closest to
+	\ the instruction.
+: S, ( rs2 rs1 imm opmask -- )
 	4 ALIGN
 	OVER 31 AND 7 LSHIFT OR
 	SWAP 5 RSHIFT 25 LSHIFT OR
-	(rs2) (rs1) W, ;
+	(rs1) (rs2) W, ;
 
 : SB, ( rs1 rs2 disp opmask -- )
 	4 ALIGN
@@ -109,6 +132,122 @@ DECIMAL
 	OVER $0007FE AND 20 LSHIFT OR
 	OVER $000800 AND 9 LSHIFT OR
 	SWAP $0FF000 AND OR W, ;
+
+
+\ Label Management.  Words of the form X> construct relocation records for
+\ as-yet-undefined symbols.  The different forms of relocation records exist
+\ because the RISC-V ISA contains different instruction operand encodings.
+\ 
+\ Attempting to use a symbol before it's defined, as if it were defined,
+\ will produce an error.  In addition, attempting to shadow an existing Forth
+\ definition will also cause an error.
+\ 
+\ Symbol words contain a list header structure with two fields:
+\ 
+\ +0 cells	Execution token to invoke when the word executes.
+\		By default, this points to fwd, which provides the user with an
+\		error message about using the label without defining it first.
+\ 
+\		When the label definition happens, this field will change to
+\		point to the val routine, which implements VALUE-like
+\		semantics.
+\ 
+\ +1 cells	For as-yet undefined symbols, this field points to the most
+\		recently created relocation record.  For defined symbols, it
+\		contains the symbol's actual value.
+\ 
+\ Each relocation record, then, contains three fields on its own:
+\ 
+\ +0 cells	Link to previously created relocation record.  The oldest
+\		relocation record will have zero in this field.
+\ 
+\ +1		Execution token to a fixup routine.  This code executes when
+\		the symbol finally is defined by the programmer.  The handler
+\		is supposed to fix up, however it sees fit, a single RISC-V
+\		instruction.  Currently, the symbol's value is taken to be the
+\		current value of the location counter (LC).
+\ 
+\ +2		Buffer counter of the RISC-V instruction to fix up.
+\		To calculate the location counter, just add the value of the
+\		lc0 variable.
+\ 
+\ Without any doubt, this is *the* single, most complex piece of code in this
+\ assembler.
+
+	\ This is executed whenever a forward-definition word is invoked
+	\ without a corresponding constructor in front of it.
+: fwd ( a -- )
+	DROP -1 ABORT" Forward reference used without definition" ;
+
+	\ This word is invoked during symbol definition to resolve forward
+	\ references.
+	\ 
+	\ It provides a 32-bit absolute relocation.
+: fixup-abs32 ( a -- )
+	2 CELLS + @ DUP IW@ LC + SWAP IW! ;
+
+	\ absreloc creates an absolute relocation record in the Forth
+	\ dictionary.
+: absreloc ( a -- )
+	DUP HERE >R CELL+ @ , ['] fixup-abs32 , LC , R> SWAP CELL+ ! ;
+
+	\ Creates a new polymorphic Forth word to serve as a relocation record
+	\ list header.  By default, when executed, the word will produce an
+	\ error to the user if called directly.
+	\ 
+	\ Later, when the programmer defines a label of the same name, the
+	\ handler is changed to match VALUE semantics.
+: newdesc ( -- a )
+	CREATE HERE >R ['] fwd , 0 , R> DOES> DUP @ EXECUTE ;
+
+	\ Parse, and then look up a word, by name.
+: lookup ( -- xt f )
+	BL WORD FIND ;
+
+	\ Absolute Word forward reference prefix.  Leaves 0 on the stack for
+	\ later consumption by W,.
+: AW> ( -- 0 : "word" )
+	>IN @
+	lookup IF
+		>BODY
+		DUP @ ['] fwd = NOT ABORT" Shadowing existing word or label"
+		NIP
+	ELSE
+		DROP >IN !
+		newdesc
+	THEN
+	absreloc 0 ;
+
+	\ Value accessor for defined symbols.
+: val ( a -- n )
+	CELL+ @ ;
+
+	\ Apply a single fix-up.
+: fixup ( fx -- )
+	DUP CELL+ @ EXECUTE ;
+
+	\ Apply fixups by walking the fixup list until no more exist.
+: fixups ( fx -- )
+	BEGIN DUP WHILE DUP fixup @ REPEAT DROP ;
+
+	\ Defines a new label.  Resolves all previously recorded forward
+	\ references, if any exist.
+: -> ( -- : "word" )
+	>IN @
+	lookup IF
+		>BODY
+		DUP @ ['] fwd = NOT
+			OVER @ ['] val = NOT AND
+			ABORT" Shadowing existing word or label"
+		DUP @ ['] fwd = NOT ABORT" Duplicate label definition"
+		DUP CELL+ @ fixups
+		['] val OVER !
+		LC OVER CELL+ !
+		2DROP
+	ELSE
+		DROP >IN !
+		CREATE ['] val , LC , DOES> DUP @ EXECUTE
+	THEN ;
 
 \ full-width instructions (32-bit on 32-bit CPUs, 64-bit on 64-bit CPUs, etc.)
 \ Taken from http://riscv.org/download.html#tab_isaspec
