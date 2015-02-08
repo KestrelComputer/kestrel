@@ -1,3 +1,7 @@
+\ Sometimes convenient.
+DECIMAL
+: BINARY		2 BASE ! ;
+
 \ The image buffer is where the assembler assembles its bytes.	The /image
 \ (pronounced "per-image") constant configures how large of a buffer it is.
 
@@ -126,8 +130,9 @@ DECIMAL
 	SWAP 5 RSHIFT 25 LSHIFT OR
 	(rs1) (rs2) W, ;
 
-: SB, ( rs1 rs2 disp opmask -- )
+: SB, ( rs1 rs2 addr opmask -- )
 	4 ALIGN
+	>R LC WORD+ - R>
 	OVER $01E AND 7 LSHIFT OR	( bits 4..1 )
 	OVER $800 AND 4 RSHIFT OR	( bits 4..1,11 )
 	OVER $7E0 AND 20 LSHIFT OR	( bits 10..5, 4..1, 11 )
@@ -137,7 +142,7 @@ DECIMAL
 : U, ( imm rd opmask -- )
 	4 ALIGN (rd) SWAP $FFFFF000 AND OR W, ;
 
-: UJ, ( disp rd opmask -- )
+: UJ, ( addr rd opmask -- )
 	4 ALIGN (rd)
 	>R LC WORD+ - R>
 	OVER $100000 AND 11 LSHIFT OR
