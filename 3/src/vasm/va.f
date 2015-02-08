@@ -11,28 +11,39 @@ CREATE image
 \ perform address arithmetic on absolute addresses, setting the origin may
 \ prove useful.
 \ 
+\ gp0 contains the address that the assembler thinks the global pointer
+\ register points to.  Use the ASSUME-GP directive to set this value.
+\ 
 \ The bc variable contains the offset into the above image buffer where the
 \ assembler should place the next byte.
 
 VARIABLE lc0
+VARIABLE gp0
 VARIABLE bc
 
 : ORG ( n -- )		lc0 ! ;
 : LC ( -- n )		lc0 @ bc @ + ;
-: RESET ( -- )		lc0 OFF  bc OFF ;
+: RESET ( -- )		lc0 OFF  gp0 OFF  bc OFF ;
 RESET
+: ASSUME-GP ( -- )	LC gp0 ! ;
 
+\ Check to make sure enough room exists in the image to assemble the desired
+\ number of bytes.
 : room ( n -- )		bc @ + /image U> ABORT" Image overflow" ;
 
+\ Advance an offset or address by one RISC-V "word" (32-bit quantity).
+	\ CAREFUL!!
+	\ These assume we're running on a little-endian, 32-bit Forth host.
+: WORD+			CELL+ ;
+
+\ Accessors for the raw image.  Use like @ and !, but instead of an address,
+\ pass an image-relative offset.
 	\ CAREFUL!!
 	\ These assume we're running on a little-endian, 32-bit Forth host.
 : IB! ( c bo -- )	image + C! ;
 : IH! ( h bo -- )	2DUP IB! 1+ SWAP 8 RSHIFT SWAP IB! ;
 : IW! ( w bo -- )	image + ! ;
 : ID! ( d bo -- )	>R SWAP R> image + 2! ;
-
-	\ CAREFUL!!
-	\ These assume we're running on a little-endian, 32-bit Forth host.
 : IB@ ( bo -- c )	image + C@ ;
 : IH@ ( bo -- h )	DUP IB@ SWAP 1+ IB@ 8 LSHIFT OR ;
 : IW@ ( bo -- w )	image + @ ;
@@ -156,7 +167,7 @@ DECIMAL
 \		recently created relocation record.  For defined symbols, it
 \		contains the symbol's actual value.
 \ 
-\ Each relocation record, then, contains three fields on its own:
+\ Each relocation record, then, contains four fields on its own:
 \ 
 \ +0 cells	Link to previously created relocation record.  The oldest
 \		relocation record will have zero in this field.
@@ -171,6 +182,11 @@ DECIMAL
 \		To calculate the location counter, just add the value of the
 \		lc0 variable.
 \ 
+\ +3		The current global pointer address, as understood by the
+\		assembler.  The user is free to choose any register she wants
+\		for the global pointer, but the assembler needs to know what
+\		the address is for GP-relative offset calculations.
+\ 
 \ Without any doubt, this is *the* single, most complex piece of code in this
 \ assembler.
 
@@ -178,6 +194,10 @@ DECIMAL
 	\ without a corresponding constructor in front of it.
 : fwd ( a -- )
 	DROP -1 ABORT" Forward reference used without definition" ;
+
+	\ Value accessor for defined symbols.
+: val ( a -- n )
+	CELL+ @ ;
 
 	\ This word is invoked during symbol definition to resolve forward
 	\ references.
@@ -189,7 +209,12 @@ DECIMAL
 	\ absreloc creates an absolute relocation record in the Forth
 	\ dictionary.
 : absreloc ( a -- )
-	DUP HERE >R CELL+ @ , ['] fixup-abs32 , LC , R> SWAP CELL+ ! ;
+	DUP HERE >R
+	CELL+ @ ,
+	['] fixup-abs32 ,
+	LC ,
+	gp0 @ ,
+	R> SWAP CELL+ ! ;
 
 	\ Creates a new polymorphic Forth word to serve as a relocation record
 	\ list header.  By default, when executed, the word will produce an
@@ -218,9 +243,40 @@ DECIMAL
 	THEN
 	absreloc 0 ;
 
-	\ Value accessor for defined symbols.
-: val ( a -- n )
-	CELL+ @ ;
+	\ Fixes up a GP-relative offset for LOAD instructions.
+: fixup-gl ( a -- )
+	LC OVER 3 CELLS + @ - 4095 AND 20 LSHIFT >R
+	2 CELLS + @ DUP IW@ CR .S R> + .S SWAP IW! ;
+
+	\ glreloc creates an global pointer-relative relocation record in the
+	\ Forth dictionary.
+: glreloc ( a -- )
+	DUP HERE >R
+	CELL+ @ ,
+	['] fixup-gl ,
+	LC ,
+	gp0 @ ,
+	R> SWAP CELL+ ! ;
+
+	\ Global Pointer Relative forward reference prefix for LOADs.
+: GL> ( -- 0 : "word" )
+	>IN @
+	lookup IF
+		>BODY
+		DUP @ ['] fwd = NOT ABORT" Shadowing existing word or label"
+		NIP
+	ELSE
+		DROP >IN !
+		newdesc
+	THEN
+	glreloc 0 ;
+
+	\ Global Pointer Relative back-reference to an already defined
+	\ symbol for LOADs and STOREs.
+: <G ( -- n "word" )
+	lookup 0= ABORT" Label not defined"
+	DUP >BODY @ ['] val = NOT ABORT" Label expected"
+	EXECUTE gp0 @ - ;
 
 	\ Apply a single fix-up.
 : fixup ( fx -- )
@@ -310,4 +366,39 @@ HEX
 : RDINSTRET	( rd -- )		0 0C02 ROT CSRRS ;
 : RDINSTRETH	( rd -- )		0 0C82 ROT CSRRS ;
 DECIMAL
+
+\ Register names
+
+ 0 CONSTANT  X0	( Integer )
+ 1 CONSTANT  X1
+ 2 CONSTANT  X2
+ 3 CONSTANT  X3
+ 4 CONSTANT  X4
+ 5 CONSTANT  X5
+ 6 CONSTANT  X6
+ 7 CONSTANT  X7
+ 8 CONSTANT  X8
+ 9 CONSTANT  X9
+10 CONSTANT X10
+11 CONSTANT X11
+12 CONSTANT X12
+13 CONSTANT X13
+14 CONSTANT X14
+15 CONSTANT X15
+16 CONSTANT X16
+17 CONSTANT X17
+18 CONSTANT X18
+19 CONSTANT X19
+20 CONSTANT X20
+21 CONSTANT X21
+22 CONSTANT X22
+23 CONSTANT X23
+24 CONSTANT X24
+25 CONSTANT X25
+26 CONSTANT X26
+27 CONSTANT X27
+28 CONSTANT X28
+29 CONSTANT X29
+30 CONSTANT X30
+31 CONSTANT X31
 
