@@ -45,14 +45,15 @@ image /image $CC FILL
 \ pass an image-relative offset.
 	\ CAREFUL!!
 	\ These assume we're running on a little-endian, 32-bit Forth host.
-: IB! ( c bo -- )	image + C! ;
+: im>abs		image + ;
+: IB! ( c bo -- )	im>abs C! ;
 : IH! ( h bo -- )	2DUP IB! 1+ SWAP 8 RSHIFT SWAP IB! ;
-: IW! ( w bo -- )	image + ! ;
-: ID! ( d bo -- )	>R SWAP R> image + 2! ;
-: IB@ ( bo -- c )	image + C@ ;
+: IW! ( w bo -- )	im>abs ! ;
+: ID! ( d bo -- )	>R SWAP R> im>abs 2! ;
+: IB@ ( bo -- c )	im>abs C@ ;
 : IH@ ( bo -- h )	DUP IB@ SWAP 1+ IB@ 8 LSHIFT OR ;
-: IW@ ( bo -- w )	image + @ ;
-: ID@ ( bo -- d )	image + 2@ SWAP ;
+: IW@ ( bo -- w )	im>abs @ ;
+: ID@ ( bo -- d )	im>abs 2@ SWAP ;
 
 \ B, H, W, and D, place a byte, half-word, word, or double-word (8, 16, 32,
 \ or 64 bit, respectively) values verbatim into the image buffer.
@@ -278,7 +279,7 @@ DECIMAL
 	DUP HERE >R
 	CELL+ @ ,
 	['] fixup-abs32 ,
-	LC ,
+	bc @ ,
 	gp0 @ ,
 	R> SWAP CELL+ ! ;
 
@@ -288,7 +289,7 @@ DECIMAL
 	DUP HERE >R
 	CELL+ @ ,
 	['] fixup-abs64 ,
-	LC ,
+	bc @ ,
 	gp0 @ ,
 	R> SWAP CELL+ ! ;
 
@@ -341,7 +342,7 @@ DECIMAL
 	DUP HERE >R
 	CELL+ @ ,
 	['] fixup-gl ,
-	LC ,
+	bc @ ,
 	gp0 @ ,
 	R> SWAP CELL+ ! ;
 
@@ -368,7 +369,7 @@ DECIMAL
 	DUP HERE >R
 	CELL+ @ ,
 	['] fixup-jal ,
-	LC ,
+	bc @ ,
 	gp0 @ ,
 	R> SWAP CELL+ ! ;
 
@@ -390,7 +391,7 @@ DECIMAL
 	DUP HERE >R
 	CELL+ @ ,
 	['] fixup-bxx ,
-	LC ,
+	bc @ ,
 	gp0 @ ,
 	R> SWAP CELL+ ! ;
 
