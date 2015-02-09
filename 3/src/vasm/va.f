@@ -392,7 +392,7 @@ DECIMAL
 		CREATE ['] val , LC , DOES> DUP @ EXECUTE
 	THEN ;
 
-\ full-width instructions (32-bit on 32-bit CPUs, 64-bit on 64-bit CPUs, etc.)
+\ RV32I instructions.
 \ Taken from http://riscv.org/download.html#tab_isaspec
 HEX
 : LUI		( imm rd -- )		00000037 U, ;
@@ -438,6 +438,20 @@ HEX
 : CSRRWI	( imm csr rd -- )	00005073 I, ;
 : CSRRSI	( imm csr rd -- )	00006073 I, ;
 : CSRRCI	( imm csr rd -- )	00007073 I, ;
+
+\ RV64I extensions.
+: LWU		( rs1 disp rd -- )	00006003 I, ;
+: LD		( rs1 disp rd -- )	00007003 I, ;
+: SD		( rs1 rs2 imm -- )	00003023 S, ;
+: ADDIW		( rs1 imm rd -- )	0000001B I, ;
+: SLLIW		( rs1 imm rd -- )	0000101B I, ;
+: SRLIW		( rs1 imm rd -- )	0000501B I, ;
+: SRAIW		( rs1 imm rd -- )	4000501B I, ;
+: ADDW		( rs1 rs2 rd -- )	0000003B R, ;
+: SUBW		( rs1 rs2 rd -- )	4000003B R, ;
+: SLLW		( rs1 rs2 rd -- )	0000103B R, ;
+: SRLW		( rs1 rs2 rd -- )	0000503B R, ;
+: SRAW		( rs1 rs2 rd -- )	4000503B R, ;
 
 \ Special case instruction forms.  Yuck.
 : FENCE		( pred succ -- )	SWAP 4 LSHIFT OR 0 SWAP 0 0000000F I, ;
