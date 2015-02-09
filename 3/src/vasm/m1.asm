@@ -10,7 +10,11 @@
 	x0 65 x3 addi		( X3 = ASCII code for "A" )
 -> .again
 	x3 x2 0 sb		( send "A" to console )
+	x31 gl> .ctr x4 ld	( count how many "A"s we send )
+	x4 1 x4 addi
+	x4 x31 gs> .ctr sd
 	.again x0 jal		( repeat forever )
 
 -> uart-port	$0F000000.00000000 D,
+-> .ctr		0.0 D,
 
