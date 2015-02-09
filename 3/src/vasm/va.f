@@ -126,10 +126,10 @@ DECIMAL
 
 \ As with S>UJ, but for Bxx conditional branches.
 : S>SB ( displacement 0 -- n )
-	OVER $01E AND 7 LSHIFT OR	( bits 4..1 )
-	OVER $800 AND 4 RSHIFT OR	( bits 4..1,11 )
-	OVER $7E0 AND 20 LSHIFT OR	( bits 10..5, 4..1, 11 )
-	SWAP $1000 AND 19 LSHIFT OR ;	( bits 12, 10..5, 4..1, 11 )
+	OVER $01E AND 7 LSHIFT OR
+	OVER $800 AND 4 RSHIFT OR
+	OVER $7E0 AND 20 LSHIFT OR
+	SWAP $1000 AND 19 LSHIFT OR ;
 
 \ As with UJ>S, but for Bxx conditional branches.
 : SB>S ( n 0 -- displacement )
@@ -138,6 +138,26 @@ DECIMAL
 	OVER 20 RSHIFT $7E0 AND OR
 	SWAP 19 RSHIFT $1000 AND OR
 	DUP $1000 AND NEGATE OR ;
+
+\ As with S>UJ, but for load instructions.
+: S>LD ( displacement 0 -- n )
+	SWAP $FFF AND 20 LSHIFT OR ;
+
+\ As with UJ>S, but for load instructions.
+: LD>S ( n 0 -- displacement )
+	SWAP 20 RSHIFT $FFF AND OR
+	DUP $800 AND NEGATE OR ;
+
+\ As with S>UJ, but for store instructions.
+: S>ST ( displacement 0 -- n )
+	OVER $01F AND 7 LSHIFT OR
+	SWAP $FE0 AND 20 LSHIFT OR ;
+
+\ As with UJ>S, but for store instructions.
+: ST>S ( n 0 -- displacement )
+	OVER 7 RSHIFT $01F AND OR
+	SWAP 20 RSHIFT $FE0 AND OR
+	DUP $800 AND NEGATE OR ;
 
 \ Recover the displacement from a UJ-format instruction in image memory.
 : UJ@ ( addr -- displacement )
@@ -148,13 +168,29 @@ DECIMAL
 : UJ! ( displacement addr -- )
 	>R 0 S>UJ R@ IW@ $FFF AND OR R> IW! ;
 
-	\ As with UJ@, but for Bxx conditional branch instructions.
+\ As with UJ@, but for Bxx conditional branch instructions.
 : SB@ ( addr -- displacement )
 	IW@ 0 SB>S ;
 
-	\ As with UJ!, but for Bxx conditional branch instructions.
+\ As with UJ!, but for Bxx conditional branch instructions.
 : SB! ( displacement addr -- )
 	>R 0 S>SB R@ IW@ $01FFF07F AND OR R> IW! ;
+
+\ As with UJ@, but for loads and other I-format instructions.
+: LD@ ( addr -- displacement )
+	IW@ 0 LD>S ;
+
+\ As with UJ!, but for loads and other I-format instructions.
+: LD! ( displacement addr -- )
+	>R 0 S>LD R@ IW@ $000FFFFF AND OR R> IW! ;
+
+\ As with UJ@, but for loads and other S-format instructions.
+: ST@ ( addr -- displacement )
+	IW@ 0 ST>S ;
+
+\ As with UJ!, but for loads and other S-format instructions.
+: ST! ( displacement addr -- )
+	>R 0 S>ST R@ IW@ $01FFF07F AND OR R> IW! ;
 
 \ R, I, S, SB, U, and UJ, function like B, H, W, and D, above.  However, they
 \ place actual CPU instructions, and as such take additional parameters.
@@ -333,8 +369,8 @@ DECIMAL
 
 	\ Fixes up a GP-relative offset for LOAD instructions.
 : fixup-gl ( a -- )
-	LC OVER 3 CELLS + @ - 4095 AND 20 LSHIFT >R
-	2 CELLS + @ DUP IW@ R> + SWAP IW! ;
+	LC OVER 3 CELLS + @ - >R
+	2 CELLS + @ DUP LD@ R> + SWAP LD! ;
 
 	\ glreloc creates an global pointer-relative relocation record in the
 	\ Forth dictionary.
@@ -349,6 +385,25 @@ DECIMAL
 	\ Global Pointer Relative forward reference prefix for LOADs.
 : GL> ( -- 0 : "word" )
 	['] glreloc (>) 0 ;
+
+	\ Fixes up a GP-relative offset for STORE instructions.
+: fixup-gs ( a -- )
+	LC OVER 3 CELLS + @ - >R
+	2 CELLS + @ DUP ST@ R> + SWAP ST! ;
+
+	\ gsreloc creates an global pointer-relative relocation record in the
+	\ Forth dictionary.
+: gsreloc ( a -- )
+	DUP HERE >R
+	CELL+ @ ,
+	['] fixup-gs ,
+	bc @ ,
+	gp0 @ ,
+	R> SWAP CELL+ ! ;
+
+	\ Global Pointer Relative forward reference prefix for STOREs.
+: GS> ( -- 0 : "word" )
+	['] gsreloc (>) 0 ;
 
 	\ Global Pointer Relative back-reference to an already defined
 	\ symbol for LOADs and STOREs.
