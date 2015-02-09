@@ -17,13 +17,14 @@ enum {
 	VERSION_MINOR	= 1,
 	VERSION_PATCH	= 0,
 
-	MAX_PAGES	= 131072,
-	PAGE_FIELD	= 8,
-	PAGE_MASK	= MAX_PAGES-1,
-
 	MB		= 1048576L,
 
-	ROM_SIZE	= 16384,
+	MAX_DEVS	= 16,
+	DEV_MASK	= 0x0F00000000000000,
+	CARD_MASK	= 0xF000000000000000,
+
+	ROM_SIZE	= 65536,
+	ROM_MASK	= ROM_SIZE-1,
 	PHYS_RAM_SIZE	= 16*MB,
 	PHYS_RAM_MASK	= PHYS_RAM_SIZE - 1,
 	PHYS_ADDR_SIZE	= 32*MB,
@@ -48,10 +49,10 @@ typedef BYTE (*RDFUNC)(AddressSpace *, UDWORD);
 
 
 struct AddressSpace {
-	BYTE	*romImage;
+	BYTE	*rom;
 	BYTE	*ram;
-	WRFUNC	writers[MAX_PAGES];
-	RDFUNC	readers[MAX_PAGES];
+	WRFUNC	writers[MAX_DEVS];
+	RDFUNC	readers[MAX_DEVS];
 };
 
 
@@ -89,18 +90,30 @@ AddressSpace *address_space_new(void) {
 
 
 void address_space_ram_writer(AddressSpace *as, UDWORD addr, BYTE b) {
-	assert(addr <= PHYS_ADDR_SIZE);
+	if(addr > PHYS_RAM_MASK) {
+		fprintf(stderr, "Warning: writing $%02X to mirrored RAM at $%016llX\n", b, addr);
+	}
 	as->ram[addr & PHYS_RAM_MASK] = b;
 }
 
 
 BYTE address_space_ram_reader(AddressSpace *as, UDWORD addr) {
-	assert(addr <= PHYS_ADDR_SIZE);
+	if(addr > PHYS_RAM_MASK) {
+		fprintf(stderr, "Warning: reading mirrored RAM at $%016llX\n", addr);
+	}
 	return as->ram[addr & PHYS_RAM_MASK];
 }
 
 
-void address_space_io_writer(AddressSpace *as, UDWORD addr, BYTE b) {
+BYTE address_space_rom_reader(AddressSpace *as, UDWORD addr) {
+	if(addr > ROM_MASK) {
+		fprintf(stderr, "Warning: reading mirrored ROM at $%016llX\n", addr);
+	}
+	return as->rom[addr & ROM_MASK];
+}
+
+
+void address_space_uart_writer(AddressSpace *as, UDWORD addr, BYTE b) {
 	switch(addr & 1) {
 	case 0:		printf("%c", b); break;
 	default:	break;
@@ -108,7 +121,7 @@ void address_space_io_writer(AddressSpace *as, UDWORD addr, BYTE b) {
 }
 
 
-BYTE address_space_io_reader(AddressSpace *as, UDWORD addr) {
+BYTE address_space_uart_reader(AddressSpace *as, UDWORD addr) {
 	int n;
 	BYTE c;
 
@@ -122,6 +135,17 @@ BYTE address_space_io_reader(AddressSpace *as, UDWORD addr) {
 }
 
 
+void address_space_no_writer(AddressSpace *as, UDWORD addr, BYTE b) {
+	fprintf(stderr, "Error: Writing byte $%02X to address $%016llX\n", b, addr);
+}
+
+
+BYTE address_space_no_reader(AddressSpace *as, UDWORD addr) {
+	fprintf(stderr, "Error: Reading byte from address $%016llX; returning $CC\n", addr);
+	return 0xCC;
+}
+
+
 AddressSpace *address_space_configure(Options *opts) {
 	AddressSpace *as = address_space_new();
 	FILE *romFile;
@@ -130,14 +154,14 @@ AddressSpace *address_space_configure(Options *opts) {
 	assert(opts);
 	assert(opts->romFilename);
 
-	as->romImage = (BYTE *)malloc(ROM_SIZE);
-	memset(as->romImage, 0, ROM_SIZE);
+	as->rom = (BYTE *)malloc(ROM_SIZE);
+	memset(as->rom, 0, ROM_SIZE);
 	romFile = fopen(opts->romFilename, "rb");
 	if(!romFile) {
 		fprintf(stderr, "Cannot open ROM file %s\n", opts->romFilename);
 		exit(1);
 	}
-	n = fread(as->romImage, 1, ROM_SIZE, romFile);
+	n = fread(as->rom, 1, ROM_SIZE, romFile);
 	if(n == ROM_SIZE) {
 		n = fread(&overflow, 1, 1, romFile);
 		if(n == 1) {
@@ -154,35 +178,46 @@ AddressSpace *address_space_configure(Options *opts) {
 		exit(1);
 	}
 
-	for(n = 0; n < MAX_PAGES; n++) {
-		as->writers[n] = address_space_ram_writer;
-		as->readers[n] = address_space_ram_reader;
+	for(n = 0; n < MAX_DEVS; n++) {
+		as->writers[n] = address_space_no_writer;
+		as->readers[n] = address_space_no_reader;
 	}
-	as->writers[0x0FFFF] = address_space_io_writer;
-	as->readers[0x0FFFF] = address_space_io_reader;
+	as->readers[0] = address_space_rom_reader;
+	as->writers[1] = address_space_ram_writer;
+	as->readers[1] = address_space_ram_reader;
+	as->writers[15] = address_space_uart_writer;
+	as->readers[15] = address_space_uart_reader;
 
-	for(n = 0; n < MAX_PAGES; n++) {
+	for(n = 0; n < MAX_DEVS; n++) {
 		assert(as->writers[n]);
 		assert(as->readers[n]);
 	}
-	assert(as->romImage);
+	assert(as->rom);
 	assert(as->ram);
 	return as;
 }
 
 void address_space_store_byte(AddressSpace *as, DWORD address, BYTE datum) {
-	int page = (address >> PAGE_FIELD) & PAGE_MASK;
-	assert(as->writers);
-	assert(as->writers[page]);
-	as->writers[page](as, address, datum);
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
+		return;
+	}
+	assert(as->readers);
+	assert(as->readers[dev]);
+	as->writers[dev](as, address, datum);
 }
 
 
 BYTE address_space_fetch_byte(AddressSpace *as, DWORD address) {
-	int page = (address >> PAGE_FIELD) & PAGE_MASK;
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCC\n", address);
+		return 0xCC;
+	}
 	assert(as->readers);
-	assert(as->readers[page]);
-	return as->readers[page](as, address);
+	assert(as->readers[dev]);
+	return as->readers[dev](as, address);
 }
 
 
@@ -227,13 +262,13 @@ int run(int argc, char *argv[]) {
 	do {
 		char *msg = "Press any key to continue.\n";
 		while(*msg) {
-			address_space_store_byte(as, 0x0FFFF00, *msg);
+			address_space_store_byte(as, 0x0F00000000000000, *msg);
 			msg++;
 		}
 	} while(0);
 	do {
 		BYTE b = 0;
-		while(!b) b = address_space_fetch_byte(as, 0x0FFFF01);
+		while(!b) b = address_space_fetch_byte(as, 0x0F00000000000001);
 		printf("You typed: %d\n", b);
 	} while(0);
 
