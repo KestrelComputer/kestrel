@@ -102,6 +102,35 @@ DECIMAL
 : (imm12)		SWAP 4095 AND 20 LSHIFT OR ;
 : (rd)			SWAP 7 LSHIFT OR ;
 
+\ Rearrange the bits in displacement 'n' to follow the UJ instruction format
+\ rules.  Accumulate the results into the provided accumulator value.
+\ To just convert a raw binary value, set accum to 0.  Typically, accum will
+\ be a blank instruction encoding template.
+: S>UJ ( displacement accum -- accum' )
+	OVER $100000 AND 11 LSHIFT OR
+	OVER $0007FE AND 20 LSHIFT OR
+	OVER $000800 AND 9 LSHIFT OR
+	SWAP $0FF000 AND OR ;
+
+\ Rearrange the bits in a UJ-formatted instruction back to their intended
+\ positions in a sign-extended displacement.  For proper operation, set accum
+\ to zero.
+: UJ>S ( n 0 -- displacement )
+	OVER $7FE00000 AND 20 RSHIFT OR
+	OVER $00100000 AND 9 RSHIFT OR
+	OVER $000FF000 AND OR
+	OVER $80000000 AND 11 RSHIFT OR
+	NIP DUP $00100000 AND NEGATE OR ;
+
+\ Recover the displacement from a UJ-format instruction in image memory.
+: UJ@ ( addr -- displacement )
+	IW@ 0 UJ>S ;
+
+\ Set a new displacement for an already assembled UJ-format instruction in
+\ image memory.
+: UJ! ( displacement addr -- )
+	>R 0 S>UJ R@ IW@ $FFF AND OR R> IW! ;
+
 \ R, I, S, SB, U, and UJ, function like B, H, W, and D, above.  However, they
 \ place actual CPU instructions, and as such take additional parameters.
 \ Note that I, S, SB, U, and UJ, all take an immediate operand of some kind;
@@ -145,11 +174,7 @@ DECIMAL
 : UJ, ( addr rd opmask -- )
 	4 ALIGN (rd)
 	>R LC WORD+ - R>
-	OVER $100000 AND 11 LSHIFT OR
-	OVER $0007FE AND 20 LSHIFT OR
-	OVER $000800 AND 9 LSHIFT OR
-	SWAP $0FF000 AND OR W, ;
-
+	S>UJ W, ;
 
 \ Label Management.  Words of the form X> construct relocation records for
 \ as-yet-undefined symbols.  The different forms of relocation records exist
@@ -235,9 +260,8 @@ DECIMAL
 : lookup ( -- xt f )
 	BL WORD FIND ;
 
-	\ Absolute Word forward reference prefix.  Leaves 0 on the stack for
-	\ later consumption by W,.
-: AW> ( -- 0 : "word" )
+	\ Handle a generic forward reference.
+: (>) ( xt -- : "word" )
 	>IN @
 	lookup IF
 		>BODY
@@ -247,12 +271,17 @@ DECIMAL
 		DROP >IN !
 		newdesc
 	THEN
-	absreloc 0 ;
+	SWAP EXECUTE ;
+	
+	\ Absolute Word forward reference prefix.  Leaves 0 on the stack for
+	\ later consumption by W,.
+: AW> ( -- 0 : "word" )
+	['] absreloc (>) 0 ;
 
 	\ Fixes up a GP-relative offset for LOAD instructions.
 : fixup-gl ( a -- )
 	LC OVER 3 CELLS + @ - 4095 AND 20 LSHIFT >R
-	2 CELLS + @ DUP IW@ CR .S R> + .S SWAP IW! ;
+	2 CELLS + @ DUP IW@ R> + SWAP IW! ;
 
 	\ glreloc creates an global pointer-relative relocation record in the
 	\ Forth dictionary.
@@ -266,16 +295,7 @@ DECIMAL
 
 	\ Global Pointer Relative forward reference prefix for LOADs.
 : GL> ( -- 0 : "word" )
-	>IN @
-	lookup IF
-		>BODY
-		DUP @ ['] fwd = NOT ABORT" Shadowing existing word or label"
-		NIP
-	ELSE
-		DROP >IN !
-		newdesc
-	THEN
-	glreloc 0 ;
+	['] glreloc (>) 0 ;
 
 	\ Global Pointer Relative back-reference to an already defined
 	\ symbol for LOADs and STOREs.
@@ -283,6 +303,27 @@ DECIMAL
 	lookup 0= ABORT" Label not defined"
 	DUP >BODY @ ['] val = NOT ABORT" Label expected"
 	EXECUTE gp0 @ - ;
+
+	\ Performs a single relocation for a UJ-format instruction.
+: fixup-jal ( a -- )
+	2 CELLS + @ >R
+	R@ UJ@
+	LC R@ WORD+ - +
+	R> UJ! ;
+
+: jalreloc ( a -- )
+	DUP HERE >R
+	CELL+ @ ,
+	['] fixup-jal ,
+	LC ,
+	gp0 @ ,
+	R> SWAP CELL+ ! ;
+
+	\ PC-relative forward reference prefix for JAL and other UJ-format
+	\ instructions.  Leaves LC+4 on the stack for consumption by the JAL
+	\ instruction.
+: JAL> ( -- lc : "word" )
+	['] jalreloc (>) LC WORD+ ;
 
 	\ Apply a single fix-up.
 : fixup ( fx -- )
