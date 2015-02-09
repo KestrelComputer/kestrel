@@ -122,6 +122,21 @@ DECIMAL
 	OVER $80000000 AND 11 RSHIFT OR
 	NIP DUP $00100000 AND NEGATE OR ;
 
+\ As with S>UJ, but for Bxx conditional branches.
+: S>SB ( displacement 0 -- n )
+	OVER $01E AND 7 LSHIFT OR	( bits 4..1 )
+	OVER $800 AND 4 RSHIFT OR	( bits 4..1,11 )
+	OVER $7E0 AND 20 LSHIFT OR	( bits 10..5, 4..1, 11 )
+	SWAP $1000 AND 19 LSHIFT OR ;	( bits 12, 10..5, 4..1, 11 )
+
+\ As with UJ>S, but for Bxx conditional branches.
+: SB>S ( n 0 -- displacement )
+	OVER 7 RSHIFT $01E AND OR
+	OVER 4 LSHIFT $800 AND OR
+	OVER 20 RSHIFT $7E0 AND OR
+	SWAP 19 RSHIFT $1000 AND OR
+	DUP $1000 AND NEGATE OR ;
+
 \ Recover the displacement from a UJ-format instruction in image memory.
 : UJ@ ( addr -- displacement )
 	IW@ 0 UJ>S ;
@@ -130,6 +145,14 @@ DECIMAL
 \ image memory.
 : UJ! ( displacement addr -- )
 	>R 0 S>UJ R@ IW@ $FFF AND OR R> IW! ;
+
+	\ As with UJ@, but for Bxx conditional branch instructions.
+: SB@ ( addr -- displacement )
+	IW@ 0 SB>S ;
+
+	\ As with UJ!, but for Bxx conditional branch instructions.
+: SB! ( displacement addr -- )
+	>R 0 S>SB R@ IW@ $01FFF07F AND OR R> IW! ;
 
 \ R, I, S, SB, U, and UJ, function like B, H, W, and D, above.  However, they
 \ place actual CPU instructions, and as such take additional parameters.
@@ -161,20 +184,14 @@ DECIMAL
 
 : SB, ( rs1 rs2 addr opmask -- )
 	4 ALIGN
-	>R LC WORD+ - R>
-	OVER $01E AND 7 LSHIFT OR	( bits 4..1 )
-	OVER $800 AND 4 RSHIFT OR	( bits 4..1,11 )
-	OVER $7E0 AND 20 LSHIFT OR	( bits 10..5, 4..1, 11 )
-	SWAP $1000 AND 19 LSHIFT OR	( bits 12, 10..5, 4..1, 11 )
-	(rs2) (rs1) W, ;
+	>R LC WORD+ - R> S>SB (rs2) (rs1) W, ;
 
 : U, ( imm rd opmask -- )
 	4 ALIGN (rd) SWAP $FFFFF000 AND OR W, ;
 
 : UJ, ( addr rd opmask -- )
 	4 ALIGN (rd)
-	>R LC WORD+ - R>
-	S>UJ W, ;
+	>R LC WORD+ - R> S>UJ W, ;
 
 \ Label Management.  Words of the form X> construct relocation records for
 \ as-yet-undefined symbols.  The different forms of relocation records exist
@@ -311,6 +328,7 @@ DECIMAL
 	LC R@ WORD+ - +
 	R> UJ! ;
 
+	\ Creates a relocation record for a UJ-format instruction.
 : jalreloc ( a -- )
 	DUP HERE >R
 	CELL+ @ ,
@@ -324,6 +342,28 @@ DECIMAL
 	\ instruction.
 : JAL> ( -- lc : "word" )
 	['] jalreloc (>) LC WORD+ ;
+
+	\ Performs a single relocation for an SB-format instruction.
+: fixup-bxx ( a -- )
+	2 CELLS + @ >R
+	R@ SB@
+	LC R@ WORD+ - +
+	R> SB! ;
+
+	\ Creates a relocation record for an SB-format instruction.
+: bxxreloc ( a -- )
+	DUP HERE >R
+	CELL+ @ ,
+	['] fixup-bxx ,
+	LC ,
+	gp0 @ ,
+	R> SWAP CELL+ ! ;
+
+	\ PC-relative forward reference prefix for Bxx and other SB-format
+	\ instructions.  Leaves LC+4 on the stack for consumption by the Bxx
+	\ instruction.
+: B> ( -- lc : "word" )
+	['] bxxreloc (>) LC WORD+ ;
 
 	\ Apply a single fix-up.
 : fixup ( fx -- )
