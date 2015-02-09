@@ -254,12 +254,39 @@ DECIMAL
 : fixup-abs32 ( a -- )
 	2 CELLS + @ DUP IW@ LC + SWAP IW! ;
 
+	\ This word is invoked during symbol definition to resolve forward
+	\ references.
+	\ 
+	\ It provides a 64-bit absolute relocation.
+	\ 
+	\ NOTE: Because the image address space is constrained to less than 32
+	\ bits on a 32-bit Forth environment, it follows that any 64-bit
+	\ relocation will only affect the lower 32-bits of the value.  This is
+	\ technically a bug, but one which shouldn't manifest except where you
+	\ have an origin that is near the upper 4GB boundary.  As long as your
+	\ origin is 2GB or less, you should never have a carry-over into the
+	\ upper 32-bit half of a dword address.
+	\ 
+	\ Assumes a 32-bit Forth environment.
+: fixup-abs64 ( a -- )
+	2 CELLS + @ DUP ID@ LC M+ ROT ID! ;
+
 	\ absreloc creates an absolute relocation record in the Forth
 	\ dictionary.
 : absreloc ( a -- )
 	DUP HERE >R
 	CELL+ @ ,
 	['] fixup-abs32 ,
+	LC ,
+	gp0 @ ,
+	R> SWAP CELL+ ! ;
+
+	\ abs64reloc creates an absolute relocation record in the Forth
+	\ dictionary.
+: abs64reloc ( a -- )
+	DUP HERE >R
+	CELL+ @ ,
+	['] fixup-abs64 ,
 	LC ,
 	gp0 @ ,
 	R> SWAP CELL+ ! ;
@@ -294,6 +321,13 @@ DECIMAL
 	\ later consumption by W,.
 : AW> ( -- 0 : "word" )
 	['] absreloc (>) 0 ;
+
+	\ Absolute Dword forward reference prefix.  Leaves 0 on the stack for
+	\ later consumption by the D, directive.
+	\ 
+	\ Assumes a 32-bit Forth runtime.
+: AD> ( -- 0 : "word" )
+	['] abs64reloc (>) 0 0 ;
 
 	\ Fixes up a GP-relative offset for LOAD instructions.
 : fixup-gl ( a -- )
