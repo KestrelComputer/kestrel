@@ -29,6 +29,7 @@ VARIABLE bc
 : LC ( -- n )		lc0 @ bc @ + ;
 : RESET ( -- )		lc0 OFF  gp0 OFF  bc OFF ;
 RESET
+image /image $CC FILL
 : ASSUME-GP ( -- )	LC gp0 ! ;
 
 \ Check to make sure enough room exists in the image to assemble the desired
