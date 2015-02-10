@@ -50,8 +50,8 @@ typedef UDWORD (*RDFUNC)(AddressSpace *, UDWORD, int);
 
 
 struct AddressSpace {
-	BYTE	*rom;
-	BYTE	*ram;
+	UBYTE	*rom;
+	UBYTE	*ram;
 	WRFUNC	writers[MAX_DEVS];
 	RDFUNC	readers[MAX_DEVS];
 };
@@ -243,7 +243,7 @@ AddressSpace *address_space_configure(Options *opts) {
 	assert(opts);
 	assert(opts->romFilename);
 
-	as->rom = (BYTE *)malloc(ROM_SIZE);
+	as->rom = (UBYTE *)malloc(ROM_SIZE);
 	memset(as->rom, 0, ROM_SIZE);
 	romFile = fopen(opts->romFilename, "rb");
 	if(!romFile) {
@@ -261,7 +261,7 @@ AddressSpace *address_space_configure(Options *opts) {
 	}
 	fclose(romFile);
 
-	as->ram = (BYTE *)malloc(PHYS_RAM_SIZE);
+	as->ram = (UBYTE *)malloc(PHYS_RAM_SIZE);
 	if(!as->ram) {
 		fprintf(stderr, "Cannot allocate physical RAM for emulated computer.\n");
 		exit(1);
@@ -365,16 +365,52 @@ Processor *processor_new(AddressSpace *as) {
 
 void processor_step(Processor *p) {
 	WORD ir;
+	int opc, rd, fn3, rs1, rs2, imm12, disp12;
+	DWORD imm20;
+	DWORD disp20;
 
 	if(!p->running) return;
 
 	ir = address_space_fetch_word(p->as, p->pc);
+	printf("IF: @%016llX $%08lX\n", p->pc, ir);
 	p->pc = p->pc + 4;
 	if((ir & 3) != 3) {
 		fprintf(stderr, "Illegal instruction $%08lX at $%016llX\n", ir, p->pc);
 		p->running = 0;
 		return;
 	}
+
+	opc = ir & 0x7F;
+	rd = (ir >> 7) & 0x1F;
+	fn3 = (ir >> 12) & 0x07;
+	rs1 = (ir >> 15) & 0x1F;
+	rs2 = (ir >> 20) & 0x1F;
+	imm20 = (ir & 0xFFFFF000) | (-(ir & 0x80000000));
+	imm12 = (ir >> 20);
+	disp20 = (((ir & 0x7FE00000) >> 20)
+		 |((ir & 0x00100000) >> 9)
+		 |(ir & 0x000FF000)
+		 |((ir & 0x80000000) >> 11));
+	disp20 |= -(disp20 & 0x00100000);
+
+	switch(opc) {
+		// LUI
+		case 0x37:
+			p->x[rd] = imm20;
+			break;
+
+		// AUIPC
+		case 0x17:
+			p->x[rd] = imm20 + p->pc;
+			break;
+
+		// JAL
+		case 0x6F:
+			p->pc = p->pc + disp20;
+			break;
+	}
+
+	p->x[0] = 0;
 }
 
 
