@@ -32,6 +32,13 @@ RESET
 image /image $CC FILL
 : ASSUME-GP ( -- )	LC gp0 ! ;
 
+\ ROM" saves the currently assembled image to an emulator ROM file.  No
+\ relocation or even starting address is saved --- it's just a raw binary dump.
+: ROM" ( -- : "filename" )
+	[CHAR] " PARSE R/W BIN CREATE-FILE THROW >R
+	image bc @ R@ WRITE-FILE THROW
+	R> CLOSE-FILE THROW ;
+
 \ Check to make sure enough room exists in the image to assemble the desired
 \ number of bytes.
 : room ( n -- )		bc @ + /image U> ABORT" Image overflow" ;
