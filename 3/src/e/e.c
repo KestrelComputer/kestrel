@@ -297,8 +297,8 @@ void address_space_store_byte(AddressSpace *as, DWORD address, BYTE datum) {
 		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
 		return;
 	}
-	assert(as->readers);
-	assert(as->readers[dev]);
+	assert(as->writers);
+	assert(as->writers[dev]);
 	as->writers[dev](as, address, datum, 0);
 }
 
@@ -309,8 +309,8 @@ void address_space_store_hword(AddressSpace *as, DWORD address, BYTE datum) {
 		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
 		return;
 	}
-	assert(as->readers);
-	assert(as->readers[dev]);
+	assert(as->writers);
+	assert(as->writers[dev]);
 	as->writers[dev](as, address, datum, 1);
 }
 
@@ -321,8 +321,8 @@ void address_space_store_word(AddressSpace *as, DWORD address, BYTE datum) {
 		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
 		return;
 	}
-	assert(as->readers);
-	assert(as->readers[dev]);
+	assert(as->writers);
+	assert(as->writers[dev]);
 	as->writers[dev](as, address, datum, 2);
 }
 
@@ -333,8 +333,8 @@ void address_space_store_dword(AddressSpace *as, DWORD address, BYTE datum) {
 		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
 		return;
 	}
-	assert(as->readers);
-	assert(as->readers[dev]);
+	assert(as->writers);
+	assert(as->writers[dev]);
 	as->writers[dev](as, address, datum, 3);
 }
 
@@ -430,14 +430,13 @@ Processor *processor_new(AddressSpace *as) {
 
 void processor_step(Processor *p) {
 	WORD ir;
-	int opc, rd, fn3, rs1, rs2, imm12, disp12;
+	int opc, rd, fn3, rs1, rs2, imm12, imm12s, disp12;
 	DWORD imm20;
 	DWORD disp20;
 
 	if(!p->running) return;
 
 	ir = address_space_fetch_word(p->as, p->pc);
-	printf("IF: @%016llX $%08lX\n", p->pc, ir);
 	p->pc = p->pc + 4;
 	if((ir & 3) != 3) {
 		fprintf(stderr, "Illegal instruction $%08lX at $%016llX\n", ir, p->pc);
@@ -451,7 +450,9 @@ void processor_step(Processor *p) {
 	rs1 = (ir >> 15) & 0x1F;
 	rs2 = (ir >> 20) & 0x1F;
 	imm20 = (ir & 0xFFFFF000) | (-(ir & 0x80000000));
-	imm12 = (ir >> 20);
+	imm12 = ir >> 20;
+	imm12s = ((ir >> 7) & 0x1F) | ((ir >> 20) & 0xFE0);
+	imm12s |= -(imm12s & 0x800);
 	disp20 = (((ir & 0x7FE00000) >> 20)
 		 |((ir & 0x00100000) >> 9)
 		 |(ir & 0x000FF000)
@@ -571,19 +572,19 @@ void processor_step(Processor *p) {
 		case 0x23:
 			switch(fn3) {
 				case 0: // SB
-					address_space_store_byte(p->as, p->x[rs1]+imm12, p->x[rs2]);
+					address_space_store_byte(p->as, p->x[rs1]+imm12s, p->x[rs2]);
 					break;
 
 				case 1: // SH
-					address_space_store_hword(p->as, p->x[rs1]+imm12, p->x[rs2]);
+					address_space_store_hword(p->as, p->x[rs1]+imm12s, p->x[rs2]);
 					break;
 
 				case 2: // SW
-					address_space_store_word(p->as, p->x[rs1]+imm12, p->x[rs2]);
+					address_space_store_word(p->as, p->x[rs1]+imm12s, p->x[rs2]);
 					break;
 
 				case 3: // SD
-					address_space_store_dword(p->as, p->x[rs1]+imm12, p->x[rs2]);
+					address_space_store_dword(p->as, p->x[rs1]+imm12s, p->x[rs2]);
 					break;
 
 				default:
