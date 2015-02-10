@@ -99,6 +99,7 @@ AddressSpace *address_space_new(void) {
 
 
 void address_space_ram_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
+	addr &= ~(DEV_MASK | CARD_MASK);
 	if(addr > PHYS_RAM_MASK) {
 		fprintf(stderr, "Warning: writing $%016llX to mirrored RAM at $%016llX, size code %d\n", b, addr, sz);
 	}
@@ -136,6 +137,7 @@ void address_space_ram_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
 #define RAMF(a) (UDWORD)(as->ram[(a) & PHYS_RAM_MASK])
 
 UDWORD address_space_ram_reader(AddressSpace *as, UDWORD addr, int sz) {
+	addr &= ~(DEV_MASK | CARD_MASK);
 	if(addr > PHYS_RAM_MASK) {
 		fprintf(stderr, "Warning: reading mirrored RAM at $%016llX\n", addr);
 	}
@@ -170,6 +172,7 @@ UDWORD address_space_ram_reader(AddressSpace *as, UDWORD addr, int sz) {
 
 #define ROMF(a) (UDWORD)(as->rom[(a) & ROM_MASK])
 UDWORD address_space_rom_reader(AddressSpace *as, UDWORD addr, int sz) {
+	addr &= ~(DEV_MASK | CARD_MASK);
 	if(addr > ROM_MASK) {
 		fprintf(stderr, "Warning: reading mirrored ROM at $%016llX\n", addr);
 	}
@@ -203,6 +206,7 @@ UDWORD address_space_rom_reader(AddressSpace *as, UDWORD addr, int sz) {
 
 
 void address_space_uart_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
+	addr &= ~(DEV_MASK | CARD_MASK);
 	switch(addr & 1) {
 	case 0:		printf("%c", (BYTE)b); break;
 	default:	break;
@@ -214,6 +218,7 @@ UDWORD address_space_uart_reader(AddressSpace *as, UDWORD addr, int sz) {
 	int n;
 	BYTE c;
 
+	addr &= ~(DEV_MASK | CARD_MASK);
 	switch(addr & 1) {
 	case 0:		return 0;
 	case 1:
@@ -295,6 +300,42 @@ void address_space_store_byte(AddressSpace *as, DWORD address, BYTE datum) {
 	assert(as->readers);
 	assert(as->readers[dev]);
 	as->writers[dev](as, address, datum, 0);
+}
+
+
+void address_space_store_hword(AddressSpace *as, DWORD address, BYTE datum) {
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
+		return;
+	}
+	assert(as->readers);
+	assert(as->readers[dev]);
+	as->writers[dev](as, address, datum, 1);
+}
+
+
+void address_space_store_word(AddressSpace *as, DWORD address, BYTE datum) {
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
+		return;
+	}
+	assert(as->readers);
+	assert(as->readers[dev]);
+	as->writers[dev](as, address, datum, 2);
+}
+
+
+void address_space_store_dword(AddressSpace *as, DWORD address, BYTE datum) {
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
+		return;
+	}
+	assert(as->readers);
+	assert(as->readers[dev]);
+	as->writers[dev](as, address, datum, 3);
 }
 
 
@@ -524,6 +565,31 @@ void processor_step(Processor *p) {
 				case 7: // LDU
 					p->x[rd] = address_space_fetch_dword(p->as, p->x[rs1] + imm12);
 					break;
+			}
+			break;
+		// Sx
+		case 0x23:
+			switch(fn3) {
+				case 0: // SB
+					address_space_store_byte(p->as, p->x[rs1]+imm12, p->x[rs2]);
+					break;
+
+				case 1: // SH
+					address_space_store_hword(p->as, p->x[rs1]+imm12, p->x[rs2]);
+					break;
+
+				case 2: // SW
+					address_space_store_word(p->as, p->x[rs1]+imm12, p->x[rs2]);
+					break;
+
+				case 3: // SD
+					address_space_store_dword(p->as, p->x[rs1]+imm12, p->x[rs2]);
+					break;
+
+				default:
+					fprintf(stderr, "Instruction $%08lX: Unknown store size at $%016llX\n", ir, p->pc);
+					p->running = 0;
+					return;
 			}
 			break;
 	}

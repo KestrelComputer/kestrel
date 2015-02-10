@@ -1,22 +1,25 @@
 \ This software is the Kestrel-3's first milestone: print a bunch of "A"
 \ characters to the console.
 
+	\ RAM variables
+0 CONSTANT ctr		( loop iteration counter )
+
 	$0000 ORG		( RISC-V ISA spec says we boot here. )
 	$CC $2000 ADVANCE
 
-	0 x31 auipc		( X31 = address of next insn )
-	assume-gp		( This lets us load big constants )
+	0 x31 auipc		( X31 = address of next instruction )
+	assume-gp
 
-	x31 gl> uart-port x2 ld	( X2 = uart transmit port )
-	x0 65 x3 addi		( X3 = ASCII code for "A" )
--> .again
-	x3 x2 0 sb		( send "A" to console )
-	x31 gl> .ctr x4 ld	( count how many "A"s we send )
-	x4 1 x4 addi
-	x4 x31 gs> .ctr sd
-  x0 x0 .again beq
-	.again x0 jal		( repeat forever )
+	x31 gl> uart-tx x2 ld	( X2 -> UART TX register )
+	x0 65 x3 addi		( X3 = ASCII character 'A' )
 
--> uart-port	$0F000000.00000000 D,
--> .ctr		0.0 D,
+	x31 gl> ram-base x4 ld	( X4 -> start of RAM )
 
+-> agn	x3 x2 0 sb		( Send 'a' to console )
+	x4 ctr x5 ld		( Increment loop counter )
+	x5 1 x5 addi
+	x5 x4 ctr sd
+	agn x0 jal		( repeat forever )
+
+-> uart-tx	$0F000000.00000000 D,
+-> ram-base	$01000000.00000000 D,
