@@ -392,6 +392,11 @@ void processor_step(Processor *p) {
 		 |(ir & 0x000FF000)
 		 |((ir & 0x80000000) >> 11));
 	disp20 |= -(disp20 & 0x00100000);
+	disp12 = (((ir >> 7) & 0x001E)
+		 |((ir << 4) & 0x0800)
+		 |((ir >> 20) & 0x07E0)
+		 |((ir >> 19) & 0x1000));
+	disp12 |= -(disp12 & 0x00001000);
 
 	switch(opc) {
 		// LUI
@@ -406,7 +411,55 @@ void processor_step(Processor *p) {
 
 		// JAL
 		case 0x6F:
+			p->x[rd] = p->pc;
 			p->pc = p->pc + disp20;
+			break;
+
+		// JALR
+		case 0x67:
+			p->x[rd] = p->pc;
+			p->pc = (p->x[rs1] + imm12) & -2;
+			break;
+
+		// Bxx
+		case 0x63:
+			switch(fn3) {
+				case 0: // BEQ
+					if(p->x[rs1] == p->x[rs2])
+						p->pc += disp12;
+					break;
+
+				case 1: // BNE
+					if(p->x[rs1] != p->x[rs2])
+						p->pc += disp12;
+					break;
+
+				case 2: // unused
+				case 3: // unused
+					fprintf(stderr, "$%016llX  B??.%d X%d, X%d, %d", p->pc, fn3, rs1, rs2, disp12);
+					p->running = 0;
+					break;
+
+				case 4: // BLT
+					if((DWORD)(p->x[rs1]) < (DWORD)(p->x[rs2]))
+						p->pc += disp12;
+					break;
+
+				case 5: // BGE
+					if((DWORD)(p->x[rs1]) >= (DWORD)(p->x[rs2]))
+						p->pc += disp12;
+					break;
+
+				case 6: // BLTU
+					if((UDWORD)(p->x[rs1]) < (UDWORD)(p->x[rs2]))
+						p->pc += disp12;
+					break;
+
+				case 7: // BGEU
+					if((UDWORD)(p->x[rs1]) >= (UDWORD)(p->x[rs2]))
+						p->pc += disp12;
+					break;
+			}
 			break;
 	}
 

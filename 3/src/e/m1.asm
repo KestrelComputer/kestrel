@@ -14,6 +14,7 @@
 	x31 gl> .ctr x4 ld	( count how many "A"s we send )
 	x4 1 x4 addi
 	x4 x31 gs> .ctr sd
+  x0 x0 .again beq
 	.again x0 jal		( repeat forever )
 
 -> uart-port	$0F000000.00000000 D,
