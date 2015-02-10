@@ -593,6 +593,11 @@ void processor_step(Processor *p) {
 					return;
 			}
 			break;
+
+		// ADDI
+		case 0x13:
+			p->x[rd] = p->x[rs1] + imm12;
+			break;
 	}
 
 	p->x[0] = 0;
