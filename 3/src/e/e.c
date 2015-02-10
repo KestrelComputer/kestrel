@@ -43,9 +43,10 @@ typedef unsigned long long	UDWORD;
 
 typedef struct AddressSpace	AddressSpace;
 typedef struct Options		Options;
+typedef struct Processor	Processor;
 
-typedef void (*WRFUNC)(AddressSpace *, UDWORD, BYTE);
-typedef BYTE (*RDFUNC)(AddressSpace *, UDWORD);
+typedef void (*WRFUNC)(AddressSpace *, UDWORD, UDWORD, int);
+typedef UDWORD (*RDFUNC)(AddressSpace *, UDWORD, int);
 
 
 struct AddressSpace {
@@ -58,6 +59,14 @@ struct AddressSpace {
 
 struct Options {
 	char *	romFilename;
+};
+
+
+struct Processor {
+	UDWORD       x[32];
+	UDWORD       pc;
+	AddressSpace *as;
+	int          running;
 };
 
 
@@ -89,39 +98,119 @@ AddressSpace *address_space_new(void) {
 }
 
 
-void address_space_ram_writer(AddressSpace *as, UDWORD addr, BYTE b) {
+void address_space_ram_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
 	if(addr > PHYS_RAM_MASK) {
-		fprintf(stderr, "Warning: writing $%02X to mirrored RAM at $%016llX\n", b, addr);
+		fprintf(stderr, "Warning: writing $%016llX to mirrored RAM at $%016llX, size code %d\n", b, addr, sz);
 	}
-	as->ram[addr & PHYS_RAM_MASK] = b;
+	switch(sz) {
+	case 0:
+		as->ram[addr & PHYS_RAM_MASK] = b;
+		break;
+
+	case 1:
+		as->ram[addr & PHYS_RAM_MASK] = b;
+		as->ram[(addr+1) & PHYS_RAM_MASK] = b >> 8;
+		break;
+
+	case 2:
+		as->ram[addr & PHYS_RAM_MASK] = b;
+		as->ram[(addr+1) & PHYS_RAM_MASK] = b >> 8;
+		as->ram[(addr+2) & PHYS_RAM_MASK] = b >> 16;
+		as->ram[(addr+3) & PHYS_RAM_MASK] = b >> 24;
+		break;
+
+	case 3:
+		as->ram[addr & PHYS_RAM_MASK] = b;
+		as->ram[(addr+1) & PHYS_RAM_MASK] = b >> 8;
+		as->ram[(addr+2) & PHYS_RAM_MASK] = b >> 16;
+		as->ram[(addr+3) & PHYS_RAM_MASK] = b >> 24;
+		as->ram[(addr+4) & PHYS_RAM_MASK] = b >> 32;
+		as->ram[(addr+5) & PHYS_RAM_MASK] = b >> 40;
+		as->ram[(addr+6) & PHYS_RAM_MASK] = b >> 48;
+		as->ram[(addr+7) & PHYS_RAM_MASK] = b >> 56;
+		break;
+	}
 }
 
 
-BYTE address_space_ram_reader(AddressSpace *as, UDWORD addr) {
+#define RAMF(a) (UDWORD)(as->ram[(a) & PHYS_RAM_MASK])
+
+UDWORD address_space_ram_reader(AddressSpace *as, UDWORD addr, int sz) {
 	if(addr > PHYS_RAM_MASK) {
 		fprintf(stderr, "Warning: reading mirrored RAM at $%016llX\n", addr);
 	}
-	return as->ram[addr & PHYS_RAM_MASK];
+	switch(sz) {
+	case 0:
+		return RAMF(addr);
+
+	case 1:
+		return (RAMF(addr)
+			| (RAMF(addr+1) << 8));
+
+	case 2:
+		return (RAMF(addr)
+			| (RAMF(addr+1) << 8)
+			| (RAMF(addr+2) << 16)
+			| (RAMF(addr+3) << 24));
+
+	case 3:
+		return (RAMF(addr)
+			| (RAMF(addr+1) << 8)
+			| (RAMF(addr+2) << 16)
+			| (RAMF(addr+3) << 24)
+			| (RAMF(addr+4) << 32)
+			| (RAMF(addr+5) << 40)
+			| (RAMF(addr+6) << 48)
+			| (RAMF(addr+7) << 56));
+	}
+	fprintf(stderr, "Read of unknown size at address $%016llX\n", addr);
+	return 0xDDDDDDDD;
 }
 
 
-BYTE address_space_rom_reader(AddressSpace *as, UDWORD addr) {
+#define ROMF(a) (UDWORD)(as->rom[(a) & ROM_MASK])
+UDWORD address_space_rom_reader(AddressSpace *as, UDWORD addr, int sz) {
 	if(addr > ROM_MASK) {
 		fprintf(stderr, "Warning: reading mirrored ROM at $%016llX\n", addr);
 	}
-	return as->rom[addr & ROM_MASK];
+	switch(sz) {
+	case 0:
+		return ROMF(addr);
+
+	case 1:
+		return (ROMF(addr)
+			| (ROMF(addr+1) << 8));
+
+	case 2:
+		return (ROMF(addr)
+			| (ROMF(addr+1) << 8)
+			| (ROMF(addr+2) << 16)
+			| (ROMF(addr+3) << 24));
+
+	case 3:
+		return (ROMF(addr)
+			| (ROMF(addr+1) << 8)
+			| (ROMF(addr+2) << 16)
+			| (ROMF(addr+3) << 24)
+			| (ROMF(addr+4) << 32)
+			| (ROMF(addr+5) << 40)
+			| (ROMF(addr+6) << 48)
+			| (ROMF(addr+7) << 56));
+	}
+	fprintf(stderr, "Read of unknown size at address $%016llX\n", addr);
+	return 0xDDDDDDDD;
 }
 
 
-void address_space_uart_writer(AddressSpace *as, UDWORD addr, BYTE b) {
+void address_space_uart_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
 	switch(addr & 1) {
-	case 0:		printf("%c", b); break;
+	case 0:		printf("%c", (BYTE)b); break;
 	default:	break;
 	}
 }
 
 
-BYTE address_space_uart_reader(AddressSpace *as, UDWORD addr) {
+UDWORD address_space_uart_reader(AddressSpace *as, UDWORD addr, int sz) {
 	int n;
 	BYTE c;
 
@@ -135,14 +224,14 @@ BYTE address_space_uart_reader(AddressSpace *as, UDWORD addr) {
 }
 
 
-void address_space_no_writer(AddressSpace *as, UDWORD addr, BYTE b) {
-	fprintf(stderr, "Error: Writing byte $%02X to address $%016llX\n", b, addr);
+void address_space_no_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
+	fprintf(stderr, "Error: Writing $%016llX to address $%016llX\n", b, addr);
 }
 
 
-BYTE address_space_no_reader(AddressSpace *as, UDWORD addr) {
-	fprintf(stderr, "Error: Reading byte from address $%016llX; returning $CC\n", addr);
-	return 0xCC;
+UDWORD address_space_no_reader(AddressSpace *as, UDWORD addr, int sz) {
+	fprintf(stderr, "Error: Reading from address $%016llX; returning $CC\n", addr);
+	return 0xCCCCCCCCCCCCCCCC;
 }
 
 
@@ -205,7 +294,7 @@ void address_space_store_byte(AddressSpace *as, DWORD address, BYTE datum) {
 	}
 	assert(as->readers);
 	assert(as->readers[dev]);
-	as->writers[dev](as, address, datum);
+	as->writers[dev](as, address, datum, 0);
 }
 
 
@@ -217,7 +306,19 @@ BYTE address_space_fetch_byte(AddressSpace *as, DWORD address) {
 	}
 	assert(as->readers);
 	assert(as->readers[dev]);
-	return as->readers[dev](as, address);
+	return as->readers[dev](as, address, 0);
+}
+
+
+WORD address_space_fetch_word(AddressSpace *as, DWORD address) {
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCCCCCCCC\n", address);
+		return 0xCCCCCCCC;
+	}
+	assert(as->readers);
+	assert(as->readers[dev]);
+	return as->readers[dev](as, address, 2);
 }
 
 
@@ -250,27 +351,47 @@ Options *options_get(int argc, char *argv[]) {
 }
 
 
+Processor *processor_new(AddressSpace *as) {
+	Processor *p = (Processor *)malloc(sizeof(Processor));
+	if(p) {
+		memset(p, 0, sizeof(Processor));
+		p->pc = 0x2000;
+		p->as = as;
+		p->running = 1;
+	}
+	return p;
+}
+
+
+void processor_step(Processor *p) {
+	WORD ir;
+
+	if(!p->running) return;
+
+	ir = address_space_fetch_word(p->as, p->pc);
+	p->pc = p->pc + 4;
+	if((ir & 3) != 3) {
+		fprintf(stderr, "Illegal instruction $%08lX at $%016llX\n", ir, p->pc);
+		p->running = 0;
+		return;
+	}
+}
+
+
 int run(int argc, char *argv[]) {
 	Options *opts = NULL;
 	AddressSpace *as = NULL;
+	Processor *p = NULL;
 
 	printf("This is e, the Polaris 64-bit RISC-V architecture emulator.\n");
 	printf("Version %d.%d.%d.\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 	opts = options_get(argc, argv);
 	as = address_space_configure(opts);
+	p = processor_new(as);
 
-	do {
-		char *msg = "Press any key to continue.\n";
-		while(*msg) {
-			address_space_store_byte(as, 0x0F00000000000000, *msg);
-			msg++;
-		}
-	} while(0);
-	do {
-		BYTE b = 0;
-		while(!b) b = address_space_fetch_byte(as, 0x0F00000000000001);
-		printf("You typed: %d\n", b);
-	} while(0);
+	while(p->running) {
+		processor_step(p);
+	}
 
 	return 0;
 }
