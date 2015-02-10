@@ -552,7 +552,7 @@ HEX
 
 \ RV64I extensions.
 : LWU		( rs1 disp rd -- )	00006003 I, ;
-: LD		( rs1 disp rd -- )	00007003 I, ;
+: LD		( rs1 disp rd -- )	00003003 I, ;
 : SD		( rs1 rs2 imm -- )	00003023 S, ;
 : ADDIW		( rs1 imm rd -- )	0000001B I, ;
 : SLLIW		( rs1 imm rd -- )	0000101B I, ;
