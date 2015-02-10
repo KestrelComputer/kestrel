@@ -101,6 +101,14 @@ DECIMAL
 
 : ALIGN ( n -- )	DUP 1- bc @ + SWAP NEGATE AND bc ! ;
 
+\ ADVANCE moves the location counter to the desired address, filling in the
+\ image with the indicated byte.
+
+: ADVANCE ( n addr -- )
+	BEGIN LC OVER = NOT WHILE
+		OVER B,
+	REPEAT 2DROP ;
+
 \ Supporting a RISC architecture, the RISC-V instruction set architecture
 \ attempts to minimize hardware required for instruction decoding by placing
 \ often used fields at standard locations in an instruction.  These words

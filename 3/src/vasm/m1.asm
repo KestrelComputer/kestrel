@@ -1,7 +1,8 @@
 \ This software is the Kestrel-3's first milestone: print a bunch of "A"
 \ characters to the console.
 
-	$2000 ORG		( RISC-V ISA spec says we boot here. )
+	$0000 ORG		( RISC-V ISA spec says we boot here. )
+	$CC $2000 ADVANCE
 
 	0 x31 auipc		( X31 = address of next insn )
 	assume-gp		( This lets us load big constants )
