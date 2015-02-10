@@ -310,6 +310,18 @@ BYTE address_space_fetch_byte(AddressSpace *as, DWORD address) {
 }
 
 
+HWORD address_space_fetch_hword(AddressSpace *as, DWORD address) {
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCCCC\n", address);
+		return 0xCCCC;
+	}
+	assert(as->readers);
+	assert(as->readers[dev]);
+	return as->readers[dev](as, address, 1);
+}
+
+
 WORD address_space_fetch_word(AddressSpace *as, DWORD address) {
 	int dev = (address & DEV_MASK) >> 56;
 	if((address & CARD_MASK) != 0) {
@@ -319,6 +331,18 @@ WORD address_space_fetch_word(AddressSpace *as, DWORD address) {
 	assert(as->readers);
 	assert(as->readers[dev]);
 	return as->readers[dev](as, address, 2);
+}
+
+
+DWORD address_space_fetch_dword(AddressSpace *as, DWORD address) {
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCCCCCCCCCCCCCCCC\n", address);
+		return 0xCCCCCCCCCCCCCCCC;
+	}
+	assert(as->readers);
+	assert(as->readers[dev]);
+	return as->readers[dev](as, address, 3);
 }
 
 
@@ -458,6 +482,47 @@ void processor_step(Processor *p) {
 				case 7: // BGEU
 					if((UDWORD)(p->x[rs1]) >= (UDWORD)(p->x[rs2]))
 						p->pc += disp12;
+					break;
+			}
+			break;
+
+		// Lx(x)
+		case 0x03:
+			switch(fn3) {
+				case 0: // LB
+					p->x[rd] = address_space_fetch_byte(p->as, p->x[rs1] + imm12);
+					p->x[rd] |= -(p->x[rd] & 0x80);
+					break;
+
+				case 1: // LH
+					p->x[rd] = address_space_fetch_hword(p->as, p->x[rs1] + imm12);
+					p->x[rd] |= -(p->x[rd] & 0x8000);
+					break;
+
+				case 2: // LW
+					p->x[rd] = address_space_fetch_word(p->as, p->x[rs1] + imm12);
+					p->x[rd] |= -(p->x[rd] & 0x80000000);
+					break;
+
+				case 3: // LD
+					p->x[rd] = address_space_fetch_dword(p->as, p->x[rs1] + imm12);
+					// p->x[rd] |= -(p->x[rd] & 0x8000000000000000);
+					break;
+
+				case 4: // LBU
+					p->x[rd] = address_space_fetch_byte(p->as, p->x[rs1] + imm12);
+					break;
+
+				case 5: // LHU
+					p->x[rd] = address_space_fetch_hword(p->as, p->x[rs1] + imm12);
+					break;
+
+				case 6: // LWU
+					p->x[rd] = address_space_fetch_word(p->as, p->x[rs1] + imm12);
+					break;
+
+				case 7: // LDU
+					p->x[rd] = address_space_fetch_dword(p->as, p->x[rs1] + imm12);
 					break;
 			}
 			break;
