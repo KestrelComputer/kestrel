@@ -34,10 +34,15 @@ image /image $CC FILL
 
 \ ROM" saves the currently assembled image to an emulator ROM file.  No
 \ relocation or even starting address is saved --- it's just a raw binary dump.
-: ROM" ( -- : "filename" )
-	[CHAR] " PARSE R/W BIN CREATE-FILE THROW >R
+\ 
+\ >ROM does the same but takes its filename from the stack.
+: >ROM ( caddr u -- )
+	R/W BIN CREATE-FILE THROW >R
 	image bc @ R@ WRITE-FILE THROW
 	R> CLOSE-FILE THROW ;
+
+: ROM" ( -- : "filename" )
+	[CHAR] " PARSE >ROM ;
 
 \ Check to make sure enough room exists in the image to assemble the desired
 \ number of bytes.
