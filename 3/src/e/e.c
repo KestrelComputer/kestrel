@@ -438,12 +438,8 @@ void processor_step(Processor *p) {
 
 	ir = address_space_fetch_word(p->as, p->pc);
 	p->pc = p->pc + 4;
-	if((ir & 3) != 3) {
-		fprintf(stderr, "Illegal instruction $%08lX at $%016llX\n", ir, p->pc);
-		p->running = 0;
-		return;
-	}
 
+	/* This takes a bunch of time.  But it's still faster than live FPGA hardware.  ;) */
 	opc = ir & 0x7F;
 	rd = (ir >> 7) & 0x1F;
 	fn3 = (ir >> 12) & 0x07;
@@ -633,6 +629,49 @@ void processor_step(Processor *p) {
 
 			}
 			break;
+
+		// ADD, et. al.
+		case 0x33:
+			switch(fn3) {
+			case 0: // ADD, SUB
+				if(ir & 0x40000000) p->x[rd] = p->x[rs1] - p->x[rs2];
+				else                p->x[rd] = p->x[rs1] + p->x[rs2];
+				break;
+
+			case 1: // SLL
+				p->x[rd] = p->x[rd] << p->x[rs2];
+				break;
+
+			case 2: // SLT
+				p->x[rd] = (DWORD)p->x[rs1] < (DWORD)p->x[rs2];
+				break;
+
+			case 3: // SLTU
+				p->x[rd] = (UDWORD)p->x[rs1] < (UDWORD)p->x[rs2];
+				break;
+
+			case 4: // XOR
+				p->x[rd] = p->x[rs1] ^ p->x[rs2];
+				break;
+
+			case 5: // SRL, SRA
+				if(ir & 0x40000000) p->x[rd] = (DWORD)p->x[rs1] >> p->x[rs2];
+				else                p->x[rd] = (UDWORD)p->x[rs1] >> (UDWORD)p->x[rs2];
+				break;
+
+			case 6: // OR
+				p->x[rd] = p->x[rs1] | p->x[rs2];
+				break;
+
+			case 7: // AND
+				p->x[rd] = p->x[rs1] & p->x[rs2];
+				break;
+			}
+			break;
+
+		default:
+			fprintf(stderr, "Illegal instruction $%08lX at $%016llX\n", ir, p->pc);
+			p->running = 0;
 	}
 
 	p->x[0] = 0;
