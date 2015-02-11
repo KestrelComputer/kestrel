@@ -1,4 +1,4 @@
-/* vim: set noet ts=8 sw=8: */
+ /* vim: set noet ts=8 sw=8: */
 
 
 #include <stdio.h>
@@ -208,7 +208,7 @@ UDWORD address_space_rom_reader(AddressSpace *as, UDWORD addr, int sz) {
 void address_space_uart_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
 	addr &= ~(DEV_MASK | CARD_MASK);
 	switch(addr & 1) {
-	case 0:		printf("%c", (BYTE)b); break;
+	case 0:		printf("%c", (BYTE)b); fflush(stdout); break;
 	default:	break;
 	}
 }
@@ -451,6 +451,7 @@ void processor_step(Processor *p) {
 	rs2 = (ir >> 20) & 0x1F;
 	imm20 = (ir & 0xFFFFF000) | (-(ir & 0x80000000));
 	imm12 = ir >> 20;
+	imm12 |= -(imm12 & 0x800);
 	imm12s = ((ir >> 7) & 0x1F) | ((ir >> 20) & 0xFE0);
 	imm12s |= -(imm12s & 0x800);
 	disp20 = (((ir & 0x7FE00000) >> 20)

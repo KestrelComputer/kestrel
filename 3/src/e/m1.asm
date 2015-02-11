@@ -4,8 +4,8 @@
 	\ RAM variables
 0 CONSTANT ctr		( loop iteration counter )
 
-	$0000 ORG		( RISC-V ISA spec says we boot here. )
-	$CC $2000 ADVANCE
+	$0000 ORG
+	$CC $2000 ADVANCE	( RISC-V ISA spec says we boot here. )
 
 	0 x31 auipc		( X31 = address of next instruction )
 	assume-gp

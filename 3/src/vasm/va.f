@@ -1,3 +1,6 @@
+\ RISC-V Assembler
+\ Version 0.1.4
+
 \ Sometimes convenient.
 DECIMAL
 : BINARY		2 BASE ! ;
@@ -99,6 +102,10 @@ DECIMAL
 
 : (d,) ( d -- )		dwcomponents (w,) (w,) ;
 : D, ( d -- )		8 room (d,) ;
+
+\ ASCII, places a string of ASCII characters.
+: ASCII, ( caddr u -- )
+	BEGIN DUP WHILE OVER C@ B, 1 /STRING REPEAT 2DROP ;
 
 \ ALIGN helps establish alignment in a program.  The argument can be any power
 \ of two, up to and including the size of the image buffer.  Non-power-of-two
