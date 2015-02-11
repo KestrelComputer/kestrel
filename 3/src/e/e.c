@@ -595,9 +595,43 @@ void processor_step(Processor *p) {
 			}
 			break;
 
-		// ADDI
+		// ADDI, et. al.
 		case 0x13:
-			p->x[rd] = p->x[rs1] + imm12;
+			switch(fn3) {
+			case 0: // ADDI
+				p->x[rd] = p->x[rs1] + imm12;
+				break;
+
+			case 1: // SLLI
+				p->x[rd] = p->x[rd] << imm12;
+				break;
+
+			case 2: // SLTI
+				p->x[rd] = (DWORD)p->x[rs1] < imm12;
+				break;
+
+			case 3: // SLTIU
+				p->x[rd] = (UDWORD)p->x[rs1] < (UDWORD)imm12;
+				break;
+
+			case 4: // XORI
+				p->x[rd] = p->x[rs1] ^ imm12;
+				break;
+
+			case 5: // SRLI, SRAI
+				if(ir & 0x40000000) p->x[rd] = (DWORD)p->x[rs1] >> imm12;
+				else                p->x[rd] = (UDWORD)p->x[rs1] >> (UDWORD)imm12;
+				break;
+
+			case 6: // ORI
+				p->x[rd] = p->x[rs1] | imm12;
+				break;
+
+			case 7: // ANDI
+				p->x[rd] = p->x[rs1] & imm12;
+				break;
+
+			}
 			break;
 	}
 
