@@ -1,3 +1,6 @@
+\ RISC-V Assembler
+\ Version 0.1.4
+
 \ Sometimes convenient.
 DECIMAL
 : BINARY		2 BASE ! ;
@@ -31,6 +34,18 @@ VARIABLE bc
 RESET
 image /image $CC FILL
 : ASSUME-GP ( -- )	LC gp0 ! ;
+
+\ ROM" saves the currently assembled image to an emulator ROM file.  No
+\ relocation or even starting address is saved --- it's just a raw binary dump.
+\ 
+\ >ROM does the same but takes its filename from the stack.
+: >ROM ( caddr u -- )
+	R/W BIN CREATE-FILE THROW >R
+	image bc @ R@ WRITE-FILE THROW
+	R> CLOSE-FILE THROW ;
+
+: ROM" ( -- : "filename" )
+	[CHAR] " PARSE >ROM ;
 
 \ Check to make sure enough room exists in the image to assemble the desired
 \ number of bytes.
@@ -88,11 +103,23 @@ DECIMAL
 : (d,) ( d -- )		dwcomponents (w,) (w,) ;
 : D, ( d -- )		8 room (d,) ;
 
+\ ASCII, places a string of ASCII characters.
+: ASCII, ( caddr u -- )
+	BEGIN DUP WHILE OVER C@ B, 1 /STRING REPEAT 2DROP ;
+
 \ ALIGN helps establish alignment in a program.  The argument can be any power
 \ of two, up to and including the size of the image buffer.  Non-power-of-two
 \ values will leave the buffer counter variable in a weird location.
 
 : ALIGN ( n -- )	DUP 1- bc @ + SWAP NEGATE AND bc ! ;
+
+\ ADVANCE moves the location counter to the desired address, filling in the
+\ image with the indicated byte.
+
+: ADVANCE ( n addr -- )
+	BEGIN LC OVER = NOT WHILE
+		OVER B,
+	REPEAT 2DROP ;
 
 \ Supporting a RISC architecture, the RISC-V instruction set architecture
 \ attempts to minimize hardware required for instruction decoding by placing
@@ -532,7 +559,7 @@ HEX
 
 \ RV64I extensions.
 : LWU		( rs1 disp rd -- )	00006003 I, ;
-: LD		( rs1 disp rd -- )	00007003 I, ;
+: LD		( rs1 disp rd -- )	00003003 I, ;
 : SD		( rs1 rs2 imm -- )	00003023 S, ;
 : ADDIW		( rs1 imm rd -- )	0000001B I, ;
 : SLLIW		( rs1 imm rd -- )	0000101B I, ;
@@ -593,4 +620,42 @@ DECIMAL
 29 CONSTANT X29
 30 CONSTANT X30
 31 CONSTANT X31
+
+\ Register aliases (for C ABI as of 2015-Jan)
+\			Caller	Subroutine
+\			Saved	Saved
+ X0 CONSTANT ZERO	( hardwired to zero )
+ X1 CONSTANT RA		\
+ X2 CONSTANT SP			\
+ X3 CONSTANT GP		( officially, n/a; assume caller-saved if needed )
+ X4 CONSTANT TP		( officially, n/a; assume caller-saved if needed )
+ X5 CONSTANT T0		\
+ X6 CONSTANT T1		\
+ X7 CONSTANT T2		\
+ X8 CONSTANT S0			\
+ X9 CONSTANT S1			\
+X10 CONSTANT A0		\
+X11 CONSTANT A1		\
+X12 CONSTANT A2		\
+X13 CONSTANT A3		\
+X14 CONSTANT A4		\
+X15 CONSTANT A5		\
+X16 CONSTANT A6		\
+X17 CONSTANT A7		\
+X18 CONSTANT S2			\
+X19 CONSTANT S3			\
+X20 CONSTANT S4			\
+X21 CONSTANT S5			\
+X22 CONSTANT S6			\
+X23 CONSTANT S7			\
+X24 CONSTANT S8			\
+X25 CONSTANT S9			\
+X26 CONSTANT S10		\
+X27 CONSTANT S11		\
+X28 CONSTANT T3		\
+X29 CONSTANT T4		\
+X30 CONSTANT T5		\
+X31 CONSTANT T6		\
+
+SP CONSTANT FP
 

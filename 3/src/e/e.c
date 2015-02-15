@@ -1,4 +1,4 @@
-/* vim: set noet ts=8 sw=8: */
+ /* vim: set noet ts=8 sw=8: */
 
 
 #include <stdio.h>
@@ -17,13 +17,14 @@ enum {
 	VERSION_MINOR	= 1,
 	VERSION_PATCH	= 0,
 
-	MAX_PAGES	= 131072,
-	PAGE_FIELD	= 8,
-	PAGE_MASK	= MAX_PAGES-1,
-
 	MB		= 1048576L,
 
-	ROM_SIZE	= 16384,
+	MAX_DEVS	= 16,
+	DEV_MASK	= 0x0F00000000000000,
+	CARD_MASK	= 0xF000000000000000,
+
+	ROM_SIZE	= 65536,
+	ROM_MASK	= ROM_SIZE-1,
 	PHYS_RAM_SIZE	= 16*MB,
 	PHYS_RAM_MASK	= PHYS_RAM_SIZE - 1,
 	PHYS_ADDR_SIZE	= 32*MB,
@@ -42,21 +43,30 @@ typedef unsigned long long	UDWORD;
 
 typedef struct AddressSpace	AddressSpace;
 typedef struct Options		Options;
+typedef struct Processor	Processor;
 
-typedef void (*WRFUNC)(AddressSpace *, UDWORD, BYTE);
-typedef BYTE (*RDFUNC)(AddressSpace *, UDWORD);
+typedef void (*WRFUNC)(AddressSpace *, UDWORD, UDWORD, int);
+typedef UDWORD (*RDFUNC)(AddressSpace *, UDWORD, int);
 
 
 struct AddressSpace {
-	BYTE	*romImage;
-	BYTE	*ram;
-	WRFUNC	writers[MAX_PAGES];
-	RDFUNC	readers[MAX_PAGES];
+	UBYTE	*rom;
+	UBYTE	*ram;
+	WRFUNC	writers[MAX_DEVS];
+	RDFUNC	readers[MAX_DEVS];
 };
 
 
 struct Options {
 	char *	romFilename;
+};
+
+
+struct Processor {
+	UDWORD       x[32];
+	UDWORD       pc;
+	AddressSpace *as;
+	int          running;
 };
 
 
@@ -88,30 +98,127 @@ AddressSpace *address_space_new(void) {
 }
 
 
-void address_space_ram_writer(AddressSpace *as, UDWORD addr, BYTE b) {
-	assert(addr <= PHYS_ADDR_SIZE);
-	as->ram[addr & PHYS_RAM_MASK] = b;
+void address_space_ram_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
+	addr &= ~(DEV_MASK | CARD_MASK);
+	if(addr > PHYS_RAM_MASK) {
+		fprintf(stderr, "Warning: writing $%016llX to mirrored RAM at $%016llX, size code %d\n", b, addr, sz);
+	}
+	switch(sz) {
+	case 0:
+		as->ram[addr & PHYS_RAM_MASK] = b;
+		break;
+
+	case 1:
+		as->ram[addr & PHYS_RAM_MASK] = b;
+		as->ram[(addr+1) & PHYS_RAM_MASK] = b >> 8;
+		break;
+
+	case 2:
+		as->ram[addr & PHYS_RAM_MASK] = b;
+		as->ram[(addr+1) & PHYS_RAM_MASK] = b >> 8;
+		as->ram[(addr+2) & PHYS_RAM_MASK] = b >> 16;
+		as->ram[(addr+3) & PHYS_RAM_MASK] = b >> 24;
+		break;
+
+	case 3:
+		as->ram[addr & PHYS_RAM_MASK] = b;
+		as->ram[(addr+1) & PHYS_RAM_MASK] = b >> 8;
+		as->ram[(addr+2) & PHYS_RAM_MASK] = b >> 16;
+		as->ram[(addr+3) & PHYS_RAM_MASK] = b >> 24;
+		as->ram[(addr+4) & PHYS_RAM_MASK] = b >> 32;
+		as->ram[(addr+5) & PHYS_RAM_MASK] = b >> 40;
+		as->ram[(addr+6) & PHYS_RAM_MASK] = b >> 48;
+		as->ram[(addr+7) & PHYS_RAM_MASK] = b >> 56;
+		break;
+	}
 }
 
 
-BYTE address_space_ram_reader(AddressSpace *as, UDWORD addr) {
-	assert(addr <= PHYS_ADDR_SIZE);
-	return as->ram[addr & PHYS_RAM_MASK];
+#define RAMF(a) (UDWORD)(as->ram[(a) & PHYS_RAM_MASK])
+
+UDWORD address_space_ram_reader(AddressSpace *as, UDWORD addr, int sz) {
+	addr &= ~(DEV_MASK | CARD_MASK);
+	if(addr > PHYS_RAM_MASK) {
+		fprintf(stderr, "Warning: reading mirrored RAM at $%016llX\n", addr);
+	}
+	switch(sz) {
+	case 0:
+		return RAMF(addr);
+
+	case 1:
+		return (RAMF(addr)
+			| (RAMF(addr+1) << 8));
+
+	case 2:
+		return (RAMF(addr)
+			| (RAMF(addr+1) << 8)
+			| (RAMF(addr+2) << 16)
+			| (RAMF(addr+3) << 24));
+
+	case 3:
+		return (RAMF(addr)
+			| (RAMF(addr+1) << 8)
+			| (RAMF(addr+2) << 16)
+			| (RAMF(addr+3) << 24)
+			| (RAMF(addr+4) << 32)
+			| (RAMF(addr+5) << 40)
+			| (RAMF(addr+6) << 48)
+			| (RAMF(addr+7) << 56));
+	}
+	fprintf(stderr, "Read of unknown size at address $%016llX\n", addr);
+	return 0xDDDDDDDD;
 }
 
 
-void address_space_io_writer(AddressSpace *as, UDWORD addr, BYTE b) {
+#define ROMF(a) (UDWORD)(as->rom[(a) & ROM_MASK])
+UDWORD address_space_rom_reader(AddressSpace *as, UDWORD addr, int sz) {
+	addr &= ~(DEV_MASK | CARD_MASK);
+	if(addr > ROM_MASK) {
+		fprintf(stderr, "Warning: reading mirrored ROM at $%016llX\n", addr);
+	}
+	switch(sz) {
+	case 0:
+		return ROMF(addr);
+
+	case 1:
+		return (ROMF(addr)
+			| (ROMF(addr+1) << 8));
+
+	case 2:
+		return (ROMF(addr)
+			| (ROMF(addr+1) << 8)
+			| (ROMF(addr+2) << 16)
+			| (ROMF(addr+3) << 24));
+
+	case 3:
+		return (ROMF(addr)
+			| (ROMF(addr+1) << 8)
+			| (ROMF(addr+2) << 16)
+			| (ROMF(addr+3) << 24)
+			| (ROMF(addr+4) << 32)
+			| (ROMF(addr+5) << 40)
+			| (ROMF(addr+6) << 48)
+			| (ROMF(addr+7) << 56));
+	}
+	fprintf(stderr, "Read of unknown size at address $%016llX\n", addr);
+	return 0xDDDDDDDD;
+}
+
+
+void address_space_uart_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
+	addr &= ~(DEV_MASK | CARD_MASK);
 	switch(addr & 1) {
-	case 0:		printf("%c", b); break;
+	case 0:		printf("%c", (BYTE)b); fflush(stdout); break;
 	default:	break;
 	}
 }
 
 
-BYTE address_space_io_reader(AddressSpace *as, UDWORD addr) {
+UDWORD address_space_uart_reader(AddressSpace *as, UDWORD addr, int sz) {
 	int n;
 	BYTE c;
 
+	addr &= ~(DEV_MASK | CARD_MASK);
 	switch(addr & 1) {
 	case 0:		return 0;
 	case 1:
@@ -119,6 +226,17 @@ BYTE address_space_io_reader(AddressSpace *as, UDWORD addr) {
 		return c;
 	}
 	return 0;
+}
+
+
+void address_space_no_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
+	fprintf(stderr, "Error: Writing $%016llX to address $%016llX\n", b, addr);
+}
+
+
+UDWORD address_space_no_reader(AddressSpace *as, UDWORD addr, int sz) {
+	fprintf(stderr, "Error: Reading from address $%016llX; returning $CC\n", addr);
+	return 0xCCCCCCCCCCCCCCCC;
 }
 
 
@@ -130,14 +248,14 @@ AddressSpace *address_space_configure(Options *opts) {
 	assert(opts);
 	assert(opts->romFilename);
 
-	as->romImage = (BYTE *)malloc(ROM_SIZE);
-	memset(as->romImage, 0, ROM_SIZE);
+	as->rom = (UBYTE *)malloc(ROM_SIZE);
+	memset(as->rom, 0, ROM_SIZE);
 	romFile = fopen(opts->romFilename, "rb");
 	if(!romFile) {
 		fprintf(stderr, "Cannot open ROM file %s\n", opts->romFilename);
 		exit(1);
 	}
-	n = fread(as->romImage, 1, ROM_SIZE, romFile);
+	n = fread(as->rom, 1, ROM_SIZE, romFile);
 	if(n == ROM_SIZE) {
 		n = fread(&overflow, 1, 1, romFile);
 		if(n == 1) {
@@ -148,41 +266,124 @@ AddressSpace *address_space_configure(Options *opts) {
 	}
 	fclose(romFile);
 
-	as->ram = (BYTE *)malloc(PHYS_RAM_SIZE);
+	as->ram = (UBYTE *)malloc(PHYS_RAM_SIZE);
 	if(!as->ram) {
 		fprintf(stderr, "Cannot allocate physical RAM for emulated computer.\n");
 		exit(1);
 	}
 
-	for(n = 0; n < MAX_PAGES; n++) {
-		as->writers[n] = address_space_ram_writer;
-		as->readers[n] = address_space_ram_reader;
+	for(n = 0; n < MAX_DEVS; n++) {
+		as->writers[n] = address_space_no_writer;
+		as->readers[n] = address_space_no_reader;
 	}
-	as->writers[0x0FFFF] = address_space_io_writer;
-	as->readers[0x0FFFF] = address_space_io_reader;
+	as->readers[0] = address_space_rom_reader;
+	as->writers[1] = address_space_ram_writer;
+	as->readers[1] = address_space_ram_reader;
+	as->writers[15] = address_space_uart_writer;
+	as->readers[15] = address_space_uart_reader;
 
-	for(n = 0; n < MAX_PAGES; n++) {
+	for(n = 0; n < MAX_DEVS; n++) {
 		assert(as->writers[n]);
 		assert(as->readers[n]);
 	}
-	assert(as->romImage);
+	assert(as->rom);
 	assert(as->ram);
 	return as;
 }
 
 void address_space_store_byte(AddressSpace *as, DWORD address, BYTE datum) {
-	int page = (address >> PAGE_FIELD) & PAGE_MASK;
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
+		return;
+	}
 	assert(as->writers);
-	assert(as->writers[page]);
-	as->writers[page](as, address, datum);
+	assert(as->writers[dev]);
+	as->writers[dev](as, address, datum, 0);
+}
+
+
+void address_space_store_hword(AddressSpace *as, DWORD address, BYTE datum) {
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
+		return;
+	}
+	assert(as->writers);
+	assert(as->writers[dev]);
+	as->writers[dev](as, address, datum, 1);
+}
+
+
+void address_space_store_word(AddressSpace *as, DWORD address, BYTE datum) {
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
+		return;
+	}
+	assert(as->writers);
+	assert(as->writers[dev]);
+	as->writers[dev](as, address, datum, 2);
+}
+
+
+void address_space_store_dword(AddressSpace *as, DWORD address, BYTE datum) {
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
+		return;
+	}
+	assert(as->writers);
+	assert(as->writers[dev]);
+	as->writers[dev](as, address, datum, 3);
 }
 
 
 BYTE address_space_fetch_byte(AddressSpace *as, DWORD address) {
-	int page = (address >> PAGE_FIELD) & PAGE_MASK;
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCC\n", address);
+		return 0xCC;
+	}
 	assert(as->readers);
-	assert(as->readers[page]);
-	return as->readers[page](as, address);
+	assert(as->readers[dev]);
+	return as->readers[dev](as, address, 0);
+}
+
+
+HWORD address_space_fetch_hword(AddressSpace *as, DWORD address) {
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCCCC\n", address);
+		return 0xCCCC;
+	}
+	assert(as->readers);
+	assert(as->readers[dev]);
+	return as->readers[dev](as, address, 1);
+}
+
+
+WORD address_space_fetch_word(AddressSpace *as, DWORD address) {
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCCCCCCCC\n", address);
+		return 0xCCCCCCCC;
+	}
+	assert(as->readers);
+	assert(as->readers[dev]);
+	return as->readers[dev](as, address, 2);
+}
+
+
+DWORD address_space_fetch_dword(AddressSpace *as, DWORD address) {
+	int dev = (address & DEV_MASK) >> 56;
+	if((address & CARD_MASK) != 0) {
+		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCCCCCCCCCCCCCCCC\n", address);
+		return 0xCCCCCCCCCCCCCCCC;
+	}
+	assert(as->readers);
+	assert(as->readers[dev]);
+	return as->readers[dev](as, address, 3);
 }
 
 
@@ -215,27 +416,282 @@ Options *options_get(int argc, char *argv[]) {
 }
 
 
+Processor *processor_new(AddressSpace *as) {
+	Processor *p = (Processor *)malloc(sizeof(Processor));
+	if(p) {
+		memset(p, 0, sizeof(Processor));
+		p->pc = 0x2000;
+		p->as = as;
+		p->running = 1;
+	}
+	return p;
+}
+
+
+void processor_step(Processor *p) {
+	WORD ir;
+	int opc, rd, fn3, rs1, rs2, imm12, imm12s, disp12;
+	DWORD imm20;
+	DWORD disp20;
+
+	if(!p->running) return;
+
+	ir = address_space_fetch_word(p->as, p->pc);
+	p->pc = p->pc + 4;
+
+	/* This takes a bunch of time.  But it's still faster than live FPGA hardware.  ;) */
+	opc = ir & 0x7F;
+	rd = (ir >> 7) & 0x1F;
+	fn3 = (ir >> 12) & 0x07;
+	rs1 = (ir >> 15) & 0x1F;
+	rs2 = (ir >> 20) & 0x1F;
+	imm20 = (ir & 0xFFFFF000) | (-(ir & 0x80000000));
+	imm12 = ir >> 20;
+	imm12 |= -(imm12 & 0x800);
+	imm12s = ((ir >> 7) & 0x1F) | ((ir >> 20) & 0xFE0);
+	imm12s |= -(imm12s & 0x800);
+	disp20 = (((ir & 0x7FE00000) >> 20)
+		 |((ir & 0x00100000) >> 9)
+		 |(ir & 0x000FF000)
+		 |((ir & 0x80000000) >> 11));
+	disp20 |= -(disp20 & 0x00100000);
+	disp12 = (((ir >> 7) & 0x001E)
+		 |((ir << 4) & 0x0800)
+		 |((ir >> 20) & 0x07E0)
+		 |((ir >> 19) & 0x1000));
+	disp12 |= -(disp12 & 0x00001000);
+
+	switch(opc) {
+		// LUI
+		case 0x37:
+			p->x[rd] = imm20;
+			break;
+
+		// AUIPC
+		case 0x17:
+			p->x[rd] = imm20 + p->pc;
+			break;
+
+		// JAL
+		case 0x6F:
+			p->x[rd] = p->pc;
+			p->pc = p->pc + disp20;
+			break;
+
+		// JALR
+		case 0x67:
+			p->x[rd] = p->pc;
+			p->pc = (p->x[rs1] + imm12) & -2;
+			break;
+
+		// Bxx
+		case 0x63:
+			switch(fn3) {
+				case 0: // BEQ
+					if(p->x[rs1] == p->x[rs2])
+						p->pc += disp12;
+					break;
+
+				case 1: // BNE
+					if(p->x[rs1] != p->x[rs2])
+						p->pc += disp12;
+					break;
+
+				case 2: // unused
+				case 3: // unused
+					fprintf(stderr, "$%016llX  B??.%d X%d, X%d, %d", p->pc, fn3, rs1, rs2, disp12);
+					p->running = 0;
+					break;
+
+				case 4: // BLT
+					if((DWORD)(p->x[rs1]) < (DWORD)(p->x[rs2]))
+						p->pc += disp12;
+					break;
+
+				case 5: // BGE
+					if((DWORD)(p->x[rs1]) >= (DWORD)(p->x[rs2]))
+						p->pc += disp12;
+					break;
+
+				case 6: // BLTU
+					if((UDWORD)(p->x[rs1]) < (UDWORD)(p->x[rs2]))
+						p->pc += disp12;
+					break;
+
+				case 7: // BGEU
+					if((UDWORD)(p->x[rs1]) >= (UDWORD)(p->x[rs2]))
+						p->pc += disp12;
+					break;
+			}
+			break;
+
+		// Lx(x)
+		case 0x03:
+			switch(fn3) {
+				case 0: // LB
+					p->x[rd] = address_space_fetch_byte(p->as, p->x[rs1] + imm12);
+					p->x[rd] |= -(p->x[rd] & 0x80);
+					break;
+
+				case 1: // LH
+					p->x[rd] = address_space_fetch_hword(p->as, p->x[rs1] + imm12);
+					p->x[rd] |= -(p->x[rd] & 0x8000);
+					break;
+
+				case 2: // LW
+					p->x[rd] = address_space_fetch_word(p->as, p->x[rs1] + imm12);
+					p->x[rd] |= -(p->x[rd] & 0x80000000);
+					break;
+
+				case 3: // LD
+					p->x[rd] = address_space_fetch_dword(p->as, p->x[rs1] + imm12);
+					// p->x[rd] |= -(p->x[rd] & 0x8000000000000000);
+					break;
+
+				case 4: // LBU
+					p->x[rd] = address_space_fetch_byte(p->as, p->x[rs1] + imm12);
+					break;
+
+				case 5: // LHU
+					p->x[rd] = address_space_fetch_hword(p->as, p->x[rs1] + imm12);
+					break;
+
+				case 6: // LWU
+					p->x[rd] = address_space_fetch_word(p->as, p->x[rs1] + imm12);
+					break;
+
+				case 7: // LDU
+					p->x[rd] = address_space_fetch_dword(p->as, p->x[rs1] + imm12);
+					break;
+			}
+			break;
+		// Sx
+		case 0x23:
+			switch(fn3) {
+				case 0: // SB
+					address_space_store_byte(p->as, p->x[rs1]+imm12s, p->x[rs2]);
+					break;
+
+				case 1: // SH
+					address_space_store_hword(p->as, p->x[rs1]+imm12s, p->x[rs2]);
+					break;
+
+				case 2: // SW
+					address_space_store_word(p->as, p->x[rs1]+imm12s, p->x[rs2]);
+					break;
+
+				case 3: // SD
+					address_space_store_dword(p->as, p->x[rs1]+imm12s, p->x[rs2]);
+					break;
+
+				default:
+					fprintf(stderr, "Instruction $%08lX: Unknown store size at $%016llX\n", ir, p->pc);
+					p->running = 0;
+					return;
+			}
+			break;
+
+		// ADDI, et. al.
+		case 0x13:
+			switch(fn3) {
+			case 0: // ADDI
+				p->x[rd] = p->x[rs1] + imm12;
+				break;
+
+			case 1: // SLLI
+				p->x[rd] = p->x[rd] << imm12;
+				break;
+
+			case 2: // SLTI
+				p->x[rd] = (DWORD)p->x[rs1] < imm12;
+				break;
+
+			case 3: // SLTIU
+				p->x[rd] = (UDWORD)p->x[rs1] < (UDWORD)imm12;
+				break;
+
+			case 4: // XORI
+				p->x[rd] = p->x[rs1] ^ imm12;
+				break;
+
+			case 5: // SRLI, SRAI
+				if(ir & 0x40000000) p->x[rd] = (DWORD)p->x[rs1] >> imm12;
+				else                p->x[rd] = (UDWORD)p->x[rs1] >> (UDWORD)imm12;
+				break;
+
+			case 6: // ORI
+				p->x[rd] = p->x[rs1] | imm12;
+				break;
+
+			case 7: // ANDI
+				p->x[rd] = p->x[rs1] & imm12;
+				break;
+
+			}
+			break;
+
+		// ADD, et. al.
+		case 0x33:
+			switch(fn3) {
+			case 0: // ADD, SUB
+				if(ir & 0x40000000) p->x[rd] = p->x[rs1] - p->x[rs2];
+				else                p->x[rd] = p->x[rs1] + p->x[rs2];
+				break;
+
+			case 1: // SLL
+				p->x[rd] = p->x[rd] << p->x[rs2];
+				break;
+
+			case 2: // SLT
+				p->x[rd] = (DWORD)p->x[rs1] < (DWORD)p->x[rs2];
+				break;
+
+			case 3: // SLTU
+				p->x[rd] = (UDWORD)p->x[rs1] < (UDWORD)p->x[rs2];
+				break;
+
+			case 4: // XOR
+				p->x[rd] = p->x[rs1] ^ p->x[rs2];
+				break;
+
+			case 5: // SRL, SRA
+				if(ir & 0x40000000) p->x[rd] = (DWORD)p->x[rs1] >> p->x[rs2];
+				else                p->x[rd] = (UDWORD)p->x[rs1] >> (UDWORD)p->x[rs2];
+				break;
+
+			case 6: // OR
+				p->x[rd] = p->x[rs1] | p->x[rs2];
+				break;
+
+			case 7: // AND
+				p->x[rd] = p->x[rs1] & p->x[rs2];
+				break;
+			}
+			break;
+
+		default:
+			fprintf(stderr, "Illegal instruction $%08lX at $%016llX\n", ir, p->pc);
+			p->running = 0;
+	}
+
+	p->x[0] = 0;
+}
+
+
 int run(int argc, char *argv[]) {
 	Options *opts = NULL;
 	AddressSpace *as = NULL;
+	Processor *p = NULL;
 
 	printf("This is e, the Polaris 64-bit RISC-V architecture emulator.\n");
 	printf("Version %d.%d.%d.\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 	opts = options_get(argc, argv);
 	as = address_space_configure(opts);
+	p = processor_new(as);
 
-	do {
-		char *msg = "Press any key to continue.\n";
-		while(*msg) {
-			address_space_store_byte(as, 0x0FFFF00, *msg);
-			msg++;
-		}
-	} while(0);
-	do {
-		BYTE b = 0;
-		while(!b) b = address_space_fetch_byte(as, 0x0FFFF01);
-		printf("You typed: %d\n", b);
-	} while(0);
+	while(p->running) {
+		processor_step(p);
+	}
 
 	return 0;
 }
