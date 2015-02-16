@@ -121,6 +121,10 @@ DECIMAL
 		OVER B,
 	REPEAT 2DROP ;
 
+\ 12-bit immediate operands must fall between -2048 and 2047, inclusive.
+: +/-2KB ( n -- )
+	-2048 2048 WITHIN 0= ABORT" 12-bit immediate out of range" ;
+
 \ Supporting a RISC architecture, the RISC-V instruction set architecture
 \ attempts to minimize hardware required for instruction decoding by placing
 \ often used fields at standard locations in an instruction.  These words
@@ -128,7 +132,7 @@ DECIMAL
 
 : (rs1)			SWAP 31 AND 15 LSHIFT OR ;
 : (rs2)			SWAP 31 AND 20 LSHIFT OR ;
-: (imm12)		SWAP 4095 AND 20 LSHIFT OR ;
+: (imm12)		OVER +/-2KB  SWAP 4095 AND 20 LSHIFT OR ;
 : (rd)			SWAP 7 LSHIFT OR ;
 
 \ Rearrange the bits in displacement 'n' to follow the UJ instruction format
