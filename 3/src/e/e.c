@@ -303,7 +303,7 @@ void address_space_store_byte(AddressSpace *as, DWORD address, BYTE datum) {
 }
 
 
-void address_space_store_hword(AddressSpace *as, DWORD address, BYTE datum) {
+void address_space_store_hword(AddressSpace *as, DWORD address, UHWORD datum) {
 	int dev = (address & DEV_MASK) >> 56;
 	if((address & CARD_MASK) != 0) {
 		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
@@ -315,7 +315,7 @@ void address_space_store_hword(AddressSpace *as, DWORD address, BYTE datum) {
 }
 
 
-void address_space_store_word(AddressSpace *as, DWORD address, BYTE datum) {
+void address_space_store_word(AddressSpace *as, DWORD address, UWORD datum) {
 	int dev = (address & DEV_MASK) >> 56;
 	if((address & CARD_MASK) != 0) {
 		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
@@ -327,7 +327,7 @@ void address_space_store_word(AddressSpace *as, DWORD address, BYTE datum) {
 }
 
 
-void address_space_store_dword(AddressSpace *as, DWORD address, BYTE datum) {
+void address_space_store_dword(AddressSpace *as, DWORD address, UDWORD datum) {
 	int dev = (address & DEV_MASK) >> 56;
 	if((address & CARD_MASK) != 0) {
 		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
