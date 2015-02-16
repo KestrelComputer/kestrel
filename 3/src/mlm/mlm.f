@@ -5,6 +5,7 @@
 
 INCLUDE ../src/vasm/va.f
 
+INCLUDE ../src/mlm/bios.i
 INCLUDE ../src/mlm/uart.i
 
 INCLUDE ../src/mlm/rodata.asm
