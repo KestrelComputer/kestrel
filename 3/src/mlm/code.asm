@@ -13,7 +13,7 @@
 	JAL> bios_putstrz	RA	JAL
 
 -> wait-for-key
-	JAL> bios_getchar	RA	JAL
+	JAL> bios_chkchar	RA	JAL
 	X0	A0		wait-for-key BEQ
 	JAL> bios_getchar	RA	JAL
 	JAL> bios_putchar	RA	JAL
