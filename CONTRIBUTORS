@@ -1,0 +1,20 @@
+Credits and contributors in alphabetical order, by last name.  If you prefer a
+pseudonym, that's OK too:
+
+
+Brinkhoff, Lars
+    Provided .gitattributes for proper Github metrics reporting.
+
+Falvo, Samuel A. II
+    Project founder and current visionary.
+
+Stevenson, Scot
+    Brought his TASM6502 project to my attention, and let me base vasm on his
+    efforts.  Also, let me relicense the work to be compatible with the rest
+    of the Kestrel project.
+
+
+And many, many more whom I've forgotten over the years, because I didn't think
+to create this file earlier.  If you wish to be listed and remember your
+contribution, please get in touch with me, so I can give due credit!
+
