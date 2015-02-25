@@ -23,11 +23,10 @@ Chapyzhenka](https://plus.google.com/u/0/+AliakseiChapyzhenka/posts/UfmmPnynTdu)
 concerning a common, historically significant program for us both.  I got the
 idea of maybe using this simple program as a more realistic example to
 illustrate how to write Kestrel-3 software, and Aliaksei asked me if I would
-make it in an <q>async</q> style.  There are several ways of writing async
-software: multi-threaded, event-driven (a.k.a., "evented"), and reactive are
-the current methods in common use today.  However, since I don't even have a
-complete BIOS yet, let alone a full operating system, I responded in the
-negative.
+make it in an <q>async</q> style.  Several ways of writing async software
+exist: multi-threaded, event-driven (a.k.a., "evented"), and reactive come to
+mind in contemporary software.  However, since I don't even have a complete
+BIOS yet, let alone a full operating system, I responded in the negative.
 
 Nonetheless, this got me thinking &mdash; since the first OS for the Kestrel-3
 will be STS (a single-tasking operating system I first wrote for the
@@ -43,8 +42,8 @@ In other words, is it *worth* persuing?
 
 Let's assume a microprocessor which presently has nothing to do.  You could
 represent this condition with a busy-wait loop (e.g., `for(;;);` in C), or more
-preferably with a halt instruction, whose job it is to suspend execution until
-it receives an interrupt.
+preferably with a halt instruction, which suspends execution until it receives
+an interrupt.
 
     halt();
 
@@ -59,7 +58,7 @@ this event.  Exactly *which* program responds will change as time goes on.  A
 spreadsheet will interpret ENTER very differently than, say, a web browser.
 Even within a single program, you could be waiting to receive two or more
 pieces of information, each handled uniquely.  Therefore, at some point,
-software has to be able to say, "In the event of a line of text being entered,
+software must somehow express, "In the event of a line of text being entered,
 I'd like to run this code."
 
 In fact, let's look at a simple, sequential, so-called "synchronous" program:
@@ -74,7 +73,7 @@ In fact, let's look at a simple, sequential, so-called "synchronous" program:
         printf("Well, %s, nice to meet you!\n", name);
     }
 
-Here is the equivalent code in a hypothetical version of STS that supports
+I list the equivalent code in a hypothetical version of STS that supports
 asynchronous software through events:
 
     // This routine would be executed in response to the event that
@@ -229,14 +228,13 @@ In a classical, threaded operating system, drivers typically (or, perhaps more
 contemporarily, *used to*) expose two API entrypoints:
 
 1.  `schedule` typically takes a request and breaks it down into smaller tasks.
-Each of these tasks are then scheduled amongst other currently outstanding
-requests.  For example, a floppy disk driver would take a read request and
-break it down into a separate seek and one or more individual read-sector
-tasks.  To minimize the amount of time the drive spends seeking a cylinder, it
-might insert the seeks and sector reads in the *middle* of its current
-work-load, particularly if it has outstanding requests for I/O at smaller and
-larger cylinder numbers.  One of the simplest algorithms for deciding where to
-put seeks is the [Elevator
+The driver then schedules each of these smaller tasks amongst its current work
+load.  For example, a floppy disk driver would take a read request and break it
+down into a separate seek and one or more individual read-sector tasks.  To
+minimize the amount of time the drive spends seeking a cylinder, it might
+insert the seeks and sector reads in the *middle* of its current work-load,
+particularly if it has outstanding requests for I/O at smaller and larger
+cylinder numbers.  I refer you to the [Elevator
 Algorithm](http://en.wikipedia.org/wiki/Elevator_algorithm). 
 
 2.  `interrupt` typically examines the state of the driver, retires the current
@@ -252,9 +250,9 @@ for a driver matches almost exactly the centralized event queue discussed
 above!
 
 But, what about drivers that lack interrupt support, such as the KIA (Keyboard
-Interface Adapter) in the Kestrel-2?  You'll need to *poll* these devices.  The
-simplest way to do this is to fire off an event with a handler that reschedules
-itself:
+Interface Adapter) in the Kestrel-2?  You'll need to *poll* these devices.
+Bootstrapping the driver requires initially scheduling the poller manually,
+where it'll take care of itself thereafter.
 
     void kia_loop(Event *e) {
         // check to see if the KIA reports a PS/2 keycode here, and respond
@@ -267,19 +265,18 @@ itself:
 In this way, device drivers are, like processes in a microkernel, absolutely no
 different than ordinary programs.  The OS needs to have some means of letting
 programs rendezvous and communicate requests and such, but that's beyond the
-scope of this article.  Let's just take it on faith that these are solved
-problems through other means.
+scope of this article.
 
 ## Termination
 
 Consider the Kestrel-2's KIA device.  Without explicit support in the loop,
 though, there'd be no way to cancel the loop; thus, no way to unload the device
-driver once it's no longer used.  And since drivers are normal programs, that
-also means that applications you kick off via the shell *also* never get
-unloaded.  Memory leak, anyone?
+driver once it's no longer used.  Since drivers are normal programs, that also
+means that applications you kick off via the shell *also* never get unloaded.
+This results in a memory leak.
 
-For convenience, here's the original definition of `print_name` from our
-introductory example above:
+Let me better illustrate this effect by showing the definition of `print_name`
+from our introductory example above:
 
     // This gets executed by the input handler when the user presses ENTER.
     // It knows to call here because we specify this routine by name in the
@@ -293,16 +290,16 @@ introductory example above:
         free(icb);
     }
 
-Once the application is finished, it just returns to the event loop.  However,
-the module remains loaded, and remains ready for handling additional events.
+Once the application completes, it just returns to the event loop.  However,
+the module remains loaded, ready for handling additional events in the future.
 One need only find a way to `schedule` either its `start_up` routine or its
 `print_name` function.  This works great for event handler libraries; it's what
 we want.  But if we want to retain Unix shell-like semantics for user
-convenience, we need a way of unloading programs that are no longer "running."
-This requires we add an `expunge` event handler to all applications, libraries,
+convenience, we need a way of unloading programs that no longer "run." This
+requires we add some kind of expunge event to all applications, libraries,
 device drivers, etc.  And in order for *that* to work, it also means we need
-the ability to remove events from the event loop based on their association
-with a particular program.
+the ability to remove unprocessed events from the event loop based on their
+association with a particular program.
 
 Thus, we can change our `Event` structure to keep track of which program it
 belongs to (we assume `schedule` enforces the association):
@@ -411,14 +408,11 @@ use existing STS V1 open semantics in V2:
         // etc...
     }
 
-One nice advantage of the async model is that we can implement multi-valued
-"returns" explicitly.  That is, we can pass more detailed success or failure
-criteria, without the need for a separate global `errno` value.  The
-disadvantage, as usual, is having to maintain activation records (in this case,
-the `OpenControlBlock`) manually.
-
-The result is definitely more complex than the blocking code, for sure.
-However, it is strictly more powerful in terms of what it can do.
+I see that we can implement multi-valued "returns" explicitly as one nice
+advantage of the async model.  That is, we can pass more detailed success or
+failure criteria, without the need for a separate global `errno` value.
+Unfortunately, we pay the price by manually managing what amounts to activation
+records (e.g., `OpenControlBlock`).
 
 ## A Hypothetical Program
 
@@ -458,7 +452,7 @@ environment?
         schedule(async_open, ocb);
     }
 
-    // Once the file is successfully opened, control "returns" here.
+    // Once the file opens, control "returns" here.
     void read_header(Event *e) {
         OpenControlBlock *ocb = (OpenControlBlock *)e->data;
         SCB *scb = ocb->scb;
@@ -471,7 +465,6 @@ environment?
             rcb->callback = print_header;
             schedule(async_read, rcb);
             schedule(async_close, scb);
-            schedule(pcb->exit, pcb);
         } else {
             printf("Failed to open file.\n");
             pcb->rc = 1;
@@ -490,14 +483,17 @@ environment?
 
         // We don't need the RCB anymore.
         free(rcb);
+
+        // Exit the program.
+        schedule(pcb->exit, pcb);
     }
 
 Notice that we schedule `async_close` immediately after `async_read`.  This
-guarantees that the file referenced by the file's SCB is closed, regardless of
-how successful the read actually was.  We're depending on the inherently
+guarantees that the file referenced by the file's SCB always closes, regardless
+of how successful the read actually was.  We're depending on the inherently
 ordered nature of the STS event queue to ensure that the close happens after
-the read attempt.  What we *cannot* guarantee is that the close will always run
-before `print_header` (that's an implementation detail).
+the read attempt.  However, we *cannot* guarantee that the close will always
+run before `print_header` (that's an implementation detail).
 
 One problem I see with this example: I can't think of a reasonable alternative
 to storing the `ProgramControlBlock` in anything except a global variable.  We
@@ -505,10 +501,10 @@ could use "program-local storage" (something like the evented equivalent of
 thread-local storage, I suppose), but that seems inconvenient for illustration
 purposes.
 
-Another problem I see is the sheer frequency of memory allocations and frees.
-Each control block includes a reference to the next handler(s) to execute;
+The frequency of memory allocations and frees concerns me as well.  Each
+control block includes a reference to the next handler(s) to execute;
 literally, we're constructing *continuations* in memory.  `malloc` and `free`
-would need to be *very* efficient in order for async programs to run anywhere
+would need startling efficiency in order for async programs to run anywhere
 near the speed of a synchronous application with normal stack allocation.  When
 you look at environments like [Node.js](http://nodejs.org) or
 [Twisted](https://twistedmatrix.com), you'll realize that the use of a
