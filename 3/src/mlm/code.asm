@@ -12,14 +12,36 @@
 	ZERO	banner		A0	ADDI
 	JAL> bios_putstrz	RA	JAL
 
+	\ Initialize the line input buffer control block.
+
+	ZERO	brod_bcb	T0		LD
+	T0 bcb_licb		T1		ADDI
+	T0 bcb_inpbuf		T2		ADDI
+	T2			T1 blicb_buffer	SD	( licb.buffer -> inpbuf )
+	ZERO			T1 blicb_length SD	( licb.length = 0 )
+	ZERO 80			T2		ADDI
+	T2			T1 blicb_capacity SD	( licb.capacity = 80 )
+
 -> wait-for-key
 	JAL> bios_chkchar	RA	JAL
 	X0	A0		wait-for-key BEQ
 	JAL> bios_getchar	RA	JAL
+
+	\ Ignore key press if there's no room to place it.
+	ZERO brod_bcb		T1	LD
+	T1 blicb_length		T2	LD
+	T1 blicb_capacity	T3	LD
+	T2 T3			wait-for-key BEQ
+
+	\ Place the byte, and increment the buffer length.
+	T1 blicb_buffer		T3	LD
+	T2 T3			T3	ADD
+	A0			T3 0	SB
+	T2 1			T2	ADDI
+	T2			T1 blicb_length SD
+
 	JAL> bios_putchar	RA	JAL
 	wait-for-key		X0	JAL
-
-	LC			ZERO	JAL
 
 \
 \ BIOS Character Services
