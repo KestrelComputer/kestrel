@@ -24,15 +24,28 @@
 
 -> wait-for-key
 	JAL> bios_chkchar	RA	JAL
-	X0	A0		wait-for-key BEQ
+	X0 A0			wait-for-key BEQ
 	JAL> bios_getchar	RA	JAL
 
 	\ Preload relevant pointers; we'll use these often below.
 	ZERO brod_bcb		T1	LD
-	( T1 bcb_licb T1 ADD  \ bcb_licb=0, so we skip this insn )
+	( T1 bcb_licb T1 ADDI  \ bcb_licb=0, so we skip this insn )
 	T1 blicb_length		T2	LD
 
+	\ If the user presses ENTER, we accept the buffer as-is.
+	\ It's up to the consumer to check for zero-length buffers.
+	ZERO 10			T3	ADDI
+	A0 T3			B> not-cr BNE
+
+	T1 blicb_buffer		A0	LD	( enforce null termination )
+	T2 A0			T3	ADD
+	ZERO			T3 0	SB
+
+	JAL> bios_putstrz	RA	JAL
+	do-it-again		X0	JAL
+
 	\ If backspace, and buffer non-empty, back up one space.
+-> not-cr
 	ZERO 8			T3	ADDI
 	A0 T3			B> not-bs BNE
 	X0 T2			wait-for-key BEQ
