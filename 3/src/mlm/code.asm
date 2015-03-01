@@ -27,9 +27,28 @@
 	X0	A0		wait-for-key BEQ
 	JAL> bios_getchar	RA	JAL
 
-	\ Ignore key press if there's no room to place it.
+	\ Preload relevant pointers; we'll use these often below.
 	ZERO brod_bcb		T1	LD
+	( T1 bcb_licb T1 ADD  \ bcb_licb=0, so we skip this insn )
 	T1 blicb_length		T2	LD
+
+	\ If backspace, and buffer non-empty, back up one space.
+	ZERO 8			T3	ADDI
+	A0 T3			B> not-bs BNE
+	X0 T2			wait-for-key BEQ
+
+	T2 -1			T2	ADDI
+	T2			T1 blicb_length SD
+
+	JAL> bios_putchar	RA	JAL	( back up one char, )
+	ZERO 32			A0	ADDI	( print a space, )
+	JAL> bios_putchar	RA	JAL
+	ZERO 8			A0	ADDI	( and back up one last time )
+	JAL> bios_putchar	RA	JAL
+	wait-for-key		X0	JAL
+
+	\ Ignore key press if there's no room to place it.
+-> not-bs
 	T1 blicb_capacity	T3	LD
 	T2 T3			wait-for-key BEQ
 
