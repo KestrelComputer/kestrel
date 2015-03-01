@@ -10,7 +10,8 @@
 -> do-it-again
 
 	ZERO	banner		A0	ADDI
-	JAL> bios_putstrz	RA	JAL
+	ZERO	banner_length	A1	ADDI
+	JAL> bios_putstrc	RA	JAL
 
 	\ Reset the line input buffer control block, and get the line of text.
 
@@ -48,6 +49,30 @@
 	RA 0			X0	JALR
 
 
+
+\ Print a counted string to the user's console.
+\ This routine makes no attempt to interpret terminal control codes.
+
+-> bios_putstrc ( strp, strlen )
+		\  A0     A1
+	SP -16			SP	ADDI
+	S0			SP 0	SD
+	RA			SP 8	SD
+
+	X0 A0			S0	ADD
+
+-> .bios.putstrc.loop
+	A1 X0			B> .bios.putstrc.done BEQ
+	S0 0			A0	LBU
+	bios_putchar		RA	JAL
+	S0 1			S0	ADDI
+	A1 -1			A1	ADDI
+	.bios.putstrc.loop	X0	JAL
+
+-> .bios.putstrc.done
+	SP 8			RA	LD
+	SP 0			S0	LD
+	RA 0			X0	JALR
 
 \ Print a zero-terminated string to the user's console.
 \ This routine makes no attempt to interpret terminal control codes.

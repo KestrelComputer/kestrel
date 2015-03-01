@@ -6,4 +6,6 @@
 
 -> banner
 	S" MLM/K3 V1" ASCII, 10 B, 0 B,
+-> banner_end
+banner_end banner - CONSTANT banner_length
 
