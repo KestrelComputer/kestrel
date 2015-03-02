@@ -173,19 +173,22 @@
 
 	\ If backspace, and buffer non-empty, back up one space.
 -> not-cr
+	ZERO 127		T3	ADDI
+	A0 T3			B> bs-del BEQ
 	ZERO 8			T3	ADDI
 	A0 T3			B> not-bs BNE
+
+-> bs-del
 	X0 T2			wait-for-key BEQ
 
 	T2 -1			T2	ADDI
 	T2			S0 blicb_length SD
 
-	bios_putchar		RA	JAL	( back up one char, )
-	ZERO 32			A0	ADDI	( print a space, )
-	bios_putchar		RA	JAL
-	ZERO 8			A0	ADDI	( and back up one last time )
-	bios_putchar		RA	JAL
+	0			A0	AUIPC	( print bs, space, bs )
+	A0 12			A0	ADDI
+	bios_putstrz		RA	JAL
 	wait-for-key		X0	JAL
+	8 B, 32 B, 8 B, 0 B,
 
 	\ Ignore key press if there's no room to place it.
 -> not-bs
