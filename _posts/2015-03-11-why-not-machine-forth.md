@@ -62,10 +62,10 @@ However, the RISC-V instruction set exhibits a bimodal degree of support; some p
                     MOV [EDX*4], EAX        SW   T,0(A)
                     drop                    drop
 
-                    mov a*4, EAX            (no equiv.)     (option 2)
+                    MOV a*4, EAX            (no equiv.)     (option 2)
                     drop
 
-                    mov a*4, n              (no equiv.)     (option 3)
+                    MOV a*4, n              (no equiv.)     (option 3)
 
     14      !+      MOV [EDX*4], EAX        SW   T,0(A)     Store to address in A; increment A
                     INC EDX                 ADDI A,A,4
@@ -183,8 +183,8 @@ As you can see, the compiler becomes significantly more complicated regardless o
 
 ## Literal Management
 
-In many cases, numeric constants will fall between -2048 and 2047, inclusive.  
-If this happens, working with numeric literals proves as easy as it would for Intel architecture CPUs.
+In many cases, numeric constants will fall between -2048 and 2047, inclusive.
+Working with small numeric literals proves as easy as it would for Intel architecture CPUs.
 However, with roughly equal frequency in my experience, you'll want to express an address of a buffer, variable, or even call-back word.
 With RAM starting at $0100000000000000 in the Kestrel-3, these literals fall well outside of the +/-2KiB range; these require indirection to load into a CPU register for processing.
 For this purpose, RISC-V software reserves a register to point to a pool of literals, known as the "global pointer", or GP for short.
