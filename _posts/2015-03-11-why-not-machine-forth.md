@@ -17,11 +17,13 @@ Programming his most recent processors required using a particular subset of For
 The primitives are so simple, and so basic, that nearly any real-world microprocessor supports a mapping to Machine Forth with a relative minimum of host instructions.
 Each primitive mapped to one, sometimes two, and relatively rarely, three or more Intel 80x86 assembly language instructions.
 Moore and Fox documented a set of primitives that exploited the existing Intel microarchitecture features that best emulated their MISC architecture chip.
-The latest revision of this effort resulted in the set of [primitives used to implement ColorForth, published in 2001.](http://colorforth.com/forth.html).
+The latest revision of this effort resulted in the set of [primitives used to implement ColorForth, published in 2001.](http://colorforth.com/forth.html)
 
 The following table compares the 80x86 and RISC-V expansions.
 As you can see for the Intel architecture, Machine Forth maps surprisingly well to individual 80x86 instructions thanks in part to the CISC nature of its instruction set.
-However, the RISC-V instruction set exhibits a bimodal degree of support; some primitives map to one or two RISC-V instructions, while others yield surprisingly large sequences of instructions, with few in between.
+However, the RISC-V instruction set exhibits a bimodal degree of support;
+some primitives map to one or two RISC-V instructions,
+while others yield surprisingly large sequences of instructions.
 
                     x86                     RISC-V
     Opcode  Source  Assembly                Assembly        Description
@@ -49,7 +51,7 @@ However, the RISC-V instruction set exhibits a bimodal degree of support; some p
                     mov EAX, [EDX*4]        LW   T,0(A)
                     inc EDX                 ADDI A,A,4
 
-    10      n       dup;                    dup             Fetch number (option 1)
+    10      n       dup                     dup             Fetch number (option 1)
                     MOV EAX, n              LW   T,ofs(GP)
 
                     (no equiv.)             dup             (option 2; -2048<=n<2048 for RISC-V)
@@ -154,7 +156,9 @@ Only when it attempts to compile `;` will the compiler look behind in the instru
 It then understands that it can translate the `CALL` to a `JMP`, and thus, tail-call optimization completes.
 
 For the RISC-V architecture, things become more complex in one of two ways.
-If we elect to save the return address (RA) register at the time we call our first subroutine, we find we need to back-patch across multiple bytes on every subroutine call we wish to compile:
+If we elect to save the return address (RA) register at the time we call our first subroutine,
+thus preserving the invariant that the `RA` register always caches the top of the return stack,
+we find we need to back-patch across multiple bytes on every subroutine call we wish to compile:
 
 
     foo bar ;               foo bar ;               foo bar ;
@@ -164,66 +168,98 @@ If we elect to save the return address (RA) register at the time we call our fir
     ADDI RP,RP,-4           ADDI RP,RP,-4           ADDI RP,RP,-4
     SW   RA,0(RP)           SW   RA,0(RP)           SW   RA,0(RP)
     JAL  RA,foo             JAL  RA,foo             JAL  RA,foo
-    LW   RA,0(RP)           JAL  RA,bar             JAL  X0,bar
-    ADDI RP,RP,4            LW   RA,0(RP)
-                            ADDI RP,RP,4
+    LW   RA,0(RP)           JAL  RA,bar             LW   RA,0(RP)
+    ADDI RP,RP,4            LW   RA,0(RP)           ADDI RP,RP,4
+                            ADDI RP,RP,4            JAL  X0,bar
 
 
 Note how the simple act of compiling a second subroutine call requires back-patching to avoid grotesquely wasting memory with redundant return stack manipulations.
-Unfortunately, back-patching cannot occur if we need the top return stack value for any reason between subroutine calls.  After compiling the semicolon, we back-patch again, replacing three instructions with a single `JAL X0,label` instruction.
+Unfortunately, back-patching cannot occur if we need the top return stack value for any reason between subroutine calls,
+and the compiler will need to be smart enough to detect this situation.
+After compiling the semicolon, we back-patch again, replacing three instructions with another sequence of three,
+ending with the intended `JAL X0,label` instruction.
 
 The other approach involves unconditionally saving the return address for a subroutine using standard prolog and epilog instructions.
 In this case, we trade on-demand return stack management for two new problems:
 
-* The return stack necessarily behaves differently than the data stack.  The `DSP` register would point *to the second top of stack* value, while the `RSP` pointer would have to *space reserved for, but not yet set to, the top of return stack*, since the top sits in the `RA` register on subroutine entry and exit.
-* Consider the definition of `song0` in the example provided above.  When referenced inside the `song` top-level definition, it points *to* the start of the `song0` definition's code.  When used inside of `song0` itself, however, it points to code *just beyond that necessary to preserve the `RA` register contents*.  If it didn't we'd corrupt the return stack upon re-entry.
+* The return stack necessarily behaves differently than the data stack.  The `DSP` register would point *to the second top of stack* value, while the `RSP` pointer must refer to *space reserved for, but not yet set to, the top of return stack*, since the top sits in the `RA` register on subroutine entry and exit.
+* Consider the definition of `song0` in the example provided above.  When referenced inside the `song` top-level definition,
+it points directly *at* the definition of `song0`.
+When used inside of `song0` itself, however, it must point to code *just beyond that necessary to preserve the `RA` register contents*.
+If it didn't, we'd corrupt the return stack upon looping.
 
-As you can see, the compiler becomes significantly more complicated regardless of the approach taken.
+
+        song0:      ADDI  RSP,RSP,-4 ;     <--- external references call here.
+                    SW    RA,0(RSP)  ; (at this point, RA has no use.)
+        _song0:     BEQ   T,X0,L1    ; IF  <--- However, internal references jump
+                    ADDI  SP,SP,-4   ; DUP      here.
+                    SW    T,0(SP)
+                    JAL   RA,bottles ; bottles
+                    ADDI  T,T,-1     ; -1 +
+                    JAL   X0, _song0 ; song0 ;
+        L1:         LW    T,0(SP)    ; DROP
+                    ADDI  SP,SP,4
+                    LW    RA,0(RSP)  ; ;
+                    ADDI  RSP,RSP,4
+                    JALR  X0,0(RA)
+
+As you can see, the compiler becomes more complicated regardless of the approach taken.
 
 
 ## Literal Management
 
-In many cases, numeric constants will fall between -2048 and 2047, inclusive.
+In many cases, numeric constants will fall in the range [-2048, 2047).
 Working with small numeric literals proves as easy as it would for Intel architecture CPUs.
 However, with roughly equal frequency in my experience, you'll want to express an address of a buffer, variable, or even call-back word.
 With RAM starting at $0100000000000000 in the Kestrel-3, these literals fall well outside of the +/-2KiB range; these require indirection to load into a CPU register for processing.
 For this purpose, RISC-V software reserves a register to point to a pool of literals, known as the "global pointer", or GP for short.
 
 Each colon definition will need to initialize this global pointer if the compiler finds out that it's required.
-The compiler will need to reset the global pointer after it completes a run of subroutine calls as well, for at least one of the subroutines will alter the global pointer for its own needs.
+The compiler will need to reset the global pointer after it completes a run of subroutine calls as well,
+on the assumption that at least one of the subroutines will alter the global pointer for its own needs.
 
-During compilation, the compiler must maintain a table of constants in a separate block of memory from the compiled program, for the compiler doesn't know how big the program will end up becoming.
+During compilation, the compiler must maintain a table of constants in a separate block of memory from the compiled program,
+for the compiler doesn't know how big the program will end up becoming.
 We can reasonably expect the compiler to use negative offsets from the global pointer, as doing anything else requires maintaining relative offset relocations, further complecting the compiler.
 Remember that an index may range from -2048 to 2047, inclusive.
 This practically limits the *combined constants and program space* to 2KiB.
-The compiler will need to continually monitor for global offsets that fall outside this range.
+(Proper support for the full 4KiB range requires more sophistication, and thus,
+a more complex compiler.)
+The compiler will need to continually monitor for global offsets for those that fall outside this range.
 
-Here's how it all works together; assume that `foo bar 4096 baz ;` represents the contents of a colon definition.  Then,
+Here's how it all works together; assume that `foo bar 4096 baz ;` represents the contents of a colon definition.
 
-    foo bar 4096 baz ;		foo bar 4096 baz ;      foo bar 4096 baz ;
+    foo bar 4096 baz ;    foo bar 4096 baz ;      foo bar 4096 baz ;
         ^                          ^                            ^
         
-    JAL RA,foo             JAL RA,foo               WORD  4096
-                           JAL RA,bar               JAL   RA,foo
-                                                    JAL   RA,bar
-                                                    ADDI  SP,SP,-4
-                                                    SW    T,0(SP)
-                                                    AUIPC GP,0
-                                                    LW    T,-24(GP)
+                                               -->  WORD  4096
+    JAL RA,foo             JAL RA,foo               JAL   RA,foo
+                           JAL RA,bar               JAL   RA,bar
+                                                    ADDI  SP,SP,-4  <--+
+                                                    SW    T,0(SP)      |
+                                                    AUIPC GP,0         |
+                                                    LW    T,-24(GP) <--+
 
-we see that when compiling the number too large for immediate encoding, we allocate a spot in external memory for it at the start of the routine, and reference it via a negative offset from the global pointer.  Note how the compiler had to logically, if not physically, make space for the literal at the start of the definition.  The compiler will also need to remember whether or not it has to re-initialize the GP register, so as to not emit redundant code.
+We see that when compiling the number too large for immediate encoding,
+we allocate a spot for it adjacent to the routine,
+and reference it via a negative offset from the global pointer.
+Note how the compiler had to logically, if not physically, make space for the literal at the start of the definition.
+The compiler will also need to remember whether or not it has to re-initialize the GP register, so as to not emit redundant code.
+It will need to do this for every colon definition you write.
 
-When laying the procedure down in memory for the last time, the compiler will need to place the constants pool first, and then the code thereafter.
-This means the compiler cannot know the word's actual address until after it lays down the constant pool.
+When laying the procedure down in the dictionary, though,
+the compiler will need to place the constants pool first, and then the code thereafter.
+This means the compiler cannot know the word's actual address until
+after it lays down the constant pool, at the very least.
 
 
 ## Code Bloat
 
 Intel's x86 instruction set remains byte-coded to this day.
 Variable length instruction sequences ensures commonly used instructions *generally* have shorter representation in memory.
-For this reason, while the total number of instructions might compare well between x86 and RISC-V, Intel's x86 instruction set architecture holds a clear advantage over RISC-V's rigidly defined instruction word lengths.
+For this reason, while the total number of instructions might compare well between x86 and RISC-V Machine Forth instruction sequences, Intel's encoding holds a clear advantage over RISC-V's rigidly defined instruction word lengths.
 
-As a result, seemingly simple sequences of Machine Forth instructions may require a surprisingly amount of memory to encode.
+As a result, seemingly simple sequences of Machine Forth instructions may require a surprising amount of memory to encode.
 Consider the `!` instruction to store a number to an arbitrary address.
 In the table above, we see it defined as:
 
@@ -231,23 +267,44 @@ In the table above, we see it defined as:
     SW   T,0(A)
     drop
 
-We see it depends on two other macro expansions to function: `a!` and `drop`.  When we fully expand these, we get this final result in memory (right-hand side eliminates the redundant `ADDI` instruction):
+We see it depends on two other macro expansions to function: `a!` and `drop`.
+When we recursively expand these,
+we get this final result in memory:
 
-    Unoptimized                     Optimized
-
-    ORI  A,X0,T     ; a!            ORI  A,X0,T
-    LW   T,0(SP)                    LW   T,0(SP)
-    ADDI SP,SP,4                    SW   T,0(A)
-    SW   T,0(A)                     LW   T,4(SP)
-    LW   T,0(SP)    ; drop          ADDI SP,SP,8
+    ORI  A,X0,T     ; a!
+    LW   T,0(SP)
+    ADDI SP,SP,4
+    SW   T,0(A)
+    LW   T,0(SP)    ; drop
     ADDI SP,SP,4
 
-One of these sequences appears for *every* occurance of `!` in any Machine Forth source code you compile.  Contrast with its complement, `@`, which requires only a single CPU instruction.
+In the absence of any other form of optimization,
+this sequence appears for *every* occurance of `!` in any Machine Forth source code you compile.
+That's 24 bytes for each and every use of the store instruction.
+If my math is right, I calculate only 5 bytes for Intel's encoding scheme.
+
+In general, Intel's encoding yields code one-half to one-quarter the size of the equivalent RISC-V software.
+
+One method to work around this problem is to implement large sequences of instructions as runtime-provided subroutines,
+which the software then calls with a single `JAL` instruction.
+That drops the space used to, say, 24 to 28 bytes plus another 4 bytes for each additional use.
+Essentially, subroutine-threading.
+However, the compiler now needs to recognize *three* classes of words:
+true primitives (definitions trivially inlined with `,`),
+primitives which really aren't but we like to pretend they are (such as `!`),
+and then colon definitions, which as illustrated above, opens a world of complexity unto itself.
+By my estimate, I'd have to implement just about half of the available "primitives" as pseudo-primitives.
 
 
 ## Conclusion
 
-I've gone over some of the rationale as to why Machine Forth doesn't mesh well with the RISC-V instruction set architecture.
-Alternative languages, such as Lisp or a higher-level dialect of Forth such as ANSI Forth, seem more appropriate for the machine.
-I will attempt to provide analyses of other language options in the future.
-For now, I will continue to program the RISC-V architecture in hand-crafted assembly language.
+I like to think I've convinced you that Machine Forth for RISC-V isn't a worthy trade-off.
+I may yet decide to implement a Machine Forth compiler for RISC-V;
+however, alternative languages,
+such as a dialect of Lisp or a different dialect of Forth,
+seem like they're more appropriate for the RISC-V instruction set.
+I will attempt to provide analyses of other language options in the future, but
+only after I continue to program the RISC-V architecture in hand-crafted assembly language.
+Without that experience, I won't know the pain-points unique to RISC-V coding,
+and thus, what to optimize the language for.
+
