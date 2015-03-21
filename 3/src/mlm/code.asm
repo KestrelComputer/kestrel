@@ -2,12 +2,11 @@
 \ Cold Boot Entry Point
 \ 
 
+-> do-it-again
 	X0 brod_initsp		SP	LD
 
 	ZERO	CHAR *		A0	ADDI
 	JAL> bios_putchar	RA	JAL
-
--> do-it-again
 
 	ZERO	banner		A0	ADDI
 	ZERO	banner_length	A1	ADDI
@@ -24,15 +23,47 @@
 	T2			A0 blicb_capacity SD	( licb.capacity = 80 )
 	JAL> bios_getline	RA		JAL
 
-	\ Ensure null-termination for the input string.
-	ZERO brod_bcb		T0	LD
-	T0 bcb_licb		T0	ADDI
-	T0 blicb_buffer		A0	LD
-	T0 blicb_length		T2	LD
-	T2 A0			T3	ADD
-	ZERO			T3 0	SB
+	\ Dump each entered word to the console, on a separate line.
+	x0 x0			s9	ori
+	x0 brod_bcb		s10	ld
+	s10 bcb_licb		s10	addi
+	s10 blicb_buffer	s7	ld
+	s10 blicb_capacity	s8	ld
+-> L1
+	s9 s8			b> L2	bge	\ skip whitespace
+	s7 s9			s6	add
+	s6 0			s5	lb
+	x0 33			s4	ori
+	s5 s4			b> L2	bge
+	s9 1			s9	addi
+	L1			x0	JAL
+-> L2
+	x0 s9			s2	or	\ mark first non-whitespace char
+-> L3
+	s9 s8			b> L4	bge	\ skip non-whitespace
+	s7 s9			a6	add
+	a6 0			a5	lb
+	x0 33			a4	ori
+	a5 a4			b> L4	blt
+	s9 1			s9	addi
+	L3			x0	JAL
+-> L4
+	x0 s9			a2	or	\ mark next whitespace char index
+	s2 a2			b> L5	beq	\ Are the indices the same?
+	s7 s2			a0	add	\ If not, we have a word (of length end-beginning index) to print!
+	a2 s2			a1 sub
+	JAL> bios_putstrc	ra	JAL
+	x0 10			a0	ori
+	JAL> bios_putchar	ra	JAL
+	L1			x0	JAL
+-> L5
+	x0 10			a0	addi	\ Print new prompt and repeat.
+	JAL> bios_putchar	ra	JAL
 
-	JAL> bios_putstrz	RA	JAL
+  x0 crash_msg a0 addi
+  jal> bios_putstrz ra jal
+\  lc x0 jal
+
 	do-it-again		X0	JAL
 
 \ 
@@ -59,7 +90,7 @@
 	S0			SP 0	SD
 	RA			SP 8	SD
 
-	X0 A0			S0	ADD
+	X0 A0			S0	OR
 
 -> .bios.putstrc.loop
 	A1 X0			B> .bios.putstrc.done BEQ
@@ -72,6 +103,7 @@
 -> .bios.putstrc.done
 	SP 8			RA	LD
 	SP 0			S0	LD
+	SP 16			SP	ADDI
 	RA 0			X0	JALR
 
 \ Print a zero-terminated string to the user's console.
@@ -152,7 +184,7 @@
 	RA			SP 0	SD
 	S0			SP 8	SD
 
-	ZERO A0			S0	ADD
+	ZERO A0			S0	OR
 
 -> wait-for-key
 	bios_chkchar		RA	JAL
@@ -168,14 +200,14 @@
 
 	SP 8			S0	LD
 	SP 0			RA	LD
-	SP 16			SP	ADD
+	SP 16			SP	ADDI
 	RA 0			X0	JALR
 
 	\ If backspace, and buffer non-empty, back up one space.
 -> not-cr
-	ZERO 127		T3	ADDI
+	ZERO 127		T3	ORI
 	A0 T3			B> bs-del BEQ
-	ZERO 8			T3	ADDI
+	ZERO 8			T3	ORI
 	A0 T3			B> not-bs BNE
 
 -> bs-del

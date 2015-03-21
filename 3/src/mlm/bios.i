@@ -16,8 +16,9 @@
 \ BIOS maintains state in RAM as well.	For lack of better name, this is called
 \ the BIOS Control Block, or BCB.
 
-0		DUP CONSTANT	bcb_licb
-blicb_sizeof	DUP CONSTANT	bcb_keypress
+0		DUP CONSTANT	bcb_inpindex
+8 +		DUP CONSTANT	bcb_licb
+blicb_sizeof +	DUP CONSTANT	bcb_keypress
 1 +		DUP CONSTANT	bcb_inpbuf
 81 +		CONSTANT	bcb_sizeof
 
