@@ -1,4 +1,4 @@
- /* vim: set noet ts=8 sw=8: */
+/* vim: set noet ts=8 sw=8: */
 
 
 #include <stdio.h>
@@ -672,10 +672,6 @@ void processor_step(Processor *p) {
 		default:
 			fprintf(stderr, "Illegal instruction $%08lX at $%016llX\n", ir, p->pc);
 			p->running = 0;
-	}
-
-	if((p->x[rd] & 0x0F00000000000000) == 0x0200000000000000) {
-		fprintf(stderr, "UH OH at $%08lX\n", p->pc-8);
 	}
 
 	p->x[0] = 0;
