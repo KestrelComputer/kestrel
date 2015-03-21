@@ -2,9 +2,9 @@
 \ Cold Boot Entry Point
 \ 
 
--> do-it-again
 	X0 brod_initsp		SP	LD
 
+-> do-it-again
 	ZERO	CHAR *		A0	ADDI
 	JAL> bios_putchar	RA	JAL
 
@@ -23,8 +23,12 @@
 	T2			A0 blicb_capacity SD	( licb.capacity = 80 )
 	JAL> bios_getline	RA		JAL
 
+	\ When you ENTER on bios_getline, you don't actually move to next line.
+	x0 10			a0	ori
+	jal> bios_putchar	ra	jal
+
 	\ Dump each entered word to the console, on a separate line.
-	x0 x0			s9	ori
+	x0 x0			s9	or
 	x0 brod_bcb		s10	ld
 	s10 bcb_licb		s10	addi
 	s10 blicb_buffer	s7	ld
@@ -59,11 +63,6 @@
 -> L5
 	x0 10			a0	addi	\ Print new prompt and repeat.
 	JAL> bios_putchar	ra	JAL
-
-  x0 crash_msg a0 addi
-  jal> bios_putstrz ra jal
-\  lc x0 jal
-
 	do-it-again		X0	JAL
 
 \ 
@@ -180,7 +179,7 @@
 \ manually terminate the buffer yourself.
 -> bios_getline ( licb )
 		\  A0
-	SP -16			SP	ADD
+	SP -16			SP	ADDI
 	RA			SP 0	SD
 	S0			SP 8	SD
 
