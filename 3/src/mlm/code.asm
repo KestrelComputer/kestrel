@@ -32,7 +32,7 @@
 	x0 brod_bcb		s10	ld
 	s10 bcb_licb		s10	addi
 	s10 blicb_buffer	s7	ld
-	s10 blicb_capacity	s8	ld
+	s10 blicb_length  	s8	ld
 -> L1
 	s9 s8			b> L2	bge	\ skip whitespace
 	s7 s9			s6	add
@@ -56,14 +56,30 @@
 	s2 a2			b> L5	beq	\ Are the indices the same?
 	s7 s2			a0	add	\ If not, we have a word (of length end-beginning index) to print!
 	a2 s2			a1 sub
-	JAL> bios_putstrc	ra	JAL
-	x0 10			a0	ori
-	JAL> bios_putchar	ra	JAL
+	JAL> mlm_token		ra	JAL
 	L1			x0	JAL
 -> L5
 	x0 10			a0	addi	\ Print new prompt and repeat.
 	JAL> bios_putchar	ra	JAL
 	do-it-again		X0	JAL
+
+
+\ 
+\ MLM Interpreter
+\ 
+
+-> mlm_token
+	sp -8 sp addi
+	ra sp 0 sd
+
+	JAL> bios_putstrc ra JAL
+	x0 10 a0 addi
+	JAL> bios_putchar ra JAL
+
+	sp 0 ra ld
+	sp 8 sp addi
+	ra 0 x0 jalr
+
 
 \ 
 \ BIOS Character Services
