@@ -10,6 +10,9 @@
 
 -> do-it-again
 
+	ZERO	brod_bcb	T0	LD	( Zero out accumulator )
+	X0	T0 bcb_accumulator	SD
+
 	ZERO	mlm_prompt	A0	ADDI
 	ZERO	2		A1	ADDI
 	JAL> bios_putstrc	RA	JAL
@@ -102,8 +105,147 @@
 \ 
 
 -> interpret-char
-  jal> bios_putchar x0 jal
+	x0 brod_bcb		t0	ld	( T0 -> BCB )
+	t0 bcb_accumulator	t1	ld	( T1 = current accumulator )
 
+	x0 48			t2	ori	( char < '0'? )
+	a0 t2		b> not-digit	bltu
+
+	x0 58			t2	ori	( char <= '9'? )
+	a0 t2		b> eat-0..9	bltu
+
+-> not-digit
+	x0 65			t2	ori	( char < 'A'? )
+	a0 t2		b> not-hex	bltu
+
+	x0 71			t2	ori	( char < 'F'? )
+	a0 t2		b> eat-hex	bltu
+
+-> not-hex
+	x0 64			t2	ori	( char = '@'? )
+	a0 t2		b> eat-@	beq
+
+	jal> bios_putchar x0 jal
+
+
+-> eat-hex
+	a0 -7			a0	addi	( sequentialize then fall through )
+
+-> eat-0..9
+	a0 -48			a0	addi	( extract BCD digit )
+
+	t1 4			t1	slli	( make room for digit )
+	t1 a0			t1	or	( merge digit )
+	t1	t0 bcb_accumulator	sd
+	ra 0			x0	jalr
+
+-> eat-@
+	sp -16			sp	addi
+	ra			sp 0	sd
+	s0			sp 8	sd
+
+	x0 t1			s0	or	( Preserve address )
+	x0 t1			a0	or	( print address )
+	jal> puthex64		ra	jal
+
+	x0 58			a0	ori	( print colon )
+	jal> bios_putchar	ra	jal
+
+	s0 0			a0	lb	( Print the byte there )
+	jal> puthex8		ra	jal
+
+	jal> newline		ra	jal
+
+	sp 8			s0	ld
+	sp 0			ra	ld
+	sp 16			sp	addi
+	ra 0			x0	jalr
+	
+\ 
+\ Print newline
+\ 
+
+-> newline
+	x0 10			a0	ori
+	jal> bios_putchar	x0	jal
+
+\ 
+\ Print out hexadecimal numbers of various widths.  These must appear
+\ immediately before bios_putchar (or else, adjust the puthex4 routine to jump
+\ to bios_putchar).
+\ 
+
+-> puthex64
+	sp -16			sp	addi
+	ra			sp 0	sd
+	s0			sp 8	sd
+
+	x0 a0			s0	or
+	a0 32			a0	srli
+	jal> puthex32		ra	jal
+
+	x0 s0			a0	or
+	sp 8			s0	ld
+	sp 0			ra	ld
+	sp 16			sp	addi
+
+-> puthex32
+	sp -16			sp	addi
+	ra			sp 0	sd
+	s0			sp 8	sd
+
+	x0 a0			s0	or
+	a0 16			a0	srli
+	jal> puthex16		ra	jal
+
+	x0 s0			a0	or
+	sp 8			s0	ld
+	sp 0			ra	ld
+	sp 16			sp	addi
+
+-> puthex16
+	sp -16			sp	addi
+	ra			sp 0	sd
+	s0			sp 8	sd
+
+	x0 a0			s0	or
+	a0 8			a0	srli
+	jal> puthex8		ra	jal
+
+	x0 s0			a0	or
+	sp 8			s0	ld
+	sp 0			ra	ld
+	sp 16			sp	addi
+
+-> puthex8
+	sp -16			sp	addi
+	ra			sp 0	sd
+	s0			sp 8	sd
+
+	x0 a0			s0	or
+	a0 4			a0	srli
+	jal> puthex4		ra	jal
+
+	x0 s0			a0	or
+	sp 8			s0	ld
+	sp 0			ra	ld
+	sp 16			sp	addi
+
+-> puthex4
+	a0 15			a0	andi
+
+	\ The following instruction replaces a more complex instruction
+	\ sequence, but it only works if hextable sits below 2K in ROM.
+	\ If we didn't know ahead of time where hextable sat, we'd need this:
+	\ 
+	\ auipc	 x31,0
+	\ ld     t3,_addr_hextable
+	\ add	 a0,a0,t3
+	\ lb	 a0,0(a0)
+
+	a0 hextable		a0	lb
+
+	\ fall through to bios_putchar
 
 \ 
 \ BIOS Character Services

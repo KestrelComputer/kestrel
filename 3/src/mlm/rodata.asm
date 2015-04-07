@@ -12,3 +12,6 @@ banner_end banner - CONSTANT banner_length
 -> mlm_prompt	\ Length is hardwired to two characters.
 	S" * " ASCII,
 
+-> hextable
+	S" 0123456789ABCDEF" ASCII,
+
