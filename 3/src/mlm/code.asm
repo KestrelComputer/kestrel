@@ -32,24 +32,77 @@
 	\ Convert each character in the buffer to uppercase, for easier
 	\ event dispatching.
 
+	ZERO brod_bcb		t0	ld	( T0 -> BCB )
+	t0 bcb_licb		t1	addi	( T1 -> BIOS' BLICB)
+	t1 blicb_buffer		s1	ld	( S1 -> start of buffer )
+	t1 blicb_length		s2	ld	( S2 -> length of line )
+
+-> lowercase-again
+	s2 x0	 b> interpret-line	beq	( Break loop if done w/ buffer )
+	s1 0			s0	lb	( S0 = byte in buffer )
+
+	ZERO 97			s3	addi	( If S0 < 'a', skip it )
+	s0 s3	  b> not-lowercase	bltu
+
+	ZERO 122		s3	addi	( If 'z' < S0, skip it )
+	s3 s0	  b> not-lowercase	bltu
+
+	s0 $20			s0	xori	( Convert to uppercase )
+	s0			s1 0	sb
+
+-> not-lowercase
+	s1 1			s1	addi
+	s2 -1			s2	addi
+	lowercase-again		x0	jal
+	
+	\ Interpret the buffer, now consisting entirely of upper-case letters.
+-> interpret-line
+	t1 blicb_buffer		a0	ld	( A0 -> start of line )
+	t1 blicb_length		a1	ld	( A1 = length of line )
+	jal> interpret-cmd	ra	jal	( interpret the line )
+
+	\ Lather, rinse, repeat.
 	do-it-again		x0	jal
 
 
 \ 
-\ MLM Interpreter
+\ Interpret a complete MLM command
 \ 
 
--> mlm_token
-	sp -8 sp addi
-	ra sp 0 sd
+-> interpret-cmd
+	sp -24			sp	addi
+	ra			sp 0	sd
+	s0			sp 8	sd
+	s1			sp 16	sd
 
-	JAL> bios_putstrc ra JAL
-	x0 10 a0 addi
-	JAL> bios_putchar ra JAL
+	x0 a0			s0	or	( Preserve args in S-regs )
+	x0 a1			s1	or
 
-	sp 0 ra ld
-	sp 8 sp addi
-	ra 0 x0 jalr
+-> interpreter-loop
+	s1 x0 b> done-interpreting	beq	( If no further bytes, goodbye. )
+
+	s0 0			a0	lb	( A0 = byte to interpret )
+	jal> interpret-char	ra	jal	( interpret it. )
+
+	s0 1			s0	addi
+	s1 -1			s1	addi
+	interpreter-loop	x0	jal
+
+
+-> done-interpreting
+	sp 16			s1	ld
+	sp 8			s0	ld
+	sp 0			ra	ld
+	sp 24			sp	addi
+	ra 0			x0	jalr
+
+
+\ 
+\ Interpret a single byte of an MLM command.
+\ 
+
+-> interpret-char
+  jal> bios_putchar x0 jal
 
 
 \ 
