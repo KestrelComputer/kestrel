@@ -4,12 +4,14 @@
 
 	X0 brod_initsp		SP	LD
 
--> do-it-again
-	ZERO	CHAR *		A0	ADDI
-	JAL> bios_putchar	RA	JAL
-
 	ZERO	banner		A0	ADDI
 	ZERO	banner_length	A1	ADDI
+	JAL> bios_putstrc	RA	JAL
+
+-> do-it-again
+
+	ZERO	mlm_prompt	A0	ADDI
+	ZERO	2		A1	ADDI
 	JAL> bios_putstrc	RA	JAL
 
 	\ Reset the line input buffer control block, and get the line of text.
@@ -27,41 +29,10 @@
 	x0 10			a0	ori
 	jal> bios_putchar	ra	jal
 
-	\ Dump each entered word to the console, on a separate line.
-	x0 x0			s9	or
-	x0 brod_bcb		s10	ld
-	s10 bcb_licb		s10	addi
-	s10 blicb_buffer	s7	ld
-	s10 blicb_length  	s8	ld
--> L1
-	s9 s8			b> L2	bge	\ skip whitespace
-	s7 s9			s6	add
-	s6 0			s5	lb
-	x0 33			s4	ori
-	s5 s4			b> L2	bge
-	s9 1			s9	addi
-	L1			x0	JAL
--> L2
-	x0 s9			s2	or	\ mark first non-whitespace char
--> L3
-	s9 s8			b> L4	bge	\ skip non-whitespace
-	s7 s9			a6	add
-	a6 0			a5	lb
-	x0 33			a4	ori
-	a5 a4			b> L4	blt
-	s9 1			s9	addi
-	L3			x0	JAL
--> L4
-	x0 s9			a2	or	\ mark next whitespace char index
-	s2 a2			b> L5	beq	\ Are the indices the same?
-	s7 s2			a0	add	\ If not, we have a word (of length end-beginning index) to print!
-	a2 s2			a1 sub
-	JAL> mlm_token		ra	JAL
-	L1			x0	JAL
--> L5
-	x0 10			a0	addi	\ Print new prompt and repeat.
-	JAL> bios_putchar	ra	JAL
-	do-it-again		X0	JAL
+	\ Convert each character in the buffer to uppercase, for easier
+	\ event dispatching.
+
+	do-it-again		x0	jal
 
 
 \ 

@@ -7,10 +7,8 @@
 -> banner
 	S" MLM/K3 V1" ASCII, 10 B, 0 B,
 -> banner_end
--> crash_msg
-  S" For some reason, the program crashes beyond this point, still not" ascii, 10 b,
-  S" quite sure why.  So, for now, I deliberately deadlock here.  Sorry!" ascii, 10 b,
-  S" The bug seems to be in bios_getline based on principle of elimination." ascii, 10 b, 0 b,
-
 banner_end banner - CONSTANT banner_length
+
+-> mlm_prompt	\ Length is hardwired to two characters.
+	S" * " ASCII,
 
