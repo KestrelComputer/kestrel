@@ -134,6 +134,9 @@
 	x0 44			t2	ori	( char = ','? )
 	a0 t2		b> eat-,	beq
 
+	x0 71			t2	ori	( char = 'G'? )
+	a0 t2		b> eat-G	beq
+
 	jal> bios_putchar x0 jal
 
 
@@ -237,6 +240,15 @@
 	t1	t0 bcb_accumulator	sd
 	ra 0			x0	jalr
 
+\ Goto!
+
+-> eat-G
+	sp -8			sp	addi
+	ra			sp 0	sd
+	t1 0			ra	jalr
+	sp 0			ra	ld
+	sp 8			sp	addi
+	ra 0			x0	jalr
 
 \ 
 \ Print newline
