@@ -131,6 +131,9 @@
 	x0 46			t2	ori	( char = '.'? )
 	a0 t2		b> eat-.	beq
 
+	x0 44			t2	ori	( char = ','? )
+	a0 t2		b> eat-,	beq
+
 	jal> bios_putchar x0 jal
 
 
@@ -222,6 +225,18 @@
 	t1	t0 bcb_startaddr	sd
 	x0	t0 bcb_accumulator	sd
 	ra 0			x0	jalr
+
+\ Store a byte into memory.
+
+-> eat-,
+	t0 bcb_startaddr	t2	ld
+	t1			t2 0	sb
+	t2 1			t2	addi
+	t2	t0 bcb_startaddr	sd
+	t1 8			t1	srli
+	t1	t0 bcb_accumulator	sd
+	ra 0			x0	jalr
+
 
 \ 
 \ Print newline
