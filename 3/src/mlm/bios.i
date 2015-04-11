@@ -21,6 +21,7 @@ CONSTANT	brod_sizeof
 0
 DUP CONSTANT	bcb_inpindex		8 +
 DUP CONSTANT	bcb_accumulator		8 +
+DUP CONSTANT	bcb_startaddr		8 +
 DUP CONSTANT	bcb_licb		blicb_sizeof +
 DUP CONSTANT	bcb_keypress		1 +
 DUP CONSTANT	bcb_inpbuf		81 +

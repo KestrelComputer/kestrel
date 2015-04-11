@@ -10,8 +10,11 @@
 
 -> do-it-again
 
-	ZERO	brod_bcb	T0	LD	( Zero out accumulator )
-	X0	T0 bcb_accumulator	SD
+	ZERO brod_bcb		T0	LD
+	ZERO	t0 bcb_accumulator	SD
+	ZERO -1			T1	ADDI
+	T1	T0 bcb_startaddr	SD
+
 
 	ZERO	mlm_prompt	A0	ADDI
 	ZERO	2		A1	ADDI
@@ -125,6 +128,9 @@
 	x0 64			t2	ori	( char = '@'? )
 	a0 t2		b> eat-@	beq
 
+	x0 46			t2	ori	( char = '.'? )
+	a0 t2		b> eat-.	beq
+
 	jal> bios_putchar x0 jal
 
 
@@ -139,28 +145,84 @@
 	t1	t0 bcb_accumulator	sd
 	ra 0			x0	jalr
 
+\ Dump byte of memory or dump range of bytes
+
 -> eat-@
-	sp -16			sp	addi
+	sp -40			sp	addi	( preallocate slot for print-row's ra contents )
 	ra			sp 0	sd
 	s0			sp 8	sd
+	s1			sp 16	sd
+	s2			sp 24	sd
 
-	x0 t1			s0	or	( Preserve address )
-	x0 t1			a0	or	( print address )
+	t0 bcb_startaddr	s0	ld	( start address for dump )
+	x0 -1			t2	ori	( Defaults to accumulator if start not set )
+	s0 t2		b> >=2bytes	bne
+	x0 t1			s0	or
+
+-> >=2bytes
+	s0 -16			s1	andi	( current peek pointer )
+	t1 15			s2	ori	( end address for row )
+	s2 1			s2	addi
+
+-> another-row
+	jal> print-row		ra	jal
+	s1 s2 		another-row	bltu
+
+	sp 0			ra	ld
+	sp 8			s0	ld
+	sp 16			s1	ld
+	sp 24			s2	ld
+	sp 40			sp	addi
+	ra 0			x0	jalr
+
+-> print-row
+	ra			sp 32	sd
+	t1 1			t1	addi	( to compensate for bgeu semantics )
+
+	x0 s1			a0	or	( print address and colon )
 	jal> puthex64		ra	jal
-
-	x0 58			a0	ori	( print colon )
+	x0 58			a0	ori
 	jal> bios_putchar	ra	jal
 
-	s0 0			a0	lb	( Print the byte there )
+	x0 16			s3	ori	( byte counter )
+
+-> print-row-loop
+	x0 s3		b> done-w/-row	beq
+
+	s1 s0		b> a-dot	bltu
+	s1 t1		b> a-dot	bgeu
+
+	s1 0			a0	lb
 	jal> puthex8		ra	jal
+	x0 32			a0	ori
+	jal> bios_putchar	ra	jal
 
-	jal> newline		ra	jal
+-> next-byte
+	s1 1			s1	addi
+	s3 -1			s3	addi
+	print-row-loop		x0	jal
 
-	sp 8			s0	ld
-	sp 0			ra	ld
-	sp 16			sp	addi
+-> a-dot
+	x0 spdotsp		a0	ori
+	x0 3			a1	ori
+	jal> bios_putstrc	ra	jal
+	next-byte		x0	jal
+
+-> done-w/-row
+	x0 10			a0	ori
+	jal> bios_putchar	ra	jal
+	sp 32			ra	ld
+	t1 -1			t1	addi	( restore original value )
 	ra 0			x0	jalr
-	
+
+
+\ Set start address register
+
+-> eat-.
+	t1	t0 bcb_startaddr	sd
+	x0	t0 bcb_accumulator	sd
+	ra 0			x0	jalr
+
 \ 
 \ Print newline
 \ 

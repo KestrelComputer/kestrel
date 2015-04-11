@@ -15,3 +15,5 @@ banner_end banner - CONSTANT banner_length
 -> hextable
 	S" 0123456789ABCDEF" ASCII,
 
+-> spdotsp
+	S"  . " ASCII,
