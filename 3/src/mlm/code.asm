@@ -4,12 +4,20 @@
 
 	X0 brod_initsp		SP	LD
 
--> do-it-again
-	ZERO	CHAR *		A0	ADDI
-	JAL> bios_putchar	RA	JAL
-
 	ZERO	banner		A0	ADDI
 	ZERO	banner_length	A1	ADDI
+	JAL> bios_putstrc	RA	JAL
+
+-> do-it-again
+
+	ZERO brod_bcb		T0	LD
+	ZERO	t0 bcb_accumulator	SD
+	ZERO -1			T1	ADDI
+	T1	T0 bcb_startaddr	SD
+
+
+	ZERO	mlm_prompt	A0	ADDI
+	ZERO	2		A1	ADDI
 	JAL> bios_putstrc	RA	JAL
 
 	\ Reset the line input buffer control block, and get the line of text.
@@ -27,59 +35,279 @@
 	x0 10			a0	ori
 	jal> bios_putchar	ra	jal
 
-	\ Dump each entered word to the console, on a separate line.
-	x0 x0			s9	or
-	x0 brod_bcb		s10	ld
-	s10 bcb_licb		s10	addi
-	s10 blicb_buffer	s7	ld
-	s10 blicb_length  	s8	ld
--> L1
-	s9 s8			b> L2	bge	\ skip whitespace
-	s7 s9			s6	add
-	s6 0			s5	lb
-	x0 33			s4	ori
-	s5 s4			b> L2	bge
-	s9 1			s9	addi
-	L1			x0	JAL
--> L2
-	x0 s9			s2	or	\ mark first non-whitespace char
--> L3
-	s9 s8			b> L4	bge	\ skip non-whitespace
-	s7 s9			a6	add
-	a6 0			a5	lb
-	x0 33			a4	ori
-	a5 a4			b> L4	blt
-	s9 1			s9	addi
-	L3			x0	JAL
--> L4
-	x0 s9			a2	or	\ mark next whitespace char index
-	s2 a2			b> L5	beq	\ Are the indices the same?
-	s7 s2			a0	add	\ If not, we have a word (of length end-beginning index) to print!
-	a2 s2			a1 sub
-	JAL> mlm_token		ra	JAL
-	L1			x0	JAL
--> L5
-	x0 10			a0	addi	\ Print new prompt and repeat.
-	JAL> bios_putchar	ra	JAL
-	do-it-again		X0	JAL
+	\ Convert each character in the buffer to uppercase, for easier
+	\ event dispatching.
+
+	ZERO brod_bcb		t0	ld	( T0 -> BCB )
+	t0 bcb_licb		t1	addi	( T1 -> BIOS' BLICB)
+	t1 blicb_buffer		s1	ld	( S1 -> start of buffer )
+	t1 blicb_length		s2	ld	( S2 -> length of line )
+
+-> lowercase-again
+	s2 x0	 b> interpret-line	beq	( Break loop if done w/ buffer )
+	s1 0			s0	lb	( S0 = byte in buffer )
+
+	ZERO 97			s3	addi	( If S0 < 'a', skip it )
+	s0 s3	  b> not-lowercase	bltu
+
+	ZERO 122		s3	addi	( If 'z' < S0, skip it )
+	s3 s0	  b> not-lowercase	bltu
+
+	s0 $20			s0	xori	( Convert to uppercase )
+	s0			s1 0	sb
+
+-> not-lowercase
+	s1 1			s1	addi
+	s2 -1			s2	addi
+	lowercase-again		x0	jal
+	
+	\ Interpret the buffer, now consisting entirely of upper-case letters.
+-> interpret-line
+	t1 blicb_buffer		a0	ld	( A0 -> start of line )
+	t1 blicb_length		a1	ld	( A1 = length of line )
+	jal> interpret-cmd	ra	jal	( interpret the line )
+
+	\ Lather, rinse, repeat.
+	do-it-again		x0	jal
 
 
 \ 
-\ MLM Interpreter
+\ Interpret a complete MLM command
 \ 
 
--> mlm_token
-	sp -8 sp addi
-	ra sp 0 sd
+-> interpret-cmd
+	sp -24			sp	addi
+	ra			sp 0	sd
+	s0			sp 8	sd
+	s1			sp 16	sd
 
-	JAL> bios_putstrc ra JAL
-	x0 10 a0 addi
-	JAL> bios_putchar ra JAL
+	x0 a0			s0	or	( Preserve args in S-regs )
+	x0 a1			s1	or
 
-	sp 0 ra ld
-	sp 8 sp addi
-	ra 0 x0 jalr
+-> interpreter-loop
+	s1 x0 b> done-interpreting	beq	( If no further bytes, goodbye. )
 
+	s0 0			a0	lb	( A0 = byte to interpret )
+	jal> interpret-char	ra	jal	( interpret it. )
+
+	s0 1			s0	addi
+	s1 -1			s1	addi
+	interpreter-loop	x0	jal
+
+
+-> done-interpreting
+	sp 16			s1	ld
+	sp 8			s0	ld
+	sp 0			ra	ld
+	sp 24			sp	addi
+	ra 0			x0	jalr
+
+
+\ 
+\ Interpret a single byte of an MLM command.
+\ 
+
+-> interpret-char
+	x0 brod_bcb		t0	ld	( T0 -> BCB )
+	t0 bcb_accumulator	t1	ld	( T1 = current accumulator )
+
+	x0 48			t2	ori	( char < '0'? )
+	a0 t2		b> not-digit	bltu
+
+	x0 58			t2	ori	( char <= '9'? )
+	a0 t2		b> eat-0..9	bltu
+
+-> not-digit
+	x0 65			t2	ori	( char < 'A'? )
+	a0 t2		b> not-hex	bltu
+
+	x0 71			t2	ori	( char < 'F'? )
+	a0 t2		b> eat-hex	bltu
+
+-> not-hex
+	x0 64			t2	ori	( char = '@'? )
+	a0 t2		b> eat-@	beq
+
+	x0 46			t2	ori	( char = '.'? )
+	a0 t2		b> eat-.	beq
+
+	jal> bios_putchar x0 jal
+
+
+-> eat-hex
+	a0 -7			a0	addi	( sequentialize then fall through )
+
+-> eat-0..9
+	a0 -48			a0	addi	( extract BCD digit )
+
+	t1 4			t1	slli	( make room for digit )
+	t1 a0			t1	or	( merge digit )
+	t1	t0 bcb_accumulator	sd
+	ra 0			x0	jalr
+
+\ Dump byte of memory or dump range of bytes
+
+-> eat-@
+	sp -40			sp	addi	( preallocate slot for print-row's ra contents )
+	ra			sp 0	sd
+	s0			sp 8	sd
+	s1			sp 16	sd
+	s2			sp 24	sd
+
+	t0 bcb_startaddr	s0	ld	( start address for dump )
+	x0 -1			t2	ori	( Defaults to accumulator if start not set )
+	s0 t2		b> >=2bytes	bne
+	x0 t1			s0	or
+
+-> >=2bytes
+	s0 -16			s1	andi	( current peek pointer )
+	t1 15			s2	ori	( end address for row )
+	s2 1			s2	addi
+
+-> another-row
+	jal> print-row		ra	jal
+	s1 s2 		another-row	bltu
+
+	sp 0			ra	ld
+	sp 8			s0	ld
+	sp 16			s1	ld
+	sp 24			s2	ld
+	sp 40			sp	addi
+	ra 0			x0	jalr
+
+-> print-row
+	ra			sp 32	sd
+	t1 1			t1	addi	( to compensate for bgeu semantics )
+
+	x0 s1			a0	or	( print address and colon )
+	jal> puthex64		ra	jal
+	x0 58			a0	ori
+	jal> bios_putchar	ra	jal
+
+	x0 16			s3	ori	( byte counter )
+
+-> print-row-loop
+	x0 s3		b> done-w/-row	beq
+
+	s1 s0		b> a-dot	bltu
+	s1 t1		b> a-dot	bgeu
+
+	s1 0			a0	lb
+	jal> puthex8		ra	jal
+	x0 32			a0	ori
+	jal> bios_putchar	ra	jal
+
+-> next-byte
+	s1 1			s1	addi
+	s3 -1			s3	addi
+	print-row-loop		x0	jal
+
+-> a-dot
+	x0 spdotsp		a0	ori
+	x0 3			a1	ori
+	jal> bios_putstrc	ra	jal
+	next-byte		x0	jal
+
+-> done-w/-row
+	x0 10			a0	ori
+	jal> bios_putchar	ra	jal
+	sp 32			ra	ld
+	t1 -1			t1	addi	( restore original value )
+	ra 0			x0	jalr
+
+
+\ Set start address register
+
+-> eat-.
+	t1	t0 bcb_startaddr	sd
+	x0	t0 bcb_accumulator	sd
+	ra 0			x0	jalr
+
+\ 
+\ Print newline
+\ 
+
+-> newline
+	x0 10			a0	ori
+	jal> bios_putchar	x0	jal
+
+\ 
+\ Print out hexadecimal numbers of various widths.  These must appear
+\ immediately before bios_putchar (or else, adjust the puthex4 routine to jump
+\ to bios_putchar).
+\ 
+
+-> puthex64
+	sp -16			sp	addi
+	ra			sp 0	sd
+	s0			sp 8	sd
+
+	x0 a0			s0	or
+	a0 32			a0	srli
+	jal> puthex32		ra	jal
+
+	x0 s0			a0	or
+	sp 8			s0	ld
+	sp 0			ra	ld
+	sp 16			sp	addi
+
+-> puthex32
+	sp -16			sp	addi
+	ra			sp 0	sd
+	s0			sp 8	sd
+
+	x0 a0			s0	or
+	a0 16			a0	srli
+	jal> puthex16		ra	jal
+
+	x0 s0			a0	or
+	sp 8			s0	ld
+	sp 0			ra	ld
+	sp 16			sp	addi
+
+-> puthex16
+	sp -16			sp	addi
+	ra			sp 0	sd
+	s0			sp 8	sd
+
+	x0 a0			s0	or
+	a0 8			a0	srli
+	jal> puthex8		ra	jal
+
+	x0 s0			a0	or
+	sp 8			s0	ld
+	sp 0			ra	ld
+	sp 16			sp	addi
+
+-> puthex8
+	sp -16			sp	addi
+	ra			sp 0	sd
+	s0			sp 8	sd
+
+	x0 a0			s0	or
+	a0 4			a0	srli
+	jal> puthex4		ra	jal
+
+	x0 s0			a0	or
+	sp 8			s0	ld
+	sp 0			ra	ld
+	sp 16			sp	addi
+
+-> puthex4
+	a0 15			a0	andi
+
+	\ The following instruction replaces a more complex instruction
+	\ sequence, but it only works if hextable sits below 2K in ROM.
+	\ If we didn't know ahead of time where hextable sat, we'd need this:
+	\ 
+	\ auipc	 x31,0
+	\ ld     t3,_addr_hextable
+	\ add	 a0,a0,t3
+	\ lb	 a0,0(a0)
+
+	a0 hextable		a0	lb
+
+	\ fall through to bios_putchar
 
 \ 
 \ BIOS Character Services
