@@ -137,6 +137,12 @@
 	x0 71			t2	ori	( char = 'G'? )
 	a0 t2		b> eat-G	beq
 
+	x0 58			t2	ori	( char = ':'? )
+	a0 t2		b> eat-:	beq
+
+	x0 88			t2	ori	( char = 'X'? )
+	a0 t2		b> eat-X	beq
+
 	jal> bios_putchar x0 jal
 
 
@@ -150,6 +156,12 @@
 	t1 a0			t1	or	( merge digit )
 	t1	t0 bcb_accumulator	sd
 	ra 0			x0	jalr
+
+\ Dump user-mode register space
+
+-> eat-:
+	t1 7			t1	ori	( Regs are 8 bytes in size )
+	\ fall through to eat-@
 
 \ Dump byte of memory or dump range of bytes
 
@@ -248,6 +260,16 @@
 	t1 0			ra	jalr
 	sp 0			ra	ld
 	sp 8			sp	addi
+	ra 0			x0	jalr
+
+\ Compute user-mode register address in memory
+
+-> eat-X
+	t1 31			t1	andi
+	t1 3			t1	slli
+	t1 t0			t1	add
+	t1 bcb_userRegs		t1	addi
+	t1	t0 bcb_accumulator	sd
 	ra 0			x0	jalr
 
 \ 

@@ -19,6 +19,7 @@ CONSTANT	brod_sizeof
 \ the BIOS Control Block, or BCB.
 
 0
+DUP CONSTANT	bcb_userRegs		32 8 * +	( Reserving space for X0 avoids special-case logic. )
 DUP CONSTANT	bcb_inpindex		8 +
 DUP CONSTANT	bcb_accumulator		8 +
 DUP CONSTANT	bcb_startaddr		8 +
