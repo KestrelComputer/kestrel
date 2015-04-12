@@ -1,6 +1,65 @@
 \ 
-\ Cold Boot Entry Point
+\ Cold Boot and MLM Entry Points
 \ 
+\ Currently they're the same, but this is an implementation detail.
+\ The reason the mlm-entry is at offset 8 is that it places the vector at
+\ $2008, which with a bit of massaging, allows this code:
+\ 
+\	x0 $401 t0 ori
+\	t0 3 t0 slli
+\	t0 0 x0 jalr
+\ 
+\ to invoke the debugger without the need for special loader support for
+\ relocating absolute addresses at runtime.  ($401 times 8 is $2008.)
+\ 
+
+	jal> cold-boot		x0	jal	( CPU boots here )
+	jal> cold-boot		x0	jal	( filler )
+	jal> mlm-entry		x0	jal	( MLM entry point )
+	jal> mlm-entry		x0	jal	( filler )
+
+-> cold-boot
+-> mlm-entry
+
+	\ Save user register state.
+	\ 
+	\ Implementation Detail: Until SBREAK and proper exceptions are supported,
+	\ we must use a single register as a base pointer to our debugger area.
+	\ I've chosen S11 because it's the least likely to be used register.
+	\ I hope.
+
+	x0 brod_bcb		s11	ld
+	x1	s11 bcb_userRegs   8 +	sd
+	x2	s11 bcb_userRegs  16 +	sd
+	x3	s11 bcb_userRegs  24 +	sd
+	x4	s11 bcb_userRegs  32 +	sd
+	x5	s11 bcb_userRegs  40 +	sd
+	x6	s11 bcb_userRegs  48 +	sd
+	x7	s11 bcb_userRegs  56 +	sd
+	x8	s11 bcb_userRegs  64 +	sd
+	x9	s11 bcb_userRegs  72 +	sd
+	x10	s11 bcb_userRegs  80 +	sd
+	x11	s11 bcb_userRegs  88 +	sd
+	x12	s11 bcb_userRegs  96 +	sd
+	x13	s11 bcb_userRegs 104 +	sd
+	x14	s11 bcb_userRegs 112 +	sd
+	x15	s11 bcb_userRegs 120 +	sd
+	x16	s11 bcb_userRegs 128 +	sd
+	x17	s11 bcb_userRegs 136 +	sd
+	x18	s11 bcb_userRegs 144 +	sd
+	x19	s11 bcb_userRegs 152 +	sd
+	x20	s11 bcb_userRegs 160 +	sd
+	x21	s11 bcb_userRegs 168 +	sd
+	x22	s11 bcb_userRegs 176 +	sd
+	x23	s11 bcb_userRegs 184 +	sd
+	x24	s11 bcb_userRegs 192 +	sd
+	x25	s11 bcb_userRegs 200 +	sd
+	x26	s11 bcb_userRegs 208 +	sd
+\	x27	s11 bcb_userRegs 216 +	sd	Don't support X27 (aka S11) yet.
+	x28	s11 bcb_userRegs 224 +	sd
+	x29	s11 bcb_userRegs 232 +	sd
+	x30	s11 bcb_userRegs 240 +	sd
+	x31	s11 bcb_userRegs 248 +	sd
 
 	X0 brod_initsp		SP	LD
 
@@ -255,12 +314,58 @@
 \ Goto!
 
 -> eat-G
-	sp -8			sp	addi
-	ra			sp 0	sd
-	t1 0			ra	jalr
-	sp 0			ra	ld
-	sp 8			sp	addi
-	ra 0			x0	jalr
+	\ Jumping to a routine will replace all 32 GPRs.
+	\ This includes our stack pointer and return address!
+	\ The only reliable way to "return" to the debugger is
+	\ the SBREAK instruction or by JALing to $2004.
+	\ 
+	\ IMPLEMENTATION DETAIL:
+	\ 
+	\ Until we have a proper supervisor mode, we cannot
+	\ reload all 32 GPRs as indicated above; we need one
+	\ left over as a base register pointing to the userRegs
+	\ structure.  
+	\ 
+	\ We use S11 because it's so high up in the S-register space
+	\ that we feel it generally won't be used much.  This is an
+	\ assumption of course, and we all know how well assumptions
+	\ work out for people.
+
+	x0 t0			s11	or
+	s11 bcb_userRegs   8 +	x1	ld
+	s11 bcb_userRegs  16 +	x2	ld
+	s11 bcb_userRegs  24 +	x3	ld
+	s11 bcb_userRegs  32 +	x4	ld
+	s11 bcb_userRegs  40 +	x5	ld
+	s11 bcb_userRegs  48 +	x6	ld
+	s11 bcb_userRegs  56 +	x7	ld
+	s11 bcb_userRegs  64 +	x8	ld
+	s11 bcb_userRegs  72 +	x9	ld
+	s11 bcb_userRegs  80 +	x10	ld
+	s11 bcb_userRegs  88 +	x11	ld
+	s11 bcb_userRegs  96 +	x12	ld
+	s11 bcb_userRegs 104 +	x13	ld
+	s11 bcb_userRegs 112 +	x14	ld
+	s11 bcb_userRegs 120 +	x15	ld
+	s11 bcb_userRegs 128 +	x16	ld
+	s11 bcb_userRegs 136 +	x17	ld
+	s11 bcb_userRegs 144 +	x18	ld
+	s11 bcb_userRegs 152 +	x19	ld
+	s11 bcb_userRegs 160 +	x20	ld
+	s11 bcb_userRegs 168 +	x21	ld
+	s11 bcb_userRegs 176 +	x22	ld
+	s11 bcb_userRegs 184 +	x23	ld
+	s11 bcb_userRegs 192 +	x24	ld
+	s11 bcb_userRegs 200 +	x25	ld
+	s11 bcb_userRegs 208 +	x26	ld
+\	s11 bcb_userRegs 216 +	x27	ld    Don't overload S11 until SBREAK is supported.
+	s11 bcb_userRegs 224 +	x28	ld
+	s11 bcb_userRegs 232 +	x29	ld
+	s11 bcb_userRegs 240 +	x30	ld
+	s11 bcb_userRegs 248 +	x31	ld
+
+	s11 bcb_accumulator	s11	ld
+	s11 0			x0	jalr
 
 \ Compute user-mode register address in memory
 
