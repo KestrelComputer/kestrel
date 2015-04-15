@@ -375,6 +375,12 @@
 	t1 t0			t1	add
 	t1 bcb_userRegs		t1	addi
 	t1	t0 bcb_accumulator	sd
+	t0 bcb_startaddr	t2	ld
+	x0 -1			t3	ori
+	t2 t3		b> done-X	bne
+	t1 -8			t1	andi
+	t1	t0 bcb_startaddr	sd
+-> done-X
 	ra 0			x0	jalr
 
 \ 
