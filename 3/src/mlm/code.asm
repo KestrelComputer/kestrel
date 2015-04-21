@@ -202,7 +202,7 @@
 	x0 88			t2	ori	( char = 'X'? )
 	a0 t2		b> eat-X	beq
 
-	jal> bios_putchar x0 jal
+	ra 0			x0	jalr
 
 
 -> eat-hex
@@ -536,35 +536,26 @@
 
 
 \ Check to see if a key has been pressed.
-\ Returns pending ASCII code if a key is pending; use bios_getchar to pop it.
+\ Returns non-zero if the debug port has data waiting.
 \ Returns zero otherwise.
 
 -> bios_chkchar ( ) \ ascii
 	X0 brod_bcb				T0			LD	( T0 -> BIOS Control Block )
-	T0 bcb_keypress				A0			LBU	( do we have a key pending? )
-	X0			A0		B> .bios.chkchar.done	BNE	( Yes, just return it )
 	X0 brod_uart_base			T1			LD	( T1 -> UART base )
-	T1 UART_RX				A0			LBU	( Check UART receive register )
-	A0					T0 bcb_keypress		SB	( Hopefully queue key pending buffer )
--> .bios.chkchar.done
+	T1 UART_STATUS				A0			LBU	( data pending? )
+	A0 1					A0			ANDI
 	RA 0					X0			JALR
 
 
-\ Get a character, if it's been pressed.
-\ Returns the current ASCII code if pending; zero otherwise.
-\ Note that this function does not block.
-\ To non-destructively read the next byte, if any, use bios_chkchar.
+\ Get a character.  This function will block until data becomes available.
 
 -> bios_getchar ( ) \ ascii
 	X0 brod_bcb				T0			LD	( T0 -> BIOS Control Block )
 	X0 brod_uart_base			T1			LD	( T1 -> UART )
-	T0 bcb_keypress				A0			LBU	( pending keypress? )
-	X0			A0		B> .bios.getchar.q	BNE	( Yes, pop the queue )
-	T1 UART_RX				A0			LBU	( otherwise, read directly from uart )
-	RA 0					X0			JALR
-
--> .bios.getchar.q
-	X0					T0 bcb_keypress		SB
+-> .bios.getchar.again
+	T1 UART_STATUS				A0			LBU	( Wait for data )
+	X0 A0					.bios.getchar.again	BEQ
+	T1 UART_RX				A0			LBU	( Grab the next available byte )
 	RA 0					X0			JALR
 
 \ Get a line of text from the user's console.
