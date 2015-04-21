@@ -214,13 +214,22 @@ void address_space_uart_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) 
 }
 
 
+int debug_port_has_data() {
+	fd_set fds;
+	struct timeval tv = {0,};
+	FD_ZERO(&fds);
+	FD_SET(0, &fds);
+	select(1, &fds, NULL, NULL, &tv);
+	return FD_ISSET(0, &fds) != 0;
+}
+
 UDWORD address_space_uart_reader(AddressSpace *as, UDWORD addr, int sz) {
 	int n;
 	BYTE c;
 
 	addr &= ~(DEV_MASK | CARD_MASK);
 	switch(addr & 1) {
-	case 0:		return 0;
+	case 0:		return debug_port_has_data();
 	case 1:
 		for(n = 0; !n; n = read(1, &c, 1));
 		return c;
