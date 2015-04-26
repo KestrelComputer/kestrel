@@ -2,6 +2,7 @@
 
 from __future__ import print_function
 
+import string
 import sys
 import os
 
@@ -10,12 +11,14 @@ fileScope = 0
 lexingComment = 1
 lexingIdentifier = 2
 lexingDecimalConstant = 3
+lexingHexConstant = 4
 
 commentToken = 1
 identifierToken = 2
 integerConstantToken = 3
 characterToken = 4
 expressionToken = 100
+listToken = 101
 endOfInput = 999
 
 
@@ -24,6 +27,7 @@ uppercaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 startOfIdentifierChars = lowercaseLetters + uppercaseLetters + '_'
 decimalDigits = "0123456789"
 completeIdentifierCharSet = startOfIdentifierChars + decimalDigits
+hexDigits = decimalDigits + uppercaseLetters[:6]
 
 precedenceTable = {
     "*": 20, "/": 20,
@@ -66,8 +70,27 @@ class Assembler(object):
         )
         return True
 
+    def gen_dword(self, e):
+        print("DWORD({})".format(e))
+
     def simplify_step(self):
-	print("STEP={}".format(self.stack))
+        print("STEP={}".format(self.stack))
+        if len(self.stack) >= 5:
+            a, b, c, d, e = self.stack[-5:]
+            if (
+                a[0] == identifierToken and a[1] == "dword" and
+                b[0] == listToken and
+                c[0] == characterToken and c[1] == "," and
+                d[0] == expressionToken and
+                (
+                    e[0] == endOfInput or
+                    (e[0] == characterToken and e[1] == ",")
+                )
+            ):
+                self.stack[-4] = (listToken, self.stack[-4][1] + [d[1]])
+                self.stack = self.stack[:-3] + [e]
+                return True
+
         if len(self.stack) >= 4:
             a, b, c, d = self.stack[-4:]
             if self.is_binary_operator("+"):
@@ -92,6 +115,28 @@ class Assembler(object):
                 self.stack = self.stack[:-4]+[d]
                 return True
 
+        if len(self.stack) >= 3:
+            a, b, c = self.stack[-3:]
+
+            if (
+                a[0] == identifierToken and a[1] == "dword" and
+                b[0] == expressionToken and
+                (
+                    c[0] == endOfInput or
+                    (c[0] == characterToken and c[1] == ',')
+                )
+            ):
+                self.stack[-2] = (listToken, [b[1]])
+                return True
+
+            elif (
+                a[0] == identifierToken and a[1] == "dword" and
+                b[0] == listToken and
+                c[0] == endOfInput
+            ):
+                for e in b[1]:
+                    self.gen_dword(e)
+                self.stack = self.stack[:-3] + [c]
 
         if len(self.stack) >= 1:
             a = self.stack[-1]
@@ -161,6 +206,12 @@ class Assembler(object):
                 self.lexerState = lexingDecimalConstant
                 return
 
+            # Detect hexadecimal integers
+            if ch == "$":
+                self.string = ""
+                self.lexerState = lexingHexConstant
+                return
+
             # Otherwise, just return the random character as-is.
             # Maybe the parser knows what to do with it.
             self.onToken(characterToken, ch)
@@ -183,6 +234,13 @@ class Assembler(object):
         elif self.lexerState == lexingDecimalConstant:
             if ch not in decimalDigits:
                 return self.tokenTransition(ch, integerConstantToken, converter=int)
+
+            self.string = self.string + ch
+            return
+
+        elif self.lexerState == lexingHexConstant:
+            if string.upper(ch) not in hexDigits:
+                return self.tokenTransition(ch, integerConstantToken, converter=lambda x: int(x, 16))
 
             self.string = self.string + ch
             return
