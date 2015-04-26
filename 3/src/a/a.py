@@ -25,6 +25,11 @@ startOfIdentifierChars = lowercaseLetters + uppercaseLetters + '_'
 decimalDigits = "0123456789"
 completeIdentifierCharSet = startOfIdentifierChars + decimalDigits
 
+precedenceTable = {
+    "*": 20, "/": 20,
+    "+": 10, "-": 10,
+}
+
 
 def identity(x):
     return x
@@ -36,22 +41,46 @@ class Assembler(object):
         self.parserState = fileScope
         self.string = ""
         self.stack = []
-	self.labels = {}
+        self.labels = {}
+
+    def is_binary_operator(self, op):
+        a, b, c, d = self.stack[-4:]
+
+        return (
+            a[0] == expressionToken and
+            b[0] == characterToken and b[1] == op and
+            c[0] == expressionToken and
+            (
+                d[0] != characterToken or
+                (
+                d[0] == characterToken and d[1] in precedenceTable and
+                precedenceTable[b[1]] >= precedenceTable[d[1]]
+                )
+            )
+        )
+
+    def perform_binary_op(self, f):
+        a, _, c, d = self.stack[-4:]
+        self.stack = (
+            self.stack[:-4] + [(expressionToken, f(a[1], c[1]))] + [d]
+        )
+        return True
 
     def simplify_step(self):
 	print("STEP={}".format(self.stack))
         if len(self.stack) >= 4:
             a, b, c, d = self.stack[-4:]
-            if (
-                a[0] == expressionToken and
-                b[0] == characterToken and b[1] == "+" and
-                c[0] == expressionToken and
-		d[0] == endOfInput
-            ):
-                self.stack = (
-                    self.stack[:-4] + [(expressionToken, a[1] + c[1])] + [d]
-                )
-                return True
+            if self.is_binary_operator("+"):
+                return self.perform_binary_op(lambda x, y: x + y)
+
+            elif self.is_binary_operator("-"):
+                return self.perform_binary_op(lambda x, y: x - y)
+
+            elif self.is_binary_operator("*"):
+                return self.perform_binary_op(lambda x, y: x * y)
+
+            elif self.is_binary_operator("/"):
+                return self.perform_binary_op(lambda x, y: x / y)
 
             elif (
                 a[0] == identifierToken and
