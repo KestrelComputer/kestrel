@@ -50,18 +50,19 @@ class Assembler(object):
     def is_binary_operator(self, op):
         a, b, c, d = self.stack[-4:]
 
-        return (
-            a[0] == expressionToken and
-            b[0] == characterToken and b[1] == op and
-            c[0] == expressionToken and
-            (
-                d[0] != characterToken or
-                (
-                d[0] == characterToken and d[1] in precedenceTable and
-                precedenceTable[b[1]] >= precedenceTable[d[1]]
-                )
-            )
-        )
+	return (
+	    a[0] == expressionToken and
+	    b[0] == characterToken and b[1] == op and
+	    c[0] == expressionToken and
+	    (
+		(d[0] != characterToken) or
+		(d[0] == characterToken and d[1] not in precedenceTable) or
+		(
+		    d[0] == characterToken and d[1] in precedenceTable and
+		    (precedenceTable[b[1]] >= precedenceTable[d[1]])
+		)
+	    )
+	)
 
     def perform_binary_op(self, f):
         a, _, c, d = self.stack[-4:]
