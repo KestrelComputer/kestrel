@@ -23,8 +23,8 @@ dwordToken = 100
 wordToken = 101
 hwordToken = 102
 byteToken = 103
+advanceToken = 104
 endOfInputToken = 999
-
 
 lowercaseLetters = "abcdefghijklmnopqrstuvwxyz"
 uppercaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -41,6 +41,18 @@ precedenceTable = {
 
 def syntaxError(asm, tok):
     print("Syntax error on line {} near {}".format(asm.getLine(), tok.string))
+
+
+class Advance(object):
+    def __init__(self, target, fill):
+        self.target = target
+        self.fill = fill
+
+
+class Declaration(object):
+    def __init__(self, value, size):
+        self.value = value
+        self.size = size
 
 
 class Token(object):
@@ -60,6 +72,7 @@ def kindOfIdentifier(s):
         'WORD': wordToken,
         'HWORD': hwordToken,
         'BYTE': byteToken,
+        'ADV': advanceToken,
     }
     return kindMap.get(s, identifierToken)
 
@@ -85,13 +98,17 @@ def unaryOperatorHandler(asm, tok, prec):
     syntaxError(asm, tok)
 
 
+def expectCharacter(asm, ch):
+    t = asm.getToken()
+    if t.tokenType != characterToken or t.tokenValue != ch:
+        syntaxError(asm, t)
+    asm.eatToken()
+
+
 def characterPrefixHandler(asm, tok, prec):
     if tok.tokenValue == '(':
         v = expression(asm, 0)
-        t = asm.getToken()
-        if t.tokenType != characterToken or t.tokenValue != ')':
-            syntaxError(asm, t)
-        asm.eatToken()
+        expectCharacter(asm, ')')
         return v
 
     syntaxError(asm, tok)
@@ -174,8 +191,8 @@ def declareConstantHandler(asm, tok):
     while True:
         e = expression(asm, 0)
         te = type(e).__name__
-	if te == "int":
-	    recorder(e)
+        if te == "int":
+            recorder(e)
         elif te == "str":
             for c in e:
                 recorder(ord(c))
@@ -187,6 +204,13 @@ def declareConstantHandler(asm, tok):
         asm.eatToken()
 
 
+def advanceHandler(asm, tok):
+    eTarget = expression(asm, 0)
+    expectCharacter(asm, ",")
+    eFill = expression(asm, 0)
+    asm.recordAdvance(eTarget, eFill)
+
+
 fileScopeHandlers = {
     commentToken: commentHandler,
     identifierToken: labelOrAssignmentHandler,
@@ -194,6 +218,7 @@ fileScopeHandlers = {
     wordToken: declareConstantHandler,
     hwordToken: declareConstantHandler,
     byteToken: declareConstantHandler,
+    advanceToken: advanceHandler,
 }
 
 
@@ -213,22 +238,35 @@ class Assembler(object):
         self.line = 0
         self.symbols = {}
         self.section = []
+        self.lc = 0
         self.pass2todo = []
 
+    def _defer(self, obj):
+        self.pass2todo = self.pass2todo + [obj]
+
     def recordDWord(self, dw):
-	self.pass2todo = self.pass2todo + [(dwordToken, dw)]
+        self._defer(Declaration(dw, 8))
+        self.lc = self.lc + 8
 
     def recordWord(self, w):
-	self.pass2todo = self.pass2todo + [(wordToken, w)]
+        self._defer(Declaration(w, 4))
+        self.lc = self.lc + 4
 
     def recordHWord(self, h):
-	self.pass2todo = self.pass2todo + [(hwordToken, h)]
+        self._defer(Declaration(h, 2))
+        self.lc = self.lc + 2
 
     def recordByte(self, b):
-	self.pass2todo = self.pass2todo + [(byteToken, b)]
+        self._defer(Declaration(b, 1))
+        self.lc = self.lc + 1
+
+    def recordAdvance(self, target, fill):
+        self._defer(Advance(target, fill))
+        if self.lc < target:
+            self.lc = target
 
     def getLC(self):
-        return len(self.section)
+        return self.lc
 
     def setSymbol(self, name, value):
         self.symbols[name] = value
