@@ -11,13 +11,18 @@ lexingComment = 1
 lexingIdentifier = 2
 lexingDecimalConstant = 3
 lexingHexConstant = 4
+lexingString = 5
 
 commentToken = 1
 identifierToken = 2
 integerToken = 3
 characterToken = 4
 binOpToken = 5
+stringToken = 6
 dwordToken = 100
+wordToken = 101
+hwordToken = 102
+byteToken = 103
 endOfInputToken = 999
 
 
@@ -52,6 +57,9 @@ def kindOfIdentifier(s):
     s = string.upper(s)
     kindMap = {
         'DWORD': dwordToken,
+        'WORD': wordToken,
+        'HWORD': hwordToken,
+        'BYTE': byteToken,
     }
     return kindMap.get(s, identifierToken)
 
@@ -93,6 +101,7 @@ prefixHandlers = {
     identifierToken: identifierExpressionHandler,
     binOpToken: unaryOperatorHandler,
     characterToken: characterPrefixHandler,
+    stringToken: lambda x, y, z: y.tokenValue,
 }
 
 
@@ -154,10 +163,22 @@ def labelOrAssignmentHandler(asm, tok):
         syntaxError(asm, tok)
 
 
-def dwordHandler(asm, tok):
+def declareConstantHandler(asm, tok):
+    recorderMap = {
+        dwordToken: asm.recordDWord,
+        wordToken: asm.recordWord,
+        hwordToken: asm.recordHWord,
+        byteToken: asm.recordByte,
+    }
+    recorder = recorderMap[tok.tokenType]
     while True:
         e = expression(asm, 0)
-        asm.recordDWord(e)
+        te = type(e).__name__
+	if te == "int":
+	    recorder(e)
+        elif te == "str":
+            for c in e:
+                recorder(ord(c))
         t = asm.getToken()
         if t.tokenType != characterToken:
             break
@@ -169,7 +190,10 @@ def dwordHandler(asm, tok):
 fileScopeHandlers = {
     commentToken: commentHandler,
     identifierToken: labelOrAssignmentHandler,
-    dwordToken: dwordHandler,
+    dwordToken: declareConstantHandler,
+    wordToken: declareConstantHandler,
+    hwordToken: declareConstantHandler,
+    byteToken: declareConstantHandler,
 }
 
 
@@ -263,6 +287,12 @@ class Assembler(object):
                 self.lexerState = lexingComment
                 return
 
+            # Detect quoted strings
+            if ch == '"':
+                self.string = ""
+                self.lexerState = lexingString
+                return
+
             # Detect identifiers and keywords
             if ch in startOfIdentifierChars:
                 self.string = ch
@@ -298,6 +328,14 @@ class Assembler(object):
                     ch, Token(commentToken, self.string)
                 )
 
+            self.string = self.string + ch
+            return
+
+        elif self.lexerState == lexingString:
+            if ch == '"':
+                return self.tokenTransition(
+                    ' ', Token(stringToken, self.string)
+                )
             self.string = self.string + ch
             return
 
