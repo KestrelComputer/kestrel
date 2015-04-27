@@ -7,7 +7,6 @@ import sys
 import os
 
 fileScope = 0
-
 lexingComment = 1
 lexingIdentifier = 2
 lexingDecimalConstant = 3
@@ -15,11 +14,11 @@ lexingHexConstant = 4
 
 commentToken = 1
 identifierToken = 2
-integerConstantToken = 3
+integerToken = 3
 characterToken = 4
-expressionToken = 100
-listToken = 101
-endOfInput = 999
+binOpToken = 5
+dwordToken = 100
+endOfInputToken = 999
 
 
 lowercaseLetters = "abcdefghijklmnopqrstuvwxyz"
@@ -35,152 +34,221 @@ precedenceTable = {
 }
 
 
-def identity(x):
-    return x
+def syntaxError(asm, tok):
+    print("Syntax error on line {} near {}".format(asm.getLine(), tok.string))
+
+
+class Token(object):
+    def __init__(self, tt, tv, string=None):
+        self.tokenType = tt
+        self.tokenValue = tv
+        if string:
+            self.string = string
+        else:
+            self.string = str(tv)
+
+
+def kindOfIdentifier(s):
+    s = string.upper(s)
+    kindMap = {
+        'DWORD': dwordToken,
+    }
+    return kindMap.get(s, identifierToken)
+
+
+def integerExpressionHandler(asm, tok, prec):
+    return tok.tokenValue
+
+
+def identifierExpressionHandler(asm, tok, prec):
+    return asm.getSymbol(tok.tokenValue)
+
+
+def unaryOperatorHandler(asm, tok, prec):
+    if tok.tokenValue == '+':
+        return expression(asm, precedenceTable['+']+1)
+
+    if tok.tokenValue == '-':
+        return -expression(asm, precedenceTable['-']+1)
+
+    if tok.tokenValue == '*':
+        return asm.getLC()
+
+    syntaxError(asm, tok)
+
+
+def characterPrefixHandler(asm, tok, prec):
+    if tok.tokenValue == '(':
+        v = expression(asm, 0)
+        t = asm.getToken()
+        if t.tokenType != characterToken or t.tokenValue != ')':
+            syntaxError(asm, t)
+        asm.eatToken()
+        return v
+
+    syntaxError(asm, tok)
+
+prefixHandlers = {
+    integerToken: integerExpressionHandler,
+    identifierToken: identifierExpressionHandler,
+    binOpToken: unaryOperatorHandler,
+    characterToken: characterPrefixHandler,
+}
+
+
+def getPrefixHandler(tt):
+    def exprSyntaxError(asm, tok, prec):
+        return syntaxError(asm, tok)
+
+    if tt not in prefixHandlers:
+        return exprSyntaxError
+
+    return prefixHandlers[tt]
+
+
+def commentHandler(asm, tok):
+    """ Do nothing; we're a comment. """
+
+
+def getPrecedence(op):
+    return precedenceTable.get(op, -1)
+
+
+def expression(asm, prec):
+    opTable = {
+        '+': lambda x, y: x+y,
+        '-': lambda x, y: x-y,
+        '*': lambda x, y: x*y,
+        '/': lambda x, y: x/y,
+    }
+
+    t = asm.nextToken()
+    lhs = getPrefixHandler(t.tokenType)(asm, t, prec)
+
+    top = asm.getToken()
+    while getPrecedence(top.tokenValue) >= prec:
+        asm.eatToken()
+        rhs = expression(asm, getPrecedence(top.tokenValue)+1)
+        lhs = opTable[top.tokenValue](lhs, rhs)
+        top = asm.getToken()
+
+    return lhs
+
+
+def labelOrAssignmentHandler(asm, tok):
+    t = asm.getToken()
+    if t.tokenType != characterToken:
+        syntaxError(asm, tok)
+
+    elif t.tokenValue == '=':
+        asm.eatToken()
+        v = expression(asm, 0)
+        asm.setSymbol(tok.tokenValue, v)
+
+    elif t.tokenValue == ':':
+        asm.eatToken()
+        v = asm.getLC()
+        asm.setSymbol(tok.tokenValue, v)
+
+    else:
+        syntaxError(asm, tok)
+
+
+def dwordHandler(asm, tok):
+    while True:
+        e = expression(asm, 0)
+        asm.recordDWord(e)
+        t = asm.getToken()
+        if t.tokenType != characterToken:
+            break
+        if t.tokenValue != ',':
+            break
+        asm.eatToken()
+
+
+fileScopeHandlers = {
+    commentToken: commentHandler,
+    identifierToken: labelOrAssignmentHandler,
+    dwordToken: dwordHandler,
+}
+
+
+def fileScopeHandler(tt):
+    if tt not in fileScopeHandlers:
+        return syntaxError
+
+    return fileScopeHandlers[tt]
+
 
 class Assembler(object):
     def __init__(self, args):
         self.args = args
         self.lexerState = fileScope
-        self.parserState = fileScope
-        self.string = ""
-        self.stack = []
-        self.labels = {}
+        self.tokenStream = []
+        self.cursor = 0
+        self.line = 0
+        self.symbols = {}
+        self.section = []
 
-    def is_binary_operator(self, op):
-        a, b, c, d = self.stack[-4:]
+    def recordDWord(self, dw):
+        self.recordWord(dw & 0xFFFFFFFF)
+        self.recordWord(dw >> 32)
 
-	return (
-	    a[0] == expressionToken and
-	    b[0] == characterToken and b[1] == op and
-	    c[0] == expressionToken and
-	    (
-		(d[0] != characterToken) or
-		(d[0] == characterToken and d[1] not in precedenceTable) or
-		(
-		    d[0] == characterToken and d[1] in precedenceTable and
-		    (precedenceTable[b[1]] >= precedenceTable[d[1]])
-		)
-	    )
-	)
+    def recordWord(self, w):
+        self.recordHWord(w & 0xFFFF)
+        self.recordHWord(w >> 16)
 
-    def perform_binary_op(self, f):
-        a, _, c, d = self.stack[-4:]
-        self.stack = (
-            self.stack[:-4] + [(expressionToken, f(a[1], c[1]))] + [d]
-        )
-        return True
+    def recordHWord(self, h):
+        self.recordByte(h & 0xFF)
+        self.recordByte(h >> 8)
 
-    def gen_dword(self, e):
-        print("DWORD({})".format(e))
+    def recordByte(self, b):
+        self.section = self.section + [b]
 
-    def simplify_step(self):
-        print("STEP={}".format(self.stack))
-        if len(self.stack) >= 5:
-            a, b, c, d, e = self.stack[-5:]
-            if (
-                a[0] == identifierToken and a[1] == "dword" and
-                b[0] == listToken and
-                c[0] == characterToken and c[1] == "," and
-                d[0] == expressionToken and
-                (
-                    e[0] == endOfInput or
-                    (e[0] == characterToken and e[1] == ",")
-                )
-            ):
-                self.stack[-4] = (listToken, self.stack[-4][1] + [d[1]])
-                self.stack = self.stack[:-3] + [e]
-                return True
+    def getLC(self):
+        return len(self.section)
 
-        if len(self.stack) >= 4:
-            a, b, c, d = self.stack[-4:]
-            if self.is_binary_operator("+"):
-                return self.perform_binary_op(lambda x, y: x + y)
+    def setSymbol(self, name, value):
+        self.symbols[name] = value
 
-            elif self.is_binary_operator("-"):
-                return self.perform_binary_op(lambda x, y: x - y)
+    def getSymbol(self, name):
+        return self.symbols[name]
 
-            elif self.is_binary_operator("*"):
-                return self.perform_binary_op(lambda x, y: x * y)
-
-            elif self.is_binary_operator("/"):
-                return self.perform_binary_op(lambda x, y: x / y)
-
-            elif (
-                a[0] == identifierToken and
-                b[0] == characterToken and b[1] == "=" and
-                c[0] == expressionToken and
-                d[0] == endOfInput
-            ):
-                self.labels[a[1]] = c[1]
-                self.stack = self.stack[:-4]+[d]
-                return True
-
-        if len(self.stack) >= 3:
-            a, b, c = self.stack[-3:]
-
-            if (
-                a[0] == identifierToken and a[1] == "dword" and
-                b[0] == expressionToken and
-                (
-                    c[0] == endOfInput or
-                    (c[0] == characterToken and c[1] == ',')
-                )
-            ):
-                self.stack[-2] = (listToken, [b[1]])
-                return True
-
-            elif (
-                a[0] == identifierToken and a[1] == "dword" and
-                b[0] == listToken and
-                c[0] == endOfInput
-            ):
-                for e in b[1]:
-                    self.gen_dword(e)
-                self.stack = self.stack[:-3] + [c]
-
-        if len(self.stack) >= 1:
-            a = self.stack[-1]
-
-            if a[0] == commentToken:
-                self.stack = self.stack[:-1]
-                return True
-
-            elif a[0] == integerConstantToken:
-                self.stack = self.stack[:-1] + [(expressionToken, a[1])]
-                return True
-
-            elif a[0] == identifierToken and a[1] in self.labels:
-                self.stack = (
-                    self.stack[:-1] + [(expressionToken, self.labels[a[1]])]
-                )
-                return True
-
-            elif a[0] == endOfInput:
-                self.stack = []
-                return True
-
-        return False
-
-    def simplify(self):
-        while self.simplify_step():
-            pass
-
-    def onToken(self, tokenType, tokenValue):
-        self.stack = self.stack + [(tokenType, tokenValue)]
-	print("SHIFT={}".format(self.stack))
-        self.simplify()
-
-    def tokenTransition(self, ch, tokenType, converter=identity):
-        self.onToken(tokenType, converter(self.string))
+    def tokenTransition(self, ch, token):
+        self.tokenStream = self.tokenStream + [token]
         self.string = ""
         self.lexerState = fileScope
         self.lexChar(ch)
 
+    def getToken(self):
+        if self.cursor < len(self.tokenStream):
+            return self.tokenStream[self.cursor]
+        else:
+            return Token(endOfInputToken, None)
+
+    def eatToken(self):
+        if self.cursor < len(self.tokenStream):
+            self.cursor = self.cursor + 1
+
+    def nextToken(self):
+        t = self.getToken()
+        self.eatToken()
+        return t
+
+    def getLine(self):
+        return self.line
+
     def lexEOL(self):
         """Inform lexer that the end of line has been reached."""
-        self.onToken(endOfInput, None)
-        
+        self.cursor = 0
+        self.line = self.line + 1
+        t = self.nextToken()
+        while t.tokenType != endOfInputToken:
+            fileScopeHandler(t.tokenType)(self, t)
+            t = self.nextToken()
+
+        self.tokenStream = []
+
     def lexChar(self, ch):
         """Attempt to process a character during pass-1 assembly."""
 
@@ -213,35 +281,52 @@ class Assembler(object):
                 self.lexerState = lexingHexConstant
                 return
 
-            # Otherwise, just return the random character as-is.
-            # Maybe the parser knows what to do with it.
-            self.onToken(characterToken, ch)
+            # Miscellaneous
+            if ch in precedenceTable:
+                self.tokenStream = self.tokenStream + [Token(binOpToken, ch)]
+            else:
+                self.tokenStream = self.tokenStream + [
+                    Token(characterToken, ch)
+                ]
+
+            return
 
         elif self.lexerState == lexingComment:
             # Any character is valid inside a comment except for \n, \r.
             if ch in ['\n', '\r']:
-                return self.tokenTransition(ch, commentToken)
+                return self.tokenTransition(
+                    ch, Token(commentToken, self.string)
+                )
 
             self.string = self.string + ch
             return
 
         elif self.lexerState == lexingIdentifier:
             if ch not in completeIdentifierCharSet:
-                return self.tokenTransition(ch, identifierToken)
+                kind = kindOfIdentifier(self.string)
+                return self.tokenTransition(ch, Token(kind, self.string))
 
             self.string = self.string + ch
             return
 
         elif self.lexerState == lexingDecimalConstant:
             if ch not in decimalDigits:
-                return self.tokenTransition(ch, integerConstantToken, converter=int)
+                return self.tokenTransition(
+                    ch, Token(integerToken, int(self.string))
+                )
 
             self.string = self.string + ch
             return
 
         elif self.lexerState == lexingHexConstant:
             if string.upper(ch) not in hexDigits:
-                return self.tokenTransition(ch, integerConstantToken, converter=lambda x: int(x, 16))
+                return self.tokenTransition(
+                    ch,
+                    Token(
+                        integerToken, int(self.string, 16),
+                        string=self.string
+                    )
+                )
 
             self.string = self.string + ch
             return
@@ -250,7 +335,7 @@ class Assembler(object):
         """Perform a pass-1 assembly step on the given line of code."""
         for c in line:
             self.lexChar(c)
-	self.lexEOL()
+        self.lexEOL()
 
     def main(self):
         print("This is a, the Polaris RISC-V Assembler")
