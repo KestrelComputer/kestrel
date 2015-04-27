@@ -6,6 +6,23 @@ import string
 import sys
 import os
 
+# The lexer has several contexts in which it operates.
+#
+# fileScope is the default state of the lexer, where it has no idea what the
+# next input token will be.
+#
+# lexingComment is the state where the lexer processes comments.
+#
+# lexingIdentifier is the state where the lexer is working with what it thinks
+# is an identifier.  After processing is complete, the lexer will determine
+# what the token actually is (e.g., a keyword, etc.).
+#
+# lexingDecimalConstant is the state where the lexer is processing a numeric
+# constant expressed in decimal.  By contrast, lexingHexConstant is the same,
+# but only with hexadecimal representation instead.
+#
+# lexingString is the state where the lexer is consuming and processing a
+# string of text delimited by double-quotes.
 fileScope = 0
 lexingComment = 1
 lexingIdentifier = 2
@@ -13,6 +30,11 @@ lexingDecimalConstant = 3
 lexingHexConstant = 4
 lexingString = 5
 
+# Tokens types are used primarily to identify tokens provided by the program
+# listing being processed.  They need not correspond to single syntactic
+# structures (which is to say, they need not represent terminals), although
+# they usually do.  Some represent entire classes of input (e.g., commentToken
+# and binOpToken), while others are more specific (e.g., dwordToken).
 commentToken = 1
 identifierToken = 2
 integerToken = 3
@@ -33,6 +55,7 @@ decimalDigits = "0123456789"
 completeIdentifierCharSet = startOfIdentifierChars + decimalDigits
 hexDigits = decimalDigits + uppercaseLetters[:6]
 
+# Infix arithmetic operators have precedence rules associated with them.
 precedenceTable = {
     "*": 20, "/": 20,
     "+": 10, "-": 10,
