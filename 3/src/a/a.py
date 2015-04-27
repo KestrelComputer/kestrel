@@ -213,21 +213,19 @@ class Assembler(object):
         self.line = 0
         self.symbols = {}
         self.section = []
+        self.pass2todo = []
 
     def recordDWord(self, dw):
-        self.recordWord(dw & 0xFFFFFFFF)
-        self.recordWord(dw >> 32)
+	self.pass2todo = self.pass2todo + [(dwordToken, dw)]
 
     def recordWord(self, w):
-        self.recordHWord(w & 0xFFFF)
-        self.recordHWord(w >> 16)
+	self.pass2todo = self.pass2todo + [(wordToken, w)]
 
     def recordHWord(self, h):
-        self.recordByte(h & 0xFF)
-        self.recordByte(h >> 8)
+	self.pass2todo = self.pass2todo + [(hwordToken, h)]
 
     def recordByte(self, b):
-        self.section = self.section + [b]
+	self.pass2todo = self.pass2todo + [(byteToken, b)]
 
     def getLC(self):
         return len(self.section)
