@@ -47,6 +47,8 @@ hwordToken = 102
 byteToken = 103
 advanceToken = 104
 jalToken = 200
+luiToken = 201
+auipcToken = 202
 endOfInputToken = 999
 
 # When evaluating expressions, we need to know what functions to perform when.
@@ -96,6 +98,12 @@ class Declaration(object):
         self.size = size
 
 
+class UInsn(object):
+    def __init__(self, insn, rd, imm20):
+        self.insn = insn
+        self.rd = rd
+        self.imm20 = imm20
+
 class UJInsn(object):
     def __init__(self, insn, rd, disp):
         self.insn = insn
@@ -121,6 +129,8 @@ def kindOfIdentifier(s):
         'BYTE': byteToken,
         'ADV': advanceToken,
         'JAL': jalToken,
+        'LUI': luiToken,
+        'AUIPC': auipcToken,
     }
     return kindMap.get(s, identifierToken)
 
@@ -322,6 +332,12 @@ def jalHandler(asm, tok):
     disp = expression(asm, 0)
     asm.recordUJ(0x0000006F, rd, disp)
 
+def genericUHandler(asm, tok, insn):
+    rd = expression(asm, 0)
+    expectCharacter(asm, ",")
+    imm20 = expression(asm, 0)
+    asm.recordU(insn, rd, imm20)
+
 fileScopeHandlers = {
     commentToken: commentHandler,
     identifierToken: labelOrAssignmentHandler,
@@ -331,6 +347,8 @@ fileScopeHandlers = {
     byteToken: declareConstantHandler,
     advanceToken: advanceHandler,
     jalToken: jalHandler,
+    luiToken: lambda a, t: genericUHandler(a, t, 0x00000037),
+    auipcToken: lambda a, t: genericUHandler(a, t, 0x00000017),
 }
 
 
@@ -401,6 +419,11 @@ class Assembler(object):
         self._defer(Advance(target, fill))
         if self.lc < target:
             self.lc = target
+
+    def recordU(self, insn, rd, imm20):
+        """Records a LUI or AUIPC instruction."""
+        self._defer(UInsn(insn, rd, imm20))
+        self.lc = self.lc + 4
 
     def recordUJ(self, insn, rd, disp):
         """Records an unconditional jump."""
