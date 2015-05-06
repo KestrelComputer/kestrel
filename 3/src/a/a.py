@@ -46,7 +46,19 @@ wordToken = 101
 hwordToken = 102
 byteToken = 103
 advanceToken = 104
+jalToken = 200
 endOfInputToken = 999
+
+# When evaluating expressions, we need to know what functions to perform when.
+# These indicate the kind of expression nodes used, so we can invoke the
+# correct functions.
+EN_ADD = 1
+EN_SUB = 2
+EN_MUL = 3
+EN_DIV = 4
+EN_NEG = 5
+EN_INT = 6
+EN_ID = 7
 
 lowercaseLetters = "abcdefghijklmnopqrstuvwxyz"
 uppercaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -66,6 +78,12 @@ def syntaxError(asm, tok):
     print("Syntax error on line {} near {}".format(asm.getLine(), tok.string))
 
 
+class ExprNode(object):
+    def __init__(self, kind, a=None, b=None):
+        self.kind = kind
+        self.a = a
+        self.b = b
+
 class Advance(object):
     def __init__(self, target, fill):
         self.target = target
@@ -77,6 +95,12 @@ class Declaration(object):
         self.value = value
         self.size = size
 
+
+class UJInsn(object):
+    def __init__(self, insn, rd, disp):
+        self.insn = insn
+        self.rd = rd
+        self.disp = disp
 
 class Token(object):
     def __init__(self, tt, tv, string=None):
@@ -96,16 +120,21 @@ def kindOfIdentifier(s):
         'HWORD': hwordToken,
         'BYTE': byteToken,
         'ADV': advanceToken,
+        'JAL': jalToken,
     }
     return kindMap.get(s, identifierToken)
 
 
 def integerExpressionHandler(asm, tok, prec):
-    return tok.tokenValue
+    return ExprNode(EN_INT, tok.tokenValue)
 
 
 def identifierExpressionHandler(asm, tok, prec):
-    return asm.getSymbol(tok.tokenValue)
+    v = asm.getSymbol(tok.tokenValue)
+    if v is not None:
+        return ExprNode(EN_INT, v)
+    else:
+        return ExprNode(EN_ID, tok.tokenValue)
 
 
 def unaryOperatorHandler(asm, tok, prec):
@@ -113,10 +142,10 @@ def unaryOperatorHandler(asm, tok, prec):
         return expression(asm, precedenceTable['+']+1)
 
     if tok.tokenValue == '-':
-        return -expression(asm, precedenceTable['-']+1)
+        return ExprNode(EN_NEG, expression(asm, precedenceTable['-']+1))
 
     if tok.tokenValue == '*':
-        return asm.getLC()
+        return ExprNode(EN_INT, asm.getLC())
 
     syntaxError(asm, tok)
 
@@ -163,12 +192,65 @@ def getPrecedence(op):
     return precedenceTable.get(op, -1)
 
 
+def evalExpression(asm, root):
+    if root.kind == EN_ADD:
+        l = evalExpression(asm, root.a)
+        r = evalExpression(asm, root.b)
+        if l.kind == EN_INT and r.kind == EN_INT:
+            return ExprNode(EN_INT, l.a + r.a)
+        else:
+            return root
+    elif root.kind == EN_SUB:
+        l = evalExpression(asm, root.a)
+        r = evalExpression(asm, root.b)
+        if l.kind == EN_INT and r.kind == EN_INT:
+            return ExprNode(EN_INT, l.a + r.a)
+        else:
+            return root
+    elif root.kind == EN_MUL:
+        l = evalExpression(asm, root.a)
+        r = evalExpression(asm, root.b)
+        if l.kind == EN_INT and r.kind == EN_INT:
+            return ExprNode(EN_INT, l.a + r.a)
+        else:
+            return root
+    elif root.kind == EN_DIV:
+        l = evalExpression(asm, root.a)
+        r = evalExpression(asm, root.b)
+        if l.kind == EN_INT and r.kind == EN_INT:
+            return ExprNode(EN_INT, l.a + r.a)
+        else:
+            return root
+    elif root.kind == EN_NEG:
+        e = evalExpression(asm, root.a)
+        if e.kind == EN_INT:
+            return ExprNode(EN_INT, -e.n)
+        else:
+            return root
+    elif root.kind == EN_ID:
+        v = asm.getSymbol(root.a)
+        if v is not None:
+            return v
+        else:
+            return root
+    elif root.kind == EN_INT:
+        return root
+    else:
+        raise Exception("Unhandled expression node type: {}".format(root.kind))
+
+
+def constantExpression(asm, prec):
+    e = evalExpression(asm, expression(asm, prec))
+    if e.kind != EN_INT:
+        raise Exception("Constant expression expected.")
+    return e.a
+
 def expression(asm, prec):
     opTable = {
-        '+': lambda x, y: x+y,
-        '-': lambda x, y: x-y,
-        '*': lambda x, y: x*y,
-        '/': lambda x, y: x/y,
+        '+': lambda x, y: ExprNode(EN_ADD, x, y),
+        '-': lambda x, y: ExprNode(EN_SUB, x, y),
+        '*': lambda x, y: ExprNode(EN_MUL, x, y),
+        '/': lambda x, y: ExprNode(EN_DIV, x, y),
     }
 
     t = asm.nextToken()
@@ -228,11 +310,17 @@ def declareConstantHandler(asm, tok):
 
 
 def advanceHandler(asm, tok):
-    eTarget = expression(asm, 0)
+    eTarget = constantExpression(asm, 0)
     expectCharacter(asm, ",")
     eFill = expression(asm, 0)
     asm.recordAdvance(eTarget, eFill)
 
+
+def jalHandler(asm, tok):
+    rd = expression(asm, 0)
+    expectCharacter(asm, ",")
+    disp = expression(asm, 0)
+    asm.recordUJ(0x0000006F, rd, disp)
 
 fileScopeHandlers = {
     commentToken: commentHandler,
@@ -242,6 +330,7 @@ fileScopeHandlers = {
     hwordToken: declareConstantHandler,
     byteToken: declareConstantHandler,
     advanceToken: advanceHandler,
+    jalToken: jalHandler,
 }
 
 
@@ -313,6 +402,11 @@ class Assembler(object):
         if self.lc < target:
             self.lc = target
 
+    def recordUJ(self, insn, rd, disp):
+        """Records an unconditional jump."""
+        self._defer(UJInsn(insn, rd, disp))
+        self.lc = self.lc + 4
+
     def getLC(self):
         """Retrieves the current location counter."""
         return self.lc
@@ -322,10 +416,10 @@ class Assembler(object):
         self.symbols[name] = value
 
     def getSymbol(self, name):
-        """Retrieves a global symbol; this raises an exception if the symbol
+        """Retrieves a global symbol; this returns None if the symbol
         is not defined.
         """
-        return self.symbols[name]
+        return self.symbols.get(name)
 
     def tokenTransition(self, ch, token):
         """When transitioning from one kind of lexed token to another, this
