@@ -6,7 +6,6 @@ import string
 import sys
 import os
 
-
 # The lexer has several contexts in which it operates.
 #
 # fileScope is the default state of the lexer, where it has no idea what the
@@ -74,7 +73,10 @@ ldToken = 223
 lbuToken = 224
 lhuToken = 225
 lwuToken = 226
-
+sbToken = 227
+shToken = 228
+swToken = 229
+sdToken = 230
 
 endOfInputToken = 999
 
@@ -124,6 +126,13 @@ class Declaration(object):
         self.value = value
         self.size = size
 
+
+class SInsn(object):
+    def __init__(self, insn, rs1, disp, rs2):
+        self.insn = insn
+        self.rs1 = rs1
+        self.disp = disp
+        self.rs2 = rs2
 
 class IInsn(object):
     def __init__(self, insn, rd, rs, imm12):
@@ -192,6 +201,10 @@ def kindOfIdentifier(s):
         'LBU': lbuToken,
         'LHU': lhuToken,
         'LWU': lwuToken,
+        'SB': sbToken,
+        'SH': swToken,
+        'SW': shToken,
+        'SD': sdToken,
     }
     return kindMap.get(s, identifierToken)
 
@@ -417,8 +430,13 @@ def genericIHandler(asm, tok, insn):
 
 def genericIMHandler(asm, tok, insn):
     rd = expectReg(asm)
-    disp, rs = expectEA(asm)
-    asm.recordIM(insn, rd, rs, disp)
+    disp, rs1 = expectEA(asm)
+    asm.recordIM(insn, rd, rs1, disp)
+
+def genericSHandler(asm, tok, insn):
+    rs2 = expectReg(asm)
+    disp, rs1 = expectEA(asm)
+    asm.recordS(insn, rs1, disp, rs2)
 
 fileScopeHandlers = {
     commentToken: commentHandler,
@@ -455,6 +473,10 @@ fileScopeHandlers = {
     lbuToken: lambda a, t: genericIMHandler(a, t, 0x00004003),
     lhuToken: lambda a, t: genericIMHandler(a, t, 0x00005003),
     lwuToken: lambda a, t: genericIMHandler(a, t, 0x00006003),
+    sbToken: lambda a, t: genericSHandler(a, t, 0x00000023),
+    shToken: lambda a, t: genericSHandler(a, t, 0x00001023),
+    swToken: lambda a, t: genericSHandler(a, t, 0x00002023),
+    sdToken: lambda a, t: genericSHandler(a, t, 0x00003023),
 }
 
 
@@ -525,6 +547,11 @@ class Assembler(object):
         self._defer(Advance(target, fill))
         if self.lc < target:
             self.lc = target
+
+    def recordS(self, insn, rs1, disp, rs2):
+        """Records all store instructions."""
+        self._defer(SInsn(insn, rs1, disp, rs2))
+        self.lc = self.lc + 4
 
     def recordIM(self, insn, rd, rs, disp):
         """Records all loads and the JALR instructions."""
