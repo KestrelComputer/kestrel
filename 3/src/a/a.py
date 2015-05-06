@@ -115,6 +115,7 @@ class ExprNode(object):
         self.a = a
         self.b = b
 
+
 class Advance(object):
     def __init__(self, target, fill):
         self.target = target
@@ -134,6 +135,7 @@ class SInsn(object):
         self.disp = disp
         self.rs2 = rs2
 
+
 class IInsn(object):
     def __init__(self, insn, rd, rs, imm12):
         self.insn = insn
@@ -141,8 +143,10 @@ class IInsn(object):
         self.rs = rs
         self.imm12 = imm12
 
+
 class IMInsn(IInsn):
     pass
+
 
 class UInsn(object):
     def __init__(self, insn, rd, imm20):
@@ -150,11 +154,13 @@ class UInsn(object):
         self.rd = rd
         self.imm20 = imm20
 
+
 class UJInsn(object):
     def __init__(self, insn, rd, disp):
         self.insn = insn
         self.rd = rd
         self.disp = disp
+
 
 class Token(object):
     def __init__(self, tt, tv, string=None):
@@ -246,12 +252,14 @@ def expectReg(asm):
     expectCharacter(asm, ",")
     return r
 
+
 def expectEA(asm):
     disp = expression(asm, 0)
     expectCharacter(asm, "(")
     r = expression(asm, 0)
     expectCharacter(asm, ")")
     return disp, r
+
 
 def characterPrefixHandler(asm, tok, prec):
     if tok.tokenValue == '(':
@@ -260,6 +268,7 @@ def characterPrefixHandler(asm, tok, prec):
         return v
 
     syntaxError(asm, tok)
+
 
 prefixHandlers = {
     integerToken: integerExpressionHandler,
@@ -341,6 +350,7 @@ def constantExpression(asm, prec):
         raise Exception("Constant expression expected.")
     return e.a
 
+
 def expression(asm, prec):
     opTable = {
         '+': lambda x, y: ExprNode(EN_ADD, x, y),
@@ -417,10 +427,12 @@ def jalHandler(asm, tok):
     disp = expression(asm, 0)
     asm.recordUJ(0x0000006F, rd, disp)
 
+
 def genericUHandler(asm, tok, insn):
     rd = expectReg(asm)
     imm20 = expression(asm, 0)
     asm.recordU(insn, rd, imm20)
+
 
 def genericIHandler(asm, tok, insn):
     rd = expectReg(asm)
@@ -428,15 +440,18 @@ def genericIHandler(asm, tok, insn):
     imm12 = expression(asm, 0)
     asm.recordI(insn, rd, rs, imm12)
 
+
 def genericIMHandler(asm, tok, insn):
     rd = expectReg(asm)
     disp, rs1 = expectEA(asm)
     asm.recordIM(insn, rd, rs1, disp)
 
+
 def genericSHandler(asm, tok, insn):
     rs2 = expectReg(asm)
     disp, rs1 = expectEA(asm)
     asm.recordS(insn, rs1, disp, rs2)
+
 
 fileScopeHandlers = {
     commentToken: commentHandler,
