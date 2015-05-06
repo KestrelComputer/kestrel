@@ -66,6 +66,15 @@ addiwToken = 215
 slliwToken = 216
 srliwToken = 217
 sraiwToken = 218
+jalrToken = 219
+lbToken = 220
+lhToken = 221
+lwToken = 222
+ldToken = 223
+lbuToken = 224
+lhuToken = 225
+lwuToken = 226
+
 
 endOfInputToken = 999
 
@@ -123,6 +132,9 @@ class IInsn(object):
         self.rs = rs
         self.imm12 = imm12
 
+class IMInsn(IInsn):
+    pass
+
 class UInsn(object):
     def __init__(self, insn, rd, imm20):
         self.insn = insn
@@ -172,6 +184,14 @@ def kindOfIdentifier(s):
         'SLLIW': slliwToken,
         'SRLIW': srliwToken,
         'SRAIW': sraiwToken,
+        'JALR': jalrToken,
+        'LB': lbToken,
+        'LH': lhToken,
+        'LW': lwToken,
+        'LD': ldToken,
+        'LBU': lbuToken,
+        'LHU': lhuToken,
+        'LWU': lwuToken,
     }
     return kindMap.get(s, identifierToken)
 
@@ -213,6 +233,12 @@ def expectReg(asm):
     expectCharacter(asm, ",")
     return r
 
+def expectEA(asm):
+    disp = expression(asm, 0)
+    expectCharacter(asm, "(")
+    r = expression(asm, 0)
+    expectCharacter(asm, ")")
+    return disp, r
 
 def characterPrefixHandler(asm, tok, prec):
     if tok.tokenValue == '(':
@@ -389,6 +415,11 @@ def genericIHandler(asm, tok, insn):
     imm12 = expression(asm, 0)
     asm.recordI(insn, rd, rs, imm12)
 
+def genericIMHandler(asm, tok, insn):
+    rd = expectReg(asm)
+    disp, rs = expectEA(asm)
+    asm.recordIM(insn, rd, rs, disp)
+
 fileScopeHandlers = {
     commentToken: commentHandler,
     identifierToken: labelOrAssignmentHandler,
@@ -416,6 +447,14 @@ fileScopeHandlers = {
     slliwToken: lambda a, t: genericIHandler(a, t, 0x0000101B),
     srliwToken: lambda a, t: genericIHandler(a, t, 0x0000501B),
     sraiwToken: lambda a, t: genericIHandler(a, t, 0x4000501B),
+    jalrToken: lambda a, t: genericIMHandler(a, t, 0x00000067),
+    lbToken: lambda a, t: genericIMHandler(a, t, 0x00000003),
+    lhToken: lambda a, t: genericIMHandler(a, t, 0x00001003),
+    lwToken: lambda a, t: genericIMHandler(a, t, 0x00002003),
+    ldToken: lambda a, t: genericIMHandler(a, t, 0x00003003),
+    lbuToken: lambda a, t: genericIMHandler(a, t, 0x00004003),
+    lhuToken: lambda a, t: genericIMHandler(a, t, 0x00005003),
+    lwuToken: lambda a, t: genericIMHandler(a, t, 0x00006003),
 }
 
 
@@ -486,6 +525,11 @@ class Assembler(object):
         self._defer(Advance(target, fill))
         if self.lc < target:
             self.lc = target
+
+    def recordIM(self, insn, rd, rs, disp):
+        """Records all loads and the JALR instructions."""
+        self._defer(IMInsn(insn, rd, rs, disp))
+        self.lc = self.lc + 4
 
     def recordI(self, insn, rd, rs, imm12):
         """Records all instructions of the general form INSN rd, rs, imm12"""
