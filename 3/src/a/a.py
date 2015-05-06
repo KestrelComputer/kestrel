@@ -6,6 +6,7 @@ import string
 import sys
 import os
 
+
 # The lexer has several contexts in which it operates.
 #
 # fileScope is the default state of the lexer, where it has no idea what the
@@ -49,6 +50,23 @@ advanceToken = 104
 jalToken = 200
 luiToken = 201
 auipcToken = 202
+addiToken = 203
+slliToken = 204
+sltiToken = 205
+sltiuToken = 206
+xoriToken = 207
+srliToken = 208
+sraiToken = 209
+oriToken = 210
+andiToken = 211
+csrrwiToken = 212
+csrrsiToken = 213
+csrrciToken = 214
+addiwToken = 215
+slliwToken = 216
+srliwToken = 217
+sraiwToken = 218
+
 endOfInputToken = 999
 
 # When evaluating expressions, we need to know what functions to perform when.
@@ -98,6 +116,13 @@ class Declaration(object):
         self.size = size
 
 
+class IInsn(object):
+    def __init__(self, insn, rd, rs, imm12):
+        self.insn = insn
+        self.rd = rd
+        self.rs = rs
+        self.imm12 = imm12
+
 class UInsn(object):
     def __init__(self, insn, rd, imm20):
         self.insn = insn
@@ -131,6 +156,22 @@ def kindOfIdentifier(s):
         'JAL': jalToken,
         'LUI': luiToken,
         'AUIPC': auipcToken,
+        'ADDI': addiToken,
+        'SLLI': slliToken,
+        'SLTI': sltiToken,
+        'SLTIU': sltiuToken,
+        'XORI': xoriToken,
+        'SRLI': srliToken,
+        'SRAI': sraiToken,
+        'ORI': oriToken,
+        'ANDI': andiToken,
+        'CSRRWI': csrrwiToken,
+        'CSRRSI': csrrsiToken,
+        'CSRRCI': csrrciToken,
+        'ADDIW': addiwToken,
+        'SLLIW': slliwToken,
+        'SRLIW': srliwToken,
+        'SRAIW': sraiwToken,
     }
     return kindMap.get(s, identifierToken)
 
@@ -165,6 +206,12 @@ def expectCharacter(asm, ch):
     if t.tokenType != characterToken or t.tokenValue != ch:
         syntaxError(asm, t)
     asm.eatToken()
+
+
+def expectReg(asm):
+    r = expression(asm, 0)
+    expectCharacter(asm, ",")
+    return r
 
 
 def characterPrefixHandler(asm, tok, prec):
@@ -327,16 +374,20 @@ def advanceHandler(asm, tok):
 
 
 def jalHandler(asm, tok):
-    rd = expression(asm, 0)
-    expectCharacter(asm, ",")
+    rd = expectReg(asm)
     disp = expression(asm, 0)
     asm.recordUJ(0x0000006F, rd, disp)
 
 def genericUHandler(asm, tok, insn):
-    rd = expression(asm, 0)
-    expectCharacter(asm, ",")
+    rd = expectReg(asm)
     imm20 = expression(asm, 0)
     asm.recordU(insn, rd, imm20)
+
+def genericIHandler(asm, tok, insn):
+    rd = expectReg(asm)
+    rs = expectReg(asm)
+    imm12 = expression(asm, 0)
+    asm.recordI(insn, rd, rs, imm12)
 
 fileScopeHandlers = {
     commentToken: commentHandler,
@@ -349,6 +400,22 @@ fileScopeHandlers = {
     jalToken: jalHandler,
     luiToken: lambda a, t: genericUHandler(a, t, 0x00000037),
     auipcToken: lambda a, t: genericUHandler(a, t, 0x00000017),
+    addiToken: lambda a, t: genericIHandler(a, t, 0x00000013),
+    slliToken: lambda a, t: genericIHandler(a, t, 0x00001013),
+    sltiToken: lambda a, t: genericIHandler(a, t, 0x00002013),
+    sltiuToken: lambda a, t: genericIHandler(a, t, 0x00003013),
+    xoriToken: lambda a, t: genericIHandler(a, t, 0x00004013),
+    srliToken: lambda a, t: genericIHandler(a, t, 0x00005013),
+    sraiToken: lambda a, t: genericIHandler(a, t, 0x40005013),
+    oriToken: lambda a, t: genericIHandler(a, t, 0x00006013),
+    andiToken: lambda a, t: genericIHandler(a, t, 0x00007013),
+    csrrwiToken: lambda a, t: genericIHandler(a, t, 0x00005073),
+    csrrsiToken: lambda a, t: genericIHandler(a, t, 0x00006073),
+    csrrciToken: lambda a, t: genericIHandler(a, t, 0x00007073),
+    addiwToken: lambda a, t: genericIHandler(a, t, 0x0000001B),
+    slliwToken: lambda a, t: genericIHandler(a, t, 0x0000101B),
+    srliwToken: lambda a, t: genericIHandler(a, t, 0x0000501B),
+    sraiwToken: lambda a, t: genericIHandler(a, t, 0x4000501B),
 }
 
 
@@ -419,6 +486,11 @@ class Assembler(object):
         self._defer(Advance(target, fill))
         if self.lc < target:
             self.lc = target
+
+    def recordI(self, insn, rd, rs, imm12):
+        """Records all instructions of the general form INSN rd, rs, imm12"""
+        self._defer(IInsn(insn, rd, rs, imm12))
+        self.lc = self.lc + 4
 
     def recordU(self, insn, rd, imm20):
         """Records a LUI or AUIPC instruction."""
