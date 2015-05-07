@@ -6,6 +6,7 @@ import string
 import sys
 import os
 
+
 # The lexer has several contexts in which it operates.
 #
 # fileScope is the default state of the lexer, where it has no idea what the
@@ -77,6 +78,27 @@ sbToken = 227
 shToken = 228
 swToken = 229
 sdToken = 230
+beqToken = 231
+bneToken = 232
+bltToken = 233
+bgeToken = 234
+bltuToken = 235
+bgeuToken = 236
+addToken = 237
+subToken = 238
+sllToken = 239
+sltToken = 240
+sltuToken = 241
+xorToken = 242
+srlToken = 243
+sraToken = 244
+orToken = 245
+andToken = 246
+addwToken = 247
+subwToken = 248
+sllwToken = 249
+srlwToken = 250
+srawToken = 251
 
 endOfInputToken = 999
 
@@ -127,12 +149,22 @@ class Declaration(object):
         self.size = size
 
 
+class RInsn(object):
+    def __init__(self, insn, rd, rs1, rs2):
+        self.insn = insn
+        self.rd = rd
+        self.rs1 = rs1
+        self.rs2 = rs2
+
 class SInsn(object):
     def __init__(self, insn, rs1, disp, rs2):
         self.insn = insn
         self.rs1 = rs1
         self.disp = disp
         self.rs2 = rs2
+
+class SBInsn(SInsn):
+    pass
 
 class IInsn(object):
     def __init__(self, insn, rd, rs, imm12):
@@ -205,6 +237,27 @@ def kindOfIdentifier(s):
         'SH': swToken,
         'SW': shToken,
         'SD': sdToken,
+        'BEQ': beqToken,
+        'BNE': bneToken,
+        'BLT': bltToken,
+        'BGE': bgeToken,
+        'BLTU': bltuToken,
+        'BGEU': bgeuToken,
+        'ADD': addToken,
+        'SUB': subToken,
+        'SLL': sllToken,
+        'SLT': sltToken,
+        'SLTU': sltuToken,
+        'XOR': xorToken,
+        'SRL': srlToken,
+        'SRA': sraToken,
+        'OR': orToken,
+        'AND': andToken,
+        'ADDW': addwToken,
+        'SUBW': subwToken,
+        'SLLW': sllwToken,
+        'SRLW': srlwToken,
+        'SRAW': srawToken,
     }
     return kindMap.get(s, identifierToken)
 
@@ -438,6 +491,18 @@ def genericSHandler(asm, tok, insn):
     disp, rs1 = expectEA(asm)
     asm.recordS(insn, rs1, disp, rs2)
 
+def genericSBHandler(asm, tok, insn):
+    rs1 = expectReg(asm)
+    rs2 = expectReg(asm)
+    disp = expression(asm, 0)
+    asm.recordSB(insn, rs1, rs2, disp)
+
+def genericRHandler(asm, tok, insn):
+    rd = expectReg(asm)
+    rs1 = expectReg(asm)
+    rs2 = expression(asm, 0)
+    asm.recordR(insn, rd, rs1, rs2,)
+
 fileScopeHandlers = {
     commentToken: commentHandler,
     identifierToken: labelOrAssignmentHandler,
@@ -477,6 +542,27 @@ fileScopeHandlers = {
     shToken: lambda a, t: genericSHandler(a, t, 0x00001023),
     swToken: lambda a, t: genericSHandler(a, t, 0x00002023),
     sdToken: lambda a, t: genericSHandler(a, t, 0x00003023),
+    beqToken: lambda a, t: genericSBHandler(a, t, 0x00000063),
+    bneToken: lambda a, t: genericSBHandler(a, t, 0x00001063),
+    bltToken: lambda a, t: genericSBHandler(a, t, 0x00004063),
+    bgeToken: lambda a, t: genericSBHandler(a, t, 0x00005063),
+    bltuToken: lambda a, t: genericSBHandler(a, t, 0x00006063),
+    bgeuToken: lambda a, t: genericSBHandler(a, t, 0x00007063),
+    addToken: lambda a, t: genericRHandler(a, t, 0x00000033),
+    subToken: lambda a, t: genericRHandler(a, t, 0x40000033),
+    sllToken: lambda a, t: genericRHandler(a, t, 0x00001033),
+    sltToken: lambda a, t: genericRHandler(a, t, 0x00002033),
+    sltuToken: lambda a, t: genericRHandler(a, t, 0x00003033),
+    xorToken: lambda a, t: genericRHandler(a, t, 0x00004033),
+    srlToken: lambda a, t: genericRHandler(a, t, 0x00005033),
+    sraToken: lambda a, t: genericRHandler(a, t, 0x40005033),
+    orToken: lambda a, t: genericRHandler(a, t, 0x00006033),
+    andToken: lambda a, t: genericRHandler(a, t, 0x00007033),
+    addwToken: lambda a, t: genericRHandler(a, t, 0x0000003B),
+    subwToken: lambda a, t: genericRHandler(a, t, 0x4000003B),
+    sllwToken: lambda a, t: genericRHandler(a, t, 0x0000103B),
+    srlwToken: lambda a, t: genericRHandler(a, t, 0x0000503B),
+    srawToken: lambda a, t: genericRHandler(a, t, 0x4000503B),
 }
 
 
@@ -547,6 +633,16 @@ class Assembler(object):
         self._defer(Advance(target, fill))
         if self.lc < target:
             self.lc = target
+
+    def recordR(self, insn, rd, rs1, rs2):
+        """Records all 3-register operations"""
+        self._defer(RInsn(insn, rd, rs1, rs2))
+        self.lc = self.lc + 4
+
+    def recordSB(self, insn, rs1, rs2, disp):
+        """Records all conditional branch instructions."""
+        self._defer(SBInsn(insn, rs1, disp, rs2))
+        self.lc = self.lc + 4
 
     def recordS(self, insn, rs1, disp, rs2):
         """Records all store instructions."""
