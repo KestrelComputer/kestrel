@@ -153,8 +153,16 @@ class Advance(object):
         self.b = fill
         self.c = None
 
-    def asBytes(self, _):
-        return [self.b] * self.a
+    def asBytes(self, asm):
+        nBytes = evalExpression(asm, self.a)
+        fill = evalExpression(asm, self.b)
+        if nBytes.kind != EN_INT:
+            raise Exception("Expected integer for target")
+        if fill.kind != EN_INT:
+            raise Exception("Expected integer for fill byte")
+        nBytes = nBytes.a
+        fill = fill.a & 0xFF
+        return [fill] * nBytes
 
 class Declaration(object):
     def __init__(self, value, size):
@@ -764,7 +772,7 @@ class Assembler(object):
         """When the programmer specifies the ADV mnemonic, this method is
         called to record its behavior for pass two.
         """
-        self._defer(Advance(target.a - self.lc, fill))
+        self._defer(Advance(ExprNode(EN_INT, target.a - self.lc), fill))
         if self.lc < target.a:
             self.lc = target.a
 
@@ -970,8 +978,8 @@ class Assembler(object):
 
     def printUndefs(self, e):
         if e.kind in [EN_ADD, EN_SUB, EN_MUL, EN_DIV]:
-            self.printUndefs(root.a)
-            self.printUndefs(root.b)
+            self.printUndefs(e.a)
+            self.printUndefs(e.b)
         elif e.kind == EN_NEG:
             self.printUndefs(e.a)
         elif e.kind == EN_ID:
@@ -994,7 +1002,6 @@ class Assembler(object):
         errors.
         """
         for i in self.pass2todo:
-            print(type(i).__name__, i.a, i.b, i.c)
             self.printUndefs(i.a) if i.a else None
             self.printUndefs(i.b) if i.b else None
             self.printUndefs(i.c) if i.c else None

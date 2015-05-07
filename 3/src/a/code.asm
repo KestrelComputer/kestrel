@@ -71,6 +71,22 @@ t5 = x30
 t6 = x31
 
 
+; UART definitions.
+;
+; STATUS flags as follows:
+; 
+;   7   6   5   4   3   2   1   0
+; +---+---+---+---+---+---+---+---+
+; |///|///|///|///|///|///|///| R |
+; +---+---+---+---+---+---+---+---+
+; 
+; R=1 if data is available to be read; 0 otherwise.
+
+UART_TX		= 0
+UART_STATUS	= UART_TX
+UART_RX		= UART_STATUS + 1
+UART_sizeof	= UART_RX + 1
+
 ; BIOS Line Input Control Block (BLICB)
 
 blicb_buffer	= 0
@@ -616,7 +632,7 @@ biosPutStrC_loop:
 	jal	ra, biosPutChar
 	addi	s0, s0, 1
 	addi	a1, a1, -1
-	jal	x0, biosPutCharC_loop
+	jal	x0, biosPutStrC_loop
 
 biosPutStrC_done:
 	ld	ra, 8(sp)
