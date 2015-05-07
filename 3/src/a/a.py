@@ -185,12 +185,63 @@ class RInsn(object):
         self.rs1 = rs1
         self.rs2 = rs2
 
+    def asBytes(self, asm):
+        bs = []
+        rd = evalExpression(asm, self.rd)
+        rs1 = evalExpression(asm, self.rs1)
+        rs2 = evalExpression(asm, self.rs2)
+        if rd.kind != EN_INT:
+            raise Exception("Integer expected for destination register")
+        if rs1.kind != EN_INT:
+            raise Exception("Integer expected for src1 register")
+        if rs2.kind != EN_INT:
+            raise Exception("Integer expected for src2 register")
+        rd = rd.a
+        rs1 = rs1.a
+        rs2 = rs2.a
+
+        i = self.insn | (rd << 7) | (rs1 << 15) | (rs2 << 20)
+        for _ in range(4):
+            bs = bs + [i & 0xFF]
+            i = i >> 8
+
+        return bs
+
+
 class SInsn(object):
     def __init__(self, insn, rs1, disp, rs2):
         self.insn = insn
         self.rs1 = rs1
         self.disp = disp
         self.rs2 = rs2
+
+    def asBytes(self, asm):
+        bs = []
+        rs1 = evalExpression(asm, self.rs1)
+        rs2 = evalExpression(asm, self.rs2)
+        disp = evalExpression(asm, self.disp)
+
+        if rs1.kind != EN_INT:
+            raise Exception("Integer expected for src1 reg expression")
+        if rs2.kind != EN_INT:
+            raise Exception("Integer expected for src2 reg expression")
+        if disp.kind != EN_INT:
+            print("KIND({})".format(disp.kind), disp.a, disp.b)
+            raise Exception("Integer expected for displacement")
+        rs1 = rs1.a
+        rs2 = rs2.a
+        disp = disp.a
+
+        i = (
+            self.insn
+            | ((disp & 0x1F) << 7) | ((disp >> 5) << 25)
+            | (rs1 << 15)
+            | (rs2 << 20)
+        )
+        for _ in range(4):
+            bs = bs + [i & 0xFF]
+            i = i >> 8
+        return bs
 
 class SBInsn(SInsn):
     pass
@@ -201,6 +252,28 @@ class IInsn(object):
         self.rd = rd
         self.rs = rs
         self.imm12 = imm12
+
+    def asBytes(self, asm):
+        bs = []
+        rd = evalExpression(asm, self.rd)
+        rs = evalExpression(asm, self.rs)
+        imm12 = evalExpression(asm, self.imm12)
+
+        if rd.kind != EN_INT:
+            raise Exception("Integer expected for dest reg expression")
+        if rs.kind != EN_INT:
+            raise Exception("Integer expected for src reg expression")
+        if imm12.kind != EN_INT:
+            raise Exception("Integer expected for immediate value")
+        rd = rd.a
+        rs = rs.a
+        imm12 = imm12.a
+
+        i = self.insn | (rd << 7) | (rs << 15) | (imm12 << 20)
+        for _ in range(4):
+            bs = bs + [i & 0xFF]
+            i = i >> 8
+        return bs
 
 class IMInsn(IInsn):
     pass
@@ -225,8 +298,8 @@ class UJInsn(object):
         disp = evalExpression(asm, self.disp)
         if (rd.kind != EN_INT) or (disp.kind != EN_INT):
             raise Exception("Pass 2 error: Undefined symbols?")
-	rd = rd.a
-	disp = disp.a
+        rd = rd.a
+        disp = disp.a
 
         i = self.insn | (rd << 7) | toUJ(disp - (self.lc + 4))
         for _ in range(4):
@@ -419,7 +492,7 @@ def evalExpression(asm, root):
     elif root.kind == EN_NEG:
         e = evalExpression(asm, root.a)
         if e.kind == EN_INT:
-            return ExprNode(EN_INT, -e.n)
+            return ExprNode(EN_INT, -e.a)
         else:
             return root
     elif root.kind == EN_ID:
