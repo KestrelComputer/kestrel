@@ -148,32 +148,35 @@ class ExprNode(object):
 
 class Advance(object):
     def __init__(self, nBytes, fill):
-        self.nBytes = nBytes
-        self.fill = fill
+        self.a = nBytes
+        self.b = fill
+        self.c = None
 
     def asBytes(self, _):
-        return [self.fill] * self.nBytes
+        return [self.b] * self.a
 
 class Declaration(object):
     def __init__(self, value, size):
-        self.value = value
+        self.a = value
+        self.b = None
+        self.c = None
         self.size = size
 
     def asBytes(self, _):
         bs = []
 
-        if self.value.kind == EN_INT:
-            v = self.value.a
+        if self.a.kind == EN_INT:
+            v = self.a.a
             for _ in range(self.size):
                 b = v & 0xFF
                 v = v >> 8
                 bs = bs + [b]
-        elif self.value.kind == EN_STR:
-            for c in self.value.a:
+        elif self.a.kind == EN_STR:
+            for c in self.a.a:
                 bs = bs + [ord(c)]
         else:
             raise Exception(
-                "Unknown constant type ({})".format(self.value.kind)
+                "Unknown constant type ({})".format(self.a.kind)
             )
 
         return bs
@@ -181,15 +184,15 @@ class Declaration(object):
 class RInsn(object):
     def __init__(self, insn, rd, rs1, rs2):
         self.insn = insn
-        self.rd = rd
-        self.rs1 = rs1
-        self.rs2 = rs2
+        self.a = rd
+        self.b = rs1
+        self.c = rs2
 
     def asBytes(self, asm):
         bs = []
-        rd = evalExpression(asm, self.rd)
-        rs1 = evalExpression(asm, self.rs1)
-        rs2 = evalExpression(asm, self.rs2)
+        rd = evalExpression(asm, self.a)
+        rs1 = evalExpression(asm, self.b)
+        rs2 = evalExpression(asm, self.c)
         if rd.kind != EN_INT:
             raise Exception("Integer expected for destination register")
         if rs1.kind != EN_INT:
@@ -211,15 +214,15 @@ class RInsn(object):
 class SInsn(object):
     def __init__(self, insn, rs1, disp, rs2):
         self.insn = insn
-        self.rs1 = rs1
-        self.disp = disp
-        self.rs2 = rs2
+        self.a = rs1
+        self.b = disp
+        self.c = rs2
 
     def asBytes(self, asm):
         bs = []
-        rs1 = evalExpression(asm, self.rs1)
-        rs2 = evalExpression(asm, self.rs2)
-        disp = evalExpression(asm, self.disp)
+        rs1 = evalExpression(asm, self.a)
+        rs2 = evalExpression(asm, self.c)
+        disp = evalExpression(asm, self.b)
 
         if rs1.kind != EN_INT:
             raise Exception("Integer expected for src1 reg expression")
@@ -249,15 +252,15 @@ class SBInsn(SInsn):
 class IInsn(object):
     def __init__(self, insn, rd, rs, imm12):
         self.insn = insn
-        self.rd = rd
-        self.rs = rs
-        self.imm12 = imm12
+        self.a = rd
+        self.b = rs
+        self.c = imm12
 
     def asBytes(self, asm):
         bs = []
-        rd = evalExpression(asm, self.rd)
-        rs = evalExpression(asm, self.rs)
-        imm12 = evalExpression(asm, self.imm12)
+        rd = evalExpression(asm, self.a)
+        rs = evalExpression(asm, self.b)
+        imm12 = evalExpression(asm, self.c)
 
         if rd.kind != EN_INT:
             raise Exception("Integer expected for dest reg expression")
@@ -281,21 +284,22 @@ class IMInsn(IInsn):
 class UInsn(object):
     def __init__(self, insn, rd, imm20):
         self.insn = insn
-        self.rd = rd
-        self.imm20 = imm20
+        self.a = rd
+        self.b = imm20
+        self.c = None
 
 class UJInsn(object):
     def __init__(self, lc, insn, rd, disp):
         self.lc = lc
         self.insn = insn
-        self.rd = rd
-        print("I AM STORING DISPLACEMENT TYPE OF {}".format(type(rd).__name__))
-        self.disp = disp
+        self.a = rd
+        self.b = disp
+        self.c = None
 
     def asBytes(self, asm):
         bs = []
-        rd = evalExpression(asm, self.rd)
-        disp = evalExpression(asm, self.disp)
+        rd = evalExpression(asm, self.a)
+        disp = evalExpression(asm, self.b)
         if (rd.kind != EN_INT) or (disp.kind != EN_INT):
             raise Exception("Pass 2 error: Undefined symbols?")
         rd = rd.a
@@ -572,7 +576,7 @@ def declareConstantHandler(asm, tok):
 
 
 def advanceHandler(asm, tok):
-    eTarget = constantExpression(asm, 0)
+    eTarget = ExprNode(EN_INT, constantExpression(asm, 0))
     expectCharacter(asm, ",")
     eFill = expression(asm, 0)
     asm.recordAdvance(eTarget, eFill)
@@ -743,9 +747,9 @@ class Assembler(object):
         """When the programmer specifies the ADV mnemonic, this method is
         called to record its behavior for pass two.
         """
-        self._defer(Advance(target - self.lc, fill))
-        if self.lc < target:
-            self.lc = target
+        self._defer(Advance(target.a - self.lc, fill))
+        if self.lc < target.a:
+            self.lc = target.a
 
     def recordR(self, insn, rd, rs1, rs2):
         """Records all 3-register operations"""
@@ -788,7 +792,7 @@ class Assembler(object):
 
     def setSymbol(self, name, value):
         """Sets a global symbol."""
-	assert(type(value).__name__ == "ExprNode")
+        assert(type(value).__name__ == "ExprNode")
         self.symbols[name] = value
 
     def getSymbol(self, name):
@@ -947,6 +951,21 @@ class Assembler(object):
             self.string = self.string + ch
             return
 
+    def printUndefs(self, e):
+        if e.kind in [EN_ADD, EN_SUB, EN_MUL, EN_DIV]:
+            self.printUndefs(root.a)
+            self.printUndefs(root.b)
+        elif e.kind == EN_NEG:
+            self.printUndefs(e.a)
+        elif e.kind == EN_ID:
+            v = self.getSymbol(e.a)
+            if v is None:
+                print("ERROR: {} remains undefined.".format(e.a))
+            else:
+                self.printUndefs(v)
+        elif e.kind == EN_INT:
+            """Do nothing.  Integers are always defined."""
+
     def pass1(self, line):
         """Perform a pass-1 assembly step on the given line of code."""
         for c in line:
@@ -954,6 +973,16 @@ class Assembler(object):
         self.lexEOL()
 
     def pass2(self):
+        """Identify any symbols which remain undefined, and report them as
+        errors.
+        """
+        for i in self.pass2todo:
+            print(type(i).__name__, i.a, i.b, i.c)
+            self.printUndefs(i.a) if i.a else None
+            self.printUndefs(i.b) if i.b else None
+            self.printUndefs(i.c) if i.c else None
+
+    def pass3(self):
         """Once we have assembled the first pass of our program, we now ask
         each instruction in the resulting program to emit its data to a list
         of bytes.
@@ -979,7 +1008,9 @@ class Assembler(object):
         for line in source:
             self.pass1(line)
 
-        bs = self.pass2()
+        self.pass2()
+
+        bs = self.pass3()
         with open("a.out", "wb") as f:
             f.write(bytearray(bs))
 
