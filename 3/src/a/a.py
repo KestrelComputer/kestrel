@@ -112,6 +112,7 @@ EN_DIV = 4
 EN_NEG = 5
 EN_INT = 6
 EN_ID = 7
+EN_STR = 8
 
 lowercaseLetters = "abcdefghijklmnopqrstuvwxyz"
 uppercaseLetters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -131,6 +132,14 @@ def syntaxError(asm, tok):
     print("Syntax error on line {} near {}".format(asm.getLine(), tok.string))
 
 
+def toUJ(x):
+    return (
+        (x & 0x100000) << 11
+        | (x & 0x0007FE) << 20
+        | (x & 0x000800) << 9
+        | (x & 0x0FF000)
+    )
+
 class ExprNode(object):
     def __init__(self, kind, a=None, b=None):
         self.kind = kind
@@ -138,16 +147,36 @@ class ExprNode(object):
         self.b = b
 
 class Advance(object):
-    def __init__(self, target, fill):
-        self.target = target
+    def __init__(self, nBytes, fill):
+        self.nBytes = nBytes
         self.fill = fill
 
+    def asBytes(self, _):
+        return [self.fill] * self.nBytes
 
 class Declaration(object):
     def __init__(self, value, size):
         self.value = value
         self.size = size
 
+    def asBytes(self, _):
+        bs = []
+
+        if self.value.kind == EN_INT:
+            v = self.value.a
+            for _ in range(self.size):
+                b = v & 0xFF
+                v = v >> 8
+                bs = bs + [b]
+        elif self.value.kind == EN_STR:
+            for c in self.value.a:
+                bs = bs + [ord(c)]
+        else:
+            raise Exception(
+                "Unknown constant type ({})".format(self.value.kind)
+            )
+
+        return bs
 
 class RInsn(object):
     def __init__(self, insn, rd, rs1, rs2):
@@ -183,10 +212,27 @@ class UInsn(object):
         self.imm20 = imm20
 
 class UJInsn(object):
-    def __init__(self, insn, rd, disp):
+    def __init__(self, lc, insn, rd, disp):
+        self.lc = lc
         self.insn = insn
         self.rd = rd
+        print("I AM STORING DISPLACEMENT TYPE OF {}".format(type(rd).__name__))
         self.disp = disp
+
+    def asBytes(self, asm):
+        bs = []
+        rd = evalExpression(asm, self.rd)
+        disp = evalExpression(asm, self.disp)
+        if (rd.kind != EN_INT) or (disp.kind != EN_INT):
+            raise Exception("Pass 2 error: Undefined symbols?")
+	rd = rd.a
+	disp = disp.a
+
+        i = self.insn | (rd << 7) | toUJ(disp - (self.lc + 4))
+        for _ in range(4):
+            bs = bs + [i & 0xFF]
+            i = i >> 8
+        return bs
 
 class Token(object):
     def __init__(self, tt, tv, string=None):
@@ -269,7 +315,7 @@ def integerExpressionHandler(asm, tok, prec):
 def identifierExpressionHandler(asm, tok, prec):
     v = asm.getSymbol(tok.tokenValue)
     if v is not None:
-        return ExprNode(EN_INT, v)
+        return v
     else:
         return ExprNode(EN_ID, tok.tokenValue)
 
@@ -319,7 +365,7 @@ prefixHandlers = {
     identifierToken: identifierExpressionHandler,
     binOpToken: unaryOperatorHandler,
     characterToken: characterPrefixHandler,
-    stringToken: lambda x, y, z: y.tokenValue,
+    stringToken: lambda x, y, z: ExprNode(EN_STR, y.tokenValue),
 }
 
 
@@ -428,7 +474,7 @@ def labelOrAssignmentHandler(asm, tok):
     elif t.tokenValue == ':':
         asm.eatToken()
         v = asm.getLC()
-        asm.setSymbol(tok.tokenValue, v)
+        asm.setSymbol(tok.tokenValue, ExprNode(EN_INT, v))
 
     else:
         syntaxError(asm, tok)
@@ -443,13 +489,7 @@ def declareConstantHandler(asm, tok):
     }
     recorder = recorderMap[tok.tokenType]
     while True:
-        e = expression(asm, 0)
-        te = type(e).__name__
-        if te == "int":
-            recorder(e)
-        elif te == "str":
-            for c in e:
-                recorder(ord(c))
+        recorder(expression(asm, 0))
         t = asm.getToken()
         if t.tokenType != characterToken:
             break
@@ -630,7 +670,7 @@ class Assembler(object):
         """When the programmer specifies the ADV mnemonic, this method is
         called to record its behavior for pass two.
         """
-        self._defer(Advance(target, fill))
+        self._defer(Advance(target - self.lc, fill))
         if self.lc < target:
             self.lc = target
 
@@ -666,7 +706,7 @@ class Assembler(object):
 
     def recordUJ(self, insn, rd, disp):
         """Records an unconditional jump."""
-        self._defer(UJInsn(insn, rd, disp))
+        self._defer(UJInsn(self.lc, insn, rd, disp))
         self.lc = self.lc + 4
 
     def getLC(self):
@@ -675,6 +715,7 @@ class Assembler(object):
 
     def setSymbol(self, name, value):
         """Sets a global symbol."""
+	assert(type(value).__name__ == "ExprNode")
         self.symbols[name] = value
 
     def getSymbol(self, name):
@@ -839,6 +880,17 @@ class Assembler(object):
             self.lexChar(c)
         self.lexEOL()
 
+    def pass2(self):
+        """Once we have assembled the first pass of our program, we now ask
+        each instruction in the resulting program to emit its data to a list
+        of bytes.
+        """
+        bs = []
+        for i in self.pass2todo:
+            bs = bs + i.asBytes(self)
+
+        return bs
+
     def main(self):
         """This implements the main user interface of Polaris.  It drives the
         assembly process.
@@ -854,6 +906,9 @@ class Assembler(object):
         for line in source:
             self.pass1(line)
 
+        bs = self.pass2()
+        with open("a.out", "wb") as f:
+            f.write(bytearray(bs))
 
 # Detect if we're executed from the command-line, and if so, create a new
 # assembler instance and let it massage any passed parameters.
