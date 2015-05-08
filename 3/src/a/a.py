@@ -300,6 +300,23 @@ class UInsn(object):
         self.b = imm20
         self.c = None
 
+    def asBytes(self, asm):
+        bs = []
+        rd = evalExpression(asm, self.a)
+        imm20 = evalExpression(asm, self.b)
+        if (rd.kind != EN_INT) or (imm20.kind != EN_INT):
+            raise Exception("Pass 2 error: Undefined symbols?")
+        rd = rd.a
+        imm20 = imm20.a
+
+        i = self.insn | (rd << 7) | (imm20 & 0xFFFFF000)
+        for _ in range(4):
+            bs = bs + [i & 0xFF]
+            i = i >> 8
+        return bs
+
+
+
 
 class UJInsn(object):
     def __init__(self, lc, insn, rd, disp):
@@ -1014,6 +1031,7 @@ class Assembler(object):
         bs = []
         for i in self.pass2todo:
             bs = bs + i.asBytes(self)
+            print("Hit {}, now at {}".format(type(i).__name__, len(bs)))
 
         return bs
 
