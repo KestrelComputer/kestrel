@@ -762,7 +762,10 @@ class Assembler(object):
         boundary first.
         """
         self._defer(Declaration(dw, 8))
-        self.lc = self.lc + 8
+        sz = 8
+        if dw.kind == EN_STR:
+            sz = 8*len(dw.a)
+        self.lc = self.lc + sz
 
     def recordWord(self, w):
         """Records an arbitrary, 32-bit quantity to the object file.
@@ -770,7 +773,10 @@ class Assembler(object):
         boundary first.
         """
         self._defer(Declaration(w, 4))
-        self.lc = self.lc + 4
+        sz = 4
+        if w.kind == EN_STR:
+            sz = 4*len(w.a)
+        self.lc = self.lc + sz
 
     def recordHWord(self, h):
         """Records an arbitrary, 16-bit quantity to the object file.
@@ -778,12 +784,18 @@ class Assembler(object):
         boundary first.
         """
         self._defer(Declaration(h, 2))
-        self.lc = self.lc + 2
+        sz = 2
+        if h.kind == EN_STR:
+            sz = 2*len(h.a)
+        self.lc = self.lc + sz
 
     def recordByte(self, b):
         """Records an arbitrary, 8-bit quantity to the object file."""
         self._defer(Declaration(b, 1))
-        self.lc = self.lc + 1
+        sz = 1
+        if b.kind == EN_STR:
+            sz = len(b.a)
+        self.lc = self.lc + sz
 
     def recordAdvance(self, target, fill):
         """When the programmer specifies the ADV mnemonic, this method is
@@ -1031,7 +1043,7 @@ class Assembler(object):
         bs = []
         for i in self.pass2todo:
             bs = bs + i.asBytes(self)
-            print("Hit {}, now at {}".format(type(i).__name__, len(bs)))
+            #print("{} @ {}".format(type(i).__name__, len(bs)))
 
         return bs
 
