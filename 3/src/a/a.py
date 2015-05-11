@@ -132,11 +132,24 @@ def syntaxError(asm, tok):
     print("Syntax error on line {} near {}".format(asm.getLine(), tok.string))
 
 
+def toS(x):
+    return ((x & 0x1F) << 7) | ((x >> 5) << 25)
+
+
+def toSB(x):
+    return (
+        ((x & 0x1E) << 7)
+        | ((x & 800) >> 4)
+        | ((x & 0x7E0) << 20)
+        | ((x & 0x1000) << 19)
+    )
+
+
 def toUJ(x):
     return (
-        (x & 0x100000) << 11
-        | (x & 0x0007FE) << 20
-        | (x & 0x000800) << 9
+        ((x & 0x100000) << 11)
+        | ((x & 0x0007FE) << 20)
+        | ((x & 0x000800) << 9)
         | (x & 0x0FF000)
     )
 
@@ -221,7 +234,8 @@ class RInsn(object):
 
 
 class SInsn(object):
-    def __init__(self, insn, rs1, disp, rs2):
+    def __init__(self, lc, insn, rs1, disp, rs2):
+        self.lc = lc
         self.insn = insn
         self.a = rs1
         self.b = disp
@@ -246,7 +260,7 @@ class SInsn(object):
 
         i = (
             self.insn
-            | ((disp & 0x1F) << 7) | ((disp >> 5) << 25)
+            | toS(disp)
             | (rs1 << 15)
             | (rs2 << 20)
         )
@@ -256,7 +270,32 @@ class SInsn(object):
         return bs
 
 class SBInsn(SInsn):
-    pass
+    def asBytes(self, asm):
+        bs = []
+        rs1 = evalExpression(asm, self.a)
+        rs2 = evalExpression(asm, self.c)
+        disp = evalExpression(asm, self.b)
+
+        if rs1.kind != EN_INT:
+            raise Exception("Integer expected for src1 reg expression")
+        if rs2.kind != EN_INT:
+            raise Exception("Integer expected for src2 reg expression")
+        if disp.kind != EN_INT:
+            raise Exception("Integer expected for displacement")
+        rs1 = rs1.a
+        rs2 = rs2.a
+        disp = disp.a
+
+        i = (
+            self.insn
+            | toSB(disp - (self.lc + 4))
+            | (rs1 << 15)
+            | (rs2 << 20)
+        )
+        for _ in range(4):
+            bs = bs + [i & 0xFF]
+            i = i >> 8
+        return bs
 
 
 class IInsn(object):
@@ -332,8 +371,8 @@ class UJInsn(object):
         disp = evalExpression(asm, self.b)
         if (rd.kind != EN_INT) or (disp.kind != EN_INT):
             raise Exception("Pass 2 error: Undefined symbols?")
-        rd = rd.a
-        disp = disp.a
+        rd = rd.a & 0x1F
+        disp = disp.a & 0x3FFFFE
 
         i = self.insn | (rd << 7) | toUJ(disp - (self.lc + 4))
         for _ in range(4):
@@ -812,12 +851,12 @@ class Assembler(object):
 
     def recordSB(self, insn, rs1, rs2, disp):
         """Records all conditional branch instructions."""
-        self._defer(SBInsn(insn, rs1, disp, rs2))
+        self._defer(SBInsn(self.lc, insn, rs1, disp, rs2))
         self.lc = self.lc + 4
 
     def recordS(self, insn, rs1, disp, rs2):
         """Records all store instructions."""
-        self._defer(SInsn(insn, rs1, disp, rs2))
+        self._defer(SInsn(None, insn, rs1, disp, rs2))
         self.lc = self.lc + 4
 
     def recordIM(self, insn, rd, rs, disp):
