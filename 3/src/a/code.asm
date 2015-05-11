@@ -123,7 +123,7 @@ bcb_sizeof	= bcb_inpBuf+81
 
 banner:
 	byte	"MLM/K3 V1b", 10
-bannerLength	= *-banner
+bannerLength = *-banner
 
 mlmPrompt:
 	byte	"* "
@@ -157,6 +157,7 @@ spDotSp:
 
 coldBoot:
 mlmEntry:
+
 	; Save user register state.
 	; 
 	; Implementation Detail: Until SBREAK and proper exceptions are supported,
@@ -198,14 +199,13 @@ mlmEntry:
 	sd	x31, bcb_userRegs+248(s11)
 
 	ld	sp, brod_initSP(x0)
-
 	addi	a0, x0, banner
 	addi	a1, x0, bannerLength
 	jal	ra, biosPutStrC
 
 doItAgain:
 	ld	t0, brod_bcb(x0)
-	sd	x0, bcb_accumulator(t0)
+	sd	x0, bcb_accumulator(t0) ; XXX
 	addi	t1, x0, -1
 	sd	t1, bcb_startAddr(t0)
 
@@ -223,7 +223,6 @@ doItAgain:
 	addi	t2, x0, 80		; licb.capacity = 80
 	sd	t2, blicb_capacity(a0)
 	jal	ra, biosGetLine
-
 	; When you ENTER on biosGetLine, you don't actually move to next line.
 	ori	a0, x0, 10
 	jal	ra, biosPutChar
@@ -548,7 +547,7 @@ puthex32:
 
 	or	s0, x0, a0
 	srli	a0, a0, 16
-	jal	ra, puthex32
+	jal	ra, puthex16
 
 	or	a0, x0, s0
 	ld	s0, 8(sp)
@@ -562,7 +561,7 @@ puthex16:
 
 	or	s0, x0, a0
 	srli	a0, a0, 8
-	jal	ra, puthex32
+	jal	ra, puthex8
 
 	or	a0, x0, s0
 	ld	s0, 8(sp)
@@ -576,7 +575,7 @@ puthex8:
 
 	or	s0, x0, a0
 	srli	a0, a0, 4
-	jal	ra, puthex32
+	jal	ra, puthex4
 
 	or	a0, x0, s0
 	ld	s0, 8(sp)
@@ -674,6 +673,7 @@ biosPutStrZ_rtn:
 ;  A0
 
 biosChkChar:
+  ld t0,brod_bcb(x0) ; just to shut the diff up XXX
 	ld	t1, brod_uartBase(x0)	; t1 -> UART base
 	lbu	a0, UART_STATUS(t1)	; data pending?
 	andi	a0, a0, 1
@@ -686,6 +686,7 @@ biosChkChar:
 ; A0
 
 biosGetChar:
+  ld t0,brod_bcb(x0) ; just to shut the diff up XXX
 	ld	t1, brod_uartBase(x0)	; t1 -> UART
 biosGetChar_again:
 	lbu	a0, UART_STATUS(t1)	; wait for data
@@ -725,6 +726,7 @@ waitForKey:
 
 	ld	t2, blicb_length(s0)
 
+
 	; If the user presses ENTER, we accept the buffer as-is.
 	; It's up to the consumer to check for zero-length buffers.
 	addi	t3, x0, 10
@@ -761,7 +763,7 @@ notBS:
 
 	; Place the byte, and increment the buffer length.
 	ld	t3, blicb_buffer(s0)
-	add	t3, t3, t2
+	add	t3, t2, t3
 	sb	a0, 0(t3)
 	addi	t2, t2, 1
 	sd	t2, blicb_length(s0)
