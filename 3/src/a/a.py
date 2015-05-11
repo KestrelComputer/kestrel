@@ -139,7 +139,7 @@ def toS(x):
 def toSB(x):
     return (
         ((x & 0x1E) << 7)
-        | ((x & 800) >> 4)
+        | ((x & 0x800) >> 4)
         | ((x & 0x7E0) << 20)
         | ((x & 0x1000) << 19)
     )
@@ -1086,6 +1086,17 @@ class Assembler(object):
 
         return bs
 
+    def dumpSymbols(self):
+        syms = []
+        for i in self.symbols:
+            v = self.symbols[i].a
+            if self.symbols[i].kind == EN_INT:
+                syms.append((i, v, hex(v)))
+        syms.sort(cmp=lambda x, y: -1 if x[1]<y[1] else 1 if x[1]>y[1] else 0)
+        for s in syms:
+            name, value, hexval = s
+            print("{} = {} ({})".format(name, value, hexval))
+
     def main(self):
         """This implements the main user interface of Polaris.  It drives the
         assembly process.
@@ -1102,6 +1113,7 @@ class Assembler(object):
             self.pass1(line)
 
         self.pass2()
+        self.dumpSymbols()
 
         bs = self.pass3()
         with open("a.out", "wb") as f:
