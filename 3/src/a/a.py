@@ -278,9 +278,9 @@ class IInsn(object):
             raise Exception("Integer expected for src reg expression")
         if imm12.kind != EN_INT:
             raise Exception("Integer expected for immediate value")
-        rd = rd.a
-        rs = rs.a
-        imm12 = imm12.a
+        rd = rd.a & 0x1F
+        rs = rs.a & 0x1F
+        imm12 = imm12.a & 0xFFF
 
         i = self.insn | (rd << 7) | (rs << 15) | (imm12 << 20)
         for _ in range(4):
@@ -510,21 +510,21 @@ def evalExpression(asm, root):
         l = evalExpression(asm, root.a)
         r = evalExpression(asm, root.b)
         if l.kind == EN_INT and r.kind == EN_INT:
-            return ExprNode(EN_INT, l.a + r.a)
+            return ExprNode(EN_INT, l.a - r.a)
         else:
             return root
     elif root.kind == EN_MUL:
         l = evalExpression(asm, root.a)
         r = evalExpression(asm, root.b)
         if l.kind == EN_INT and r.kind == EN_INT:
-            return ExprNode(EN_INT, l.a + r.a)
+            return ExprNode(EN_INT, l.a * r.a)
         else:
             return root
     elif root.kind == EN_DIV:
         l = evalExpression(asm, root.a)
         r = evalExpression(asm, root.b)
         if l.kind == EN_INT and r.kind == EN_INT:
-            return ExprNode(EN_INT, l.a + r.a)
+            return ExprNode(EN_INT, l.a / r.a)
         else:
             return root
     elif root.kind == EN_NEG:
