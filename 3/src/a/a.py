@@ -7,6 +7,9 @@ import sys
 import os
 
 
+# Command-line flags.
+OPT_QUIET = 1
+
 # The lexer has several contexts in which it operates.
 #
 # fileScope is the default state of the lexer, where it has no idea what the
@@ -1087,6 +1090,8 @@ class Assembler(object):
         return bs
 
     def dumpSymbols(self):
+        if self.options & OPT_QUIET:
+            return
         syms = []
         for i in self.symbols:
             v = self.symbols[i].a
@@ -1097,18 +1102,46 @@ class Assembler(object):
             name, value, hexval = s
             print("{} = {} ({})".format(name, value, hexval))
 
+    def parseArgs(self):
+        """Parse command-line arguments and separate parameters from flags.
+        """
+        self._from = None
+        self._to = None
+        self.options = 0
+
+        argc = len(self.args)
+        i = 1
+        while i < argc:
+            if (i + 1) < argc:
+                if self.args[i] == "from":
+                    self._from = self.args[i+1]
+                    self._to = self._to or "a.out"
+                    i = i + 2
+                    continue
+                elif self.args[i] == "to":
+                    self._to = self.args[i+1]
+                    i = i + 2
+                    continue
+            if i < argc:
+                if self.args[i] == "quiet":
+                    self.options = self.options | OPT_QUIET
+            i = i + 1
+
     def main(self):
         """This implements the main user interface of Polaris.  It drives the
         assembly process.
         """
-        print("This is a, the Polaris RISC-V Assembler")
-        print("Version 0.0")
+        self.parseArgs()
 
-        if len(self.args) < 2:
+        if not self.options & OPT_QUIET:
+            print("This is a, the Polaris RISC-V Assembler")
+            print("Version 0.0")
+
+        if not self._from:
             print("I need a file to assemble.")
-            os.exit(1)
+            sys.exit(1)
 
-        source = open(self.args[1], "r").readlines()
+        source = open(self._from, "r").readlines()
         for line in source:
             self.pass1(line)
 
@@ -1116,7 +1149,7 @@ class Assembler(object):
         self.dumpSymbols()
 
         bs = self.pass3()
-        with open("a.out", "wb") as f:
+        with open(self._to, "wb") as f:
             f.write(bytearray(bs))
 
 # Detect if we're executed from the command-line, and if so, create a new
