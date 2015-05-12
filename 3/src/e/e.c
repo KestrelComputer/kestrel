@@ -14,7 +14,7 @@ static struct termios stored_settings;
 
 enum {
 	VERSION_MAJOR	= 0,
-	VERSION_MINOR	= 1,
+	VERSION_MINOR	= 2,
 	VERSION_PATCH	= 0,
 
 	MB		= 1048576L,
@@ -172,8 +172,8 @@ UDWORD address_space_ram_reader(AddressSpace *as, UDWORD addr, int sz) {
 
 #define ROMF(a) (UDWORD)(as->rom[(a) & ROM_MASK])
 UDWORD address_space_rom_reader(AddressSpace *as, UDWORD addr, int sz) {
-	addr &= ~(DEV_MASK | CARD_MASK);
-	if(addr > ROM_MASK) {
+	addr |= DEV_MASK | CARD_MASK;
+	if((addr | ROM_MASK) != -1) {
 		fprintf(stderr, "Warning: reading mirrored ROM at $%016llX\n", addr);
 	}
 	switch(sz) {
@@ -285,11 +285,11 @@ AddressSpace *address_space_configure(Options *opts) {
 		as->writers[n] = address_space_no_writer;
 		as->readers[n] = address_space_no_reader;
 	}
-	as->readers[0] = address_space_rom_reader;
-	as->writers[1] = address_space_ram_writer;
-	as->readers[1] = address_space_ram_reader;
-	as->writers[15] = address_space_uart_writer;
-	as->readers[15] = address_space_uart_reader;
+	as->readers[15] = address_space_rom_reader;
+	as->writers[0] = address_space_ram_writer;
+	as->readers[0] = address_space_ram_reader;
+	as->writers[14] = address_space_uart_writer;
+	as->readers[14] = address_space_uart_reader;
 
 	for(n = 0; n < MAX_DEVS; n++) {
 		assert(as->writers[n]);
@@ -300,9 +300,15 @@ AddressSpace *address_space_configure(Options *opts) {
 	return as;
 }
 
+int address_space_valid_card(DWORD address) {
+	int card = (address & CARD_MASK) >> 60;
+	int element = 1 << card;
+	return (element & 0x8003) != 0;		// Cards 0, 1, and 15 are valid.
+}
+
 void address_space_store_byte(AddressSpace *as, DWORD address, BYTE datum) {
 	int dev = (address & DEV_MASK) >> 56;
-	if((address & CARD_MASK) != 0) {
+	if(!address_space_valid_card(address)) {
 		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
 		return;
 	}
@@ -314,7 +320,7 @@ void address_space_store_byte(AddressSpace *as, DWORD address, BYTE datum) {
 
 void address_space_store_hword(AddressSpace *as, DWORD address, UHWORD datum) {
 	int dev = (address & DEV_MASK) >> 56;
-	if((address & CARD_MASK) != 0) {
+	if(!address_space_valid_card(address)) {
 		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
 		return;
 	}
@@ -326,7 +332,7 @@ void address_space_store_hword(AddressSpace *as, DWORD address, UHWORD datum) {
 
 void address_space_store_word(AddressSpace *as, DWORD address, UWORD datum) {
 	int dev = (address & DEV_MASK) >> 56;
-	if((address & CARD_MASK) != 0) {
+	if(!address_space_valid_card(address)) {
 		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
 		return;
 	}
@@ -338,7 +344,7 @@ void address_space_store_word(AddressSpace *as, DWORD address, UWORD datum) {
 
 void address_space_store_dword(AddressSpace *as, DWORD address, UDWORD datum) {
 	int dev = (address & DEV_MASK) >> 56;
-	if((address & CARD_MASK) != 0) {
+	if(!address_space_valid_card(address)) {
 		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
 		return;
 	}
@@ -350,7 +356,7 @@ void address_space_store_dword(AddressSpace *as, DWORD address, UDWORD datum) {
 
 BYTE address_space_fetch_byte(AddressSpace *as, DWORD address) {
 	int dev = (address & DEV_MASK) >> 56;
-	if((address & CARD_MASK) != 0) {
+	if(!address_space_valid_card(address)) {
 		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCC\n", address);
 		return 0xCC;
 	}
@@ -362,7 +368,7 @@ BYTE address_space_fetch_byte(AddressSpace *as, DWORD address) {
 
 HWORD address_space_fetch_hword(AddressSpace *as, DWORD address) {
 	int dev = (address & DEV_MASK) >> 56;
-	if((address & CARD_MASK) != 0) {
+	if(!address_space_valid_card(address)) {
 		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCCCC\n", address);
 		return 0xCCCC;
 	}
@@ -374,7 +380,7 @@ HWORD address_space_fetch_hword(AddressSpace *as, DWORD address) {
 
 WORD address_space_fetch_word(AddressSpace *as, DWORD address) {
 	int dev = (address & DEV_MASK) >> 56;
-	if((address & CARD_MASK) != 0) {
+	if(!address_space_valid_card(address)) {
 		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCCCCCCCC\n", address);
 		return 0xCCCCCCCC;
 	}
@@ -386,7 +392,7 @@ WORD address_space_fetch_word(AddressSpace *as, DWORD address) {
 
 DWORD address_space_fetch_dword(AddressSpace *as, DWORD address) {
 	int dev = (address & DEV_MASK) >> 56;
-	if((address & CARD_MASK) != 0) {
+	if(!address_space_valid_card(address)) {
 		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCCCCCCCCCCCCCCCC\n", address);
 		return 0xCCCCCCCCCCCCCCCC;
 	}
@@ -429,7 +435,7 @@ Processor *processor_new(AddressSpace *as) {
 	Processor *p = (Processor *)malloc(sizeof(Processor));
 	if(p) {
 		memset(p, 0, sizeof(Processor));
-		p->pc = 0x2000;
+		p->pc = -0x100;
 		p->as = as;
 		p->running = 1;
 	}
