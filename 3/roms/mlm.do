@@ -1,4 +1,3 @@
-redo-ifchange ../src/vasm/*.f
-redo-ifchange ../src/mlm/*.f ../src/mlm/*.asm ../src/mlm/*.i
-sf ../src/mlm/mlm.f $3 >&2
-
+redo-ifchange ../src/a/*.py
+redo-ifchange ../src/mlm/mlm.asm
+../src/a/a.py from ../src/mlm/mlm.asm to $3 quiet
