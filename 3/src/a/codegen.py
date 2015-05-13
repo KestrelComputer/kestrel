@@ -46,7 +46,7 @@ class Segment(object):
             self.buf[self.lc] = b
         elif self.lc == self.size():
             self.buf.append(b)
-        else: # self.lc > self.size()
+        else:  # self.lc > self.size()
             raise Exception("Not implemented")
 
         self.lc = self.lc + 1
@@ -166,15 +166,18 @@ def _toS(i, rs, rb, ofs):
     i = i & ~rdMask & ~rs1Mask & ~rs2Mask & ~ofsHMask
     return i | (ofsL << 7) | (rb << 15) | (rs << 20) | (ofsH << 25)
 
+
 def _toSB(i, r1, r2, ofs):
     ofsL = (ofs & 0x1E) | ((ofs & 0x800) >> 11)
     ofsH = ((ofs & 0x7E0) >> 5) | ((ofs & 0x1000) >> 6)
     i = i & ~rdMask & ~ofsHMask & ~rs1Mask & ~rs2Mask
     return i | (ofsL << 7) | (r1 << 15) | (r2 << 20) | (ofsH << 25)
 
+
 def _toI(i, rd, r1, imm12):
     i = i & ~rdMask & ~rs1Mask & ~imm12Mask
     return i | (rd << 7) | (r1 << 15) | (imm12 << 20)
+
 
 def _toUJ(i, rd, imm21):
     i = i & ~rdMask & ~imm20Mask
@@ -185,7 +188,7 @@ def _toUJ(i, rd, imm21):
     disp = (b20 << 19) | (b10_1 << 9) | (b11 << 8) | b19_12
     return i | (rd << 7) | (disp << 12)
 
+
 def _toU(i, rd, imm20):
     i = i & ~rdMask & ~imm20Mask
-    return i | (rd << 7 ) | (imm20 & imm20Mask)
-
+    return i | (rd << 7) | (imm20 & imm20Mask)
