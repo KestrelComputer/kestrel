@@ -567,18 +567,9 @@ puthex8:
 
 puthex4:
 	andi	a0, a0, 15
-
-	; The following instruction replaces a more complex instruction
-	; sequence, but it only works if hexTable sits below 2K in ROM.
-	; If we didn't know ahead of time where hexTable sat, we'd need this:
-	; 
-	; auipc	 x31,0
-	; ld     t3,_addr_hexTable
-	; add	 a0,a0,t3
-	; lb	 a0,0(a0)
-
 	ld	t6, zp_initTable(x0)
-	lb	a0, hexTable-initTable(t6)
+	add	a0, a0, t6
+	lb	a0, hexTable-initTable(a0)
 
 	; fall through to biosPutChar
 
