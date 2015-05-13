@@ -3,10 +3,30 @@
 from __future__ import print_function
 
 
+# A mask covering bits in a RISC-V instruction that maps to the destination
+# register.  It also covers the low 5 bits of a base displacement for store
+# instructions.
 rdMask = 0x1F << 7
+
+# A mask covering bits in a RISC-V instruction that maps to the left-hand
+# register in a binary operation.
 rs1Mask = 0x1F << 15
+
+# A mask covering bits in a RISC-V instruction that maps to the right-hand
+# register in a binary operation.
 rs2Mask = 0x1F << 20
+
+# A mask covering bits in a RISC-V instruction that maps to the upper 7 bits
+# of a 12-bit offset (e.g., as found in S-format instructions).
 ofsHMask = 0x7F << 25
+
+# A mask covering the top 12 bits of a RISC-V instruction, used to hold an
+# immediate constant.
+imm12Mask = 0xFFF << 20
+
+# A mask covering the top 20 bits of a RISC-V instruction, used to hold an
+# immediate constant.
+imm20Mask = 0xFFFFF << 12
 
 
 class Segment(object):
@@ -88,6 +108,52 @@ class Segment(object):
         """
         self.word(_toS(i, rs, rb, ofs))
 
+    def putSB(self, i, r1, r2, ofs):
+        """
+        Place an SB-format RISC-V instruction, used for conditional branches.
+        :param int i: The 32-bit instruction word template.  The source and
+            destination registers will be overwritten.
+        :param int r1: The left-hand comparison register.
+        :param int r2: The right-hand comparison register.
+        :param int ofs: The byte offset from the current PC to branch to if the
+            condition tested is true.
+        """
+        self.word(_toSB(i, r1, r2, ofs))
+
+    def putI(self, i, rd, rs1, imm12):
+        """
+        Place an I-format RISC-V instruction.
+        :param int i: The 32-bit instruction word template.  The source and
+            destination registers will be overwritten.
+        :param int rd: The destination register 0 <= rd < 32.
+        :param int rs1: The first (or left-hand) source register.
+        :param int imm12: The second (or right-hand) immediate value.
+        """
+        self.word(_toI(i, rd, rs1, imm12))
+
+    def putUJ(self, i, rd, imm21):
+        """
+        Place an UJ-format RISC-V instruction, used for unconditional branches.
+        :param int i: The 32-bit instruction word template.
+        :param int rd: The register to receive the current value of PC after
+            the branch takes place.
+        :param int imm21: A 21-bit, sign-extended displacement from the current
+            PC to jump to.
+        """
+        self.word(_toUJ(i, rd, imm21))
+
+    def putU(self, i, rd, imm20):
+        """
+        Place an UJ-format RISC-V instruction, used for unconditional branches.
+        :param int i: The 32-bit instruction word template.
+        :param int rd: The register to receive the current value of PC after
+            the branch takes place.
+        :param int imm20: A 32-bit constant, of which the top 20 bits are used
+            to set the top 20 bits of the destination register (LUI) or as an
+            addend with the PC (AUIPC).
+        """
+        self.word(_toU(i, rd, imm20))
+
 
 def _toR(i, rd, rs1, rs2):
     i = i & ~rdMask & ~rs1Mask & ~rs2Mask
@@ -99,4 +165,27 @@ def _toS(i, rs, rb, ofs):
     ofsH = ofs >> 5
     i = i & ~rdMask & ~rs1Mask & ~rs2Mask & ~ofsHMask
     return i | (ofsL << 7) | (rb << 15) | (rs << 20) | (ofsH << 25)
+
+def _toSB(i, r1, r2, ofs):
+    ofsL = (ofs & 0x1E) | ((ofs & 0x800) >> 11)
+    ofsH = ((ofs & 0x7E0) >> 5) | ((ofs & 0x1000) >> 6)
+    i = i & ~rdMask & ~ofsHMask & ~rs1Mask & ~rs2Mask
+    return i | (ofsL << 7) | (r1 << 15) | (r2 << 20) | (ofsH << 25)
+
+def _toI(i, rd, r1, imm12):
+    i = i & ~rdMask & ~rs1Mask & ~imm12Mask
+    return i | (rd << 7) | (r1 << 15) | (imm12 << 20)
+
+def _toUJ(i, rd, imm21):
+    i = i & ~rdMask & ~imm20Mask
+    b19_12 = (imm21 & 0x0FF000) >> 12
+    b11 = (imm21 & 0x000800) >> 11
+    b10_1 = (imm21 & 0x0007FE) >> 1
+    b20 = (imm21 & 0x100000) >> 20
+    disp = (b20 << 19) | (b10_1 << 9) | (b11 << 8) | b19_12
+    return i | (rd << 7) | (disp << 12)
+
+def _toU(i, rd, imm20):
+    i = i & ~rdMask & ~imm20Mask
+    return i | (rd << 7 ) | (imm20 & imm20Mask)
 

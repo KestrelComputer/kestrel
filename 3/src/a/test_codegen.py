@@ -72,6 +72,31 @@ class TestSegment(unittest.TestCase):
         self.assertEquals(g.lc, 4)
         self.assertEquals(g.getWord(0), 0xABE3757F)
 
+    def test_putSB(self):
+        g = codegen.Segment()
+        g.putSB(0xFFFFFFFF, 6, 14, 0x1555)
+        self.assertEquals(g.lc, 4)
+        self.assertEquals(g.getWord(0), 0xD4E37A7F)
+
+    def test_putI(self):
+        g = codegen.Segment()
+        g.putI(0xFFFFFFFF, 6, 7, 0xABC)
+        self.assertEquals(g.lc, 4)
+        self.assertEquals(g.getWord(0), 0xABC3F37F)
+
+    def test_putUJ(self):
+        g = codegen.Segment()
+        g.putUJ(0xFFFFFFFF, 10, 0x155555)
+        self.assertEquals(g.lc, 4)
+        self.assertEquals(g.getWord(0), 0xD545557F)
+
+    def test_putU(self):
+        g = codegen.Segment()
+        g.putU(0xFFFFFFFF, 10, 0x12345678)
+        self.assertEquals(g.lc, 4)
+        self.assertEquals(g.getWord(0), 0x1234557F)
+
+
 if __name__ == '__main__':
     unittest.main()
 
