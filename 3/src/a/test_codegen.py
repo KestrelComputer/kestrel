@@ -18,7 +18,7 @@ class TestRawExporter(unittest.TestCase):
         g.dword(0xDEADBEEF0BADC0DE)
         g.dword(0xFEEDFACE0C0FFEE0)
         x.exportSegment(g)
-        self.assertEquals(len(b.buf), 16)
+        self.assertEquals(len(b.getvalue()), 16)
 
 class TestSegment(unittest.TestCase):
     def test_construction(self):
