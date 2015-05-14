@@ -1,6 +1,6 @@
 ;**************************************************************
 ; Kestrel-3 Machine Language Monitor
-; Release 0.2
+; Release 0.4
 ;**************************************************************
 
 ; Register Definitions
@@ -94,35 +94,40 @@ blicb_length	= blicb_buffer+8
 blicb_capacity	= blicb_length+8
 blicb_sizeof	= blicb_capacity+8
 
-; BIOS Read-Only Data Block (BROD).  This contains hardware-specific constants
-; which lets the system software discover everything else that it needs to run.
+; "Zero-page" memory locations.  The first portion is copied from ROM into ZP
+; RAM for easy access.
 
-brod_uartBase	= 0
-brod_initSP	= brod_uartBase+8
-brod_bcb	= brod_initSP+8
-brod_sizeof	= brod_bcb+8
-
-; BIOS maintains state in RAM as well.	For lack of better name, this is called
-; the BIOS Control Block, or BCB.
-
-bcb_userRegs	= 0
-bcb_inpIndex	= bcb_userRegs+32*8	; Reserving space for X0 avoids special-case logic.
-bcb_accumulator	= bcb_inpIndex+8
-bcb_startAddr	= bcb_accumulator+8
-bcb_licb	= bcb_startAddr+8
-bcb_keyPress	= bcb_licb+blicb_sizeof
-bcb_inpBuf	= bcb_keyPress+1
-bcb_sizeof	= bcb_inpBuf+81
+zp_uartBase	= 0
+zp_initSP	= zp_uartBase+8
+zp_initTable	= zp_initSP+8
+zp_userRegs	= zp_initTable+8
+zp_inpIndex	= zp_userRegs+32*8	; Reserving space for X0 avoids special-case logic.
+zp_accumulator	= zp_inpIndex+8
+zp_startAddr	= zp_accumulator+8
+zp_licb		= zp_startAddr+8
+zp_keyPress	= zp_licb+blicb_sizeof
+zp_inpBuf	= zp_keyPress+1
+zp_sizeof	= zp_inpBuf+81
 
 
-; BIOS Read-Only Data structure goes here.
+; Cold Reset Entrypoint.
+;
+; We start with a NOP to let the RA register point to initTable after the JAL
+; instruction completes.  Otherwise, we'd need to account for the alignment
+; through other, perhaps not as obvious, methods.
 
-	dword	$0F00000000000000	; brod_uartBase
-	dword	$0100000000001000	; brod_initSP
-	dword	$0100000000000000	; brod_bcb
+coldBoot:
+	or	x0,x0,x0
+	jal	ra, coldInit
+
+	; BIOS Read-Only Data structure goes here.
+
+initTable:
+	dword	$0E00000000000000
+	dword	$0000000000010000
 
 banner:
-	byte	"MLM/K3 V1b", 10
+	byte	"MLM/K3 V0.4", 10
 bannerLength = *-banner
 
 mlmPrompt:
@@ -134,90 +139,71 @@ hexTable:
 spDotSp:
 	byte	" . "
 
-	adv	$2000, $CC
-;
-; Cold Boot and MLM Entry Points
-; 
-; Currently they're the same, but this is an implementation detail.
-; The reason the mlm-entry is at offset 8 is that it places the vector at
-; $2008, which with a bit of massaging, allows this code:
-; 
-;	ori	t0, x0, $401
-;	slli	t0, t0, 3
-;	jalr	x0, 0(t0)
-; 
-; to invoke the debugger without the need for special loader support for
-; relocating absolute addresses at runtime.  ($401 times 8 is $2008.)
-; 
 
-	jal	x0, coldBoot	; CPU boots here
-	jal	x0, coldBoot
-	jal	x0, mlmEntry	; MLM entry point
-	jal	x0, mlmEntry
+	align	4
+coldInit:
+	sd	ra,zp_initTable(x0)
+	ld	t0,0(ra)		; T0 = UART base
+	sd	t0,zp_uartBase(x0)
+	ld	t0,8(ra)		; T0 = initial SP
+	sd	t0,zp_initSP(x0)
+	or	sp,x0,t0
+	;ebreak				; Enter monitor.
 
-coldBoot:
-mlmEntry:
-
+brkEntry:
 	; Save user register state.
-	; 
-	; Implementation Detail: Until SBREAK and proper exceptions are supported,
-	; we must use a single register as a base pointer to our debugger area.
-	; I've chosen S11 because it's the least likely to be used register.
-	; I hope.
 
-	ld	s11, brod_bcb(x0)
-	sd	x1, bcb_userRegs+8(s11)
-	sd	x2, bcb_userRegs+16(s11)
-	sd	x3, bcb_userRegs+24(s11)
-	sd	x4, bcb_userRegs+32(s11)
-	sd	x5, bcb_userRegs+40(s11)
-	sd	x6, bcb_userRegs+48(s11)
-	sd	x7, bcb_userRegs+56(s11)
-	sd	x8, bcb_userRegs+64(s11)
-	sd	x9, bcb_userRegs+72(s11)
-	sd	x10, bcb_userRegs+80(s11)
-	sd	x11, bcb_userRegs+88(s11)
-	sd	x12, bcb_userRegs+96(s11)
-	sd	x13, bcb_userRegs+104(s11)
-	sd	x14, bcb_userRegs+112(s11)
-	sd	x15, bcb_userRegs+120(s11)
-	sd	x16, bcb_userRegs+128(s11)
-	sd	x17, bcb_userRegs+136(s11)
-	sd	x18, bcb_userRegs+144(s11)
-	sd	x19, bcb_userRegs+152(s11)
-	sd	x20, bcb_userRegs+160(s11)
-	sd	x21, bcb_userRegs+168(s11)
-	sd	x22, bcb_userRegs+176(s11)
-	sd	x23, bcb_userRegs+184(s11)
-	sd	x24, bcb_userRegs+192(s11)
-	sd	x25, bcb_userRegs+200(s11)
-	sd	x26, bcb_userRegs+208(s11)
-;	sd	x27, bcb_userRegs+216(s11)	; Don't support X27 (aka S11) yet.
-	sd	x28, bcb_userRegs+224(s11)
-	sd	x29, bcb_userRegs+232(s11)
-	sd	x30, bcb_userRegs+240(s11)
-	sd	x31, bcb_userRegs+248(s11)
+	sd	x1, zp_userRegs+8(x0)
+	sd	x2, zp_userRegs+16(x0)
+	sd	x3, zp_userRegs+24(x0)
+	sd	x4, zp_userRegs+32(x0)
+	sd	x5, zp_userRegs+40(x0)
+	sd	x6, zp_userRegs+48(x0)
+	sd	x7, zp_userRegs+56(x0)
+	sd	x8, zp_userRegs+64(x0)
+	sd	x9, zp_userRegs+72(x0)
+	sd	x10, zp_userRegs+80(x0)
+	sd	x11, zp_userRegs+88(x0)
+	sd	x12, zp_userRegs+96(x0)
+	sd	x13, zp_userRegs+104(x0)
+	sd	x14, zp_userRegs+112(x0)
+	sd	x15, zp_userRegs+120(x0)
+	sd	x16, zp_userRegs+128(x0)
+	sd	x17, zp_userRegs+136(x0)
+	sd	x18, zp_userRegs+144(x0)
+	sd	x19, zp_userRegs+152(x0)
+	sd	x20, zp_userRegs+160(x0)
+	sd	x21, zp_userRegs+168(x0)
+	sd	x22, zp_userRegs+176(x0)
+	sd	x23, zp_userRegs+184(x0)
+	sd	x24, zp_userRegs+192(x0)
+	sd	x25, zp_userRegs+200(x0)
+	sd	x26, zp_userRegs+208(x0)
+	sd	x27, zp_userRegs+216(x0)
+	sd	x28, zp_userRegs+224(x0)
+	sd	x29, zp_userRegs+232(x0)
+	sd	x30, zp_userRegs+240(x0)
+	sd	x31, zp_userRegs+248(x0)
 
-	ld	sp, brod_initSP(x0)
-	addi	a0, x0, banner
+	ld	sp, zp_initSP(x0)
+	ld	gp, zp_initTable(x0)
+	addi	a0, gp, banner-initTable
 	addi	a1, x0, bannerLength
 	jal	ra, biosPutStrC
 
 doItAgain:
-	ld	t0, brod_bcb(x0)
-	sd	x0, bcb_accumulator(t0) ; XXX
+	sd	x0, zp_accumulator(x0)
 	addi	t1, x0, -1
-	sd	t1, bcb_startAddr(t0)
+	sd	t1, zp_startAddr(x0)
 
-	addi	a0, x0, mlmPrompt
+	addi	a0, gp, mlmPrompt-initTable
 	addi	a1, x0, 2
 	jal	ra, biosPutStrC
 
 	; Reset the line input buffer control block, and get the line of text.
 
-	ld	t0, brod_bcb(x0)
-	addi	a0, t0, bcb_licb
-	addi	t2, t0, bcb_inpBuf
+	addi	a0, x0, zp_licb		; A0 -> MLM BLICB structure
+	addi	t2, x0, zp_inpBuf
 	sd	t2, blicb_buffer(a0)	; licb.buffer -> inpBuf
 	sd	x0, blicb_length(a0)	; licb.length = 0
 	addi	t2, x0, 80		; licb.capacity = 80
@@ -230,8 +216,7 @@ doItAgain:
 	; Convert each character in the buffer to uppercase, for easier
 	; event dispatching.
 
-	ld	t0, brod_bcb(x0)	; t0 -> BCB
-	addi	t1, t0, bcb_licb	; t1 -> BIOS' BLICB
+	addi	t1, x0, zp_licb		; t1 -> BIOS' BLICB
 	ld	s1, blicb_buffer(t1)	; s1 -> start of buffer
 	ld	s2, blicb_length(t1)	; S2 = length of line
 
@@ -295,8 +280,7 @@ doneInterpreting:
 ; 
 
 interpretChar:
-	ld	t0, brod_bcb(x0)	; t0 -> BCB
-	ld	t1, bcb_accumulator(t0)	; t1 = current accumulator
+	ld	t1, zp_accumulator(x0)	; t1 = current accumulator
 
 	ori	t2, x0, 48		; char < '0'?
 	bltu	a0, t2, notDigit
@@ -342,7 +326,7 @@ eatDigit:
 
 	slli	t1, t1, 4		; make room for digit
 	or	t1, t1, a0		; merge digit
-	sd	t1, bcb_accumulator(t0)
+	sd	t1, zp_accumulator(x0)
 	jalr	x0, 0(ra)
 
 ; Dump user-mode register space
@@ -360,7 +344,7 @@ eatAt:
 	sd	s1, 16(sp)
 	sd	s2, 24(sp)
 
-	ld	s0, bcb_startAddr(t0)	; start address for dump
+	ld	s0, zp_startAddr(x0)	; start address for dump
 	ori	t2, x0, -1		; defaults to accumulator if start not set
 	bne	s0, t2, ge2bytes
 	or	s0, x0, t1
@@ -409,7 +393,8 @@ nextByte:
 	jal	x0, printRowLoop
 
 aDot:
-	ori	a0, x0, spDotSp
+	ld	t6, zp_initTable(x0)
+	addi	a0, t6, spDotSp-initTable
 	ori	a1, x0, 3
 	jal	ra, biosPutStrC
 	jal	x0, nextByte
@@ -424,19 +409,19 @@ doneWithRow:
 ; Set start address register
 
 eatDot:
-	sd	t1, bcb_startAddr(t0)
-	sd	x0, bcb_accumulator(t0)
+	sd	t1, zp_startAddr(x0)
+	sd	x0, zp_accumulator(x0)
 	jalr	x0, 0(ra)
 
 ; Store a byte into memory.
 
 eatComma:
-	ld	t2, bcb_startAddr(t0)
+	ld	t2, zp_startAddr(x0)
 	sb	t1, 0(t2)
 	addi	t2, t2, 1
-	sd	t2, bcb_startAddr(t0)
+	sd	t2, zp_startAddr(x0)
 	srli	t1, t1, 8
-	sd	t1, bcb_accumulator(t0)
+	sd	t1, zp_accumulator(x0)
 	jalr	x0, 0(ra)
 
 ; Goto!
@@ -445,7 +430,7 @@ eatG:
 	; Jumping to a routine will replace all 32 GPRs.
 	; This includes our stack pointer and return address!
 	; The only reliable way to "return" to the debugger is
-	; the SBREAK instruction or by JALing to $2004.
+	; the EBREAK instruction.
 	; 
 	; IMPLEMENTATION DETAIL:
 	; 
@@ -459,40 +444,39 @@ eatG:
 	; assumption of course, and we all know how well assumptions
 	; work out for people.
 
-	or	s11, x0, t0
-	ld	x1, bcb_userRegs+8(s11)
-	ld	x2, bcb_userRegs+16(s11)
-	ld	x3, bcb_userRegs+24(s11)
-	ld	x4, bcb_userRegs+32(s11)
-	ld	x5, bcb_userRegs+40(s11)
-	ld	x6, bcb_userRegs+48(s11)
-	ld	x7, bcb_userRegs+56(s11)
-	ld	x8, bcb_userRegs+64(s11)
-	ld	x9, bcb_userRegs+72(s11)
-	ld	x10, bcb_userRegs+80(s11)
-	ld	x11, bcb_userRegs+88(s11)
-	ld	x12, bcb_userRegs+96(s11)
-	ld	x13, bcb_userRegs+104(s11)
-	ld	x14, bcb_userRegs+112(s11)
-	ld	x15, bcb_userRegs+120(s11)
-	ld	x16, bcb_userRegs+128(s11)
-	ld	x17, bcb_userRegs+136(s11)
-	ld	x18, bcb_userRegs+144(s11)
-	ld	x19, bcb_userRegs+152(s11)
-	ld	x20, bcb_userRegs+160(s11)
-	ld	x21, bcb_userRegs+168(s11)
-	ld	x22, bcb_userRegs+176(s11)
-	ld	x23, bcb_userRegs+184(s11)
-	ld	x24, bcb_userRegs+192(s11)
-	ld	x25, bcb_userRegs+200(s11)
-	ld	x26, bcb_userRegs+208(s11)
-;	ld	x27, bcb_userRegs+216(s11)    Don't overload S11 until SBREAK is supported.
-	ld	x28, bcb_userRegs+224(s11)
-	ld	x29, bcb_userRegs+232(s11)
-	ld	x30, bcb_userRegs+240(s11)
-	ld	x31, bcb_userRegs+248(s11)
+	ld	x1, zp_userRegs+8(x0)
+	ld	x2, zp_userRegs+16(x0)
+	ld	x3, zp_userRegs+24(x0)
+	ld	x4, zp_userRegs+32(x0)
+	ld	x5, zp_userRegs+40(x0)
+	ld	x6, zp_userRegs+48(x0)
+	ld	x7, zp_userRegs+56(x0)
+	ld	x8, zp_userRegs+64(x0)
+	ld	x9, zp_userRegs+72(x0)
+	ld	x10, zp_userRegs+80(x0)
+	ld	x11, zp_userRegs+88(x0)
+	ld	x12, zp_userRegs+96(x0)
+	ld	x13, zp_userRegs+104(x0)
+	ld	x14, zp_userRegs+112(x0)
+	ld	x15, zp_userRegs+120(x0)
+	ld	x16, zp_userRegs+128(x0)
+	ld	x17, zp_userRegs+136(x0)
+	ld	x18, zp_userRegs+144(x0)
+	ld	x19, zp_userRegs+152(x0)
+	ld	x20, zp_userRegs+160(x0)
+	ld	x21, zp_userRegs+168(x0)
+	ld	x22, zp_userRegs+176(x0)
+	ld	x23, zp_userRegs+184(x0)
+	ld	x24, zp_userRegs+192(x0)
+	ld	x25, zp_userRegs+200(x0)
+	ld	x26, zp_userRegs+208(x0)
+	ld	x27, zp_userRegs+216(x0)
+	ld	x28, zp_userRegs+224(x0)
+	ld	x29, zp_userRegs+232(x0)
+	ld	x30, zp_userRegs+240(x0)
+	ld	x31, zp_userRegs+248(x0)
 
-	ld	s11, bcb_accumulator(s11)
+	ld	s11, zp_accumulator(s11)
 	jalr	x0, 0(s11)
 
 ; Compute user-mode register address in memory
@@ -500,14 +484,13 @@ eatG:
 eatX:
 	andi	t1, t1, 31		; Extract register select bits
 	slli	t1, t1, 3		; ...*8 since regs are 64-bits
-	add	t1, t1, t0		; ...plus BCB base address
-	addi	t1, t1, bcb_userRegs	; ...plus offset of regs array = address of register
-	sd	t1, bcb_accumulator(t0)	; Pretend user entered this address directly.
-	ld	t2, bcb_startAddr(t0)	; If start address not given, ...
+	addi	t1, t1, zp_userRegs	; ...plus offset of regs array = address of register
+	sd	t1, zp_accumulator(x0)	; Pretend user entered this address directly.
+	ld	t2, zp_startAddr(x0)	; If start address not given, ...
 	ori	t3, x0, -1
 	bne	t2, t3, doneX
 	andi	t1, t1, -8		; ...then specify it here.
-	sd	t1, bcb_startAddr(t0)
+	sd	t1, zp_startAddr(x0)
 
 doneX:
 	jalr	x0, 0(ra)
@@ -584,17 +567,9 @@ puthex8:
 
 puthex4:
 	andi	a0, a0, 15
-
-	; The following instruction replaces a more complex instruction
-	; sequence, but it only works if hexTable sits below 2K in ROM.
-	; If we didn't know ahead of time where hexTable sat, we'd need this:
-	; 
-	; auipc	 x31,0
-	; ld     t3,_addr_hexTable
-	; add	 a0,a0,t3
-	; lb	 a0,0(a0)
-
-	lb	a0, hexTable(a0)
+	ld	t6, zp_initTable(x0)
+	add	a0, a0, t6
+	lb	a0, hexTable-initTable(a0)
 
 	; fall through to biosPutChar
 
@@ -608,7 +583,7 @@ puthex4:
 ;             A0
 
 biosPutChar:
-	ld	t0, brod_uartBase(x0)
+	ld	t0, zp_uartBase(x0)
 	sb	a0, UART_TX(t0)
 	jalr	x0, 0(ra)
 
@@ -673,8 +648,7 @@ biosPutStrZ_rtn:
 ;  A0
 
 biosChkChar:
-  ld t0,brod_bcb(x0) ; just to shut the diff up XXX
-	ld	t1, brod_uartBase(x0)	; t1 -> UART base
+	ld	t1, zp_uartBase(x0)	; t1 -> UART base
 	lbu	a0, UART_STATUS(t1)	; data pending?
 	andi	a0, a0, 1
 	jalr	x0, 0(ra)
@@ -686,8 +660,7 @@ biosChkChar:
 ; A0
 
 biosGetChar:
-  ld t0,brod_bcb(x0) ; just to shut the diff up XXX
-	ld	t1, brod_uartBase(x0)	; t1 -> UART
+	ld	t1, zp_uartBase(x0)	; t1 -> UART
 biosGetChar_again:
 	lbu	a0, UART_STATUS(t1)	; wait for data
 	beq	x0, a0, biosGetChar_again
@@ -769,4 +742,20 @@ notBS:
 	sd	t2, blicb_length(s0)
 	jal	ra, biosPutChar
 	jal	x0, waitForKey
+
+;
+; CPU Vectors
+;
+
+	adv	$FE00, $CC	; User -> Machine trap
+	jal	x0, brkEntry
+	adv	$FE40, $CC	; Supervisor -> Machine trap
+	jal	x0, brkEntry
+	adv	$FE80, $CC	; Hypervisor -> Machine trap
+	jal	x0, brkEntry
+	adv	$FEC0, $CC	; Machine -> Machine trap
+	jal	x0, brkEntry
+	adv	$FEFC, $CC	; NMI
+	jal	x0, brkEntry
+	jal	x0, coldBoot	; Reset Vector
 
