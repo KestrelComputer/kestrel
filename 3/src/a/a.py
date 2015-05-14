@@ -143,27 +143,6 @@ def syntaxError(asm, tok):
     error("Syntax error on line {} near {}".format(asm.getLine(), tok.string))
 
 
-def toS(x):
-    return ((x & 0x1F) << 7) | ((x >> 5) << 25)
-
-
-def toSB(x):
-    return (
-        ((x & 0x1E) << 7)
-        | ((x & 0x800) >> 4)
-        | ((x & 0x7E0) << 20)
-        | ((x & 0x1000) << 19)
-    )
-
-
-def toUJ(x):
-    return (
-        ((x & 0x100000) << 11)
-        | ((x & 0x0007FE) << 20)
-        | ((x & 0x000800) << 9)
-        | (x & 0x0FF000)
-    )
-
 class ExprNode(object):
     def __init__(self, kind, a=None, b=None):
         self.kind = kind
