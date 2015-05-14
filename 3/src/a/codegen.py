@@ -2,6 +2,14 @@
 
 from __future__ import print_function
 
+import abc
+
+
+class CGFileLike(object):
+    __metaclass__ = abc.ABCMeta
+
+CGFileLike.register(file)
+
 
 # A mask covering bits in a RISC-V instruction that maps to the destination
 # register.  It also covers the low 5 bits of a base displacement for store
@@ -27,6 +35,25 @@ imm12Mask = 0xFFF << 20
 # A mask covering the top 20 bits of a RISC-V instruction, used to hold an
 # immediate constant.
 imm20Mask = 0xFFFFF << 12
+
+
+class RawExporter(object):
+    """
+    This class knows how to export the contents of a Segment instance as a
+    plain binary file.  No relocation information is present in the binary
+    image.
+    """
+
+    def __init__(self, f):
+        assert(isinstance(f, CGFileLike))
+        self._out = f
+
+    def exportSegment(self, seg):
+        """
+	    Attempts to write the contents of the provided segment to the file
+        provided during construction of this object.
+        """
+        self._out.write(bytearray(seg.buf))
 
 
 class Segment(object):

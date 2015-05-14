@@ -6,6 +6,8 @@ import string
 import sys
 import os
 
+import codegen
+
 
 # Command-line flags.
 OPT_QUIET = 1
@@ -184,6 +186,7 @@ class Advance(object):
             raise Exception("Expected integer for fill byte")
         nBytes = nBytes.a
         fill = fill.a & 0xFF
+        asm.seg.advance(asm.seg.lc + nBytes, fill)
         return [fill] * nBytes
 
 class Declaration(object):
@@ -196,16 +199,22 @@ class Declaration(object):
 
     def asBytes(self, asm):
         bs = []
-
+        generator = {
+            1: asm.seg.byte, 2: asm.seg.hword,
+            4: asm.seg.word, 8: asm.seg.dword
+        }[self.size]
+      
         if self.a.kind == EN_STR:
             for c in self.a.a:
                 bs = bs + [ord(c)]
+                generator(ord(c))
         else:
             a = evalExpression(asm, self.a)
             if a.kind != EN_INT:
                 error("Pass 2: unknown constant type {} on line {}".format(a.kind, self.lc))
                 return []
             v = a.a
+            generator(v)
             for _ in range(self.size):
                 b = v & 0xFF
                 v = v >> 8
@@ -234,6 +243,8 @@ class RInsn(object):
         rd = rd.a
         rs1 = rs1.a
         rs2 = rs2.a
+
+        asm.seg.putR(self.insn, rd, rs1, rs2)
 
         i = self.insn | (rd << 7) | (rs1 << 15) | (rs2 << 20)
         for _ in range(4):
@@ -267,7 +278,7 @@ class SInsn(object):
         rs1 = rs1.a
         rs2 = rs2.a
         disp = disp.a
-
+	asm.seg.putS(self.insn, rs2, rs1, disp)
         i = (
             self.insn
             | toS(disp)
@@ -294,11 +305,11 @@ class SBInsn(SInsn):
             raise Exception("Integer expected for displacement")
         rs1 = rs1.a
         rs2 = rs2.a
-        disp = disp.a
-
+        disp = disp.a - (self.lc + 4)
+        asm.seg.putSB(self.insn, rs1, rs2, disp)
         i = (
             self.insn
-            | toSB(disp - (self.lc + 4))
+            | toSB(disp)
             | (rs1 << 15)
             | (rs2 << 20)
         )
@@ -330,7 +341,7 @@ class IInsn(object):
         rd = rd.a & 0x1F
         rs = rs.a & 0x1F
         imm12 = imm12.a & 0xFFF
-
+        asm.seg.putI(self.insn, rd, rs, imm12)
         i = self.insn | (rd << 7) | (rs << 15) | (imm12 << 20)
         for _ in range(4):
             bs = bs + [i & 0xFF]
@@ -357,14 +368,12 @@ class UInsn(object):
             raise Exception("Pass 2 error: Undefined symbols?")
         rd = rd.a
         imm20 = imm20.a
-
+        asm.seg.putU(self.insn, rd, imm20)
         i = self.insn | (rd << 7) | (imm20 & 0xFFFFF000)
         for _ in range(4):
             bs = bs + [i & 0xFF]
             i = i >> 8
         return bs
-
-
 
 
 class UJInsn(object):
@@ -382,9 +391,9 @@ class UJInsn(object):
         if (rd.kind != EN_INT) or (disp.kind != EN_INT):
             raise Exception("Pass 2 error: Undefined symbols?")
         rd = rd.a & 0x1F
-        disp = disp.a & 0x3FFFFE
-
-        i = self.insn | (rd << 7) | toUJ(disp - (self.lc + 4))
+        disp = (disp.a & 0x3FFFFE) - (self.lc + 4)
+        asm.seg.putUJ(self.insn, rd, disp)
+        i = self.insn | (rd << 7) | toUJ(disp)
         for _ in range(4):
             bs = bs + [i & 0xFF]
             i = i >> 8
@@ -805,6 +814,7 @@ class Assembler(object):
         self.section = []
         self.lc = 0
         self.pass2todo = []
+        self.seg = codegen.Segment()
 
     def _defer(self, obj):
         """This is a two-pass assembler.  While parsing commences in pass one,
@@ -1185,6 +1195,10 @@ class Assembler(object):
         bs = self.pass3()
         with open(self._to, "wb") as f:
             f.write(bytearray(bs))
+
+	with open("a.out", "wb") as f:
+            rx = codegen.RawExporter(f)
+            rx.exportSegment(self.seg)
 
 # Detect if we're executed from the command-line, and if so, create a new
 # assembler instance and let it massage any passed parameters.

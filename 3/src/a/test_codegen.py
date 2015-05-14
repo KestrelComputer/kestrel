@@ -1,7 +1,24 @@
+import StringIO
 import unittest
 
 import codegen
 
+
+codegen.CGFileLike.register(StringIO.StringIO)
+
+
+class TestRawExporter(unittest.TestCase):
+    def testConstruction(self):
+        x = codegen.RawExporter(StringIO.StringIO())
+
+    def testExport(self):
+        b = StringIO.StringIO()
+        x = codegen.RawExporter(b)
+        g = codegen.Segment()
+        g.dword(0xDEADBEEF0BADC0DE)
+        g.dword(0xFEEDFACE0C0FFEE0)
+        x.exportSegment(g)
+        self.assertEquals(len(b.buf), 16)
 
 class TestSegment(unittest.TestCase):
     def test_construction(self):
@@ -99,4 +116,3 @@ class TestSegment(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
