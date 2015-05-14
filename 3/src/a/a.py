@@ -187,7 +187,6 @@ class Advance(object):
         nBytes = nBytes.a
         fill = fill.a & 0xFF
         asm.seg.advance(asm.seg.lc + nBytes, fill)
-        return [fill] * nBytes
 
 class Declaration(object):
     def __init__(self, lc, value, size):
@@ -206,7 +205,6 @@ class Declaration(object):
       
         if self.a.kind == EN_STR:
             for c in self.a.a:
-                bs = bs + [ord(c)]
                 generator(ord(c))
         else:
             a = evalExpression(asm, self.a)
@@ -215,12 +213,7 @@ class Declaration(object):
                 return []
             v = a.a
             generator(v)
-            for _ in range(self.size):
-                b = v & 0xFF
-                v = v >> 8
-                bs = bs + [b]
 
-        return bs
 
 class RInsn(object):
     def __init__(self, insn, rd, rs1, rs2):
@@ -243,15 +236,7 @@ class RInsn(object):
         rd = rd.a
         rs1 = rs1.a
         rs2 = rs2.a
-
         asm.seg.putR(self.insn, rd, rs1, rs2)
-
-        i = self.insn | (rd << 7) | (rs1 << 15) | (rs2 << 20)
-        for _ in range(4):
-            bs = bs + [i & 0xFF]
-            i = i >> 8
-
-        return bs
 
 
 class SInsn(object):
@@ -278,17 +263,8 @@ class SInsn(object):
         rs1 = rs1.a
         rs2 = rs2.a
         disp = disp.a
-	asm.seg.putS(self.insn, rs2, rs1, disp)
-        i = (
-            self.insn
-            | toS(disp)
-            | (rs1 << 15)
-            | (rs2 << 20)
-        )
-        for _ in range(4):
-            bs = bs + [i & 0xFF]
-            i = i >> 8
-        return bs
+        asm.seg.putS(self.insn, rs2, rs1, disp)
+
 
 class SBInsn(SInsn):
     def asBytes(self, asm):
@@ -307,16 +283,6 @@ class SBInsn(SInsn):
         rs2 = rs2.a
         disp = disp.a - (self.lc + 4)
         asm.seg.putSB(self.insn, rs1, rs2, disp)
-        i = (
-            self.insn
-            | toSB(disp)
-            | (rs1 << 15)
-            | (rs2 << 20)
-        )
-        for _ in range(4):
-            bs = bs + [i & 0xFF]
-            i = i >> 8
-        return bs
 
 
 class IInsn(object):
@@ -342,11 +308,6 @@ class IInsn(object):
         rs = rs.a & 0x1F
         imm12 = imm12.a & 0xFFF
         asm.seg.putI(self.insn, rd, rs, imm12)
-        i = self.insn | (rd << 7) | (rs << 15) | (imm12 << 20)
-        for _ in range(4):
-            bs = bs + [i & 0xFF]
-            i = i >> 8
-        return bs
 
 
 class IMInsn(IInsn):
@@ -369,11 +330,6 @@ class UInsn(object):
         rd = rd.a
         imm20 = imm20.a
         asm.seg.putU(self.insn, rd, imm20)
-        i = self.insn | (rd << 7) | (imm20 & 0xFFFFF000)
-        for _ in range(4):
-            bs = bs + [i & 0xFF]
-            i = i >> 8
-        return bs
 
 
 class UJInsn(object):
@@ -393,11 +349,6 @@ class UJInsn(object):
         rd = rd.a & 0x1F
         disp = (disp.a & 0x3FFFFE) - (self.lc + 4)
         asm.seg.putUJ(self.insn, rd, disp)
-        i = self.insn | (rd << 7) | toUJ(disp)
-        for _ in range(4):
-            bs = bs + [i & 0xFF]
-            i = i >> 8
-        return bs
 
 
 class Token(object):
@@ -1122,16 +1073,13 @@ class Assembler(object):
             self.printUndefs(i.c) if i.c else None
 
     def pass3(self):
-        """Once we have assembled the first pass of our program, we now ask
-        each instruction in the resulting program to emit its data to a list
-        of bytes.
         """
-        bs = []
+        Once we have assembled the first pass of our program, we now ask each
+        instruction in the resulting program to emit its data to a list of
+        bytes.
+        """
         for i in self.pass2todo:
-            bs = bs + i.asBytes(self)
-            #error("{} @ {}".format(type(i).__name__, len(bs)))
-
-        return bs
+            i.asBytes(self)
 
     def dumpSymbols(self):
         if self.options & OPT_QUIET:
@@ -1191,12 +1139,9 @@ class Assembler(object):
 
         self.pass2()
         self.dumpSymbols()
+        self.pass3()
 
-        bs = self.pass3()
         with open(self._to, "wb") as f:
-            f.write(bytearray(bs))
-
-	with open("a.out", "wb") as f:
             rx = codegen.RawExporter(f)
             rx.exportSegment(self.seg)
 
