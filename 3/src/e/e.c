@@ -485,6 +485,7 @@ DWORD processor_getCSR(Processor *p, int csr) {
 	case r_MTVEC:		return p->csr[i_MTVEC];
 	case r_MEPC:		return p->csr[i_MEPC];
 	case r_MBADADDR:	return p->csr[i_MBADADDR];
+	case r_MCAUSE:		return p->csr[i_MCAUSE];
 	default:
 		fprintf(stderr, "Warning: At $%016llX, attempt to read unsupported CSR %d\n", p->pc-4, csr);
 		return 0xCCCCCCCCCCCCCCCC;
@@ -505,6 +506,9 @@ void processor_setCSR(Processor *p, int csr, DWORD v) {
 		break;
 	case r_MBADADDR:
 		p->csr[i_MBADADDR] = v;
+		break;
+	case r_MCAUSE:
+		p->csr[i_MCAUSE] = v & 0x800000000000000F;
 		break;
 	default:
 		fprintf(stderr, "Warning: At $%016llX, attempt to write $%016llX to unsupported CSR %d\n", p->pc-4, v, csr);
@@ -705,8 +709,7 @@ void processor_step(Processor *p) {
 					break;
 
 				default:
-					fprintf(stderr, "Instruction $%08lX: Unknown store size at $%016llX\n", ir, p->pc);
-					p->running = 0;
+					processor_trap(p, 2);
 					return;
 			}
 			break;
@@ -779,8 +782,7 @@ void processor_step(Processor *p) {
 				case 0x205:		// HRTS
 				case 0x101:		// VMFENCE (aka FENCE.VM)
 				default:
-					fprintf(stderr, "Illegal instruction $%08lX at $%016llX\n", ir, p->pc);
-					p->running = 0;
+					processor_trap(p, 2);
 				};
 				break;
 			}
@@ -800,8 +802,7 @@ void processor_step(Processor *p) {
 					break;
 
 				case 4: // undefined
-					fprintf(stderr, "Illegal instruction $%08lX at $%016llX\n", ir, p->pc);
-					p->running = 0;
+					processor_trap(p, 2);
 					break;
 
 				case 5: // CSRRW
@@ -859,8 +860,7 @@ void processor_step(Processor *p) {
 			break;
 
 		default:
-			fprintf(stderr, "Illegal instruction $%08lX at $%016llX\n", ir, p->pc);
-			p->running = 0;
+			processor_trap(p, 2);
 	}
 
 	p->x[0] = 0;
