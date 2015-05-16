@@ -3,6 +3,13 @@
 ; Release 0.4
 ;**************************************************************
 
+; CSRs
+
+mstatus = $300
+mtvec = $301
+mepc = $341
+
+
 ; Register Definitions
 
  x0 =  0
@@ -128,6 +135,7 @@ initTable:
 
 banner:
 	byte	"MLM/K3 V0.4", 10
+	byte	"BREAK AT "
 bannerLength = *-banner
 
 mlmPrompt:
@@ -139,7 +147,6 @@ hexTable:
 spDotSp:
 	byte	" . "
 
-
 	align	4
 coldInit:
 	sd	ra,zp_initTable(x0)
@@ -148,7 +155,10 @@ coldInit:
 	ld	t0,8(ra)		; T0 = initial SP
 	sd	t0,zp_initSP(x0)
 	or	sp,x0,t0
-	;ebreak				; Enter monitor.
+	ebreak				; Enter monitor.
+
+	addi	a0,x0,42
+	jal	ra,biosPutChar
 
 brkEntry:
 	; Save user register state.
@@ -184,12 +194,20 @@ brkEntry:
 	sd	x29, zp_userRegs+232(x0)
 	sd	x30, zp_userRegs+240(x0)
 	sd	x31, zp_userRegs+248(x0)
+	csrrs	a0, x0, mstatus
+	sd	a0, zp_userRegs(x0)
 
 	ld	sp, zp_initSP(x0)
 	ld	gp, zp_initTable(x0)
+
 	addi	a0, gp, banner-initTable
 	addi	a1, x0, bannerLength
 	jal	ra, biosPutStrC
+
+	csrrw	a0, x0, mepc
+	jal	ra, puthex64
+	addi	a0, x0, 10
+	jal	ra, biosPutChar
 
 doItAgain:
 	sd	x0, zp_accumulator(x0)
@@ -444,6 +462,12 @@ eatG:
 	; assumption of course, and we all know how well assumptions
 	; work out for people.
 
+	ld	x1, zp_accumulator(x0)
+	csrrw	x0, x1, mepc
+
+	ld	x1, zp_userRegs(x0)
+	csrrw	x0, x1, mstatus
+
 	ld	x1, zp_userRegs+8(x0)
 	ld	x2, zp_userRegs+16(x0)
 	ld	x3, zp_userRegs+24(x0)
@@ -475,9 +499,7 @@ eatG:
 	ld	x29, zp_userRegs+232(x0)
 	ld	x30, zp_userRegs+240(x0)
 	ld	x31, zp_userRegs+248(x0)
-
-	ld	s11, zp_accumulator(s11)
-	jalr	x0, 0(s11)
+	eret
 
 ; Compute user-mode register address in memory
 
