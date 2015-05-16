@@ -8,6 +8,7 @@
 mstatus = $300
 mtvec = $301
 mepc = $341
+mcause = $342
 
 
 ; Register Definitions
@@ -135,8 +136,34 @@ initTable:
 
 banner:
 	byte	"MLM/K3 V0.4", 10
-	byte	"BREAK AT "
 bannerLength = *-banner
+
+code0msg:	byte	"INSN ADDR AT       "
+code1msg:	byte	"INSN ACCESS AT     "
+code2msg:	byte	"ILLEGAL INSN AT    "
+code3msg:	byte	"BREAK AT           "
+code4msg:	byte	"LOAD ADDR AT       "
+code5msg:	byte	"LOAD ACCESS AT     "
+code6msg:	byte	"STORE ADDR AT      "
+code7msg:	byte	"STORE ACCESS AT    "
+code8msg:	byte	"ECALL FROM U AT    "
+code9msg:	byte	"ECALL FROM S AT    "
+codeAmsg:	byte	"ECALL FROM H AT    "
+codeBmsg:	byte	"ECALL FROM M AT    "
+codeCmsg:	byte	"UNKNOWN TRAP 0C AT "
+codeDmsg:	byte	"UNKNOWN TRAP 0D AT "
+codeEmsg:	byte	"UNKNOWN TRAP 0E AT "
+codeFmsg:	byte	"UNKNOWN TRAP 0F AT "
+
+b=$FFFFFFFFFFFF0000
+
+		align	8
+codeMsgTab:	dword	code0msg+b, code1msg+b, code2msg+b, code3msg+b
+		dword	code4msg+b, code5msg+b, code6msg+b, code7msg+b
+		dword	code8msg+b, code9msg+b, codeAmsg+b, codeBmsg+b
+		dword	codeCmsg+b, codeDmsg+b, codeEmsg+b, codeFmsg+b
+
+codeMsgLen = code1msg - code0msg
 
 mlmPrompt:
 	byte	"* "
@@ -204,6 +231,13 @@ brkEntry:
 	addi	a1, x0, bannerLength
 	jal	ra, biosPutStrC
 
+	csrrw	a1, x0, mcause
+	slli	a1, a1, 3
+	addi	a0, gp, codeMsgTab-initTable
+	add	a0, a0, a1
+	ld	a0, 0(a0)
+	addi	a1, x0, codeMsgLen
+	jal	ra, biosPutStrC
 	csrrw	a0, x0, mepc
 	jal	ra, puthex64
 	addi	a0, x0, 10
