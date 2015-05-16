@@ -694,7 +694,7 @@ def includeHandler(asm, tok):
             "On line {}, expected string parameter".format(asm.line)
         )
     includedFile = includedFile.a
-    asm.pass1(open(includedFile, "r"), includedFile)
+    asm.include(includedFile)
 
 fileScopeHandlers = {
     commentToken: commentHandler,
@@ -1168,6 +1168,16 @@ class Assembler(object):
         self.tokenStream = oldTokenStream
         self.cursor = oldCursor
 
+    def include(self, filename):
+        dirname, basename = (os.path.dirname(filename), os.path.basename(filename))
+        if dirname == '':
+            dirname = '.'
+
+        oldPath = os.getcwd()
+        os.chdir(dirname)
+        self.pass1(open(basename, "r"), filename)
+        os.chdir(oldPath)
+
     def main(self):
         """This implements the main user interface of Polaris.  It drives the
         assembly process.
@@ -1182,7 +1192,7 @@ class Assembler(object):
             error("I need a file to assemble.")
             sys.exit(1)
 
-        self.pass1(open(self._from, "r"), self._from)
+        self.include(self._from)
         self.pass2()
         self.dumpSymbols()
         self.pass3()
