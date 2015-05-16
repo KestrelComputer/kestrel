@@ -105,6 +105,17 @@ sllwToken = 249
 srlwToken = 250
 srawToken = 251
 alignToken = 252
+csrrwToken = 253
+csrrsToken = 254
+csrrcToken = 255
+ecallToken = 256
+ebreakToken = 257
+eretToken = 258
+mrtsToken = 259
+mrthToken = 260
+hrtsToken = 261
+wfiToken = 262
+vmfenceToken = 263
 
 endOfInputToken = 999
 
@@ -361,6 +372,9 @@ def kindOfIdentifier(s):
         'SRAI': sraiToken,
         'ORI': oriToken,
         'ANDI': andiToken,
+        'CSRRW': csrrwToken,
+        'CSRRS': csrrsToken,
+        'CSRRC': csrrcToken,
         'CSRRWI': csrrwiToken,
         'CSRRSI': csrrsiToken,
         'CSRRCI': csrrciToken,
@@ -401,6 +415,15 @@ def kindOfIdentifier(s):
         'SLLW': sllwToken,
         'SRLW': srlwToken,
         'SRAW': srawToken,
+        'ECALL': ecallToken,
+        'EBREAK': ebreakToken,
+        'ERET': eretToken,
+        'MRTS': mrtsToken,
+        'MRTH': mrthToken,
+        'HRTS': hrtsToken,
+        'WFI': wfiToken,
+        'FENCE_VM': vmfenceToken,
+        'VMFENCE': vmfenceToken,    # alias
     }
     return kindMap.get(s, identifierToken)
 
@@ -658,6 +681,10 @@ def genericRHandler(asm, tok, insn):
     asm.recordR(insn, rd, rs1, rs2,)
 
 
+def placeOpcode(asm, insn):
+    asm.recordWord(ExprNode(EN_INT, insn))
+
+
 fileScopeHandlers = {
     commentToken: commentHandler,
     identifierToken: labelOrAssignmentHandler,
@@ -679,6 +706,9 @@ fileScopeHandlers = {
     sraiToken: lambda a, t: genericIHandler(a, t, 0x40005013),
     oriToken: lambda a, t: genericIHandler(a, t, 0x00006013),
     andiToken: lambda a, t: genericIHandler(a, t, 0x00007013),
+    csrrwToken: lambda a, t: genericIHandler(a, t, 0x00001073),
+    csrrsToken: lambda a, t: genericIHandler(a, t, 0x00002073),
+    csrrcToken: lambda a, t: genericIHandler(a, t, 0x00003073),
     csrrwiToken: lambda a, t: genericIHandler(a, t, 0x00005073),
     csrrsiToken: lambda a, t: genericIHandler(a, t, 0x00006073),
     csrrciToken: lambda a, t: genericIHandler(a, t, 0x00007073),
@@ -719,6 +749,14 @@ fileScopeHandlers = {
     sllwToken: lambda a, t: genericRHandler(a, t, 0x0000103B),
     srlwToken: lambda a, t: genericRHandler(a, t, 0x0000503B),
     srawToken: lambda a, t: genericRHandler(a, t, 0x4000503B),
+    ecallToken: lambda a, t: placeOpcode(a, 0x00000073),
+    ebreakToken: lambda a, t: placeOpcode(a, 0x00100073),
+    eretToken: lambda a, t: placeOpcode(a, 0x10000073),
+    mrtsToken: lambda a, t: placeOpcode(a, 0x30500073),
+    mrthToken: lambda a, t: placeOpcode(a, 0x30600073),
+    hrtsToken: lambda a, t: placeOpcode(a, 0x20500073),
+    wfiToken: lambda a, t: placeOpcode(a, 0x10200073),
+    vmfenceToken: lambda a, t: placeOpcode(a, 0x10100073),
 }
 
 
