@@ -28,6 +28,30 @@ enum {
 	PHYS_RAM_SIZE	= 16*MB,
 	PHYS_RAM_MASK	= PHYS_RAM_SIZE - 1,
 	PHYS_ADDR_SIZE	= 32*MB,
+
+	r_MCPUID	= 0xF00,
+	r_MIMPID	= 0xF01,
+	r_MHARTID	= 0xF10,
+	r_MSTATUS	= 0x300,
+	r_MTVEC		= 0x301,
+	r_MDELEG	= 0x302,
+	r_MEPC		= 0x341,
+	r_MBADADDR	= 0x343,
+	r_MCAUSE	= 0x342,
+};
+
+
+enum {
+	i_MCPUID	= 0,
+	i_MIMPID,
+	i_MHARTID,
+	i_MSTATUS,
+	i_MTVEC,
+	i_MDELEG,
+	i_MEPC,
+	i_MBADADDR,
+	i_MCAUSE,
+	i_MAXCSR
 };
 
 
@@ -63,6 +87,7 @@ struct Options {
 
 
 struct Processor {
+	UDWORD       csr[i_MAXCSR];
 	UDWORD       x[32];
 	UDWORD       pc;
 	AddressSpace *as;
@@ -438,10 +463,90 @@ Processor *processor_new(AddressSpace *as) {
 		p->pc = -0x100;
 		p->as = as;
 		p->running = 1;
+
+		// We emulate a 64-bit RISC-V instruction set.  No frills.
+		// We are currently vendor ID $8000.
+		p->csr[i_MCPUID] = 0x8000000000000100;
+		p->csr[i_MIMPID] = 0x0000000000008000;
+		p->csr[i_MHARTID] = 0;
+		p->csr[i_MSTATUS] = 0xDD6;	// Make sure to boot in machine mode!!  :)
+		p->csr[i_MTVEC] = -0x200;
 	}
 	return p;
 }
 
+
+DWORD processor_getCSR(Processor *p, int csr) {
+	switch(csr) {
+	case r_MCPUID:		return p->csr[i_MCPUID];
+	case r_MIMPID:		return p->csr[i_MIMPID];
+	case r_MHARTID:		return p->csr[i_MHARTID];
+	case r_MSTATUS:		return p->csr[i_MSTATUS];
+	case r_MTVEC:		return p->csr[i_MTVEC];
+	case r_MEPC:		return p->csr[i_MEPC];
+	case r_MBADADDR:	return p->csr[i_MBADADDR];
+	default:
+		fprintf(stderr, "Warning: At $%016llX, attempt to read unsupported CSR %d\n", p->pc-4, csr);
+		return 0xCCCCCCCCCCCCCCCC;
+	}
+}
+
+
+void processor_setCSR(Processor *p, int csr, DWORD v) {
+	switch(csr) {
+	case r_MSTATUS:
+		p->csr[i_MSTATUS] = (v & 0x00000000003FFFF9) | 0x06;	// We only support machine-mode, so hardwire privilege level.
+		break;
+	case r_MTVEC:
+		p->csr[i_MTVEC] = v & -0x200;
+		break;
+	case r_MEPC:
+		p->csr[i_MEPC] = v;
+		break;
+	case r_MBADADDR:
+		p->csr[i_MBADADDR] = v;
+		break;
+	default:
+		fprintf(stderr, "Warning: At $%016llX, attempt to write $%016llX to unsupported CSR %d\n", p->pc-4, v, csr);
+	}
+}
+
+
+void processor_orCSR(Processor *p, int csr, DWORD v) {
+	processor_setCSR(p, csr, v | processor_getCSR(p, csr));
+}
+
+
+void processor_andCSR(Processor *p, int csr, DWORD v) {
+	processor_setCSR(p, csr, v & processor_getCSR(p, csr));
+}
+
+
+void processor_trap(Processor *p, int cause) {
+	UDWORD privStack = ((p->csr[i_MSTATUS] & 0x1FF) << 3) | 6;
+	int offset;
+
+	// What mode are we coming from?  Calculate MVTEC offset from that.
+	offset = (privStack & 0x6) << 5;
+
+	// Assume the role of machiine-mode.
+	p->csr[i_MCAUSE] = (UDWORD)cause;
+	p->csr[i_MEPC] = p->csr[i_MBADADDR] = p->pc - 4;
+	p->csr[i_MSTATUS] = ((p->csr[i_MSTATUS] & -0x1000) | privStack) & ~0x10000;
+	p->pc = p->csr[i_MTVEC] + offset;
+}
+
+
+void processor_ecall(Processor *p) {
+	processor_trap(p, 8 + ((p->csr[i_MSTATUS] & 6) >> 1));
+}
+
+
+void processor_eret(Processor *p) {
+	UDWORD privStack = ((p->csr[i_MSTATUS] & 0xFF8) >> 3) | 0x206;	// 0x206 vs 0x200 b/c we only support M-mode.
+	p->csr[i_MSTATUS] = (p->csr[i_MSTATUS] & -0x1000) | privStack;
+	p->pc = p->csr[i_MEPC];
+}
 
 void processor_step(Processor *p) {
 	WORD ir;
@@ -642,6 +747,75 @@ void processor_step(Processor *p) {
 				p->x[rd] = p->x[rs1] & imm12;
 				break;
 
+			}
+			break;
+
+		// CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI
+		// and other system-type instructions.
+		case 0x73:
+			imm12 = imm12 & 0xFFF;
+
+			if(fn3 != 0) {
+				p->x[rd] = processor_getCSR(p, imm12);
+			} else {
+				switch(imm12) {
+				case 0x000:		// ECALL
+					processor_ecall(p);
+					break;
+
+				case 0x001:		// EBREAK
+					processor_trap(p, 3);
+					break;
+
+				case 0x100:		// ERET
+					processor_eret(p);
+					break;
+
+				case 0x102:		// WFI == NOP for now.
+					break;
+
+				case 0x305:		// MRTS
+				case 0x306:		// MRTH
+				case 0x205:		// HRTS
+				case 0x101:		// VMFENCE (aka FENCE.VM)
+				default:
+					fprintf(stderr, "Illegal instruction $%08lX at $%016llX\n", ir, p->pc);
+					p->running = 0;
+				};
+				break;
+			}
+
+			if(rs1) {
+				switch(fn3) {
+				case 1: // CSRRW
+					processor_setCSR(p, imm12, p->x[rs1]);
+					break;
+
+				case 2: // CSRRS
+					processor_orCSR(p, imm12, p->x[rs1]);
+					break;
+
+				case 3: // CSRRC
+					processor_andCSR(p, imm12, ~(p->x[rs1]));
+					break;
+
+				case 4: // undefined
+					fprintf(stderr, "Illegal instruction $%08lX at $%016llX\n", ir, p->pc);
+					p->running = 0;
+					break;
+
+				case 5: // CSRRW
+					processor_setCSR(p, imm12, rs1);
+					break;
+
+				case 6: // CSRRS
+					processor_orCSR(p, imm12, rs1);
+					break;
+
+				case 7: // CSRRC
+					processor_andCSR(p, imm12, ~rs1);
+					break;
+				}
 			}
 			break;
 
