@@ -861,8 +861,6 @@ class Assembler(object):
     def align(self, boundary):
         """Align location counter to the indicated (power of two) boundary."""
         newLC = (self.lc + (boundary - 1)) & (-boundary)
-        if newLC != self.lc:
-                error("Aligning from {} to {}".format(hex(self.lc), hex(newLC)))
         self._defer(Advance(ExprNode(EN_INT, newLC - self.lc), ExprNode(EN_INT, 0)))
         self.lc = newLC
 
