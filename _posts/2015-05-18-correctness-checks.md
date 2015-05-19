@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Stepwise Refinement of an Event-Driven Forth Interpreter Part 2: Basic Correctness Checks"
-date:   2015-05-17 19:30:00
+date:   2015-05-18 19:30:00
 ---
 
 Last time, I had arrived at a basic set of pseudo-code which, I *think*,
