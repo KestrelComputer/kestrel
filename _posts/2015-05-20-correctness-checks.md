@@ -21,45 +21,45 @@ That's because, when using Floyd-Hoare logic, it's easier to work backwards usin
         PROCEDURE interpretLine.
                 Start at beginning of line.
                 Clear any error conditions.
-		(4)
+                (4)
                 WHILE no error AND line not yet exhausted DO
-			(4.4)
+                        (4.4)
                         Take next word from the input stream.
-			(4.3)
+                        (4.3)
                         Locate its definition in the dictionary.
-			(4.2)
+                        (4.2)
                         IF not found THEN
-				(4.2.5)
+                                (4.2.5)
                                 tryWordAsNumber.
-				(4.2.4)
+                                (4.2.4)
                                 IF not a number error THEN
                                         Set word not found error.
                                 ELSE
                                         Push number on the data stack.
                                 END.
-				(4.2.3)
+                                (4.2.3)
                         ELSE
-				(4.2.2)
+                                (4.2.2)
                                 Execute word implementation.
-				(4.2.1)
+                                (4.2.1)
                         END
-			(4.1)
+                        (4.1)
                 END
-		(3)
+                (3)
                 IF data stack out of bounds AND no error condition THEN
                         Set stack bounds error.
                 END
-		(2)
+                (2)
                 IF error condition THEN
-			(2.4)
+                        (2.4)
                         Reset data stack.
-			(2.3)
+                        (2.3)
                         Report error condition.
-			(2.2)
+                        (2.2)
                         Clear error condition.
-			(2.1)
+                        (2.1)
                 END
-		(1)
+                (1)
                 getAndRunCommandLine.
 
 The first and most obvious point in the code above is at (1), where we assume that any previous line of text has been successfully interpreted.
@@ -82,12 +82,12 @@ To satisfy the post-condition at (1), we need:
 * a procedure which yields true if an error is known to exist.
 
 
-		VAR error: ERROR;
+                VAR error: ERROR;
 
-		TYPE ERROR = (NO_ERROR);
+                TYPE ERROR = (NO_ERROR);
 
-		PROCEDURE errorExists: BOOLEAN
-			RETURN error # NO_ERROR;
+                PROCEDURE errorExists: BOOLEAN
+                        RETURN error # NO_ERROR;
 
 Now, I'll attempt to (informally) prove the consequent of (2), again by working backwards.
 
@@ -102,18 +102,18 @@ Finally, at (2.4), we *just* finished interpreting a line of text *and* we disco
 We *don't* know the state of the data stack at this point,
 hence all the steps to bring the interpreter back into a working state.
 
-		PROCEDURE resetDataStack.
-			Set data stack depth to zero.
+                PROCEDURE resetDataStack.
+                        Set data stack depth to zero.
 
-		PROCEDURE reportError.
-			Print error message to console, where message corresponds to the error detected.
+                PROCEDURE reportError.
+                        Print error message to console, where message corresponds to the error detected.
 
-		VAR errorMsgTable: MAP OF STRING
-			NO_ERROR: "No error; should not be seeing this."
-			...
+                VAR errorMsgTable: MAP OF STRING
+                        NO_ERROR: "No error; should not be seeing this."
+                        ...
 
-		PROCEDURE clearError;
-			error = NO_ERROR
+                PROCEDURE clearError;
+                        error = NO_ERROR
 
 
 At (3), we've just finished interpreting a line of text at this point.
@@ -126,8 +126,8 @@ A problem happens when we detect *both* stack over/underflow *and* any other kin
 Since the error condition can only record a single error, which error message do we show?
 We reset the stack on any error report anyway, so I decided to deprioritize the stack bounds error.
 
-		PROCEDURE dstackOutOfBounds: BOOLEAN.
-			RETURN (data stack depth < 0) OR (data stack depth > limit)
+                PROCEDURE dstackOutOfBounds: BOOLEAN.
+                        RETURN (data stack depth < 0) OR (data stack depth > limit)
 
 ## Scanning and Interpreting the Input Text
 
@@ -151,14 +151,14 @@ At (4.3), we have extracted a word from our input stream.
 For this to happen, we must have input to work with in the first place,
 which thankfully, our loop invariant guarantees as well.
 
-		PROCEDURE takeNextword.
-			Skip over whitespace, if any.
-			Mark the start of the word.
-			Skip over non-whitespace, if any.
-			Mark the completion of the word.
+                PROCEDURE takeNextword.
+                        Skip over whitespace, if any.
+                        Mark the start of the word.
+                        Skip over non-whitespace, if any.
+                        Mark the completion of the word.
 
-		VAR startOfWord, lengthOfWord: BUFFER INDEX.
-		VAR lineInputBuffer: BUFFER.
+                VAR startOfWord, lengthOfWord: BUFFER INDEX.
+                VAR lineInputBuffer: BUFFER.
 
 This implies that a "word", as a data type, is just a subrange of characters in the input buffer.
 However, it's entirely conceivable that a "word", as returned by `takeNextWord`, can be of zero length;
@@ -167,8 +167,8 @@ imagine a buffer that contains nothing but whitespace.
 Right now, the loop structure is:
 
                 WHILE no error AND line not yet exhausted DO
-			Take next word.
-			...
+                        Take next word.
+                        ...
 
 however, this doesn't take a zero-length word into consideration.
 And, honestly, can a zero-length word still be a "word"?
@@ -176,47 +176,47 @@ I'm inclined to think, no, it can't.
 We generally call such things "whitespace."
 Intuitively, we can change the code as follows:
 
-		Take first word.
-		WHILE no error AND word is not zero-length DO
-			...
-			Take next word.
+                Take first word.
+                WHILE no error AND word is not zero-length DO
+                        ...
+                        Take next word.
 
 While this can (and does!) work, I feel that it undermines what a "word", as a data type, means.
 Ideally, I'd like to be able to have greater rigor in my code.
 
 One approach to addressing this problem is to define our support procedures this way:
 
-		PROCEDURE grabWord.
-			Skip over whitespace, if any.
-			Mark the start of the word.
-			Skip over non-whitespace, if any.
-			Mark the completion of the word.
+                PROCEDURE grabWord.
+                        Skip over whitespace, if any.
+                        Mark the start of the word.
+                        Skip over non-whitespace, if any.
+                        Mark the completion of the word.
 
-		VAR startOfWord, lengthOfWord: BUFFER INDEX.
-		VAR lineInputBuffer: BUFFER.
+                VAR startOfWord, lengthOfWord: BUFFER INDEX.
+                VAR lineInputBuffer: BUFFER.
 
-		PROCEDURE lineNotYetExhausted;
-			IF lengthOfWord = 0 THEN RETURN FALSE; END.
-			grabWord.
-			RETURN lengthOfWord # 0.
+                PROCEDURE lineNotYetExhausted;
+                        IF lengthOfWord = 0 THEN RETURN FALSE; END.
+                        grabWord.
+                        RETURN lengthOfWord # 0.
 
-		PROCEDURE takeNextWord.  
-			currentStart = startOfWord; currentLength = lengthOfWord
-			grabWord
-			RETURN currentStart, currentLength
+                PROCEDURE takeNextWord.  
+                        currentStart = startOfWord; currentLength = lengthOfWord
+                        grabWord
+                        RETURN currentStart, currentLength
 
 Yuck!  This requires we maintain flags and duplicates storage requirements.
 The control flow logic between `takeNextWord` and `lineNotYetExhausted` is fairly intricate.
 I think a simpler approach would be as follows:
 
-		PROCEDURE lineNotYetExhausted: BOOLEAN.
-			Skip whitespace, if any.
-			RETURN if characters remain in the input buffer to be processed.
+                PROCEDURE lineNotYetExhausted: BOOLEAN.
+                        Skip whitespace, if any.
+                        RETURN if characters remain in the input buffer to be processed.
 
-		PROCEDURE takeNextWord.
-			Mark start of word.
-			Skip non-whitespace characters.
-			Mark end of word.
+                PROCEDURE takeNextWord.
+                        Mark start of word.
+                        Skip non-whitespace characters.
+                        Mark end of word.
 
 This actually simplifies the implementation of `takeNextWord` somewhat, and
 I think delivers on the promise that a word can never be of zero-length for as long as our loop invariant holds.
@@ -230,33 +230,33 @@ For the purposes of Forth, it's an ordered list of definitions,
 with the *most recent* definitions searched first.
 We can model a dictionary as a singly linked list.
 
-		TYPE WordHeader = POINTER TO WordDescriptor
-		     WordDescriptor = RECORD
-		         next : WordHeader
-		         name : STRING
-		         ...
-		     END
+                TYPE WordHeader = POINTER TO WordDescriptor
+                     WordDescriptor = RECORD
+                         next : WordHeader
+                         name : STRING
+                         ...
+                     END
 
 This is a very simple model, but it's the simplest that can possibly work for our needs.
 
 With that in mind, looking up a word means simply scanning through a list of `WordHeader`s.
 
-		PROCEDURE findWord: MAYBE WordHeader.
-			Start at most recently defined word.
-			WHILE not at end of list DO
-				IF word header's name matches word's name THEN
-					RETURN word header.
-				END
-				Move to next word header.
-			END
-			RETURN not found.
+                PROCEDURE findWord: MAYBE WordHeader.
+                        Start at most recently defined word.
+                        WHILE not at end of list DO
+                                IF word header's name matches word's name THEN
+                                        RETURN word header.
+                                END
+                                Move to next word header.
+                        END
+                        RETURN not found.
 
-		TYPE ERROR = (NO_ERROR, WORD_NOT_FOUND)
+                TYPE ERROR = (NO_ERROR, WORD_NOT_FOUND)
 
-		VAR errorMsgTable: MAP OF STRING
-			NO_ERROR:       "No error; should not be seeing this."
-			WORD_NOT_FOUND: "Undefined word"
-			...
+                VAR errorMsgTable: MAP OF STRING
+                        NO_ERROR:       "No error; should not be seeing this."
+                        WORD_NOT_FOUND: "Undefined word"
+                        ...
 
 I should point out that we don't want to set an interpreter error every time we can't find a word.
 Thus, `RETURN not found` does not actually set an error condition; however,
@@ -272,22 +272,22 @@ Given a string, look up the definition.
 
 To help prevent excessive scrolling, I'll repost the relevant section of the outer interpreter here.
 
-			(4.2)
-			IF not found THEN
-				(4.2.5)
-				tryWordAsNumber.
-				(4.2.4)
-				IF not a number error THEN
-					Set word not found error.
-				ELSE
-					Push number on the data stack.
-				END.
-				(4.2.3)
-			ELSE
-				(4.2.2)
-				Execute word implementation.
-				(4.2.1)
-			END
+                        (4.2)
+                        IF not found THEN
+                                (4.2.5)
+                                tryWordAsNumber.
+                                (4.2.4)
+                                IF not a number error THEN
+                                        Set word not found error.
+                                ELSE
+                                        Push number on the data stack.
+                                END.
+                                (4.2.3)
+                        ELSE
+                                (4.2.2)
+                                Execute word implementation.
+                                (4.2.1)
+                        END
 
 What happens if the word we specify in the input buffer cannot be found?
 Two possibilities exist in this case: either it's genuinely not defined, *or*, it's actually a number.
@@ -314,13 +314,13 @@ At this point, we attempted to convert the current word into a number, which cou
 Since this is with intent for interpretation, if the attempt failed, we do expect the error state to reflect the results of the conversion.
 However, for the purposes of correctly reporting the error, we translate the "not a number" error that we expect into a more appropriate "not defined" error.
 
-		TYPE ERROR = (NO_ERROR, WORD_NOT_FOUND, NOT_A_NUMBER)
+                TYPE ERROR = (NO_ERROR, WORD_NOT_FOUND, NOT_A_NUMBER)
 
-		VAR errorMsgTable: MAP OF STRING
-			NO_ERROR:       "No error; should not be seeing this."
-			WORD_NOT_FOUND: "Undefined word"
-			NOT_A_NUMBER:   "Malformed number"
-			...
+                VAR errorMsgTable: MAP OF STRING
+                        NO_ERROR:       "No error; should not be seeing this."
+                        WORD_NOT_FOUND: "Undefined word"
+                        NOT_A_NUMBER:   "Malformed number"
+                        ...
 
 At (4.2.5), we simply don't know if the word is genuinely missing or if it's actually a number.
 
@@ -329,170 +329,170 @@ At (4.2.5), we simply don't know if the word is genuinely missing or if it's act
 I'm satisfied that I've verified self-consistency, and in the process refined the design to a somewhat finer grain of detail.
 Below, I list the latest stepwise refinement of the entire Forth interpreter as I currently understand it:
 
-	MODULE DICT
+        MODULE DICT
 
-		TYPE WordHeader = POINTER TO WordDescriptor
-		     WordDescriptor = RECORD
-			 next : WordHeader
-			 name : STRING
-			 ...
-		     END
+                TYPE WordHeader = POINTER TO WordDescriptor
+                     WordDescriptor = RECORD
+                         next : WordHeader
+                         name : STRING
+                         ...
+                     END
 
-		PROCEDURE findWord: MAYBE WordHeader.
-			Start at most recently defined word.
-			WHILE not at end of list DO
-				IF word header's name matches word's name THEN
-					RETURN word header.
-				END
-				Move to next word header.
-			END
-			RETURN not found.
+                PROCEDURE findWord: MAYBE WordHeader.
+                        Start at most recently defined word.
+                        WHILE not at end of list DO
+                                IF word header's name matches word's name THEN
+                                        RETURN word header.
+                                END
+                                Move to next word header.
+                        END
+                        RETURN not found.
 
-	MODULE ERR
+        MODULE ERR
 
-		TYPE ERROR = (NO_ERROR, WORD_NOT_FOUND, NOT_A_NUMBER)
+                TYPE ERROR = (NO_ERROR, WORD_NOT_FOUND, NOT_A_NUMBER)
 
-		VAR errorMsgTable: MAP OF STRING
-			NO_ERROR:       "No error; should not be seeing this."
-			WORD_NOT_FOUND: "Undefined word"
-			NOT_A_NUMBER:   "Malformed number"
-			...
+                VAR errorMsgTable: MAP OF STRING
+                        NO_ERROR:       "No error; should not be seeing this."
+                        WORD_NOT_FOUND: "Undefined word"
+                        NOT_A_NUMBER:   "Malformed number"
+                        ...
 
-		PROCEDURE reportError.
-			Print error message to console, where message corresponds to the error detected.
+                PROCEDURE reportError.
+                        Print error message to console, where message corresponds to the error detected.
 
-		PROCEDURE clearError;
-			error = NO_ERROR
+                PROCEDURE clearError;
+                        error = NO_ERROR
 
-	MODULE DSTK
+        MODULE DSTK
 
-		PROCEDURE resetDataStack.
-			Set data stack depth to zero.
+                PROCEDURE resetDataStack.
+                        Set data stack depth to zero.
 
-		PROCEDURE dstackOutOfBounds: BOOLEAN.
-			RETURN (data stack depth < 0) OR (data stack depth > limit)
+                PROCEDURE dstackOutOfBounds: BOOLEAN.
+                        RETURN (data stack depth < 0) OR (data stack depth > limit)
 
-	MODULE SCAN
+        MODULE SCAN
 
-		PROCEDURE lineNotYetExhausted: BOOLEAN.
-			Skip whitespace, if any.
-			RETURN if characters remain in the input buffer to be processed.
+                PROCEDURE lineNotYetExhausted: BOOLEAN.
+                        Skip whitespace, if any.
+                        RETURN if characters remain in the input buffer to be processed.
 
-		PROCEDURE takeNextWord.
-			Mark start of word.
-			Skip non-whitespace characters.
-			Mark end of word.
+                PROCEDURE takeNextWord.
+                        Mark start of word.
+                        Skip non-whitespace characters.
+                        Mark end of word.
 
-	MODULE KRNL
+        MODULE KRNL
 
-		PROCEDURE coldBoot
-			Reset return stack pointer.
-			Initialize default callback vectors.
-			Initialize event dispatcher.
-			initializeForth.
-			Start event loop.
+                PROCEDURE coldBoot
+                        Reset return stack pointer.
+                        Initialize default callback vectors.
+                        Initialize event dispatcher.
+                        initializeForth.
+                        Start event loop.
 
-	MODULE FORTH
+        MODULE FORTH
 
-		PROCEDURE initializeForth.
-			Set base to 10.
-			Announce Forth to the user.
-			Reset data stack pointer.
-			getAndRunCommandLine.
+                PROCEDURE initializeForth.
+                        Set base to 10.
+                        Announce Forth to the user.
+                        Reset data stack pointer.
+                        getAndRunCommandLine.
 
-		PROCEDURE machineModeTrapHandler.
-			IF not interrupt THEN
-				Record trap information.
-				Reset return stack.
-				Reset data stack.
-				Initialize event dispatcher.
-				Schedule trapDiagnostic.
-				Return directly to event loop.
-			ELSE
-				Pass interrupt up to kernel.
-			END
+                PROCEDURE machineModeTrapHandler.
+                        IF not interrupt THEN
+                                Record trap information.
+                                Reset return stack.
+                                Reset data stack.
+                                Initialize event dispatcher.
+                                Schedule trapDiagnostic.
+                                Return directly to event loop.
+                        ELSE
+                                Pass interrupt up to kernel.
+                        END
 
-		PROCEDURE trapDiagnostic.
-			Reset callback vectors to defaults for outer interpreter.
-			Show what caused the trap.
-			getAndRunCommandLine.
+                PROCEDURE trapDiagnostic.
+                        Reset callback vectors to defaults for outer interpreter.
+                        Show what caused the trap.
+                        getAndRunCommandLine.
 
-		PROCEDURE getAndRunCommandLine.
-			Print OK prompt.
-			Schedule wait for console input, then interpret line.
+                PROCEDURE getAndRunCommandLine.
+                        Print OK prompt.
+                        Schedule wait for console input, then interpret line.
 
-		PROCEDURE interpretLine.
-			Start at beginning of line.
-			Clear any error conditions.
-			WHILE no error AND line not yet exhausted DO
-				Take next word from the input stream.
-				Locate its definition in the dictionary.
-				IF not found THEN
-					tryWordAsNumber.
-					IF not a number error THEN
-						Set word not found error.
-					ELSE
-						Push number on the data stack.
-					END.
-				ELSE
-					Execute word implementation.
-				END
-				IF data stack out of bounds AND no error condition THEN
-					Set stack bounds error.
-				END
-			END
-			IF error condition THEN
-				Reset data stack.
-				Report error condition.
-				Clear error condition.
-			END
-			getAndRunCommandLine.
+                PROCEDURE interpretLine.
+                        Start at beginning of line.
+                        Clear any error conditions.
+                        WHILE no error AND line not yet exhausted DO
+                                Take next word from the input stream.
+                                Locate its definition in the dictionary.
+                                IF not found THEN
+                                        tryWordAsNumber.
+                                        IF not a number error THEN
+                                                Set word not found error.
+                                        ELSE
+                                                Push number on the data stack.
+                                        END.
+                                ELSE
+                                        Execute word implementation.
+                                END
+                                IF data stack out of bounds AND no error condition THEN
+                                        Set stack bounds error.
+                                END
+                        END
+                        IF error condition THEN
+                                Reset data stack.
+                                Report error condition.
+                                Clear error condition.
+                        END
+                        getAndRunCommandLine.
 
-	MODULE NUMB
+        MODULE NUMB
 
-		VAR	base : INTEGER.
-			accumulator : INTEGER.
-			unconvertableCharacterPosition : INDEX.
+                VAR     base : INTEGER.
+                        accumulator : INTEGER.
+                        unconvertableCharacterPosition : INDEX.
 
-		PROCEDURE tryWordAsNumber.
-			Preserve numeric base.
-			Start at beginning of word.
-			Clear negation flag.
-			IF next character = "-" THEN
-				Set negation flag.
-				Advance to next character.
-			END
-			eitherHexOrDecimal.
-			IF negation flag set THEN
-				Negate number.
-			END
-			Restore numeric base.
+                PROCEDURE tryWordAsNumber.
+                        Preserve numeric base.
+                        Start at beginning of word.
+                        Clear negation flag.
+                        IF next character = "-" THEN
+                                Set negation flag.
+                                Advance to next character.
+                        END
+                        eitherHexOrDecimal.
+                        IF negation flag set THEN
+                                Negate number.
+                        END
+                        Restore numeric base.
 
-		PROCEDURE eitherHexOrDecimal.
-			IF next character = "$" THEN
-				Set base to 16.
-				Advance to next character.
-			END
-			tryUnsignedNumber.
-			IF characters remain to be converted THEN
-				Set not a number error.
-			END
+                PROCEDURE eitherHexOrDecimal.
+                        IF next character = "$" THEN
+                                Set base to 16.
+                                Advance to next character.
+                        END
+                        tryUnsignedNumber.
+                        IF characters remain to be converted THEN
+                                Set not a number error.
+                        END
 
-		PROCEDURE tryUnsignedNumber.
-			Clear accumulator.
-			Clear unconvertable character position.
-			WHILE no unconverable character position AND word not exhausted DO
-				Take next character from word.
-				IF character is a letter THEN
-					Make sure it's uppercase.
-				END
-				Convert to binary representation.
-				IF digit exceeds the set numerical base THEN
-					Set unconvertable character position.
-				ELSE
-					Accumulate digit.
-				END
-			END
+                PROCEDURE tryUnsignedNumber.
+                        Clear accumulator.
+                        Clear unconvertable character position.
+                        WHILE no unconverable character position AND word not exhausted DO
+                                Take next character from word.
+                                IF character is a letter THEN
+                                        Make sure it's uppercase.
+                                END
+                                Convert to binary representation.
+                                IF digit exceeds the set numerical base THEN
+                                        Set unconvertable character position.
+                                ELSE
+                                        Accumulate digit.
+                                END
+                        END
 
 There's still a lot of unrefined stuff here; however, except for the kernel, I think I have enough to go on and start writing tests for various modules.
 
@@ -504,25 +504,25 @@ You can, of course, implement top-down as well, but doing so means you'll need t
 So, to help prioritize what I'll work on first, here is how I see the modules fitting together so far.
 As usual, things can and almost certainly will change once implementation actually begins.
 
-	OINT --+-- SCAN
-	       |
-	       +-- DICT
-	       |
-	       +-- NUMB --+-- WORD
-	       |	  |
-	       |	  +-- CHAR
-	       |	  |
-	       |	  +-- MATH
-	       |	  |
-	       |	  +-.
-	       |            |-- ERR
-	       +------------'
-	       |
-	       +-- DSTK
-	       |
-	       +-- CON ----- KRNL
-	       |
-	       +-- KRNL
+        OINT --+-- SCAN
+               |
+               +-- DICT
+               |
+               +-- NUMB --+-- WORD
+               |          |
+               |          +-- CHAR
+               |          |
+               |          +-- MATH
+               |          |
+               |          +-.
+               |            |-- ERR
+               +------------'
+               |
+               +-- DSTK
+               |
+               +-- CON ----- KRNL
+               |
+               +-- KRNL
 
 You'll notice I've added a few more modules on the graph:
 
