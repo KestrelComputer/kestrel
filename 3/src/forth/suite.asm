@@ -221,10 +221,10 @@ aF1:		addi	a0, gp, FailMsg-aF1
 		jal	ra, conType
 		jal	x0, *
 
-FailMsg:	byte	"FAILED"
+FailMsg:	byte	"FAILED", 13, 10
 FailLen = * - FailMsg
 
-PassMsg:	byte	"PASSED"
+PassMsg:	byte	"PASSED", 13, 10
 PassLen = * - PassMsg
 
 		adv	$FF00, $CC
