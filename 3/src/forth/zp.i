@@ -7,3 +7,5 @@ zpasrtCallTestPC	= zpasrtRunTestPC + 8
 zpasrtPrintNamePC	= zpasrtCallTestPC + 8
 zpTestPC		= zpasrtPrintNamePC + 8
 
+zpScanIndex		= zpTestPC + 8
+zpLineLength		= zpScanIndex + 8
