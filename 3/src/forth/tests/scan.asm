@@ -43,23 +43,84 @@ testScanLineNotExhausted:
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
 
+; Common setup code for scanning whitespace tests.
+
+setup_skipWS:	or	s7, ra, x0
+		jal	a0, s_sW1
+s_sW0:		byte	"      whitespace"
+s_sW0_len = * - s_sW0
+		align	4
+s_sW1:		sd	a0, zpLineBuffer(x0)
+		addi	a0, x0, s_sW0_len
+		sd	a0, zpLineLength(x0)
+		jal	ra, scanStartLine
+		jalr	x0, 0(s7)
+
 ; When looking for words, we want to skip over any whitespace that might
 ; prefix it.
 
 		byte	"scnSkpWS"
 testScanSkipWhitespace:
 		sd	ra, zpTestPC(x0)
-		jal	a0, tSSW1
-tSSW0:		byte	"      whitespace"
-tSSW0_len = *-tSSW0
-		align 4
-tSSW1:		sd	a0, zpLineBuffer(x0)
-		addi	a0, x0, tSSW0_len
-		sd	a0, zpLineLength(x0)
-		jal	ra, scanStartLine
+		jal	ra, setup_skipWS
 		jal	ra, scanSkipWhitespace
 		ld	a0, zpScanIndex(x0)
 		addi	a1, x0, 6
 		jal	ra, asrtEquals
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
+
+
+; When scanning for words, we need to remember where a word starts.
+
+		byte	"scanMWS "
+testScanMarkWordStart:
+		sd	ra, zpTestPC(x0)
+		jal	ra, setup_skipWS
+		addi	a0, x0, 6
+		sd	a0, zpScanIndex(x0)
+		jal	ra, scanMarkWordStart
+		ld	a0, zpWordStart(x0)
+		ld	a1, zpLineBuffer(x0)
+		addi	a1, a1, 6
+		jal	ra, asrtEquals
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
+
+; When looking for words, we want to skip over non-whitespace characters
+; once we know we're at a word boundary.
+
+		byte	"scnSkpNW"
+testScanSkipNonSpace:
+		sd	ra, zpTestPC(x0)
+		jal	ra, setup_skipWS
+		addi	a0, x0, 6
+		sd	a0, zpScanIndex(x0)
+		jal	ra, scanSkipNonSpace
+		ld	a0, zpScanIndex(x0)
+		addi	a1, x0, 16
+		jal	ra, asrtEquals
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
+
+; When scanning for words, we need to remember where a word ends.
+
+		byte	"scanMWE "
+testScanMarkWordEnd:
+		sd	ra, zpTestPC(x0)
+		jal	ra, setup_skipWS
+		addi	a0, x0, 6
+		sd	a0, zpScanIndex(x0)
+		jal	ra, scanMarkWordStart
+		addi	a0, x0, 16
+		sd	a0, zpScanIndex(x0)
+		jal	ra, scanMarkWordEnd
+		ld	a0, zpWordLength(x0)
+		addi	a1, x0, 10
+		jal	ra, asrtEquals
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
+

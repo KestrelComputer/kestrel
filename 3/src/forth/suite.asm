@@ -25,7 +25,7 @@ L1:		ld	a0, 0(ra)
 
 		jal	a0, asrtRunI			; Run test suite and report results.
 		align	8
-		dword	7
+		dword	10
 		dword	do_nothing+romBase
 		dword	testScanStart+romBase
 		dword	testScanLineExhausted+romBase
@@ -33,6 +33,9 @@ L1:		ld	a0, 0(ra)
 		dword	testCharIsWhitespace+romBase
 		dword	testCharIsNotWhitespace+romBase
 		dword	testScanSkipWhitespace+romBase
+		dword	testScanMarkWordStart+romBase
+		dword	testScanSkipNonSpace+romBase
+		dword	testScanMarkWordEnd+romBase
 
 ; First test suite.  This is a simple do-nothing test, illustrating how to write a typical test.
 ; Unconditionally jump to asrtFail if the test failed.
