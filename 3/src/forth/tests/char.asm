@@ -17,6 +17,8 @@ tIW0:		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
 
 
+; Is a character NOT a whitespace?
+
 		byte	"charNoWS"
 testCharIsNotWhitespace:
 		sd	ra, zpTestPC(x0)
