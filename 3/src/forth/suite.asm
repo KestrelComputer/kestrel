@@ -3,6 +3,12 @@ romBase = $0FFFFFFFFFFF0000
 		include "cpu/regs.i"
 		include	"zp.i"
 
+		include "tests/scan.asm"
+		include "scan.asm"
+
+		include "tests/char.asm"
+		include "char.asm"
+
 		include "con.asm"
 
 ; Cold boot entry point.
@@ -19,8 +25,13 @@ L1:		ld	a0, 0(ra)
 
 		jal	a0, asrtRunI			; Run test suite and report results.
 		align	8
-		dword	1
+		dword	6
 		dword	do_nothing+romBase
+		dword	testScanStart+romBase
+		dword	testScanLineExhausted+romBase
+		dword	testScanLineNotExhausted+romBase
+		dword	testCharIsWhitespace+romBase
+		dword	testCharIsNotWhitespace+romBase
 
 ; First test suite.  This is a simple do-nothing test, illustrating how to write a typical test.
 ; Unconditionally jump to asrtFail if the test failed.
@@ -31,11 +42,53 @@ do_nothing:	sd	ra, zpTestPC(x0)
 		ld	ra, zpTestPC(x0)
 		jalr	0, 0(ra)
 
+; asrtIsZero will fail an assertion if the value in the A0 register is non-zero.
+
+asrtIsFalse:
+asrtIsZero:	beq	a0, x0, aIZ0
+		or	s7, a0, x0
+		auipc	gp, 0
+aIZ1:		addi	a0, gp, expected0-aIZ1
+		addi	a1, x0, expected0len
+		jal	ra, conType
+		or	a0, s7, x0
+		jal	ra, conPutHex64
+		addi	a0, x0, 10
+		jal	ra, conEmit
+		jal	x0, asrtFail
+aIZ0:		jalr	x0, 0(ra)
+
+expected0:	byte	"Expected zero; got "
+expected0len = *-expected0
+		align	4
+
+; asrtIsTrue will fail an assertion if the value in the A0 register is false/zero.
+
+asrtIsTrue:	bne	a0, x0, aIT0
+		or	s7, a0, x0
+		auipc	gp, 0
+aIT1:		addi	a0, gp, expected1-aIT1
+		addi	a1, x0, expected1len
+		jal	ra, conType
+		or	a0, s7, x0
+		jal	ra, conPutHex64
+		addi	a0, x0, 10
+		jal	ra, conEmit
+		jal	x0, asrtFail
+aIT0:		jalr	x0, 0(ra)
+
+expected1:	byte	"Expected non-zero; got "
+expected1len = *-expected0
+		align	4
+
 ; asrtPrintName prints the grep tag for a test procedure.
 ;
 ; asrtPrintName(zpTestPtr)
 
 asrtPrintName:	sd	ra, zpasrtPrintNamePC(x0)
+		addi	a0, x0, 32
+		jal	ra, conEmit
+		jal	ra, conEmit
 		ld	a0, zpTestPtr(x0)
 		ld	a0, 0(a0)
 		addi	a0, a0, -8
@@ -70,8 +123,6 @@ asrtCallTest:	sd	ra, zpasrtCallTestPC(x0)
 asrtRunTest:	sd	ra, zpasrtRunTestPC(x0)
 		jal	ra, asrtPrintName
 		jal	ra, asrtCallTest
-		addi	a0, x0, 44
-		jal	ra, conEmit
 		ld	ra, zpasrtRunTestPC(x0)
 		jalr	x0, 0(ra)
 
@@ -115,13 +166,8 @@ asrtRunI:	addi	a0, a0, 7
 ; asrtRun(zpTestPtr, zpNumTests)
 
 asrtRun:	ld	a0, zpNumTests(x0)
-		addi	a0, a0, 65
-		jal	ra, conEmit
-		ld	a0, zpNumTests(x0)
 aR2:		beq	a0, x0, aR0	; length >= 0
 		jal	ra, asrtRunTest
-		addi	a0, x0, 42
-		jal	ra, conEmit
 		ld	a0, zpTestPtr(x0)
 		addi	a0, a0, 8
 		sd	a0, zpTestPtr(x0)
