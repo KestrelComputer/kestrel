@@ -25,13 +25,14 @@ L1:		ld	a0, 0(ra)
 
 		jal	a0, asrtRunI			; Run test suite and report results.
 		align	8
-		dword	6
+		dword	7
 		dword	do_nothing+romBase
 		dword	testScanStart+romBase
 		dword	testScanLineExhausted+romBase
 		dword	testScanLineNotExhausted+romBase
 		dword	testCharIsWhitespace+romBase
 		dword	testCharIsNotWhitespace+romBase
+		dword	testScanSkipWhitespace+romBase
 
 ; First test suite.  This is a simple do-nothing test, illustrating how to write a typical test.
 ; Unconditionally jump to asrtFail if the test failed.
@@ -41,6 +42,28 @@ do_nothing:	sd	ra, zpTestPC(x0)
 		; ...
 		ld	ra, zpTestPC(x0)
 		jalr	0, 0(ra)
+
+; asrtEquals will fail an assertion if A0 not equal A1.
+
+asrtEquals:	beq	a0, a1, aIZ0
+		or	s7, a1, x0
+		or	s6, a0, x0
+		auipc	gp, 0
+aE0:		addi	a0, gp, expected0-aE0
+		addi	a1, x0, expected2len
+		jal	ra, conType
+		or	a0, s7, x0
+		jal	ra, conPutHex64
+		addi	a0, gp, got0-aE0
+		addi	a1, x0, got0len
+		jal	ra, conType
+		or	a0, s6, x0
+		jal	ra, conPutHex64
+		jal	x0, asrtFail
+
+got0:		byte	" but got "
+got0len = *-got0
+		align	4
 
 ; asrtIsZero will fail an assertion if the value in the A0 register is non-zero.
 
@@ -58,7 +81,9 @@ aIZ1:		addi	a0, gp, expected0-aIZ1
 		jal	x0, asrtFail
 aIZ0:		jalr	x0, 0(ra)
 
-expected0:	byte	"Expected zero; got "
+expected0:	byte	"Expected "
+expected2len = *-expected0
+		byte	"zero; got "
 expected0len = *-expected0
 		align	4
 
@@ -78,7 +103,7 @@ aIT1:		addi	a0, gp, expected1-aIT1
 aIT0:		jalr	x0, 0(ra)
 
 expected1:	byte	"Expected non-zero; got "
-expected1len = *-expected0
+expected1len = *-expected1
 		align	4
 
 ; asrtPrintName prints the grep tag for a test procedure.

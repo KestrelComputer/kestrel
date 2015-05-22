@@ -43,3 +43,23 @@ testScanLineNotExhausted:
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
 
+; When looking for words, we want to skip over any whitespace that might
+; prefix it.
+
+		byte	"scnSkpWS"
+testScanSkipWhitespace:
+		sd	ra, zpTestPC(x0)
+		jal	a0, tSSW1
+tSSW0:		byte	"      whitespace"
+tSSW0_len = *-tSSW0
+		align 4
+tSSW1:		sd	a0, zpLineBuffer(x0)
+		addi	a0, x0, tSSW0_len
+		sd	a0, zpLineLength(x0)
+		jal	ra, scanStartLine
+		jal	ra, scanSkipWhitespace
+		ld	a0, zpScanIndex(x0)
+		addi	a1, x0, 6
+		jal	ra, asrtEquals
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
