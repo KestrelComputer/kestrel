@@ -3,12 +3,51 @@
 		include "scan.asm"
 		include "char.asm"
 
-		byte	"OIEL    "
-testOintEmptyLine:
-		sd	ra, zpTestPC(x0)
+; Dependencies required by oint module.
+
+epv_ointGetAndInterpretLine	= 0
+epv_dictLocateWord		= epv_ointGetAndInterpretLine+8
+
+ointGetAndInterpretLine:
+		ld	t0, zpV(x0)
+		jalr	x0, 0(t0)
+
+dictLocateWord:
+		ld	t0, zpV(x0)
+		jalr	x0, epv_dictLocateWord(t0)
+
+dictIsWordFound:
+		ld	a0, zpWordFound(x0)
+		jalr	x0, 0(rt)
+
+; The interpreter should be able to handle a zero-length line of input.
+
+setup_emptyLine:
 		sd	x0, zpLineLength(x0)
 		sd	x0, zpError(x0)
 		sd	x0, zpCalled(x0)
+		auipc	t0, 0
+s_eL0:		addi	t0, t0, s_eL__epv-s_eL0
+		sd	t0, zpV(x0)
+		jalr	x0, 0(ra)
+
+s_eL__epv:	jal	x0, ep_emptyLine_ointGetAndInterpretLine
+		jal	x0, ep_emptyLine_dictLocateWord
+
+ep_emptyLine_ointGetAndInterpretLine:
+		addi	t0, x0, 1
+		sd	t0, zpCalled(x0)
+		jalr	x0, 0(rt)
+
+ep_emptyLine_dictLocateWord:
+		sd	x0, zpWordFound(x0)
+		jalr	x0, 0(rt)
+
+
+		byte	"OIEL    "
+testOintEmptyLine:
+		sd	ra, zpTestPC(x0)
+		jal	ra, setup_emptyLine
 
 		jal	ra, ointInterpretLine
 
@@ -24,18 +63,19 @@ testOintEmptyLine:
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
 
+; The interpreter should be able to handle a line consisting of just
+; whitespace.
 
 		byte	"OIBL    "
 testOintBlankLine:
 		sd	ra, zpTestPC(x0)
+		jal	ra, setup_emptyLine
 
 		addi	t0, x0, blanks8len
 		sd	t0, zpLineLength(x0)
 		auipc	t0, 0
 tOBL0:		addi	t0, t0, blanks8-tOBL0
 		sd	t0, zpLineBuffer(x0)
-		sd	x0, zpError(x0)
-		sd	x0, zpCalled(x0)
 
 		jal	ra, ointInterpretLine
 
@@ -56,19 +96,9 @@ blanks8:	byte	"        "
 blanks8len = * - blanks8
 		align	4
 
+; The interpreter, upon finding a word, should try to look it up in the
+; dictionary.
 
-ointGetAndInterpretLine:
-		addi	t0, x0, 1
-		sd	t0, zpCalled(x0)
-		jalr	x0, 0(ra)
-
-
-dictLocateWord:	sd	x0, zpWordFound(x0)
-		jalr	x0, 0(ra)
-
-dictIsWordFound:
-		ld	a0, zpWordFound(x0)
-		jalr	x0, 0(a0)
 
 		align 4
 start_tests:	jal	a0, asrtBoot
