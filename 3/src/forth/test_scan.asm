@@ -13,13 +13,10 @@ romBase = $0FFFFFFFFFFF0000
 		align 4
 start_tests:	jal	a0, asrtBoot
 		align	8
-		dword	10
-		dword	do_nothing+romBase
+		dword	7
 		dword	testScanStart+romBase
 		dword	testScanLineExhausted+romBase
 		dword	testScanLineNotExhausted+romBase
-		dword	testCharIsWhitespace+romBase
-		dword	testCharIsNotWhitespace+romBase
 		dword	testScanSkipWhitespace+romBase
 		dword	testScanMarkWordStart+romBase
 		dword	testScanSkipNonSpace+romBase
