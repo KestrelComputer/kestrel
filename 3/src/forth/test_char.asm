@@ -1,8 +1,4 @@
-romBase = $0FFFFFFFFFFF0000
-
-		include "cpu/regs.i"
-		include	"zp.i"
-		include "con.asm"
+		include "asrt.i"
 
 		include "tests/char.asm"
 		include "char.asm"

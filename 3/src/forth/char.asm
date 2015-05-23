@@ -3,5 +3,5 @@
 charIsWhitespace:
 	addi	t0, x0, 33
 	sltu	a0, a0, t0
-	jalr	x0, 0(ra)
+	jalr	x0, 0(rt)
 
