@@ -85,3 +85,12 @@ scanMarkWordEnd:
 		sd	a0, zpWordLength(x0)
 		jalr	x0, 0(ra)
 
+; Take the next word from the input stream.  Skip leading whitespace before
+; calling this procedure!
+
+scanTakeNextWord:
+		or	t1, ra, x0
+		jal	ra, scanMarkWordStart
+		jal	ra, scanSkipNonSpace
+		or	ra, t1, x0
+		jal	x0, scanMarkWordEnd

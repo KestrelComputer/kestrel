@@ -56,6 +56,21 @@ s_sW1:		sd	a0, zpLineBuffer(x0)
 		jal	ra, scanStartLine
 		jalr	x0, 0(s7)
 
+; Common setup code for scanning whitespace tests.
+
+setup_skipAllWS:
+		or	s7, ra, x0
+		jal	a0, s_sW1
+s_sAW0:		byte	"                "
+s_sAW0_len = * - s_sAW0
+		byte	"    "
+		align	4
+s_sW1:		sd	a0, zpLineBuffer(x0)
+		addi	a0, x0, s_sAW0_len
+		sd	a0, zpLineLength(x0)
+		jal	ra, scanStartLine
+		jalr	x0, 0(s7)
+
 ; When looking for words, we want to skip over any whitespace that might
 ; prefix it.
 
@@ -66,6 +81,21 @@ testScanSkipWhitespace:
 		jal	ra, scanSkipWhitespace
 		ld	a0, zpScanIndex(x0)
 		addi	a1, x0, 6
+		jal	ra, asrtEquals
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
+
+; When looking for words, we want to skip over any whitespace that might
+; prefix it.  However, we don't want to exceed our line buffer boundary.
+
+		byte	"scSkpAWS"
+testScanSkipAllWhitespace:
+		sd	ra, zpTestPC(x0)
+		jal	ra, setup_skipAllWS
+		jal	ra, scanSkipWhitespace
+		ld	a0, zpScanIndex(x0)
+		addi	a1, x0, 16
 		jal	ra, asrtEquals
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
@@ -123,4 +153,27 @@ testScanMarkWordEnd:
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
 
+; Taking the next word means scanning input until we have a whitespace or we
+; reach the end of the input buffer.
+
+		byte	"scanTNW "
+testScanTakeNextWord:
+		sd	ra, zpTestPC(x0)
+		jal	ra, setup_skipWS
+		jal	ra, scanSkipWhitespace
+		jal	ra, scanTakeNextWord
+		ld	a0, zpScanIndex(x0)
+		addi	a1, x0, 16
+		jal	ra, asrtEquals
+		ld	a0, zpWordStart(x0)
+		auipc	a1, 0
+tSTNW0:		addi	a1, a1, (s_sW0+6)-tSTNW0
+		jal	ra, asrtEquals
+		ld	a0, zpWordLength(x0)
+		addi	a1, x0, 10
+		jal	ra, asrtEquals
+		jal	ra, scanIsLineExhausted
+		jal	ra, asrtIsTrue
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
 

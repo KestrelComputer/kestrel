@@ -14,3 +14,5 @@ zpWordStart		= zpScanSkipWSPC + 8
 zpWordLength		= zpWordStart + 8
 zpError			= zpWordLength + 8
 zpCalled		= zpError + 8
+zpInterpretLinePC	= zpCalled + 8
+zpWordFound		= zpInterpretLinePC + 8

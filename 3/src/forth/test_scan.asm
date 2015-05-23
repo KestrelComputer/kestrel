@@ -13,7 +13,7 @@ romBase = $0FFFFFFFFFFF0000
 		align 4
 start_tests:	jal	a0, asrtBoot
 		align	8
-		dword	7
+		dword	9
 		dword	testScanStart+romBase
 		dword	testScanLineExhausted+romBase
 		dword	testScanLineNotExhausted+romBase
@@ -21,6 +21,8 @@ start_tests:	jal	a0, asrtBoot
 		dword	testScanMarkWordStart+romBase
 		dword	testScanSkipNonSpace+romBase
 		dword	testScanMarkWordEnd+romBase
+		dword	testScanTakeNextWord+romBase
+		dword	testScanSkipAllWhitespace+romBase
 
 		; Must be the very last thing in the ROM image.
 		include "asrt.asm"
