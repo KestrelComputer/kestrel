@@ -8,10 +8,12 @@ asrtBoot:	or	x0, x0, x0
 		jal	ra, L1
 
 		dword	$0E00000000000000		; Pointer to debugger UART registers
+		dword	$0000000001000000		; Initial return stack pointer
 
 		align	4
 L1:		ld	a1, 0(ra)
 		sd	a1, zpUartBase(x0)
+		ld	rp, 8(ra)
 
 		jal	x0, asrtRunI			; Run test suite and report results.
 

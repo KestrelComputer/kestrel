@@ -16,3 +16,4 @@ zpError			= zpWordLength + 8
 zpCalled		= zpError + 8
 zpInterpretLinePC	= zpCalled + 8
 zpWordFound		= zpInterpretLinePC + 8
+zpRP0			= zpWordFound + 8

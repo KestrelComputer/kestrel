@@ -11,7 +11,7 @@ dp = x4
 ; Miscellaneous registers.
 a0 = x5
 a1 = x6
-ra = x7
+ra = rt
 gp = x8
 s7 = x9
 s6 = x10
