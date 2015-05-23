@@ -99,13 +99,56 @@ blanks8len = * - blanks8
 ; The interpreter, upon finding a word, should try to look it up in the
 ; dictionary.
 
+setup_OIWIL:	auipc	t0, 0
+s_OIWIL0:	add	t1, t0, s_OIWIL_epv - s_OIWIL0
+		sd	t1, zpV(x0)
+		add	t1, t0, s_OIWIL_line - s_OIWIL0
+		sd	t1, zpLineBuffer(x0)
+		addi	t1, x0, s_OIWIL_linelen
+		sd	t1, zpLineLength(x0)
+		jalr	x0, 0(ra)
+
+s_OIWIL_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
+		jal	x0, ep_OIWIL_dictLocateWord
+
+ep_OIWIL_ointGetAndInterpretLine:
+		jalr	x0,0(rt)
+
+ep_OIWIL_dictLocateWord:
+		addi	t0,x0,1
+		sd	t0,zpCalled(x0)
+		sd	x0,zpWordFound(x0)
+		jalr	x0,0(rt)
+
+
+		byte	"OIWIL   "
+testOintWordInLine:
+		sd	ra, zpTestPC(x0)
+		jal	ra, setup_OIWIL
+
+		jal	ra, ointInterpretLine
+
+		ld	a0, zpCalled(x0)
+		jal	ra, asrtIsTrue
+
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
+s_OIWIL_line:	byte	"    word    "
+s_OIWIL_linelen = *-s_OIWIL_line
+		align	4
+
+;
+; Suite Definition
+;
 
 		align 4
 start_tests:	jal	a0, asrtBoot
 		align	8
-		dword	2
+		dword	3
 		dword	romBase+testOintEmptyLine
 		dword	romBase+testOintBlankLine
+		dword	romBase+testOintWordInLine
 
 		; Must be the very last thing in the ROM image.
 		include "asrt.asm"
