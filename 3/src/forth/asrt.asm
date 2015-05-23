@@ -93,7 +93,8 @@ expected1len = *-expected1
 ;
 ; asrtPrintName(zpTestPtr)
 
-asrtPrintName:	sd	ra, zpasrtPrintNamePC(x0)
+asrtPrintName:	addi	rp, rp, -8
+		sd	rt, 0(rp)
 		addi	a0, x0, 32
 		jal	ra, conEmit
 		jal	ra, conEmit
@@ -106,18 +107,21 @@ asrtPrintName:	sd	ra, zpasrtPrintNamePC(x0)
 		jal	ra, conEmit
 		addi	a0, x0, 10
 		jal	ra, conEmit
-		ld	ra, zpasrtPrintNamePC(x0)
-		jalr	x0, 0(ra)
+		ld	rt, 0(rp)
+		addi	rp, rp, 8
+		jalr	x0, 0(rt)
 
 ; asrtCallTest invokes the currently selected test.
 ; The current test address is pointed at by zpTestPtr.
 ; Note that zpTestPtr is a pointer to a pointer!
 
-asrtCallTest:	sd	ra, zpasrtCallTestPC(x0)
+asrtCallTest:	addi	rp, rp, -8
+		sd	rt, 0(rp)
 		ld	a0, zpTestPtr(x0)
 		ld	a0, 0(a0)
 		jalr	ra, 0(a0)
-		ld	ra, zpasrtCallTestPC(x0)
+		ld	rt, 0(rp)
+		addi	rp, rp, 8
 		jalr	x0, 0(ra)
 
 ; asrtRunTest invokes a single test procedure, pointed at by the
@@ -128,11 +132,13 @@ asrtCallTest:	sd	ra, zpasrtCallTestPC(x0)
 ;
 ; asrtRunTest(zpTestPtr)
 
-asrtRunTest:	sd	ra, zpasrtRunTestPC(x0)
-		jal	ra, asrtPrintName
-		jal	ra, asrtCallTest
-		ld	ra, zpasrtRunTestPC(x0)
-		jalr	x0, 0(ra)
+asrtRunTest:	addi	rp, rp, -8
+		sd	rt, 0(rp)
+		jal	rt, asrtPrintName
+		jal	rt, asrtCallTest
+		ld	rt, 0(rp)
+		addi	rp, rp, 8
+		jalr	x0, 0(rt)
 
 ; asrtRunI runs a list of tests declared immediately after the subroutine call.
 ; This is safe, as asrtRunI never returns.

@@ -1,7 +1,7 @@
 ; scanStartLine prepares for interpreting a line of input word by word.
 
 scanStartLine:	sd	x0, zpScanIndex(x0)
-		jalr	x0, 0(ra)
+		jalr	x0, 0(rt)
 
 
 ; scanIsLineExhausted returns true if we've exhausted our input buffer.
@@ -11,19 +11,14 @@ scanIsLineExhausted:
 		ld	a1, zpScanIndex(x0)
 		sltu	a0, a1, a0
 		addi	a0, a0, -1
-		jalr	x0, 0(ra)
-
-		blt	a1, a0, sILE1
-		ori	a0, x0, -1
-		jalr	x0, 0(ra)
-sILE1:		ori	a0, x0, 0
-		jalr	x0, 0(ra)
+		jalr	x0, 0(rt)
 
 
 ; Skip non-whitespace.
 
 scanSkipNonSpace:
-		sd	ra, zpScanSkipWSPC(x0)
+		addi	rp, rp, -8
+		sd	rt, 0(rp)
 sSNW1:		ld	a0, zpScanIndex(x0)	; si <= ll
 		ld	a1, zpLineLength(x0)
 		bgeu	a0, a1, sSNW0
@@ -39,13 +34,15 @@ sSNW1:		ld	a0, zpScanIndex(x0)	; si <= ll
 		sd	a0, zpScanIndex(x0)
 		jal	x0, sSNW1
 
-sSNW0:		ld	ra, zpScanSkipWSPC(x0)
-		jalr	x0, 0(ra)
+sSNW0:		ld	rt, 0(rp)
+		addi	rp, rp, 8
+		jalr	x0, 0(rt)
 
 ; Skip whitespace.
 
 scanSkipWhitespace:
-		sd	ra, zpScanSkipWSPC(x0)
+		addi	rp, rp, -8
+		sd	rt, 0(rp)
 sSW1:		ld	a0, zpScanIndex(x0)	; si <= ll
 		ld	a1, zpLineLength(x0)
 		bgeu	a0, a1, sSW0
@@ -61,8 +58,9 @@ sSW1:		ld	a0, zpScanIndex(x0)	; si <= ll
 		sd	a0, zpScanIndex(x0)
 		jal	x0, sSW1
 
-sSW0:		ld	ra, zpScanSkipWSPC(x0)	; ch e. {nonWS}
-		jalr	x0, 0(ra)
+sSW0:		ld	rt, 0(rp)		; ch e. {nonWS}
+		addi	rp, rp, 8
+		jalr	x0, 0(rt)
 
 ; Mark the start of a word.
 
@@ -71,7 +69,7 @@ scanMarkWordStart:
 		ld	a1, zpScanIndex(x0)
 		add	a0, a0, a1
 		sd	a0, zpWordStart(x0)
-		jalr	x0, 0(ra)
+		jalr	x0, 0(rt)
 
 ; Mark the end of a word.  Note that the beginning of the word must have been
 ; marked first.
@@ -83,14 +81,16 @@ scanMarkWordEnd:
 		ld	a1, zpWordStart(x0)
 		sub	a0, a0, a1
 		sd	a0, zpWordLength(x0)
-		jalr	x0, 0(ra)
+		jalr	x0, 0(rt)
 
 ; Take the next word from the input stream.  Skip leading whitespace before
 ; calling this procedure!
 
 scanTakeNextWord:
-		or	t1, ra, x0
-		jal	ra, scanMarkWordStart
-		jal	ra, scanSkipNonSpace
-		or	ra, t1, x0
+		addi	rp, rp, -8
+		sd	rt, 0(rp)
+		jal	rt, scanMarkWordStart
+		jal	rt, scanSkipNonSpace
+		ld	rt, 0(rp)
+		addi	rp, rp, 8
 		jal	x0, scanMarkWordEnd
