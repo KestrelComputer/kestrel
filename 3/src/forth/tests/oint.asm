@@ -12,6 +12,7 @@ s_eL0:		addi	t0, t0, s_eL__epv-s_eL0
 
 s_eL__epv:	jal	x0, ep_emptyLine_ointGetAndInterpretLine
 		jal	x0, ep_emptyLine_dictLocateWord
+		jal	x0, asrtFail
 
 ep_emptyLine_ointGetAndInterpretLine:
 		addi	t0, x0, 1
@@ -93,6 +94,7 @@ s_OIWIL0:	addi	t1, t0, s_OIWIL_epv - s_OIWIL0
 
 s_OIWIL_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
 		jal	x0, ep_OIWIL_dictLocateWord
+		jal	x0, asrtFail
 
 ep_OIWIL_ointGetAndInterpretLine:
 		jalr	x0, 0(rt)
@@ -134,6 +136,7 @@ s_OIWIL_linelen = *-s_OIWIL_line
 
 s_OIWILF_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
 		jal	x0, ep_OIWILF_dictLocateWord
+		jal	x0, asrtFail
 
 ep_OIWILF_dictLocateWord:
 		addi	t0, x0, 1
@@ -180,6 +183,7 @@ s_OIDSU0:	addi	t1, t0, s_OIDSU_epv-s_OIDSU0
 
 s_OIDSU_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
 		jal	x0, ep_OIDSU_dictLocateWord
+		jal	x0, ep_OIDSU_errReport
 
 ep_OIDSU_dictLocateWord:
 		auipc	t0, 0
@@ -192,6 +196,21 @@ ep_OIDSU_errorHandler:
 		addi	dp, dp, 2047
 		jalr	x0, 0(rt)
 
+ep_OIDSU_errReport:
+		addi	rp, rp, -8
+		sd	rt, 0(rp)
+
+		addi	t0, x0, 1
+		sd	t0, zpCalled(x0)
+
+		ld	a0, zpError(x0)
+		addi	a1, x0, ErrDataStackOverflow
+		jal	rt, asrtEquals
+
+		ld	rt, 0(rp)
+		addi	rp, rp, 8
+		jalr	x0, 0(rt)
+
 
 		byte	"OIDSU   "
 testOintDataStackUnderflow:
@@ -202,8 +221,9 @@ testOintDataStackUnderflow:
 		addi	a1, x0, 5
 		jal	ra, asrtEquals
 		ld	a0, zpError(x0)
-		addi	a1, x0, ErrDataStackUnderflow
-		jal	ra, asrtEquals
+		jal	ra, asrtIsZero
+		ld	a0, zpCalled(x0)
+		jal	ra, asrtIsTrue
 		or	a0, dp, x0
 		ld	a1, zpDP0(x0)
 		jal	ra, asrtEquals
@@ -230,6 +250,7 @@ s_OIDSO0:	addi	t1, t0, s_OIDSO_epv-s_OIDSO0
 
 s_OIDSO_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
 		jal	x0, ep_OIDSO_dictLocateWord
+		jal	x0, ep_OIDSO_errReport
 
 ep_OIDSO_dictLocateWord:
 		auipc	t0, 0
@@ -243,6 +264,21 @@ ep_OIDSO_errorHandler:
 		addi	dp, dp, -1
 		jalr	x0, 0(rt)
 
+ep_OIDSO_errReport:
+		addi	rp, rp, -8
+		sd	rt, 0(rp)
+
+		addi	t0, x0, 1
+		sd	t0, zpCalled(x0)
+
+		ld	a0, zpError(x0)
+		addi	a1, x0, ErrDataStackOverflow
+		jal	rt, asrtEquals
+
+		ld	rt, 0(rp)
+		addi	rp, rp, 8
+		jalr	x0, 0(rt)
+
 
 		byte	"OIDSO   "
 testOintDataStackOverflow:
@@ -253,8 +289,9 @@ testOintDataStackOverflow:
 		addi	a1, x0, 5
 		jal	ra, asrtEquals
 		ld	a0, zpError(x0)
-		addi	a1, x0, ErrDataStackOverflow
-		jal	ra, asrtEquals
+		jal	ra, asrtIsZero
+		ld	a0, zpCalled(x0)
+		jal	ra, asrtIsTrue
 		or	a0, dp, x0
 		ld	a1, zpDP0(x0)
 		jal	ra, asrtEquals

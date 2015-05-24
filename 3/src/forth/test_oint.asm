@@ -12,6 +12,7 @@
 
 epv_ointGetAndInterpretLine	= 0
 epv_dictLocateWord		= epv_ointGetAndInterpretLine+4
+epv_errReport			= epv_dictLocateWord+8
 
 ointGetAndInterpretLine:
 		ld	t0, zpV(x0)
@@ -24,6 +25,9 @@ dictLocateWord:
 dictIsWordFound:
 		ld	a0, zpWordFound(x0)
 		jalr	x0, 0(rt)
+
+errReport:	ld	t0, zpV(x0)
+		jalr	x0, epv_errReport(t0)
 
 
 		include "tests/oint.asm"

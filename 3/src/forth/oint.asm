@@ -28,6 +28,8 @@ oIL2:		jal	rt, dstkCheckBounds
 oIL0:		ld	t0, zpError(x0)
 		beq	t0, x0, oIL4
 		jal	rt, dstkReset
+		jal	rt, errReport
+		sd	x0, zpError(x0)
 oIL4:		ld	rt, 0(rp)
 		addi	rp, rp, 8
 		jal	x0, ointGetAndInterpretLine
