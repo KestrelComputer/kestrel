@@ -25,7 +25,10 @@ oIL1:		; word is not found; try converting it to a number here.
 oIL2:		jal	rt, dstkCheckBounds
 		jal	x0, oIL3
 
-oIL0:		ld	rt, 0(rp)
+oIL0:		ld	t0, zpError(x0)
+		beq	t0, x0, oIL4
+		jal	rt, dstkReset
+oIL4:		ld	rt, 0(rp)
 		addi	rp, rp, 8
 		jal	x0, ointGetAndInterpretLine
 

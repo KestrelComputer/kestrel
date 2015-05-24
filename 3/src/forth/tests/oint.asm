@@ -204,6 +204,9 @@ testOintDataStackUnderflow:
 		ld	a0, zpError(x0)
 		addi	a1, x0, ErrDataStackUnderflow
 		jal	ra, asrtEquals
+		or	a0, dp, x0
+		ld	a1, zpDP0(x0)
+		jal	ra, asrtEquals
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
 
@@ -251,6 +254,9 @@ testOintDataStackOverflow:
 		jal	ra, asrtEquals
 		ld	a0, zpError(x0)
 		addi	a1, x0, ErrDataStackOverflow
+		jal	ra, asrtEquals
+		or	a0, dp, x0
+		ld	a1, zpDP0(x0)
 		jal	ra, asrtEquals
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
