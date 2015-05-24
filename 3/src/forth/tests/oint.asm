@@ -164,3 +164,93 @@ tOIWILF0:	addi	t0, t0, s_OIWILF_epv - tOIWILF0
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
 
+; When we fire off a word, it could underflow the stack.  The interpreter
+; needs to gracefully recover from this condition.
+
+setup_OIDSU:	auipc	t0, 0
+s_OIDSU0:	addi	t1, t0, s_OIDSU_epv-s_OIDSU0
+		sd	t1, zpV(x0)
+		addi	t1, t0, s_OIDSU_line-s_OIDSU0
+		sd	t1, zpLineBuffer(x0)
+		addi	t1, x0, s_OIDSU_lineLen
+		sd	t1, zpLineLength(x0)
+		ld	dp, zpDP0(x0)
+		sd	x0, zpError(x0)
+		jalr	x0, 0(ra)
+
+s_OIDSU_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
+		jal	x0, ep_OIDSU_dictLocateWord
+
+ep_OIDSU_dictLocateWord:
+		auipc	t0, 0
+		addi	t0, t0, ep_OIDSU_errorHandler - *
+		sd	t0, zpWordBody(x0)
+		sd	t0, zpWordFound(x0)
+		jalr	x0, 0(rt)
+
+ep_OIDSU_errorHandler:
+		addi	dp, dp, 2047
+		jalr	x0, 0(rt)
+
+
+		byte	"OIDSU   "
+testOintDataStackUnderflow:
+		sd	ra, zpTestPC(x0)
+		jal	ra, setup_OIDSU
+		jal	ra, ointInterpretLine
+		ld	a0, zpScanIndex(x0)
+		addi	a1, x0, 5
+		jal	ra, asrtEquals
+		ld	a0, zpError(x0)
+		addi	a1, x0, ErrDataStackUnderflow
+		jal	ra, asrtEquals
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
+s_OIDSU_line:	byte	"error error"
+s_OIDSU_lineLen = *-s_OIDSU_line
+		align	4
+
+; When we fire off a word, it could overflow the stack.  The interpreter
+; needs to gracefully recover from this condition, too.
+
+setup_OIDSO:	auipc	t0, 0
+s_OIDSO0:	addi	t1, t0, s_OIDSO_epv-s_OIDSO0
+		sd	t1, zpV(x0)
+		addi	t1, t0, s_OIDSU_line-s_OIDSO0
+		sd	t1, zpLineBuffer(x0)
+		addi	t1, x0, s_OIDSU_lineLen
+		sd	t1, zpLineLength(x0)
+		ld	dp, zpDP0(x0)
+		sd	x0, zpError(x0)
+		jalr	x0, 0(ra)
+
+s_OIDSO_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
+		jal	x0, ep_OIDSO_dictLocateWord
+
+ep_OIDSO_dictLocateWord:
+		auipc	t0, 0
+		addi	t0, t0, ep_OIDSO_errorHandler - *
+		sd	t0, zpWordBody(x0)
+		sd	t0, zpWordFound(x0)
+		jalr	x0, 0(rt)
+
+ep_OIDSO_errorHandler:
+		ld	dp, zpDPL(x0)
+		addi	dp, dp, -1
+		jalr	x0, 0(rt)
+
+
+		byte	"OIDSO   "
+testOintDataStackOverflow:
+		sd	ra, zpTestPC(x0)
+		jal	ra, setup_OIDSO
+		jal	ra, ointInterpretLine
+		ld	a0, zpScanIndex(x0)
+		addi	a1, x0, 5
+		jal	ra, asrtEquals
+		ld	a0, zpError(x0)
+		addi	a1, x0, ErrDataStackOverflow
+		jal	ra, asrtEquals
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)

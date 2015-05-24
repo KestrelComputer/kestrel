@@ -2,6 +2,8 @@
 		include "oint.asm"
 		include "scan.asm"
 		include "char.asm"
+		include "err.asm"
+		include "dstk.asm"
 
 ; Dependencies required by oint module.
 ;
@@ -33,11 +35,13 @@ dictIsWordFound:
 		align 4
 start_tests:	jal	a0, asrtBoot
 		align	8
-		dword	4
+		dword	6
 		dword	romBase+testOintEmptyLine
 		dword	romBase+testOintBlankLine
 		dword	romBase+testOintWordInLine
 		dword	romBase+testOintWordInLineFound
+		dword	romBase+testOintDataStackUnderflow
+		dword	romBase+testOintDataStackOverflow
 
 		; Must be the very last thing in the ROM image.
 		include "asrt.asm"

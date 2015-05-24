@@ -8,7 +8,9 @@ ointInterpretLine:
 		addi	rp, rp, -8
 		sd	rt, 0(rp)
 		jal	rt, scanStartLine
-oIL3:		jal	rt, scanSkipWhitespace
+oIL3:		ld	t0, zpError(x0)
+		bne	t0, x0, oIL0
+		jal	rt, scanSkipWhitespace
 		jal	rt, scanIsLineExhausted
 		bne	a0, x0, oIL0
 		jal	rt, scanTakeNextWord
@@ -20,7 +22,7 @@ oIL3:		jal	rt, scanSkipWhitespace
 		jalr	rt, 0(t0)
 		jal	x0, oIL2
 oIL1:		; word is not found; try converting it to a number here.
-oIL2:		; perform data stack check here.
+oIL2:		jal	rt, dstkCheckBounds
 		jal	x0, oIL3
 
 oIL0:		ld	rt, 0(rp)
