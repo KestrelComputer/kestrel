@@ -8,12 +8,22 @@ asrtBoot:	or	x0, x0, x0
 		jal	ra, L1
 
 		dword	$0E00000000000000		; Pointer to debugger UART registers
-		dword	$0000000001000000		; Initial return stack pointer
+		dword	uboundRS			; Initial return stack pointer
+		dword	uboundDS			; Initial data stack pointer
+		dword	lboundRS			; Lower bounds for return and data stacks.
+		dword	lboundDS
 
 		align	4
 L1:		ld	a1, 0(ra)
 		sd	a1, zpUartBase(x0)
 		ld	rp, 8(ra)
+		sd	rp, zpRP0(x0)
+		ld	dp, 16(ra)
+		sd	dp, zpDP0(x0)
+		ld	a1, 24(ra)
+		sd	a1, zpRPL(x0)
+		ld	a1, 32(ra)
+		sd	a1, zpDPL(x0)
 
 		jal	x0, asrtRunI			; Run test suite and report results.
 

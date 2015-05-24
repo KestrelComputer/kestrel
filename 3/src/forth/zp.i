@@ -17,3 +17,7 @@ zpCalled			= zpError + 8
 zpReserved0			= zpCalled + 8
 zpWordFound			= zpReserved0 + 8
 zpRP0				= zpWordFound + 8
+zpDP0				= zpRP0 + 8
+zpRPL				= zpDP0 + 8
+zpDPL				= zpRPL + 8
+
