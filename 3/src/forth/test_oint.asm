@@ -43,7 +43,7 @@ numbTryConversion:
 		align 4
 start_tests:	jal	a0, asrtBoot
 		align	8
-		dword	7
+		dword	8
 		dword	romBase+testOintEmptyLine
 		dword	romBase+testOintBlankLine
 		dword	romBase+testOintWordInLine
@@ -51,6 +51,7 @@ start_tests:	jal	a0, asrtBoot
 		dword	romBase+testOintDataStackUnderflow
 		dword	romBase+testOintDataStackOverflow
 		dword	romBase+testOintAttemptConversion
+		dword	romBase+testOintSuccessfulConversion
 
 		; Must be the very last thing in the ROM image.
 		include "asrt.asm"

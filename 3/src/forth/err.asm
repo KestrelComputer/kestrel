@@ -5,3 +5,4 @@ ErrNone			= 0
 ErrDataStackUnderflow	= 8
 ErrDataStackOverflow	= 16
 ErrNotNumeric		= 24
+ErrWordNotFound		= 32

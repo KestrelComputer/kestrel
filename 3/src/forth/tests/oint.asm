@@ -328,7 +328,7 @@ ep_OIACVT_dictLocateWord:
 
 ep_OIACVT_errReport:
 		ld	a0, zpError(x0)
-		addi	a1, x0, ErrNotNumeric
+		addi	a1, x0, ErrWordNotFound
 		jal	x0, asrtEquals
 
 ep_OIACVT_numbTryConversion:
@@ -345,6 +345,60 @@ testOintAttemptConversion:
 		jal	ra, ointInterpretLine
 		ld	a0, zpCalled(x0)
 		jal	ra, asrtIsTrue
+		or	a0, dp, x0
+		ld	a1, zpDP0(x0)
+		jal	ra, asrtEquals
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
+; When looking for a word, and that word isn't found in the dictionary, then
+; the outer interpreter should attempt to convert it to a number.  If it succeeds,
+; then the number should be pushed onto the stack.
+
+setup_OICVT:	auipc	t0, 0
+s_OICVT0:	addi	t1, t0, s_OIDSU_line-s_OICVT0
+		sd	t1, zpLineBuffer(x0)
+		addi	t1, x0, s_OIDSU_lineLen
+		sd	t1, zpLineLength(x0)
+		addi	t1, t0, s_OICVT_epv-s_OICVT0
+		sd	t1, zpV(x0)
+		sd	x0, zpError(x0)
+		sd	x0, zpCalled(x0)
+		jalr	x0, 0(ra)
+
+s_OICVT_epv:	jalr	x0, 0(rt)		; get and interpret line
+		jal	x0, ep_OIACVT_dictLocateWord
+		jal	x0, ep_OICVT_errReport
+		jal	x0, ep_OICVT_numbTryConversion
+
+ep_OICVT_errReport:
+		or	t0,x0,$123
+		sd	t0,zpCalled(x0)
+		jalr	x0,0(rt)
+
+ep_OICVT_numbTryConversion:
+		sd	x0, zpError(x0)
+		ori	t0, x0, $AAA
+		sd	t0, zpValue(x0)
+		jalr	x0, 0(rt)
+
+		byte	"OICVT   "
+testOintSuccessfulConversion:
+		sd	ra, zpTestPC(x0)
+		jal	ra, setup_OICVT
+		jal	ra, ointInterpretLine
+		ld	a0, zpCalled(x0)
+		jal	ra, asrtIsFalse
+		or	a0, dp, x0
+		ld	a1, zpDP0(x0)
+		addi	a1, a1, -16	; two words in input stream, not one!
+		jal	ra, asrtEquals
+		or	a0, dt, x0
+		ori	a1, x0, $AAA
+		jal	ra, asrtEquals
+		ld	a0, 0(dp)
+		ori	a1, x0, $AAA
+		jal	ra, asrtEquals
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
 

@@ -4,7 +4,7 @@
 ; They each cover a range [lboundXX, uboundXX).
 
 uboundRS        = $0000000001000000
-lboundRS        = $000000000F000000
-uboundDS        = $000000000F000000
-lboundDS        = $000000000E000000
+lboundRS        = $0000000000F00000
+uboundDS        = $0000000000F00000
+lboundDS        = $0000000000E00000
 
