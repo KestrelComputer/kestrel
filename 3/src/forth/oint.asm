@@ -22,6 +22,7 @@ oIL3:		ld	t0, zpError(x0)
 		jalr	rt, 0(t0)
 		jal	x0, oIL2
 oIL1:		; word is not found; try converting it to a number here.
+		jal	ra, numbTryConversion
 oIL2:		jal	rt, dstkCheckBounds
 		jal	x0, oIL3
 

@@ -13,6 +13,7 @@ s_eL0:		addi	t0, t0, s_eL__epv-s_eL0
 s_eL__epv:	jal	x0, ep_emptyLine_ointGetAndInterpretLine
 		jal	x0, ep_emptyLine_dictLocateWord
 		jal	x0, asrtFail
+		jal	x0, asrtFail
 
 ep_emptyLine_ointGetAndInterpretLine:
 		addi	t0, x0, 1
@@ -94,7 +95,8 @@ s_OIWIL0:	addi	t1, t0, s_OIWIL_epv - s_OIWIL0
 
 s_OIWIL_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
 		jal	x0, ep_OIWIL_dictLocateWord
-		jal	x0, asrtFail
+		jalr	x0, 0(rt)		; null errReport
+		jalr	x0, 0(rt)		; null numbTryConversion
 
 ep_OIWIL_ointGetAndInterpretLine:
 		jalr	x0, 0(rt)
@@ -136,6 +138,7 @@ s_OIWIL_linelen = *-s_OIWIL_line
 
 s_OIWILF_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
 		jal	x0, ep_OIWILF_dictLocateWord
+		jal	x0, asrtFail
 		jal	x0, asrtFail
 
 ep_OIWILF_dictLocateWord:
@@ -184,6 +187,7 @@ s_OIDSU0:	addi	t1, t0, s_OIDSU_epv-s_OIDSU0
 s_OIDSU_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
 		jal	x0, ep_OIDSU_dictLocateWord
 		jal	x0, ep_OIDSU_errReport
+		jal	x0, asrtFail
 
 ep_OIDSU_dictLocateWord:
 		auipc	t0, 0
@@ -204,7 +208,7 @@ ep_OIDSU_errReport:
 		sd	t0, zpCalled(x0)
 
 		ld	a0, zpError(x0)
-		addi	a1, x0, ErrDataStackOverflow
+		addi	a1, x0, ErrDataStackUnderflow
 		jal	rt, asrtEquals
 
 		ld	rt, 0(rp)
@@ -251,6 +255,7 @@ s_OIDSO0:	addi	t1, t0, s_OIDSO_epv-s_OIDSO0
 s_OIDSO_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
 		jal	x0, ep_OIDSO_dictLocateWord
 		jal	x0, ep_OIDSO_errReport
+		jal	x0, asrtFail
 
 ep_OIDSO_dictLocateWord:
 		auipc	t0, 0
@@ -297,3 +302,49 @@ testOintDataStackOverflow:
 		jal	ra, asrtEquals
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
+
+; When looking for a word, and that word isn't found in the dictionary, then
+; the outer interpreter should attempt to convert it to a number.
+
+setup_OIACVT:	auipc	t0, 0
+s_OIACVT0:	addi	t1, t0, s_OIDSU_line-s_OIACVT0
+		sd	t1, zpLineBuffer(x0)
+		addi	t1, x0, s_OIDSU_lineLen
+		sd	t1, zpLineLength(x0)
+		addi	t1, t0, s_OIACVT_epv-s_OIACVT0
+		sd	t1, zpV(x0)
+		sd	x0, zpCalled(x0)
+		sd	x0, zpError(x0)
+		jalr	x0, 0(ra)
+
+s_OIACVT_epv:	jalr	x0, 0(rt)		; get and interpret line
+		jal	x0, ep_OIACVT_dictLocateWord
+		jal	x0, ep_OIACVT_errReport
+		jal	x0, ep_OIACVT_numbTryConversion
+
+ep_OIACVT_dictLocateWord:
+		sd	x0, zpWordFound(x0)
+		jalr	x0, 0(rt)
+
+ep_OIACVT_errReport:
+		ld	a0, zpError(x0)
+		addi	a1, x0, ErrNotNumeric
+		jal	x0, asrtEquals
+
+ep_OIACVT_numbTryConversion:
+		ori	t0, x0, 1
+		sd	t0, zpCalled(x0)
+		addi	t0, x0, ErrNotNumeric
+		sd	t0, zpError(x0)
+		jalr	x0, 0(rt)
+
+		byte	"OIACVT  "
+testOintAttemptConversion:
+		sd	ra, zpTestPC(x0)
+		jal	ra, setup_OIACVT
+		jal	ra, ointInterpretLine
+		ld	a0, zpCalled(x0)
+		jal	ra, asrtIsTrue
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+

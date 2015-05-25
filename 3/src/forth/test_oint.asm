@@ -12,7 +12,8 @@
 
 epv_ointGetAndInterpretLine	= 0
 epv_dictLocateWord		= epv_ointGetAndInterpretLine+4
-epv_errReport			= epv_dictLocateWord+8
+epv_errReport			= epv_dictLocateWord+4
+epv_numbTryConversion		= epv_errReport+4
 
 ointGetAndInterpretLine:
 		ld	t0, zpV(x0)
@@ -29,6 +30,9 @@ dictIsWordFound:
 errReport:	ld	t0, zpV(x0)
 		jalr	x0, epv_errReport(t0)
 
+numbTryConversion:
+		ld	t0, zpV(x0)
+		jalr	x0, epv_numbTryConversion(t0)
 
 		include "tests/oint.asm"
 
@@ -39,13 +43,14 @@ errReport:	ld	t0, zpV(x0)
 		align 4
 start_tests:	jal	a0, asrtBoot
 		align	8
-		dword	6
+		dword	7
 		dword	romBase+testOintEmptyLine
 		dword	romBase+testOintBlankLine
 		dword	romBase+testOintWordInLine
 		dword	romBase+testOintWordInLineFound
 		dword	romBase+testOintDataStackUnderflow
 		dword	romBase+testOintDataStackOverflow
+		dword	romBase+testOintAttemptConversion
 
 		; Must be the very last thing in the ROM image.
 		include "asrt.asm"
