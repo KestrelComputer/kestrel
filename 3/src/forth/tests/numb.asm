@@ -94,6 +94,8 @@ ep_numbneg_eitherHexOrDecimal:
 		ld	a0, zpWordIndex(x0)
 		ori	a1, x0, 1
 		jal	ra, asrtEquals
+		addi	a0, x0, 1234
+		sd	a0, zpValue(x0)
 		ld	rt, 0(rp)
 		addi	rp, rp, 8
 		jalr	x0, 0(rt)
@@ -112,6 +114,9 @@ testNumbNegativeStart:
 		jal	ra, numbneg_setword
 		sb	x0, zpSign(x0)
 		jal	ra, numbTryConversion
+		ld	a0, zpValue(x0)
+		addi	a1, x0, -1234
+		jal	ra, asrtEquals
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
 

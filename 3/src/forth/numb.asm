@@ -13,7 +13,13 @@ numbTryConversion:
 		sb	a1, zpSign(x0)
 		jal	rt, numbEatChar
 nTC0:		jal	rt, numbEitherHexOrDecimal
-		ld	s0, 8(rp)
+		lb	a0, zpSign(x0)
+		beq	a0, x0, nTC1
+		ld	a0, zpValue(x0)
+		xori	a0, a0, -1
+		addi	a0, a0, 1
+		sd	a0, zpValue(x0)
+nTC1:		ld	s0, 8(rp)
 		sd	s0, zpBase(x0)
 		ld	rt, 0(rp)
 		addi	rp, rp, 16
