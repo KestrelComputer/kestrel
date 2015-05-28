@@ -81,3 +81,37 @@ testNumbPositiveStart:
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
 
+; If attempting to convert a negative number, we expect the sign flag to be set.
+
+numbneg_setv:	jal	a0, setvecs
+		jal	x0, ep_numbneg_eitherHexOrDecimal
+
+ep_numbneg_eitherHexOrDecimal:
+		addi	rp, rp, -8
+		sd	rt, 0(rp)
+		lb	a0, zpSign(x0)
+		jal	ra, asrtIsTrue
+		ld	a0, zpWordIndex(x0)
+		ori	a1, x0, 1
+		jal	ra, asrtEquals
+		ld	rt, 0(rp)
+		addi	rp, rp, 8
+		jalr	x0, 0(rt)
+
+numbneg_setword:
+		addi	a1, x0, numbneg_wordlen
+		jal	a0, setword
+numbneg0:	byte	"-1234"
+numbneg_wordlen = *-numbneg0
+		align	4
+
+		byte	"NUMBNEG "
+testNumbNegativeStart:
+		sd	ra, zpTestPC(x0)
+		jal	ra, numbneg_setv
+		jal	ra, numbneg_setword
+		sb	x0, zpSign(x0)
+		jal	ra, numbTryConversion
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
