@@ -20,4 +20,12 @@ zpRP0				= zpWordFound + 8
 zpDP0				= zpRP0 + 8
 zpRPL				= zpDP0 + 8
 zpDPL				= zpRPL + 8
+zpSign				= zpDPL + 8
+zpReserved1			= zpSign + 1
+zpReserved2			= zpReserved1 + 1
+zpReserved3			= zpReserved2 + 1
+zpReserved4			= zpReserved3 + 1
+zpReserved5			= zpReserved4 + 1
+zpReserved6			= zpReserved5 + 1
+zpReserved7			= zpReserved6 + 1
 

@@ -62,3 +62,22 @@ testNumbWordStart:
 		jal	ra, numbTryConversion
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
+
+; Always assume a positive number by default when attempting to convert a number.
+
+numbpos_setv:	jal	a0, setvecs
+		jalr	x0, 0(rt)	; null eitherHexOrDecimal
+
+		byte	"NUMBPOS "
+testNumbPositiveStart:
+		sd	ra, zpTestPC(x0)
+		jal	ra, numbpos_setv
+		jal	ra, numbbgn_setword
+		ori	a0, x0, 1
+		sb	a0, zpSign(x0)
+		jal	ra, numbTryConversion
+		lb	a0, zpSign(x0)
+		jal	ra, asrtIsZero
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
