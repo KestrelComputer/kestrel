@@ -1,6 +1,6 @@
 		include "asrt.i"
 
-		include "tests/numb.asm"
+		include "tests/numb/tryConversion.asm"
 		include "numb.asm"
 
 
