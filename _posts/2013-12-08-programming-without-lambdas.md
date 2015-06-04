@@ -162,8 +162,8 @@ It turns out we can deploy these programs in a larger system in several differen
 The following figures illustrates two approaches.
 
 <div class="row">
-    <div class="col-md-6 img-responsive" style="text-align: center"><img src="{{site.url}}/images/addmul-arch-ex-1.dot.svg" /></div>
-    <div class="col-md-6 img-responsive" style="text-align: center"><img src="{{site.url}}/images/addmul-arch-ex-2.dot.svg" /></div>
+    <div class="col-md-6 img-responsive" style="text-align: center"><img src="{{site.baseurl}}/images/addmul-arch-ex-1.dot.svg" /></div>
+    <div class="col-md-6 img-responsive" style="text-align: center"><img src="{{site.baseurl}}/images/addmul-arch-ex-2.dot.svg" /></div>
 </div>
 
 The first figure shows how both modules may draw their inputs from a shared set of variables, and deposits their results similarly into a shared output variable.
