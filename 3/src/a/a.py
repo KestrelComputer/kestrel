@@ -272,7 +272,7 @@ class SBInsn(SInsn):
             raise Exception("Integer expected for displacement")
         rs1 = rs1.a
         rs2 = rs2.a
-        disp = disp.a - (self.lc + 4)
+        disp = disp.a - self.lc
         asm.seg.putSB(self.insn, rs1, rs2, disp)
 
 
@@ -338,7 +338,7 @@ class UJInsn(object):
         if (rd.kind != EN_INT) or (disp.kind != EN_INT):
             raise Exception("Pass 2 error: Undefined symbols?")
         rd = rd.a & 0x1F
-        disp = (disp.a & 0x3FFFFE) - (self.lc + 4)
+        disp = (disp.a & 0x3FFFFE) - self.lc
         asm.seg.putUJ(self.insn, rd, disp)
 
 
