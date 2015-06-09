@@ -20,6 +20,7 @@ title: Kestrel
 	</div>
 	<div class="col-md-4">
 		<h3>Latest Posts</h3>
+		<p><a href="{{site.baseurl}}/atom.xml">(ATOM Feed)</a></p>
 		<dl class="dl-horizontal">
 			{% for post in site.posts %}
 				<dt>{{ post.date | date_to_string }}</dt><dd><a href="{{ site.baseurl }}{{ post.url }}">{{ post.title }}</a></dd>

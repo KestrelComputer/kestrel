@@ -1,0 +1,25 @@
+---
+layout: nil
+---
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>Software Survivalist</title>
+  <link href="http://sam-falvo.github.io/kestrel/atom" rel="self"/>
+  <link href="http://sam-falvo.github.io/kestrel"/>
+  <updated>{{ site.time | date_to_xmlschema }}</updated>
+  <id>http://sam-falvo.github.io/kestrel</id>
+  <author>
+    <name>Samuel A. Falvo II</name>
+    <email>kc5tja@arrl.net</email>
+  </author>
+  {% for post in site.posts %}
+    <entry>
+      <title>{{ post.title }}</title>
+      <link href="http://sam-falvo.github.io{{ post.url }}"/>
+      <updated>{{ post.date | date_to_xmlschema }}</updated>
+      <id>http://sam-falvo.github.io/kestrel{{ post.id }}</id>
+      <content type="html">{{ post.content | xml_escape }}</content>
+    </entry>
+  {% endfor %}
+</feed>
+
