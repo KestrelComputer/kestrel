@@ -555,13 +555,13 @@ void processor_eret(Processor *p) {
 void processor_step(Processor *p) {
 	WORD ir;
 	int opc, rd, fn3, rs1, rs2, imm12, imm12s, disp12;
-	DWORD imm20;
-	DWORD disp20;
+	DWORD imm20, disp20, ia;
 
 	if(!p->running) return;
 
-	ir = address_space_fetch_word(p->as, p->pc);
-	p->pc = p->pc + 4;
+	ia = p->pc;
+	ir = address_space_fetch_word(p->as, ia);
+	p->pc = ia + 4;
 
 	/* This takes a bunch of time.  But it's still faster than live FPGA hardware.  ;) */
 	opc = ir & 0x7F;
@@ -599,7 +599,7 @@ void processor_step(Processor *p) {
 		// JAL
 		case 0x6F:
 			p->x[rd] = p->pc;
-			p->pc = p->pc + disp20;
+			p->pc = ia + disp20;
 			break;
 
 		// JALR
@@ -613,12 +613,12 @@ void processor_step(Processor *p) {
 			switch(fn3) {
 				case 0: // BEQ
 					if(p->x[rs1] == p->x[rs2])
-						p->pc += disp12;
+						p->pc = ia + disp12;
 					break;
 
 				case 1: // BNE
 					if(p->x[rs1] != p->x[rs2])
-						p->pc += disp12;
+						p->pc = ia + disp12;
 					break;
 
 				case 2: // unused
@@ -629,22 +629,22 @@ void processor_step(Processor *p) {
 
 				case 4: // BLT
 					if((DWORD)(p->x[rs1]) < (DWORD)(p->x[rs2]))
-						p->pc += disp12;
+						p->pc = ia + disp12;
 					break;
 
 				case 5: // BGE
 					if((DWORD)(p->x[rs1]) >= (DWORD)(p->x[rs2]))
-						p->pc += disp12;
+						p->pc = ia + disp12;
 					break;
 
 				case 6: // BLTU
 					if((UDWORD)(p->x[rs1]) < (UDWORD)(p->x[rs2]))
-						p->pc += disp12;
+						p->pc = ia + disp12;
 					break;
 
 				case 7: // BGEU
 					if((UDWORD)(p->x[rs1]) >= (UDWORD)(p->x[rs2]))
-						p->pc += disp12;
+						p->pc = ia + disp12;
 					break;
 			}
 			break;
