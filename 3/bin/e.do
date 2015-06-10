@@ -1,3 +1,3 @@
-redo-ifchange ../src/e/e.c
-gcc -o $3 ../src/e/e.c
-
+SRC=../src/e
+redo-ifchange $SRC/*.c $SRC/*.h
+gcc -o $3 -I $SRC $SRC/e.c $SRC/address_space.c $SRC/processor.c $SRC/options.c
