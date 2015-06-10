@@ -9,4 +9,10 @@ struct Options {
 };
 
 
+struct interface_Options {
+	Options *(*make)(int argc, char *argv[]);
+};
+
+extern const struct interface_Options module_Options;
+
 #endif

@@ -10,21 +10,20 @@
 
 #include "types.h"
 #include "config.h"
-
-
-static struct termios stored_settings;
-
-
 #include "options.h"
 #include "address_space.h"
 #include "processor.h"
-
 
 extern const struct interface_AddressSpace module_AddressSpace;
 static const struct interface_AddressSpace const *as = &module_AddressSpace;
 
 extern const struct interface_Processor module_Processor;
 static const struct interface_Processor *pp = &module_Processor;
+
+extern const struct interface_Options module_Options;
+static const struct interface_Options *oo = &module_Options;
+
+static struct termios stored_settings;
 
 
 void console_1char_mode(void) {
@@ -47,43 +46,12 @@ void console_line_mode(void) {
 
 
 
-Options *options_new() {
-	Options *opts = (Options *)malloc(sizeof(Options));
-	if(opts) {
-		memset(opts, 0, sizeof(Options));
-	}
-	return opts;
-}
-
-
-Options *options_get(int argc, char *argv[]) {
-	Options *opts = options_new();
-	int i = 1;
-
-	for(;;) {
-		if(i >= (argc - 1)) break;
-
-		if(!strcmp(argv[i], "romfile")) {
-			opts->romFilename = argv[i+1];
-			i = i + 2;
-		} else {
-			fprintf(stderr, "Warning: unknown option %s\n", argv[i]);
-			i++;
-		}
-	}
-
-	return opts;
-}
-
-
 int run(int argc, char *argv[]) {
-	Options *opts = NULL;
 	Processor *p = NULL;
 
 	printf("This is e, the Polaris 64-bit RISC-V architecture emulator.\n");
 	printf("Version %d.%d.%d.\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-	opts = options_get(argc, argv);
-	p = pp->make(as->make(opts));
+	p = pp->make(as->make(oo->make(argc, argv)));
 
 	while(p->running) {
 		pp->step(p);
