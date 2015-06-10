@@ -3,6 +3,7 @@
 		include "tests/numb/tryConversion.asm"
 		include "tests/numb/nextChar.asm"
 		include "numb_tryConversion.asm"
+		include "numb_nextChar.asm"
 
 
 epv_numbEitherHexOrDecimal = 0
