@@ -25,6 +25,8 @@ ep_numbdec_tryUnsigned:
 		addi	a1, x0, 10
 		sd	a1, zpCalled(x0)
 		jal	ra, asrtEquals
+		ld	a0, zpWordIndex(x0)
+		jal	ra, asrtIsFalse
 		ld	rt, 0(rp)
 		addi	rp, rp, 8
 		jalr	x0, 0(rt)
@@ -34,6 +36,7 @@ ep_numbdec_tryUnsigned:
 testNumbDecimal:
 		sd	ra, zpTestPC(x0)
 		sd	x0, zpCalled(x0)
+		sd	x0, zpWordIndex(x0)
 		addi	a0, x0, 10
 		sd	a0, zpBase(x0)
 		jal	ra, numbdec_setWord
@@ -68,6 +71,9 @@ ep_numbhex_tryUnsigned:
 		addi	a1, x0, 16
 		sd	a1, zpCalled(x0)
 		jal	ra, asrtEquals
+		ld	a0, zpWordIndex(x0)
+		addi	a1, x0, 1
+		jal	ra, asrtEquals
 		ld	rt, 0(rp)
 		addi	rp, rp, 8
 		jalr	x0, 0(rt)
@@ -77,6 +83,7 @@ ep_numbhex_tryUnsigned:
 testNumbHex:
 		sd	ra, zpTestPC(x0)
 		sd	x0, zpCalled(x0)
+		sd	x0, zpWordIndex(x0)
 		addi	a0, x0, 10
 		sd	a0, zpBase(x0)
 		jal	ra, numbhex_setWord

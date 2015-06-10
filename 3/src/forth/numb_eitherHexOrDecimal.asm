@@ -7,10 +7,12 @@ numbEitherHexOrDecimal:
 		jal	ra, numbNextChar
 		addi	a1, x0, 36
 		bne	a0, a1, nEHOD_assumeDec
+		jal	ra, numbEatChar
 		addi	a0, x0, 16
 		sd	a0, zpBase(x0)
 nEHOD_assumeDec:
 		jal	rt, numbTryUnsignedNumber
+
 		ld	a0, 8(rp)
 		sd	a0, zpBase(x0)
 		ld	rt, 0(rp)
