@@ -2,14 +2,14 @@
 
 		include "tests/numb/tryConversion.asm"
 		include "tests/numb/nextChar.asm"
-		include "numb.asm"
+		include "numb_tryConversion.asm"
 
 
 epv_numbEitherHexOrDecimal = 0
 
 
 numbEitherHexOrDecimal:
-		ld	t0,zpV(x0)
+		ld	t0, zpV(x0)
 		jalr	x0, epv_numbEitherHexOrDecimal(t0)
 
 
