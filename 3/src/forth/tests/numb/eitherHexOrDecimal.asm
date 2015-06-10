@@ -96,3 +96,54 @@ testNumbHex:
 		jal	ra, asrtEquals
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
+
+; A word with non-numeric characters in it should not convert all the way.
+; When we discover this condition, we should set an error condition.
+
+numberr_setvecs:
+		jal	a0, setvecs
+		jal	x0, ep_numberr_tryUnsigned
+
+ep_numberr_tryUnsigned:
+		jalr	x0, 0(rt)
+
+		addi	rp, rp, -8
+		byte	"NUMBERR "
+testNumbErr:
+		sd	ra, zpTestPC(x0)
+		sd	x0, zpError(x0)
+		jal	ra, numbhex_setWord
+		jal	ra, numberr_setvecs
+		jal	ra, numbEitherHexOrDecimal
+		ld	a0, zpError(x0)
+		addi	a1, x0, ErrNotNumeric
+		jal	ra, asrtEquals
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
+
+; A word with all numeric characters in it should convert all the way.
+
+numbnerr_setvecs:
+		jal	a0, setvecs
+		jal	x0, ep_numbnerr_tryUnsigned
+
+ep_numbnerr_tryUnsigned:
+		ld	a0, zpWordLength(x0)
+		sd	a0, zpWordIndex(x0)
+		jalr	x0, 0(rt)
+
+		addi	rp, rp, -8
+		byte	"NUMBNERR"
+testNumbNoErr:
+		sd	ra, zpTestPC(x0)
+		sd	x0, zpError(x0)
+		jal	ra, numbhex_setWord
+		jal	ra, numbnerr_setvecs
+		jal	ra, numbEitherHexOrDecimal
+		ld	a0, zpError(x0)
+		jal	ra, asrtIsFalse
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
+

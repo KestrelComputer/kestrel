@@ -1,5 +1,6 @@
 		include "asrt.i"
 
+		include "err.asm"
 		include "tests/numb/eitherHexOrDecimal.asm"
 		include "numb_eitherHexOrDecimal.asm"
 		include "numb_nextChar.asm"
@@ -16,9 +17,11 @@ numbTryUnsignedNumber:
 		align 4
 start_tests:	jal	a0, asrtBoot
 		align	8
-		dword	2
+		dword	4
 		dword	romBase+testNumbDecimal
 		dword	romBase+testNumbHex
+		dword	romBase+testNumbErr
+		dword	romBase+testNumbNoErr
 
 		; Must be the very last thing in the ROM image.
 		include "asrt.asm"

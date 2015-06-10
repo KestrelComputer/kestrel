@@ -13,7 +13,13 @@ numbEitherHexOrDecimal:
 nEHOD_assumeDec:
 		jal	rt, numbTryUnsignedNumber
 
-		ld	a0, 8(rp)
+		ld	a0, zpWordIndex(x0)
+		ld	a1, zpWordLength(x0)
+		bge	a0, a1, nEHOD_isnumber
+		addi	a0, x0, ErrNotNumeric
+		sd	a0, zpError(x0)
+
+nEHOD_isnumber: ld	a0, 8(rp)
 		sd	a0, zpBase(x0)
 		ld	rt, 0(rp)
 		addi	rp, rp, 16
