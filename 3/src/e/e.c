@@ -8,82 +8,21 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "types.h"
+#include "config.h"
+
 
 static struct termios stored_settings;
 
 
-enum {
-	VERSION_MAJOR	= 0,
-	VERSION_MINOR	= 2,
-	VERSION_PATCH	= 0,
-
-	MB		= 1048576L,
-
-	MAX_DEVS	= 16,
-	DEV_MASK	= 0x0F00000000000000,
-	CARD_MASK	= 0xF000000000000000,
-
-	ROM_SIZE	= 65536,
-	ROM_MASK	= ROM_SIZE-1,
-	PHYS_RAM_SIZE	= 16*MB,
-	PHYS_RAM_MASK	= PHYS_RAM_SIZE - 1,
-	PHYS_ADDR_SIZE	= 32*MB,
-
-	r_MCPUID	= 0xF00,
-	r_MIMPID	= 0xF01,
-	r_MHARTID	= 0xF10,
-	r_MSTATUS	= 0x300,
-	r_MTVEC		= 0x301,
-	r_MDELEG	= 0x302,
-	r_MEPC		= 0x341,
-	r_MBADADDR	= 0x343,
-	r_MCAUSE	= 0x342,
-};
-
-
-enum {
-	i_MCPUID	= 0,
-	i_MIMPID,
-	i_MHARTID,
-	i_MSTATUS,
-	i_MTVEC,
-	i_MDELEG,
-	i_MEPC,
-	i_MBADADDR,
-	i_MCAUSE,
-	i_MAXCSR
-};
-
-
-typedef signed char		BYTE;
-typedef signed short		HWORD;
-typedef signed long		WORD;
-typedef signed long long	DWORD;
-
-typedef unsigned char		UBYTE;
-typedef unsigned short		UHWORD;
-typedef unsigned long		UWORD;
-typedef unsigned long long	UDWORD;
-
-typedef struct AddressSpace	AddressSpace;
-typedef struct Options		Options;
 typedef struct Processor	Processor;
 
-typedef void (*WRFUNC)(AddressSpace *, UDWORD, UDWORD, int);
-typedef UDWORD (*RDFUNC)(AddressSpace *, UDWORD, int);
 
+#include "options.h"
+#include "address_space.h"
 
-struct AddressSpace {
-	UBYTE	*rom;
-	UBYTE	*ram;
-	WRFUNC	writers[MAX_DEVS];
-	RDFUNC	readers[MAX_DEVS];
-};
-
-
-struct Options {
-	char *	romFilename;
-};
+extern const struct interface_AddressSpace module_AddressSpace;
+static const struct interface_AddressSpace const *as = &module_AddressSpace;
 
 
 struct Processor {
@@ -113,318 +52,6 @@ void console_line_mode(void) {
 	tcsetattr(0,TCSANOW,&stored_settings);
 }
 
-
-AddressSpace *address_space_new(void) {
-	AddressSpace *as = (AddressSpace*)malloc(sizeof(AddressSpace));
-	if(as) {
-		memset(as, 0, sizeof(AddressSpace));
-	}
-	return as;
-}
-
-
-void address_space_ram_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
-	addr &= ~(DEV_MASK | CARD_MASK);
-	if(addr > PHYS_RAM_MASK) {
-		fprintf(stderr, "Warning: writing $%016llX to mirrored RAM at $%016llX, size code %d\n", b, addr, sz);
-	}
-	switch(sz) {
-	case 0:
-		as->ram[addr & PHYS_RAM_MASK] = b;
-		break;
-
-	case 1:
-		as->ram[addr & PHYS_RAM_MASK] = b;
-		as->ram[(addr+1) & PHYS_RAM_MASK] = b >> 8;
-		break;
-
-	case 2:
-		as->ram[addr & PHYS_RAM_MASK] = b;
-		as->ram[(addr+1) & PHYS_RAM_MASK] = b >> 8;
-		as->ram[(addr+2) & PHYS_RAM_MASK] = b >> 16;
-		as->ram[(addr+3) & PHYS_RAM_MASK] = b >> 24;
-		break;
-
-	case 3:
-		as->ram[addr & PHYS_RAM_MASK] = b;
-		as->ram[(addr+1) & PHYS_RAM_MASK] = b >> 8;
-		as->ram[(addr+2) & PHYS_RAM_MASK] = b >> 16;
-		as->ram[(addr+3) & PHYS_RAM_MASK] = b >> 24;
-		as->ram[(addr+4) & PHYS_RAM_MASK] = b >> 32;
-		as->ram[(addr+5) & PHYS_RAM_MASK] = b >> 40;
-		as->ram[(addr+6) & PHYS_RAM_MASK] = b >> 48;
-		as->ram[(addr+7) & PHYS_RAM_MASK] = b >> 56;
-		break;
-	}
-}
-
-
-#define RAMF(a) (UDWORD)(as->ram[(a) & PHYS_RAM_MASK])
-
-UDWORD address_space_ram_reader(AddressSpace *as, UDWORD addr, int sz) {
-	addr &= ~(DEV_MASK | CARD_MASK);
-	if(addr > PHYS_RAM_MASK) {
-		fprintf(stderr, "Warning: reading mirrored RAM at $%016llX\n", addr);
-	}
-	switch(sz) {
-	case 0:
-		return RAMF(addr);
-
-	case 1:
-		return (RAMF(addr)
-			| (RAMF(addr+1) << 8));
-
-	case 2:
-		return (RAMF(addr)
-			| (RAMF(addr+1) << 8)
-			| (RAMF(addr+2) << 16)
-			| (RAMF(addr+3) << 24));
-
-	case 3:
-		return (RAMF(addr)
-			| (RAMF(addr+1) << 8)
-			| (RAMF(addr+2) << 16)
-			| (RAMF(addr+3) << 24)
-			| (RAMF(addr+4) << 32)
-			| (RAMF(addr+5) << 40)
-			| (RAMF(addr+6) << 48)
-			| (RAMF(addr+7) << 56));
-	}
-	fprintf(stderr, "Read of unknown size at address $%016llX\n", addr);
-	return 0xDDDDDDDD;
-}
-
-
-#define ROMF(a) (UDWORD)(as->rom[(a) & ROM_MASK])
-UDWORD address_space_rom_reader(AddressSpace *as, UDWORD addr, int sz) {
-	addr |= DEV_MASK | CARD_MASK;
-	if((addr | ROM_MASK) != -1) {
-		fprintf(stderr, "Warning: reading mirrored ROM at $%016llX\n", addr);
-	}
-	switch(sz) {
-	case 0:
-		return ROMF(addr);
-
-	case 1:
-		return (ROMF(addr)
-			| (ROMF(addr+1) << 8));
-
-	case 2:
-		return (ROMF(addr)
-			| (ROMF(addr+1) << 8)
-			| (ROMF(addr+2) << 16)
-			| (ROMF(addr+3) << 24));
-
-	case 3:
-		return (ROMF(addr)
-			| (ROMF(addr+1) << 8)
-			| (ROMF(addr+2) << 16)
-			| (ROMF(addr+3) << 24)
-			| (ROMF(addr+4) << 32)
-			| (ROMF(addr+5) << 40)
-			| (ROMF(addr+6) << 48)
-			| (ROMF(addr+7) << 56));
-	}
-	fprintf(stderr, "Read of unknown size at address $%016llX\n", addr);
-	return 0xDDDDDDDD;
-}
-
-
-void address_space_uart_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
-	addr &= ~(DEV_MASK | CARD_MASK);
-	switch(addr & 1) {
-	case 0:		printf("%c", (BYTE)b); fflush(stdout); break;
-	default:	break;
-	}
-}
-
-
-int debug_port_has_data() {
-	fd_set fds;
-	struct timeval tv = {0,};
-	FD_ZERO(&fds);
-	FD_SET(0, &fds);
-	select(1, &fds, NULL, NULL, &tv);
-	return FD_ISSET(0, &fds) != 0;
-}
-
-UDWORD address_space_uart_reader(AddressSpace *as, UDWORD addr, int sz) {
-	int n;
-	BYTE c;
-
-	addr &= ~(DEV_MASK | CARD_MASK);
-	switch(addr & 1) {
-	case 0:		return debug_port_has_data();
-	case 1:
-		for(n = 0; !n; n = read(1, &c, 1));
-		return c;
-	}
-	return 0;
-}
-
-
-void address_space_no_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
-	fprintf(stderr, "Error: Writing $%016llX to address $%016llX\n", b, addr);
-}
-
-
-UDWORD address_space_no_reader(AddressSpace *as, UDWORD addr, int sz) {
-	fprintf(stderr, "Error: Reading from address $%016llX; returning $CC\n", addr);
-	return 0xCCCCCCCCCCCCCCCC;
-}
-
-
-AddressSpace *address_space_configure(Options *opts) {
-	AddressSpace *as = address_space_new();
-	FILE *romFile;
-	int n, overflow;
-
-	assert(opts);
-	assert(opts->romFilename);
-
-	as->rom = (UBYTE *)malloc(ROM_SIZE);
-	memset(as->rom, 0, ROM_SIZE);
-	romFile = fopen(opts->romFilename, "rb");
-	if(!romFile) {
-		fprintf(stderr, "Cannot open ROM file %s\n", opts->romFilename);
-		exit(1);
-	}
-	n = fread(as->rom, 1, ROM_SIZE, romFile);
-	if(n == ROM_SIZE) {
-		n = fread(&overflow, 1, 1, romFile);
-		if(n == 1) {
-			fprintf(stderr, "ROM file is too big; should be %d bytes.\n", ROM_SIZE);
-			fclose(romFile);
-			exit(1);
-		}
-	}
-	fclose(romFile);
-
-	as->ram = (UBYTE *)malloc(PHYS_RAM_SIZE);
-	if(!as->ram) {
-		fprintf(stderr, "Cannot allocate physical RAM for emulated computer.\n");
-		exit(1);
-	}
-
-	for(n = 0; n < MAX_DEVS; n++) {
-		as->writers[n] = address_space_no_writer;
-		as->readers[n] = address_space_no_reader;
-	}
-	as->readers[15] = address_space_rom_reader;
-	as->writers[0] = address_space_ram_writer;
-	as->readers[0] = address_space_ram_reader;
-	as->writers[14] = address_space_uart_writer;
-	as->readers[14] = address_space_uart_reader;
-
-	for(n = 0; n < MAX_DEVS; n++) {
-		assert(as->writers[n]);
-		assert(as->readers[n]);
-	}
-	assert(as->rom);
-	assert(as->ram);
-	return as;
-}
-
-int address_space_valid_card(DWORD address) {
-	int card = (address & CARD_MASK) >> 60;
-	int element = 1 << card;
-	return (element & 0x8003) != 0;		// Cards 0, 1, and 15 are valid.
-}
-
-void address_space_store_byte(AddressSpace *as, DWORD address, BYTE datum) {
-	int dev = (address & DEV_MASK) >> 56;
-	if(!address_space_valid_card(address)) {
-		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
-		return;
-	}
-	assert(as->writers);
-	assert(as->writers[dev]);
-	as->writers[dev](as, address, datum, 0);
-}
-
-
-void address_space_store_hword(AddressSpace *as, DWORD address, UHWORD datum) {
-	int dev = (address & DEV_MASK) >> 56;
-	if(!address_space_valid_card(address)) {
-		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
-		return;
-	}
-	assert(as->writers);
-	assert(as->writers[dev]);
-	as->writers[dev](as, address, datum, 1);
-}
-
-
-void address_space_store_word(AddressSpace *as, DWORD address, UWORD datum) {
-	int dev = (address & DEV_MASK) >> 56;
-	if(!address_space_valid_card(address)) {
-		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
-		return;
-	}
-	assert(as->writers);
-	assert(as->writers[dev]);
-	as->writers[dev](as, address, datum, 2);
-}
-
-
-void address_space_store_dword(AddressSpace *as, DWORD address, UDWORD datum) {
-	int dev = (address & DEV_MASK) >> 56;
-	if(!address_space_valid_card(address)) {
-		fprintf(stderr, "Warning: attempt to write to %016llX.\n", address);
-		return;
-	}
-	assert(as->writers);
-	assert(as->writers[dev]);
-	as->writers[dev](as, address, datum, 3);
-}
-
-
-BYTE address_space_fetch_byte(AddressSpace *as, DWORD address) {
-	int dev = (address & DEV_MASK) >> 56;
-	if(!address_space_valid_card(address)) {
-		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCC\n", address);
-		return 0xCC;
-	}
-	assert(as->readers);
-	assert(as->readers[dev]);
-	return as->readers[dev](as, address, 0);
-}
-
-
-HWORD address_space_fetch_hword(AddressSpace *as, DWORD address) {
-	int dev = (address & DEV_MASK) >> 56;
-	if(!address_space_valid_card(address)) {
-		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCCCC\n", address);
-		return 0xCCCC;
-	}
-	assert(as->readers);
-	assert(as->readers[dev]);
-	return as->readers[dev](as, address, 1);
-}
-
-
-WORD address_space_fetch_word(AddressSpace *as, DWORD address) {
-	int dev = (address & DEV_MASK) >> 56;
-	if(!address_space_valid_card(address)) {
-		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCCCCCCCC\n", address);
-		return 0xCCCCCCCC;
-	}
-	assert(as->readers);
-	assert(as->readers[dev]);
-	return as->readers[dev](as, address, 2);
-}
-
-
-DWORD address_space_fetch_dword(AddressSpace *as, DWORD address) {
-	int dev = (address & DEV_MASK) >> 56;
-	if(!address_space_valid_card(address)) {
-		fprintf(stderr, "Warning: attempt to read from %016llX; returning 0xCCCCCCCCCCCCCCCC\n", address);
-		return 0xCCCCCCCCCCCCCCCC;
-	}
-	assert(as->readers);
-	assert(as->readers[dev]);
-	return as->readers[dev](as, address, 3);
-}
 
 
 Options *options_new() {
@@ -560,7 +187,7 @@ void processor_step(Processor *p) {
 	if(!p->running) return;
 
 	ia = p->pc;
-	ir = address_space_fetch_word(p->as, ia);
+	ir = as->fetch_word(p->as, ia);
 	p->pc = ia + 4;
 
 	/* This takes a bunch of time.  But it's still faster than live FPGA hardware.  ;) */
@@ -653,39 +280,39 @@ void processor_step(Processor *p) {
 		case 0x03:
 			switch(fn3) {
 				case 0: // LB
-					p->x[rd] = address_space_fetch_byte(p->as, p->x[rs1] + imm12);
+					p->x[rd] = as->fetch_byte(p->as, p->x[rs1] + imm12);
 					p->x[rd] |= -(p->x[rd] & 0x80);
 					break;
 
 				case 1: // LH
-					p->x[rd] = address_space_fetch_hword(p->as, p->x[rs1] + imm12);
+					p->x[rd] = as->fetch_hword(p->as, p->x[rs1] + imm12);
 					p->x[rd] |= -(p->x[rd] & 0x8000);
 					break;
 
 				case 2: // LW
-					p->x[rd] = address_space_fetch_word(p->as, p->x[rs1] + imm12);
+					p->x[rd] = as->fetch_word(p->as, p->x[rs1] + imm12);
 					p->x[rd] |= -(p->x[rd] & 0x80000000);
 					break;
 
 				case 3: // LD
-					p->x[rd] = address_space_fetch_dword(p->as, p->x[rs1] + imm12);
+					p->x[rd] = as->fetch_dword(p->as, p->x[rs1] + imm12);
 					// p->x[rd] |= -(p->x[rd] & 0x8000000000000000);
 					break;
 
 				case 4: // LBU
-					p->x[rd] = address_space_fetch_byte(p->as, p->x[rs1] + imm12);
+					p->x[rd] = as->fetch_byte(p->as, p->x[rs1] + imm12);
 					break;
 
 				case 5: // LHU
-					p->x[rd] = address_space_fetch_hword(p->as, p->x[rs1] + imm12);
+					p->x[rd] = as->fetch_hword(p->as, p->x[rs1] + imm12);
 					break;
 
 				case 6: // LWU
-					p->x[rd] = address_space_fetch_word(p->as, p->x[rs1] + imm12);
+					p->x[rd] = as->fetch_word(p->as, p->x[rs1] + imm12);
 					break;
 
 				case 7: // LDU
-					p->x[rd] = address_space_fetch_dword(p->as, p->x[rs1] + imm12);
+					p->x[rd] = as->fetch_dword(p->as, p->x[rs1] + imm12);
 					break;
 			}
 			break;
@@ -693,19 +320,19 @@ void processor_step(Processor *p) {
 		case 0x23:
 			switch(fn3) {
 				case 0: // SB
-					address_space_store_byte(p->as, p->x[rs1]+imm12s, p->x[rs2]);
+					as->store_byte(p->as, p->x[rs1]+imm12s, p->x[rs2]);
 					break;
 
 				case 1: // SH
-					address_space_store_hword(p->as, p->x[rs1]+imm12s, p->x[rs2]);
+					as->store_hword(p->as, p->x[rs1]+imm12s, p->x[rs2]);
 					break;
 
 				case 2: // SW
-					address_space_store_word(p->as, p->x[rs1]+imm12s, p->x[rs2]);
+					as->store_word(p->as, p->x[rs1]+imm12s, p->x[rs2]);
 					break;
 
 				case 3: // SD
-					address_space_store_dword(p->as, p->x[rs1]+imm12s, p->x[rs2]);
+					as->store_dword(p->as, p->x[rs1]+imm12s, p->x[rs2]);
 					break;
 
 				default:
@@ -869,14 +496,14 @@ void processor_step(Processor *p) {
 
 int run(int argc, char *argv[]) {
 	Options *opts = NULL;
-	AddressSpace *as = NULL;
+	AddressSpace *a = NULL;
 	Processor *p = NULL;
 
 	printf("This is e, the Polaris 64-bit RISC-V architecture emulator.\n");
 	printf("Version %d.%d.%d.\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 	opts = options_get(argc, argv);
-	as = address_space_configure(opts);
-	p = processor_new(as);
+	a = as->make(opts);
+	p = processor_new(a);
 
 	while(p->running) {
 		processor_step(p);

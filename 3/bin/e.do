@@ -1,3 +1,4 @@
-redo-ifchange ../src/e/e.c
-gcc -o $3 ../src/e/e.c
+SRC=../src/e
+redo-ifchange $SRC/e.c $SRC/address_space.[ch]
+gcc -o $3 -I $SRC $SRC/e.c $SRC/address_space.c
 
