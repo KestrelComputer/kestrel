@@ -33,3 +33,48 @@ tINW1:		beq	s6, x0, tINW0
 tINW0:		ld	ra, zpTestPC(x0)
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
+
+; Is a character a lowercase letter?
+
+		byte	"charLCLp"
+testCharIsLowercasePositive:
+		sd	ra, zpTestPC(x0)
+		addi	s6, x0, 97
+		addi	s5, x0, 123
+tCIL0:		beq	s6, s5, tCIL1
+		ori	a0, s6, 0
+		jal	ra, charIsLowercase
+		jal	ra, asrtIsTrue
+		addi	s6, s6, 1
+		jal	x0, tCIL0
+tCIL1:		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
+		byte	"charLCnL"
+testCharIsLowercaseNegativeLow:
+		sd	ra, zpTestPC(x0)
+		addi	s6, x0, 0
+		addi	s5, x0, 97
+tCIL0:		beq	s6, s5, tCIL1
+		ori	a0, s6, 0
+		jal	ra, charIsLowercase
+		jal	ra, asrtIsFalse
+		addi	s6, s6, 1
+		jal	x0, tCIL0
+tCIL1:		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
+		byte	"charLCnH"
+testCharIsLowercaseNegativeHigh:
+		sd	ra, zpTestPC(x0)
+		addi	s6, x0, 123
+		addi	s5, x0, 256
+tCIL0:		beq	s6, s5, tCIL1
+		ori	a0, s6, 0
+		jal	ra, charIsLowercase
+		jal	ra, asrtIsFalse
+		addi	s6, s6, 1
+		jal	x0, tCIL0
+tCIL1:		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
