@@ -78,3 +78,40 @@ tCIL0:		beq	s6, s5, tCIL1
 tCIL1:		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
 
+; Map all lowercase letters to uppercase.
+
+		byte	"charUppr"
+testCharUpper:	sd	ra, zpTestPC(x0)
+
+		addi	s5, x0, 0
+		addi	s6, x0, 97
+tCU0:		beq	s5, s6, tCU1
+		ori	a0, s5, 0
+		jal	ra, charUpper
+		ori	a1, s5, 0
+		jal	ra, asrtEquals
+		addi	s5, s5, 1
+		jal	x0, tCU0
+
+tCU1:		addi	s6, x0, 123
+		addi	s4, x0, 65
+tCU2:		beq	s5, s6, tCU3
+		ori	a0, s5, 0
+		jal	ra, charUpper
+		ori	a1, s4, 0
+		jal	ra, asrtEquals
+		addi	s5, s5, 1
+		addi	s4, s4, 1
+		jal	x0, tCU2
+
+tCU3:		addi	s6, x0, 256
+tCU4:		beq	s5, s6, tCU5
+		ori	a0, s5, 0
+		jal	ra, charUpper
+		ori	a1, s5, 0
+		jal	ra, asrtEquals
+		addi	s5, s5, 1
+		jal	x0, tCU4
+
+tCU5:		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
