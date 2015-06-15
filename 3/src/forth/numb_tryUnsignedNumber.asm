@@ -37,11 +37,15 @@ nTUN2:		ld	a0, zpWordIndex(x0)
 		bge	a0, a1, nTUN0
 
 		jal	rt, numbNextChar
+		jal	rt, charUpper
 		ori	t1, a0, 0
 		jal	rt, numbEatChar
 
 		addi	t1, t1, -48
-		ld	a1, zpBase(x0)
+		addi	a1, x0, 10
+		bltu	t1, a1, nTUN3
+		addi	t1, t1, -7
+nTUN3:		ld	a1, zpBase(x0)
 		bltu	t1, a1, nTUN1
 
 		ld	a0, zpWordIndex(x0)

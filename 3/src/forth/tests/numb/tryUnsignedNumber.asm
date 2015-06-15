@@ -129,3 +129,79 @@ tNC1:		jal	ra, numbconv_setvecs
 		ld	ra, zpTestPC(x0)
 		jalr	x0, 0(ra)
 
+; When converting a number that is valid, we expect the accumulator to reflect the corresponding value.
+
+numbhexupper_setvecs:
+		jal	a0, setvecs
+		jal	x0, numbhexupper_mathMultiply
+
+numbhexupper_mathMultiply:
+		slli	a0, a0, 4
+		jalr	x0, 0(rt)
+
+
+numbhexupper_setWord:
+		addi	a1, x0, numbhexupper_wordlen
+		jal	a0, setWord
+numbhexupper_word:	byte	"DEADBEEFFEEDFACE"
+numbhexupper_wordlen = *-numbhexupper_word
+		align	8
+
+tHCU0:		dword	$DEADBEEFFEEDFACE
+		byte	"NUMBHCNV"
+testNumbUpperHex:
+		sd	ra, zpTestPC(x0)
+		auipc	gp, 0
+tHCU1:		jal	ra, numbhexupper_setvecs
+		addi	a0, x0, 16
+		sd	a0, zpBase(x0)
+		sd	x0, zpWordIndex(x0)
+		jal	ra, numbhexupper_setWord
+		jal	ra, numbTryUnsignedNumber
+		ld	a0, zpWordIndex(x0)
+		addi	a1, x0, 16
+		jal	ra, asrtEquals
+		ld	a0, zpValue(x0)
+		ld	a1, tHCU0-tHCU1(gp)
+		jal	ra, asrtEquals
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
+; When converting a number that is valid, we expect the accumulator to reflect the corresponding value.
+
+numbhexlower_setvecs:
+		jal	a0, setvecs
+		jal	x0, numbhexlower_mathMultiply
+
+numbhexlower_mathMultiply:
+		slli	a0, a0, 4
+		jalr	x0, 0(rt)
+
+
+numbhexlower_setWord:
+		addi	a1, x0, numbhexlower_wordlen
+		jal	a0, setWord
+numbhexlower_word:	byte	"deadbeeffeedface"
+numbhexlower_wordlen = *-numbhexlower_word
+		align	8
+
+tHCL0:		dword	$DEADBEEFFEEDFACE
+		byte	"NUMBLCNV"
+testNumbLowerHex:
+		sd	ra, zpTestPC(x0)
+		auipc	gp, 0
+tHCL1:		jal	ra, numbhexlower_setvecs
+		addi	a0, x0, 16
+		sd	a0, zpBase(x0)
+		sd	x0, zpWordIndex(x0)
+		jal	ra, numbhexlower_setWord
+		jal	ra, numbTryUnsignedNumber
+		ld	a0, zpWordIndex(x0)
+		addi	a1, x0, 16
+		jal	ra, asrtEquals
+		ld	a0, zpValue(x0)
+		ld	a1, tHCL0-tHCL1(gp)
+		jal	ra, asrtEquals
+		ld	ra, zpTestPC(x0)
+		jalr	x0, 0(ra)
+
