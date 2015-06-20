@@ -1,5 +1,6 @@
 	include	"cpu/csrs.i"
 	include "cpu/regs.i"
+	include "cpu/ngregs.i"
 	include "debugio.i"
 	include "bios.i"
 	include	"zp.i"
