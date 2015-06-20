@@ -595,6 +595,7 @@ def labelOrAssignmentHandler(asm, tok):
     elif t.tokenValue == '=':
         asm.eatToken()
         v = expression(asm, 0)
+        v = evalExpression(asm, v)
         asm.setSymbol(tok.tokenValue, v)
 
     elif t.tokenValue == ':':
@@ -1173,8 +1174,11 @@ class Assembler(object):
 
         oldPath = os.getcwd()
         os.chdir(dirname)
+	oldLine = self.line
+	self.line = 0
         self.pass1(open(basename, "r"), filename)
         os.chdir(oldPath)
+	self.line = oldLine
 
     def main(self):
         """This implements the main user interface of Polaris.  It drives the
