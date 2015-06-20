@@ -1,0 +1,13 @@
+{{
+: .w            65535 and hex putn decimal ;
+: .h            dup 16 >> .w .w ;
+: cell          "        word    $" puts hex @ .h decimal cr ;
+[ 0 here [ dup cell 1+ ] times ]
+}}
+do bye
+
+( This script dumps the current state of the Retro image to a file compatible )
+( with the Kestrel-3's A assembler.  To use this, you run: )
+(     python retro.py --with tools/dumpimg.rx >retroImage.i )
+( Then, with a text editor, remove the header and footer that RetroForth inserts. )
+
