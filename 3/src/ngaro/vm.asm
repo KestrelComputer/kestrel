@@ -10,9 +10,9 @@ ngaro:	include	"ngaro.asm"
 	align	4
 retroImage:
 	include "retroImage.i"
-retroImageSize = *-retroImage
+retroImageEnd:
 
 	adv	$F0000, $CC
 	include "mlm.asm"
-	jal	x0, ngaro
+	jal	x0, vm_start
 
