@@ -1,7 +1,5 @@
 {{
-: .w            65535 and hex putn decimal ;
-: .h            dup 16 >> .w .w ;
-: cell          "        word    $" puts hex @ .h decimal cr ;
+: cell          "        word    " puts @ putn cr ;
 [ 0 here [ dup cell 1+ ] times ]
 }}
 do bye
