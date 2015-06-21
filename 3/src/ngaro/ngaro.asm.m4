@@ -23,7 +23,7 @@ dnl case, subtraction.
 dnl
 define(`vmbinop', `vmprim(`$1', `lw	t0, 0(dp)
 		$1	dt, t0, dt
-		add	dp, dp, 4')')dnl
+		addi	dp, dp, 4')')dnl
 dnl
 dnl This code implements a Ngaro virtual machine jump operation.
 dnl
@@ -83,40 +83,6 @@ vm_copyimg:	lb	t2, 0(t0)
 		addi	t1, t1, 1
 		bne	t0, t3, vm_copyimg
 
-	; TESTING ONLY
-
-		jal	x0, vm_mainloop
-
-		ori	t0, x0, 1
-		sw	t0, 0(vbase)
-		ori	t0, x0, $555
-		sw	t0, 4(vbase)
-		
-		ori	t0, x0, 1
-		sw	t0, 8(vbase)
-		ori	t0, x0, $477
-		sw	t0, 12(vbase)
-		
-		ori	t0, x0, 11
-		sw	t0, 16(vbase)
-		ori	t0, x0, 7
-		sw	t0, 20(vbase)
-
-		ori	t0, x0, 18
-		sw	t0, 24(vbase)
-
-		ori	t0, x0, 19
-		sw	t0, 28(vbase)
-
-		ori	t0, x0, 29
-		sw	t0, 44(vbase)
-
-		ori	t0, x0, 30
-		sw	t0, 48(vbase)
-
-		ori	t0, x0, 18
-		sw	t0, 52(vbase)
-
 vm_mainloop:	jal	ra, vm_cycle
 		jal	x0, vm_mainloop
 
@@ -133,8 +99,8 @@ vm_do_io:	addi	sp, sp, -8
 
 		lw	t0, 4(vport)
 		beq	t0, x0, vmdoio1
-		sw	x0, 4(vport)
-		jal	x0, vmdoio1
+		jal	ra, biosChkChar
+		beq	a0, x0, *+8
 		jal	ra, biosGetChar
 		sw	a0, 4(vport)
 
@@ -150,7 +116,7 @@ vmdoio1:	lw	t0, 8(vport)
 		; VM queries
 
 vmdoio2:	lw	t0, 20(vport)
-		beq	t0, x0, vmdoio0
+		beq	t0, x0, vmdoio3
 
 		addi	t1, x0, -1	; How much VM memory, in cells?
 		bne	t0, t1, vmdoio2a
@@ -208,6 +174,93 @@ vmdoio0:	ld	ra, 0(sp)
 ; vip must contain an offset in the range [0, n) as word offset into vbase.
 ; sp must point to the top of the interpreter's stack.
 
+_dbg1:		addi	sp, sp, -32
+		sd	ra, 0(sp)
+		sd	t0, 8(sp)
+		sd	gp, 16(sp)
+		sd	t6, 24(sp)
+		auipc	gp, 0
+
+_dbg10:		ori	a0, x0, 32
+		jal	ra, biosPutChar
+		jal	ra, biosPutChar
+		jal	ra, biosPutChar
+		jal	ra, biosPutChar
+		jal	ra, biosPutChar
+		jal	ra, biosPutChar
+		jal	ra, biosPutChar
+		jal	ra, biosPutChar
+		ori	a0, vip, 0
+		jal	ra, puthex32
+		ori	a0, x0, 32
+		jal	ra, biosPutChar
+
+		sub	a0, dbase, dp
+		srai	a0, a0, 2
+		jal	ra, puthex32
+		ori	a0, x0, 32
+		jal	ra, biosPutChar
+		jal	ra, biosPutChar
+
+		ld	t0, 8(sp)
+		slli	t0, t0, 3
+		add	a0, t0, gp
+		addi	a0, a0, vm_nm_tbl-_dbg10
+		addi	a1, x0, 8
+		jal	ra, biosPutStrC
+		addi	a0, x0, 10
+		jal	ra, biosPutChar
+
+		ld	t6, 24(sp)
+		ld	gp, 16(sp)
+		ld	t0, 8(sp)
+		ld	ra, 0(sp)
+		addi	sp, sp, 32
+		jalr	x0, 0(ra)
+
+_dbg2:		addi	sp, sp, -16
+		sd	t0, 0(sp)
+		sd	ra, 8(sp)
+		ori	t0, x0, 31
+		jal	ra, _dbg1
+		ld	ra, 8(sp)
+		ld	t0, 0(sp)
+		addi	sp, sp, 16
+		jalr	x0, 0(ra)
+
+vm_nm_tbl:	byte	"NOP....."
+		byte	"LIT....."
+		byte	"DUP....."
+		byte	"DROP...."
+		byte	"SWAP...."
+		byte	"PUSH...."
+		byte	"POP....."
+		byte	"LOOP...."
+		byte	"JUMP...."
+		byte	"RETURN.."
+		byte	"GT_JUMP."
+		byte	"LT_JUMP."
+		byte	"NE_JUMP."
+		byte	"EQ_JUMP."
+		byte	"FETCH..."
+		byte	"STORE..."
+		byte	"ADD....."
+		byte	"SUB....."
+		byte	"MULTIPLY"
+		byte	"DIVMOD.."
+		byte	"AND....."
+		byte	"OR......"
+		byte	"XOR....."
+		byte	"SLL....."
+		byte	"SRA....."
+		byte	"ZEROEXIT"
+		byte	"INC....."
+		byte	"DEC....."
+		byte	"IN......"
+		byte	"OUT....."
+		byte	"WAIT...."
+		byte	"  CALL  "
+
 		align	8
 vm_op_tbl_ptr:	dword	b+vm_op_table
 vm_cycle:	addi	sp, sp, -8
@@ -217,6 +270,7 @@ vmc0:		addi	vip, vip, 1
 		vmiget(t0)
 		addi	t1, x0, 31
 		bge	t0, t1, vm_call
+		;jal	ra, _dbg1
 		slli	t0, t0, 2
 		ld	t1, vm_op_tbl_ptr-vmc0(gp)
 		add	t0, t0, t1
@@ -225,7 +279,8 @@ vmc0:		addi	vip, vip, 1
 		addi	sp, sp, 8
 		jalr	x0, 0(ra)
 
-vm_call:	addi	ap, ap, -4
+vm_call:	;jal	ra, _dbg2
+		addi	ap, ap, -4
 		sw	vip, 0(ap)
 		addi	vip, t0, -1
 		ld	ra, 0(sp)
