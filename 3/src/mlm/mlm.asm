@@ -67,7 +67,7 @@ codeDmsg:	byte	"UNKNOWN TRAP 0D AT "
 codeEmsg:	byte	"UNKNOWN TRAP 0E AT "
 codeFmsg:	byte	"UNKNOWN TRAP 0F AT "
 
-b=$FFFFFFFFFFFF0000
+b=$FFFFFFFFFFF00000
 
 		align	8
 codeMsgTab:	dword	code0msg+b, code1msg+b, code2msg+b, code3msg+b
@@ -715,15 +715,15 @@ notBS:
 ; CPU Vectors
 ;
 
-	adv	$FE00, $CC	; User -> Machine trap
+	adv	$FFE00, $CC	; User -> Machine trap
 	jal	x0, brkEntry
-	adv	$FE40, $CC	; Supervisor -> Machine trap
+	adv	$FFE40, $CC	; Supervisor -> Machine trap
 	jal	x0, brkEntry
-	adv	$FE80, $CC	; Hypervisor -> Machine trap
+	adv	$FFE80, $CC	; Hypervisor -> Machine trap
 	jal	x0, brkEntry
-	adv	$FEC0, $CC	; Machine -> Machine trap
+	adv	$FFEC0, $CC	; Machine -> Machine trap
 	jal	x0, brkEntry
-	adv	$FEFC, $CC	; NMI
+	adv	$FFEFC, $CC	; NMI
 	jal	x0, brkEntry
 	jal	x0, coldBoot	; Reset Vector
 
