@@ -22,9 +22,9 @@
 ; s5 = x21
 ; s6 = x22
 ; s7 = x23
-; s8 = x24
-; s9 = x25
 
+dbase = x24	; Pointer to bottom of data stack
+abase = x25	; Pointer to bottom of address stack
 ap = x26	; Address stack Pointer
 dp = x27	; Data stack Pointer
 dt = x28	; Top of Data Stack cache

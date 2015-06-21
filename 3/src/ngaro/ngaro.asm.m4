@@ -1,30 +1,55 @@
+dnl
+dnl This macro expands to code that fetches the next instruction word from the
+dnl Ngaro virtual memory image.
+dnl
 define(`vmiget', `ori	$1, vip, 0
 		slli	$1, $1, 2
 		add	$1, $1, vbase
 		lw	$1, 0($1)')dnl
+dnl
+dnl This macro builds the jump table for primitive dispatch, as well as declares
+dnl the primitive at the point of instantiation.
+dnl
 define(`vmprim', `divert(1)dnl
 		jal	x0, vm_$1
 divert(0)dnl
 vm_$1:
 		$2
 		jalr	x0, 0(ra)')dnl
+dnl
+dnl A binary operator is any primitive wrapping a two-operand arithmetic or
+dnl logical operation that possesses the commutative property, and as a special
+dnl case, subtraction.
+dnl
 define(`vmbinop', `vmprim(`$1', `lw	t0, 0(dp)
 		$1	dt, t0, dt
 		add	dp, dp, 4')')dnl
+dnl
+dnl This code implements a Ngaro virtual machine jump operation.
+dnl
 define(`vmjump', `vmiget(t0)
 		addi	vip, t0, -1')dnl
+dnl
+dnl This code duplicates the top of stack.
+dnl
 define(`vmdup', `addi	dp, dp, -4
 		sw	dt, 0(dp)')dnl
+dnl
+dnl This code drops two items from the stack.
+dnl
 define(`vm2drop', `lw	dt, 4(dp)
 		addi	dp, dp, 8')dnl
+dnl
+dnl This code drops one item from the stack.
+dnl
 define(`vmdrop', `lw	dt, 0(dp)
 		addi	dp, dp, 4')dnl
 
 initial_vbase	= 1048576
 initial_vport	= initial_vbase-1024
 initial_ap	= initial_vport
-initial_dp	= initial_ap-4096
-initial_sp	= initial_dp-4096
+initial_dp	= initial_ap-65536
+initial_sp	= initial_dp-65536
 
 ; Virtual Machine Cold(ish) Boot
 		align	8
@@ -42,7 +67,9 @@ vm_start0:	ld	vbase, 0(ra)
 		ld	ap, 16(ra)
 		ld	dp, 24(ra)
 		ld	sp, 32(ra)
-		addi	vip, x0, -4
+		addi	vip, x0, -1
+		ori	abase, ap, 0
+		ori	dbase, dp, 0
 
 	; copy VM image to its final resting place in RAM
 
@@ -56,8 +83,120 @@ vm_copyimg:	lb	t2, 0(t0)
 		addi	t1, t1, 1
 		bne	t0, t3, vm_copyimg
 
+	; TESTING ONLY
+
+		jal	x0, vm_mainloop
+
+		ori	t0, x0, 1
+		sw	t0, 0(vbase)
+		ori	t0, x0, $555
+		sw	t0, 4(vbase)
+		
+		ori	t0, x0, 1
+		sw	t0, 8(vbase)
+		ori	t0, x0, $477
+		sw	t0, 12(vbase)
+		
+		ori	t0, x0, 11
+		sw	t0, 16(vbase)
+		ori	t0, x0, 7
+		sw	t0, 20(vbase)
+
+		ori	t0, x0, 18
+		sw	t0, 24(vbase)
+
+		ori	t0, x0, 19
+		sw	t0, 28(vbase)
+
+		ori	t0, x0, 29
+		sw	t0, 44(vbase)
+
+		ori	t0, x0, 30
+		sw	t0, 48(vbase)
+
+		ori	t0, x0, 18
+		sw	t0, 52(vbase)
+
 vm_mainloop:	jal	ra, vm_cycle
 		jal	x0, vm_mainloop
+
+
+; I/O handling.
+
+vm_do_io:	addi	sp, sp, -8
+		sd	ra, 0(sp)
+
+		lw	t0, 0(vport)
+		bne	t0, x0, vmdoio0
+
+		; console input
+
+		lw	t0, 4(vport)
+		beq	t0, x0, vmdoio1
+		sw	x0, 4(vport)
+		jal	x0, vmdoio1
+		jal	ra, biosGetChar
+		sw	a0, 4(vport)
+
+		; console output
+
+vmdoio1:	lw	t0, 8(vport)
+		beq	t0, x0, vmdoio2
+		sw	x0, 8(vport)
+		ori	a0, dt, 0
+		jal	ra, biosPutChar
+		vmdrop
+
+		; VM queries
+
+vmdoio2:	lw	t0, 20(vport)
+		beq	t0, x0, vmdoio0
+
+		addi	t1, x0, -1	; How much VM memory, in cells?
+		bne	t0, t1, vmdoio2a
+		addi	t0, x0, 1
+		slli	t0, t0, 18
+		sw	t0, 20(vport)
+		jal	x0, vmdoio3
+
+vmdoio2a:	addi	t1, x0, -5	; How big is your data stack?
+		bne	t0, t1, vmdoio2b
+		sub	t0, dbase, dp
+		srai	t0, t0, 2
+		sw	t0, 20(vport)
+		jal	x0, vmdoio3
+
+vmdoio2b:	addi	t1, x0, -6	; How big is your return/address stack?
+		bne	t0, t1, vmdoio2c
+		sub	t0, abase, ap
+		srai	t0, t0, 2
+		sw	t0, 20(vport)
+		jal	x0, vmdoio3
+
+vmdoio2c:	addi	t0, x0, -13	; How big is a cell, in bits?
+		bne	t0, t1, vmdoio2d
+		addi	t0, x0, 32	; Even on a 64-bit machine like Kestrel-3
+		sw	t0, 20(vport)
+		jal	x0, vmdoio3
+
+vmdoio2d:	addi	t0, x0, -16	; What capacity is the data stack?
+		bne	t0, t1, vmdoio2e
+		addi	t0, x0, 1024
+		sw	t0, 20(vport)
+		jal	x0, vmdoio3
+
+vmdoio2e:	addi	t0, x0, -17	; What capacity is the return stack?
+		bne	t0, t1, vmdoio2f
+		addi	t0, x0, 1024
+		sw	t0, 20(vport)
+		jal	x0, vmdoio3
+
+vmdoio2f:	sw	x0, 20(vport)
+
+vmdoio3:
+vmdoio0:	ld	ra, 0(sp)
+		addi	sp, sp, 8
+		jalr	x0, 0(ra)
 
 
 ; Virtual Instruction Pump
@@ -78,7 +217,7 @@ vmc0:		addi	vip, vip, 1
 		vmiget(t0)
 		addi	t1, x0, 31
 		bge	t0, t1, vm_call
-		slli	t0, t0, 3
+		slli	t0, t0, 2
 		ld	t1, vm_op_tbl_ptr-vmc0(gp)
 		add	t0, t0, t1
 		jalr	ra, 0(t0)
@@ -114,6 +253,7 @@ vmprim(`loop', `addi	dt, dt, -1
 		addi	t0, x0, 1
 		blt	dt, t0, vmlF
 		vmjump
+		jalr	x0, 0(ra)
 vmlF:		vmdrop')
 vmprim(`jump', `addi	vip, vip, 1
 		vmjump')
@@ -147,9 +287,11 @@ vmprim(`eq_jump', `addi vip, vip, 1
 		bne	t0, t1, vmeqF
 		vmjump
 vmeqF:')
-vmprim(`fetch', `add	dt, dt, vbase
+vmprim(`fetch', `slli	dt, dt, 2
+		add	dt, dt, vbase
 		lw	dt, 0(dt)')
-vmprim(`store', `add	dt, dt, vbase
+vmprim(`store', `slli	dt, dt, 2
+		add	dt, dt, vbase
 		lw	t0, 0(dp)
 		sw	t0, 0(dt)
 		vm2drop')
@@ -169,14 +311,23 @@ vmprim(`zero_exit', `bne	dt, x0, vmzeF
 vmzeF:')
 vmprim(`inc', `addi	dt, dt, 1')
 vmprim(`dec', `addi	dt, dt, -1')
-vmprim(`in', `add	dt, dt, vport
+vmprim(`in', `slli	dt, dt, 2
+		add	dt, dt, vport
 		lw	dt, 0(dt)')
-vmprim(`out', `add	dt, dt, vport
+vmprim(`out', `slli	dt, dt, 2
+		add	dt, dt, vport
 		lw	t0, 0(dp)
 		sw	t0, 0(dt)
 		vm2drop')
 
-vm_wait:	jal	x0, *
+vm_wait:	addi	sp, sp, -8
+		sd	ra, 0(sp)
+		jal	ra, vm_do_io
+		addi	t0, x0, 1
+		sw	t0, 0(vport)
+		ld	ra, 0(sp)
+		addi	sp, sp, 8
+		jalr	x0, 0(ra)
 
 		align	8
 vm_op_table:
