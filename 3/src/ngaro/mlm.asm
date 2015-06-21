@@ -40,7 +40,7 @@ codeDmsg:	byte	"UNKNOWN TRAP 0D AT "
 codeEmsg:	byte	"UNKNOWN TRAP 0E AT "
 codeFmsg:	byte	"UNKNOWN TRAP 0F AT "
 
-b=$FFFFFFFFFFFF0000
+b=$FFFFFFFFFFF00000
 
 		align	8
 codeMsgTab:	dword	code0msg+b, code1msg+b, code2msg+b, code3msg+b
