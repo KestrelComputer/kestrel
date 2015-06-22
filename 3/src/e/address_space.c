@@ -2,6 +2,8 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/select.h>
+#include <unistd.h>
 
 #include "types.h"
 #include "config.h"
@@ -198,7 +200,7 @@ make(Options *opts) {
 	if(n == ROM_SIZE) {
 		n = fread(&overflow, 1, 1, romFile);
 		if(n == 1) {
-			fprintf(stderr, "ROM file is too big; should be %d bytes.\n", ROM_SIZE);
+			fprintf(stderr, "ROM file is too big; should be %ld bytes.\n", ROM_SIZE);
 			fclose(romFile);
 			exit(1);
 		}

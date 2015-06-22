@@ -10,7 +10,7 @@
 
 
 extern const struct interface_AddressSpace module_AddressSpace;
-static const struct interface_AddressSpace const *as = &module_AddressSpace;
+static const struct interface_AddressSpace *as = &module_AddressSpace;
 
 
 static DWORD
