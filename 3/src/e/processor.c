@@ -288,7 +288,7 @@ step(Processor *p) {
 				break;
 
 			case 1: // SLLI
-				p->x[rd] = p->x[rd] << imm12;
+				p->x[rd] = p->x[rs1] << imm12;
 				break;
 
 			case 2: // SLTI
@@ -395,7 +395,7 @@ step(Processor *p) {
 				break;
 
 			case 1: // SLL
-				p->x[rd] = p->x[rd] << p->x[rs2];
+				p->x[rd] = p->x[rs1] << p->x[rs2];
 				break;
 
 			case 2: // SLT
