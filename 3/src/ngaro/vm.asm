@@ -6,6 +6,7 @@
 	include	"zp.i"
 
 ngaro:	include	"ngaro.asm"
+	include "math.asm"
 
 	align	4
 retroImage:

@@ -353,7 +353,15 @@ vmprim(`store', `slli	dt, dt, 2
 
 vmbinop(`add')
 vmbinop(`sub')
-vmprim(`multiply', `ebreak')
+vmprim(`multiply', `addi	sp, sp, -8
+		sd	ra, 0(sp)
+		ori	a1, dt, 0
+		lw	a0, 0(dp)
+		jal	ra, mathMultiply
+		ori	dt, a0, 0
+		addi	dp, dp, 4
+		ld	ra, 0(sp)
+		addi	sp, sp, 8')
 vmprim(`divmod', `ecall')
 vmbinop(`and')
 vmbinop(`or')
