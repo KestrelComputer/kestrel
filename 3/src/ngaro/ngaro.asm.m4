@@ -362,7 +362,18 @@ vmprim(`multiply', `addi	sp, sp, -8
 		addi	dp, dp, 4
 		ld	ra, 0(sp)
 		addi	sp, sp, 8')
-vmprim(`divmod', `ecall')
+vmprim(`divmod', `addi	sp, sp, -8
+		sd	ra, 0(sp)
+		ori	a2, dt, 0
+		lw	a0, 0(dp)
+		ori	a1, x0, 0
+		bge	a0, x0, *+8
+		xori	a1, a1, -1
+		jal	ra, mathUDivMod
+		sw	a0, 0(dp)
+		ori	dt, a1, 0
+		ld	ra, 0(sp)
+		addi	sp, sp, 8')
 vmbinop(`and')
 vmbinop(`or')
 vmbinop(`xor')
