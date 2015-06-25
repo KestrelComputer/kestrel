@@ -368,10 +368,10 @@ vmprim(`divmod', `addi	sp, sp, -8
 		lw	a0, 0(dp)
 		ori	a1, x0, 0
 		bge	a0, x0, *+8
-		xori	a1, a1, -1
+		ori	a1, a1, -1
 		jal	ra, mathUDivMod
-		sw	a0, 0(dp)
-		ori	dt, a1, 0
+		sw	a1, 0(dp)
+		ori	dt, a0, 0
 		ld	ra, 0(sp)
 		addi	sp, sp, 8')
 vmbinop(`and')
