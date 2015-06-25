@@ -48,3 +48,44 @@ m_m_done:	ld	ra, 0(sp)
 		ld	t4, 40(sp)
 		addi	sp, sp, 48
 		jalr	x0, 0(ra)
+
+
+mathUDivMod:	addi	sp, sp, -48
+		sd	ra, 0(sp)
+		sd	a2, 8(sp)
+		sd	t0, 16(sp)
+		sd	t1, 24(sp)
+		sd	t2, 32(sp)
+		sd	t3, 40(sp)
+
+		addi	t0, x0, 0		; Quotient
+		addi	t1, x0, 0		; Remainder
+		addi	t3, x0, 128		; Our input (A1:A0) has 128 bits
+mUDM0:		beq	t3, x0, mUDM1		; While we have bits to process...
+
+		slli	t1, t1, 1		;   Shift R:N as a 192-bit quantity left 1 bit
+		srli	t2, a1, 63
+		or	t1, t1, t2
+		slli	a1, a1, 1
+		srli	t2, a0, 63
+		or	a1, a1, t2
+		slli	a0, a0, 1
+
+		slli	t0, t0, 1		;  Shift quotient left by 1 too.
+		bltu	t1, a2, mUDM2		;  If we can subtract, then
+		sub	t1, t1, a2		;    Perform subtraction off of remainder.
+		ori	t0, t0, 1		;    Account for it in the quotient.
+
+mUDM2:		addi	t3, t3, -1		;  Repeat for all bits.
+		jal	x0, mUDM0
+
+mUDM1:		ori	a0, t0, 0
+		ori	a1, t1, 0
+		ld	ra, 0(sp)
+		ld	a2, 8(sp)
+		ld	t0, 16(sp)
+		ld	t1, 24(sp)
+		ld	t2, 32(sp)
+		ld	t3, 40(sp)
+		addi	sp, sp, 48
+		jalr	x0, 0(ra)
