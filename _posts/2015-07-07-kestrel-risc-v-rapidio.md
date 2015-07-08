@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Kestrel at the RISC-V Workshop: RapidIO and more"
+title:  "RapidIO, RetroForth, and RISC-V Update"
 date:   2015-07-07 18:41:00
 ---
 
