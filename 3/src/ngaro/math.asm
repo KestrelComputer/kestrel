@@ -109,13 +109,18 @@ mSDM_a1pos:	bge	a2, x0, mSDM_a2pos	; Take absolute value of A2
 
 mSDM_a2pos:	jal	ra, mathUDivMod		; perform the core division
 
-		ld	t0, 16(sp)
-		bge	t0, x0, mSDM_dpos
+		ld	t0, 8(sp)
+		ld	t1, 16(sp)		; If denom < 0, negate remainder.
+		bge	t1, x0, mSDM_dpos
 		xori	a1, a1, -1
 		addi	a1, a1, 1
 
-mSDM_dpos:
-		ld	ra, 0(sp)
+mSDM_dpos:	xor	t0, t0, t1		; If sgn(num) != sgn(denom)
+		bge	t0, x0, mSDM_signok	;   then adjust results.
+		addi	a0, a0, 1
+		add	a1, a1, t1
+
+mSDM_signok:	ld	ra, 0(sp)
 		ld	a2, 16(sp)
 		addi	sp, sp, 32
 		jalr	x0, 0(ra)
