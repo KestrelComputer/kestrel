@@ -91,10 +91,14 @@ mUDM1:		ori	a0, t0, 0
 		jalr	x0, 0(ra)
 
 
-mathSDivMod:	addi	sp, sp, -32
+mathSDivMod:	addi	sp, sp, -56
 		sd	ra, 0(sp)
 		sd	a1, 8(sp)		; preserve sign of numerator
 		sd	a2, 16(sp)		; preserve sign of denominator
+		sd	t0, 24(sp)
+		sd	t1, 32(sp)
+		sd	t2, 40(sp)
+		sd	t3, 48(sp)
 
 		bge	a1, x0, mSDM_a1pos	; Take absolute value of A1:A0
 		xori	a1, a1, -1
@@ -127,6 +131,10 @@ mSDM_dpos:	add	t2, t2, a1		; accumulate final remainder
 
 		ld	ra, 0(sp)
 		ld	a2, 16(sp)
-		addi	sp, sp, 32
+		ld	t0, 24(sp)
+		ld	t1, 32(sp)
+		ld	t2, 40(sp)
+		ld	t3, 48(sp)
+		addi	sp, sp, 56
 		jalr	x0, 0(ra)
 
