@@ -89,3 +89,34 @@ mUDM1:		ori	a0, t0, 0
 		ld	t3, 40(sp)
 		addi	sp, sp, 48
 		jalr	x0, 0(ra)
+
+
+mathSDivMod:	addi	sp, sp, -32
+		sd	ra, 0(sp)
+		sd	a1, 8(sp)		; preserve sign of numerator
+		sd	a2, 16(sp)		; preserve sign of denominator
+
+		bge	a1, x0, mSDM_a1pos	; Take absolute value of A1:A0
+		xori	a1, a1, -1
+		xori	a0, a0, -1
+		addi	a0, a0, 1
+		bgeu	a0, x0, mSDM_a1pos
+		addi	a1, a1, 1
+
+mSDM_a1pos:	bge	a2, x0, mSDM_a2pos	; Take absolute value of A2
+		xori	a2, a2, -1
+		addi	a2, a2, 1
+
+mSDM_a2pos:	jal	ra, mathUDivMod		; perform the core division
+
+		ld	t0, 16(sp)
+		bge	t0, x0, mSDM_dpos
+		xori	a1, a1, -1
+		addi	a1, a1, 1
+
+mSDM_dpos:
+		ld	ra, 0(sp)
+		ld	a2, 16(sp)
+		addi	sp, sp, 32
+		jalr	x0, 0(ra)
+

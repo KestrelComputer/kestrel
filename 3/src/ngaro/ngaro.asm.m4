@@ -369,7 +369,7 @@ vmprim(`divmod', `addi	sp, sp, -8
 		ori	a1, x0, 0
 		bge	a0, x0, *+8
 		ori	a1, a1, -1
-		jal	ra, mathUDivMod
+		jal	ra, mathSDivMod
 		sw	a1, 0(dp)
 		ori	dt, a0, 0
 		ld	ra, 0(sp)
