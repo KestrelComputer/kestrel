@@ -11,6 +11,16 @@
 #include "address_space.h"
 
 
+#define GPIA_OUT_SD_LED		0x0001
+#define GPIA_OUT_SD_SS		0x0002
+#define GPIA_OUT_SD_MOSI	0x0004
+#define GPIA_OUT_SD_CLK		0x0008
+
+#define GPIA_IN_SD_CD		0x0001
+#define GPIA_IN_SD_WP		0x0002
+#define GPIA_IN_SD_MISO		0x0004
+
+
 static UDWORD gpia_out;
 static UDWORD gpia_in;
 
@@ -25,6 +35,42 @@ static UDWORD
 no_reader(AddressSpace *as, UDWORD addr, int sz) {
 	fprintf(stderr, "Error: Reading from address $%016llX; returning $CC\n", addr);
 	return 0xCCCCCCCCCCCCCCCC;
+}
+
+
+static void
+handle_spi(void) {
+	static int previouslySelected = 0;
+	static int byteBuffer, counter, issued;
+
+	if(gpia_out & GPIA_OUT_SD_SS) {
+		previouslySelected = 0;
+		return;
+	}
+
+	if(!previouslySelected && ((gpia_out & GPIA_OUT_SD_SS) == 0)) {
+		previouslySelected = 1;
+		byteBuffer = 0;
+		counter = 0;
+		issued = 0;
+	}
+
+	if((gpia_out & GPIA_OUT_SD_CLK)) {
+		if(counter == 16) {
+			int top = ((byteBuffer >> 8) & 255) ^ 255,
+			    bottom = byteBuffer & 255;
+			if((top == bottom) && !issued) {
+				printf("%c", bottom);
+				issued = 1;
+			}
+			return;
+		}
+
+		byteBuffer <<= 1;
+		byteBuffer |= (gpia_out & GPIA_OUT_SD_MOSI) >> 2;
+		gpia_in |= GPIA_IN_SD_MISO;
+		counter++;
+	}
 }
 
 
@@ -46,6 +92,8 @@ gpia_writer(AddressSpace *as, UDWORD addr, UDWORD ud, int sz) {
 
 	byteMask = byteMasks[sz] << shiftAmount;
 	gpia_out = (gpia_out & ~byteMask) | ((ud << shiftAmount) & byteMask);
+
+	handle_spi();
 }
 
 static UDWORD

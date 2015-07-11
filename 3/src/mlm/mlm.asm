@@ -18,7 +18,8 @@ blicb_sizeof	= blicb_capacity+8
 ; RAM for easy access.
 
 zp_uartBase	= 0
-zp_initSP	= zp_uartBase+8
+zp_gpiaBase	= zp_uartBase+8
+zp_initSP	= zp_gpiaBase+8
 zp_initTable	= zp_initSP+8
 zp_userRegs	= zp_initTable+8
 zp_inpIndex	= zp_userRegs+32*8	; Reserving space for X0 avoids special-case logic.
@@ -44,6 +45,7 @@ coldBoot:
 
 initTable:
 	dword	$0E00000000000000
+	dword	$0100000000000000
 	dword	$0000000000010000
 
 banner:
@@ -91,7 +93,9 @@ coldInit:
 	sd	ra,zp_initTable(x0)
 	ld	t0,0(ra)		; T0 = UART base
 	sd	t0,zp_uartBase(x0)
-	ld	t0,8(ra)		; T0 = initial SP
+	ld	t0,8(ra)		; T0 = GPIA base
+	sd	t0,zp_gpiaBase(x0)
+	ld	t0,16(ra)		; T0 = initial SP
 	sd	t0,zp_initSP(x0)
 	or	sp,x0,t0
 	ebreak				; Enter monitor.
@@ -553,6 +557,48 @@ puthex4:
 biosPutChar:
 	ld	t0, zp_uartBase(x0)
 	sb	a0, UART_TX(t0)
+
+	; just some quick testing code for the emulator.
+	ori	t0, a0, 0		; T0 = ~A0<<8 | A0
+	xori	t0, t0, 255
+	slli	t0, t0, 8
+	or	t0, t0, a0
+
+	ld	t1, zp_gpiaBase(x0)	; select the slave device
+	lb	t2, 8(t1)
+	andi	t2, t2, $FF1
+	sb	t2, 8(t1)
+
+	ori	t3, x0, 16
+
+bPC0:	srli	t4, t0, 13		; Merge in a bit
+	andi	t4, t4, 4
+	lb	t2, 8(t1)
+	andi	t2, t2, $FFB
+	or	t2, t2, t4
+	sb	t2, 8(t1)
+
+	ori	t2, t2, $008		; pulse the clock
+	sb	t2, 8(t1)
+	andi	t2, t2, $FF7
+	sb	t2, 8(t1)
+
+	slli	t0, t0, 1		; Shift our bits.
+
+	addi	t3, t3, -1
+	bne	t3, x0, bPC0
+
+	ori	t3, x0, 8		; Pulse clock 8 more times
+bPC1:	ori	t2, t2, $008
+	sb	t2, 8(t1)
+	andi	t2, t2, $FF7
+	sb	t2, 8(t1)
+	addi	t3, t3, -1
+	bne	t3, x0, bPC1
+
+	ori	t2, t2, $002		; Turn off device
+	sb	t2, 8(t1)
+
 	jalr	x0, 0(ra)
 
 
