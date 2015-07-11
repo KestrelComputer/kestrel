@@ -6,6 +6,10 @@
 
 #define R1(x) ((DWORD)(x) << 40)
 
+
+static DWORD handle_command(int, WORD);
+
+
 void
 handle_spi(void) {
 	static int previouslySelected = 0;
@@ -32,9 +36,18 @@ handle_spi(void) {
 	}
 
 	if((cmdPacket & 0xC00000000000) == 0x400000000000) {
-		fprintf(stderr, "Command received: $%016llX\n", cmdPacket);
+		result = handle_command(
+			(cmdPacket >> 40) & 0xFF,
+			(cmdPacket >> 8) & 0xFFFFFFFF
+		);
 		cmdPacket = -1;
-    result = R1(0x4A);  /* Some random looking code */
 	}
+}
+
+
+static DWORD
+handle_command(int cmd, WORD address) {
+	fprintf(stderr, "Command $%02X Address $%08lX\n", cmd, address);
+	return R1(0x4A);
 }
 
