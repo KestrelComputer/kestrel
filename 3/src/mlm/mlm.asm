@@ -557,48 +557,6 @@ puthex4:
 biosPutChar:
 	ld	t0, zp_uartBase(x0)
 	sb	a0, UART_TX(t0)
-
-	; just some quick testing code for the emulator.
-	ori	t0, a0, 0		; T0 = ~A0<<8 | A0
-	xori	t0, t0, 255
-	slli	t0, t0, 8
-	or	t0, t0, a0
-
-	ld	t1, zp_gpiaBase(x0)	; select the slave device
-	lb	t2, 8(t1)
-	andi	t2, t2, $FF1
-	sb	t2, 8(t1)
-
-	ori	t3, x0, 16
-
-bPC0:	srli	t4, t0, 13		; Merge in a bit
-	andi	t4, t4, 4
-	lb	t2, 8(t1)
-	andi	t2, t2, $FFB
-	or	t2, t2, t4
-	sb	t2, 8(t1)
-
-	ori	t2, t2, $008		; pulse the clock
-	sb	t2, 8(t1)
-	andi	t2, t2, $FF7
-	sb	t2, 8(t1)
-
-	slli	t0, t0, 1		; Shift our bits.
-
-	addi	t3, t3, -1
-	bne	t3, x0, bPC0
-
-	ori	t3, x0, 8		; Pulse clock 8 more times
-bPC1:	ori	t2, t2, $008
-	sb	t2, 8(t1)
-	andi	t2, t2, $FF7
-	sb	t2, 8(t1)
-	addi	t3, t3, -1
-	bne	t3, x0, bPC1
-
-	ori	t2, t2, $002		; Turn off device
-	sb	t2, 8(t1)
-
 	jalr	x0, 0(ra)
 
 
@@ -757,6 +715,44 @@ notBS:
 	jal	ra, biosPutChar
 	jal	x0, waitForKey
 
+; Send an SD/MMC Card Command
+;
+; Command packet is in register A0 according to the following bit-fields:
+;	47-40: Command byte
+;	39-08: Address parameter
+;	07-00: CRC (unused)
+;
+; This function doesn't return anything.  A0 will be destroyed.
+
+sdCommand:
+	addi	sp, sp, -8
+	sd	ra, 0(sp)
+
+	ori	t3, x0, 48
+	ld	t0, zp_gpiaBase(x0)
+
+sdC0:	srli	t1, a0, 45
+	andi	t1, t1, 4
+	lb	t2, 8(t0)
+	andi	t2, t2, $FFB
+	or	t2, t2, t1
+	sb	t2, 8(t0)
+
+	ori	t2, t2, 8
+	sb	t2, 8(t0)
+	andi	t2, t2, $FF7
+	sb	t2, 8(t0)
+
+	slli	a0, a0, 1
+	addi	t3, t3, -1
+	bne	t3, x0, sdC0
+
+	ld	ra, 0(sp)
+	addi	sp, sp, 8
+ebreak
+	jalr	x0, 0(ra)
+	
+
 ;
 ; CPU Vectors
 ;
@@ -772,4 +768,5 @@ notBS:
 	adv	$FFEFC, $CC	; NMI
 	jal	x0, brkEntry
 	jal	x0, coldBoot	; Reset Vector
+	jal	x0, sdCommand
 
