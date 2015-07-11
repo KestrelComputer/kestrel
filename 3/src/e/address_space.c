@@ -11,6 +11,10 @@
 #include "address_space.h"
 
 
+static UDWORD gpia_out;
+static UDWORD gpia_in;
+
+
 static void
 no_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
 	fprintf(stderr, "Error: Writing $%016llX to address $%016llX\n", b, addr);
@@ -21,6 +25,45 @@ static UDWORD
 no_reader(AddressSpace *as, UDWORD addr, int sz) {
 	fprintf(stderr, "Error: Reading from address $%016llX; returning $CC\n", addr);
 	return 0xCCCCCCCCCCCCCCCC;
+}
+
+
+static void
+gpia_writer(AddressSpace *as, UDWORD addr, UDWORD ud, int sz) {
+	UDWORD byteMask;
+	UDWORD byteMasks[] = {
+		0xFF,
+		0xFFFF,
+		0xFFFFFFFF,
+		0xFFFFFFFFFFFFFFFF,
+	};
+	int shiftAmount = 8 * (addr & 7);
+
+	/* Only GPIA Register 1 is an output register. */
+	if((addr & 0x8) != 0x8) {
+		return;
+	}
+
+	byteMask = byteMasks[sz] << shiftAmount;
+	gpia_out = (gpia_out & ~byteMask) | ((ud << shiftAmount) & byteMask);
+}
+
+static UDWORD
+gpia_reader(AddressSpace *as, UDWORD addr, int sz) {
+	int shiftAmount = 8 * (addr & 7);
+	static UDWORD byteMask[] = {
+		0xFF,
+		0xFFFF,
+		0xFFFFFFFF,
+		0xFFFFFFFFFFFFFFFF,
+	};
+	static UDWORD *sources[9] = {
+		&gpia_in, 0, 0, 0,
+		0, 0, 0, 0,
+		&gpia_out
+	};
+
+	return ((*sources[addr & 8]) >> shiftAmount) & byteMask[sz];
 }
 
 
@@ -220,6 +263,8 @@ make(Options *opts) {
 	as->readers[15] = rom_reader;
 	as->writers[0] = ram_writer;
 	as->readers[0] = ram_reader;
+	as->writers[1] = gpia_writer;
+	as->readers[1] = gpia_reader;
 	as->writers[14] = uart_writer;
 	as->readers[14] = uart_reader;
 
