@@ -9,20 +9,11 @@
 #include "config.h"
 #include "options.h"
 #include "address_space.h"
+#include "sdcard.h"
 
 
-#define GPIA_OUT_SD_LED		0x0001
-#define GPIA_OUT_SD_SS		0x0002
-#define GPIA_OUT_SD_MOSI	0x0004
-#define GPIA_OUT_SD_CLK		0x0008
-
-#define GPIA_IN_SD_CD		0x0001
-#define GPIA_IN_SD_WP		0x0002
-#define GPIA_IN_SD_MISO		0x0004
-
-
-static UDWORD gpia_out;
-static UDWORD gpia_in;
+UDWORD gpia_out;
+UDWORD gpia_in;
 
 
 static void
@@ -38,51 +29,16 @@ no_reader(AddressSpace *as, UDWORD addr, int sz) {
 }
 
 
-static void
-handle_spi(void) {
-	static int previouslySelected = 0;
-	static int byteBuffer, counter, issued;
-
-	if(gpia_out & GPIA_OUT_SD_SS) {
-		previouslySelected = 0;
-		return;
-	}
-
-	if(!previouslySelected && ((gpia_out & GPIA_OUT_SD_SS) == 0)) {
-		previouslySelected = 1;
-		byteBuffer = 0;
-		counter = 0;
-		issued = 0;
-	}
-
-	if((gpia_out & GPIA_OUT_SD_CLK)) {
-		if(counter == 16) {
-			int top = ((byteBuffer >> 8) & 255) ^ 255,
-			    bottom = byteBuffer & 255;
-			if((top == bottom) && !issued) {
-				printf("%c", bottom);
-				issued = 1;
-			}
-			return;
-		}
-
-		byteBuffer <<= 1;
-		byteBuffer |= (gpia_out & GPIA_OUT_SD_MOSI) >> 2;
-		gpia_in |= GPIA_IN_SD_MISO;
-		counter++;
-	}
-}
-
+static UDWORD byteMasks[] = {
+	0xFF,
+	0xFFFF,
+	0xFFFFFFFF,
+	0xFFFFFFFFFFFFFFFF,
+};
 
 static void
 gpia_writer(AddressSpace *as, UDWORD addr, UDWORD ud, int sz) {
 	UDWORD byteMask;
-	UDWORD byteMasks[] = {
-		0xFF,
-		0xFFFF,
-		0xFFFFFFFF,
-		0xFFFFFFFFFFFFFFFF,
-	};
 	int shiftAmount = 8 * (addr & 7);
 
 	/* Only GPIA Register 1 is an output register. */
@@ -99,19 +55,13 @@ gpia_writer(AddressSpace *as, UDWORD addr, UDWORD ud, int sz) {
 static UDWORD
 gpia_reader(AddressSpace *as, UDWORD addr, int sz) {
 	int shiftAmount = 8 * (addr & 7);
-	static UDWORD byteMask[] = {
-		0xFF,
-		0xFFFF,
-		0xFFFFFFFF,
-		0xFFFFFFFFFFFFFFFF,
-	};
 	static UDWORD *sources[9] = {
 		&gpia_in, 0, 0, 0,
 		0, 0, 0, 0,
 		&gpia_out
 	};
 
-	return ((*sources[addr & 8]) >> shiftAmount) & byteMask[sz];
+	return ((*sources[addr & 8]) >> shiftAmount) & byteMasks[sz];
 }
 
 
