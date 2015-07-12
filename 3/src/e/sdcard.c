@@ -4,7 +4,8 @@
 #include "sdcard.h"
 
 
-#define R1(x) ((DWORD)(x) << 40)
+#define R3(x,y)	(((DWORD)((x) & 0x7F) << 32) | ((WORD)y) | 0xFFFFFF0000000000)
+#define R1(x)	(R3(x, 0xFFFFFFFF))
 
 
 static DWORD handle_command(int, WORD);
@@ -29,8 +30,8 @@ handle_spi(void) {
 
 	if((gpia_out & GPIA_OUT_SD_CLK)) {
 		gpia_in &= 0xFFFFFFFFFFFFFFFB;
-		gpia_in |= (result >> 45) & 4;
-		result <<= 1;
+		gpia_in |= (result >> 37) & 4;
+		result = (result << 1) | 1;
 		cmdPacket <<= 1;
 		cmdPacket |= (gpia_out & GPIA_OUT_SD_MOSI) >> 2;
 	}
