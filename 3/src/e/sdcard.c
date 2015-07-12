@@ -35,7 +35,7 @@ handle_spi(void) {
 		cmdPacket |= (gpia_out & GPIA_OUT_SD_MOSI) >> 2;
 	}
 
-	if((cmdPacket & 0xC00000000000) == 0x400000000000) {
+	if((cmdPacket & 0xC00000000001) == 0x400000000001) {
 		result = handle_command(
 			(cmdPacket >> 40) & 0xFF,
 			(cmdPacket >> 8) & 0xFFFFFFFF
