@@ -45,9 +45,46 @@ handle_spi(void) {
 }
 
 
+#define APPCMD_PREFIX	0x100
+
 static DWORD
 handle_command(int cmd, WORD address) {
-	fprintf(stderr, "Command $%02X Address $%08lX\n", cmd, address);
-	return R1(0x4A);
+	static int acmdPrefix = 0;
+	static DWORD result;
+	static int blockSize;
+
+	fprintf(stderr, "Command $%03X Address $%08lX\n", cmd | acmdPrefix, address);
+	switch(cmd | acmdPrefix) {
+		case SDCMD_GO_IDLE_STATE:
+			fprintf(stderr, "SD: going idle\n");
+			blockSize = 1024;
+			result = R1(0x01);
+			break;
+
+		case SDCMD_APP_CMD:
+			acmdPrefix = APPCMD_PREFIX;
+			// We return here instead of break, because we don't
+			// want the remainder of the code to reset our freshly
+			// set acmdPrefix setting.
+			return R1(result);
+
+		case APPCMD_PREFIX | SDCMD_SEND_OP_COND:
+			fprintf(stderr, "SD: going operational\n");
+			result = R1(0x00);
+			break;
+
+		case SDCMD_SET_BLKLEN:
+			fprintf(stderr, "SD: Changing block size from %d to %ld", blockSize, address);
+			blockSize = address;
+			break;
+
+		default:
+			fprintf(stderr, "SD: $%02X, $%08lX: Illegal command\n", cmd, address);
+			result = R1(0x05);
+			break;
+	}
+
+	acmdPrefix = 0;
+	return result;
 }
 
