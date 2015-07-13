@@ -48,8 +48,6 @@ gpia_writer(AddressSpace *as, UDWORD addr, UDWORD ud, int sz) {
 
 	byteMask = byteMasks[sz] << shiftAmount;
 	gpia_out = (gpia_out & ~byteMask) | ((ud << shiftAmount) & byteMask);
-
-	handle_spi();
 }
 
 static UDWORD
