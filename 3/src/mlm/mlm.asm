@@ -781,6 +781,41 @@ sdR1L:	lb	t1, 8(t0)
 ebreak
 	jalr	x0, 0(ra)
 
+; This procedure waits for a data token from the SD card.
+; A0 will hold the result value in bits 7-0.
+; This procedure does NOT time out.
+
+sdToken:
+	ori	a0, x0, -1
+	ori	t3, x0, $FF
+
+	ld	t0, zp_gpiaBase(x0)
+	lb	t1, 8(t0)
+	andi	t1, t1, $FF0
+	ori	t1, t1, $005
+	sb	t1, 8(t0)
+
+sdTL1:	ori	t2, x0, 8
+sdTL0:	lb	t1, 8(t0)
+	ori	t1, t1, 8
+	sb	t1, 8(t0)
+	andi	t1, t1, $FF7
+	sb	t1, 8(t0)
+	
+	slli	a0, a0, 1
+	lb	t1, 0(t0)
+	srli	t1, t1, 2
+	andi	t1, t1, 1
+	or	a0, a0, t1
+
+	addi	t2, t2, -1
+	bne	t2, x0, sdTL0
+	andi	a0, a0, $FF
+	beq	a0, t3, sdTL1
+
+ebreak
+	jalr	x0, 0(ra)
+
 ;
 ; CPU Vectors
 ;
@@ -798,4 +833,5 @@ ebreak
 	jal	x0, coldBoot	; Reset Vector
 	jal	x0, sdCommand
 	jal	x0, sdR1
+	jal	x0, sdToken
 
