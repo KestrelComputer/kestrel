@@ -816,6 +816,40 @@ sdTL0:	lb	t1, 8(t0)
 ebreak
 	jalr	x0, 0(ra)
 
+; This procedure exchanges a byte with the SPI peripheral.
+; The byte to be sent is in bits 7-0 of register A0.
+; Upon return, A0 bits 7-0 will contain the received byte.
+; Bits 63-8 are ignored on entry, and destroyed on return.
+
+sdByte:
+	ld	t0, zp_gpiaBase(x0)
+	ori	t3, x0, 8		; Transmission unit is a byte
+
+sdB0:	andi	t2, a0, $80		; Send A0[7] to device
+	srli	t2, t2, 5
+	lb	t1, 8(t0)
+	andi	t1, t1, $FFB
+	or	t1, t1, t2
+	sb	t1, 8(t0)
+
+	ori	t1, t1, $008		; Strobe the clock
+	sb	t1, 8(t0)
+	andi	t1, t1, $FF7
+	sb	t1, 8(t0)
+
+	slli	a0, a0, 1		; Receive bit into A0[0]
+	lb	t1, 0(t0)
+	srli	t1, t1, 2
+	andi	t1, t1, 1
+	or	a0, a0, t1
+
+	addi	t3, t3, -1		; Repeat for all 8 bits
+	bne	t3, x0, sdB0
+
+ebreak
+	jalr	x0, 0(ra)
+
+
 ;
 ; CPU Vectors
 ;
@@ -831,7 +865,8 @@ ebreak
 	adv	$FFEFC, $CC	; NMI
 	jal	x0, brkEntry
 	jal	x0, coldBoot	; Reset Vector
-	jal	x0, sdCommand
-	jal	x0, sdR1
-	jal	x0, sdToken
+	jal	x0, sdCommand	; 04
+	jal	x0, sdR1	; 08
+	jal	x0, sdToken	; 0C
+	jal	x0, sdByte	; 10
 
