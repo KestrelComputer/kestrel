@@ -37,5 +37,6 @@ sdcard_byte(SDCard *sdc, BYTE input) {
 void
 sdcard_select(SDCard *sdc) {
 	sdc->selected = 1;
+	sdc->cmd_index = 0;
 }
 

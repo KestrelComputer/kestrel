@@ -8,7 +8,7 @@ SDCard *sdc;
 int calledBack;
 
 
-void __CUT_BRINGUP__fresh_sdcard(void) {
+void __CUT_SETUP__fresh_sdcard(void) {
 	sdc = sdcard_new();
 }
 
@@ -31,7 +31,7 @@ void __CUT_TAKEDOWN__fresh_sdcard(void) {
 
 void
 my_cmd_handler(void) {
-	calledBack = 1;
+	calledBack++;
 }
 
 void setup_selected_sdcard(void) {
@@ -41,7 +41,7 @@ void setup_selected_sdcard(void) {
 	sdc->cmd_handler = &my_cmd_handler;
 }
 
-void __CUT_BRINGUP__selected_sdcard(void) {
+void __CUT_SETUP__selected_sdcard(void) {
 	setup_selected_sdcard();
 }
 
@@ -68,7 +68,7 @@ void __CUT_TAKEDOWN__selected_sdcard(void) {
 
 
 
-void __CUT_BRINGUP__selected_card_with_r1_cmd(void) {
+void __CUT_SETUP__selected_card_with_r1_cmd(void) {
 	setup_selected_sdcard();
 	sdcard_byte(sdc, 0x40);
 }
@@ -97,7 +97,9 @@ void __CUT__should_accumulate_parameter_bytes(void) {
 
 void __CUT__should_invoke_handler_after_crc(void) {
 	send_address("SD card responded before CRC sent");
-	ASSERT(calledBack, "Command execution didn't occur when expected.");
+	ASSERT(!calledBack, "Spurious command execution discovered.");
+	sdcard_byte(sdc, 0x01);
+	ASSERT(calledBack == 1, "Command execution after CRC expected.");
 }
 
 void __CUT_TAKEDOWN__selected_card_with_r1_cmd(void) {
