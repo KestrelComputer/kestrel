@@ -27,15 +27,20 @@
 #define SDCMD_APP_CMD		55
 #define SDCMD_READ_OCR		58
 
+#define SDBUF_SIZE		3172
+
 
 typedef struct SDCard SDCard;
 
 
 struct SDCard {
 	int	selected;
-	void	(*cmd_handler)(void);
+	void	(*cmd_handler)(SDCard *);
 	BYTE	command[6];
 	int	cmd_index;
+	BYTE	response[SDBUF_SIZE];
+	int	response_rd;
+	int	response_wr;
 };
 
 
@@ -43,6 +48,7 @@ SDCard *	sdcard_new(void);
 void		sdcard_dispose(SDCard *);
 BYTE		sdcard_byte(SDCard *, BYTE);
 void		sdcard_select(SDCard *);
+void		sdcard_enqueue_response(SDCard *, BYTE);
 
 #endif
 

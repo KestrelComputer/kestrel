@@ -1,4 +1,5 @@
 #include <cut/2.7/cut.h>
+#include <stdio.h>
 
 #include "types.h"
 #include "sdcard.h"
@@ -24,14 +25,21 @@ void __CUT__ignores_wait_bytes(void) {
 	ASSERT_(!sdc->selected);
 }
 
+void __CUT__accepts_response_bytes(void) {
+	sdcard_enqueue_response(sdc, 0x12);
+	ASSERT(sdc->response_wr == sdc->response_rd+1, "Enqueueing output should advance write pointer");
+}
+
 void __CUT_TAKEDOWN__fresh_sdcard(void) {
 	sdcard_dispose(sdc);
 }
 
 
 void
-my_cmd_handler(void) {
+my_cmd_handler(SDCard *s) {
 	calledBack++;
+	ASSERT_(s == sdc);
+	sdcard_enqueue_response(s, 0x01);
 }
 
 void setup_selected_sdcard(void) {
@@ -133,6 +141,25 @@ void __CUT__should_have_invoked_its_cmd_handler_once_per_cmd(void) {
 }
 
 void __CUT_TAKEDOWN__selected_card_with_r1_packet(void) {
+	sdcard_dispose(sdc);
+}
+
+
+
+
+void __CUT_SETUP__r1_cmds_sends_r1_response(void) {
+	setup_selected_sdcard();
+	send_cmd0();
+}
+
+void __CUT__we_receive_the_response(void) {
+	BYTE r = sdcard_byte(sdc, -1);
+	ASSERT(r == 0x01, "Expected 0x01 response from CMD0");
+	ASSERT(sdc->response_rd == sdc->response_wr, "Dequeue should have worked");
+	ASSERT(sdc->response_rd == 1, "Response offset should be 1");
+}
+
+void __CUT_TAKEDOWN__r1_cmds_sends_r1_response(void) {
 	sdcard_dispose(sdc);
 }
 
