@@ -33,6 +33,7 @@ typedef struct SDCard SDCard;
 
 struct SDCard {
 	int	selected;
+	void	(*cmd_handler)(void);
 };
 
 
