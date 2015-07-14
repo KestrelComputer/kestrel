@@ -106,3 +106,33 @@ void __CUT_TAKEDOWN__selected_card_with_r1_cmd(void) {
 	sdcard_dispose(sdc);
 }
 
+
+
+void
+send_cmd0(void) {
+	sdcard_byte(sdc, 0x40);
+	sdcard_byte(sdc, 0x11);
+	sdcard_byte(sdc, 0x22);
+	sdcard_byte(sdc, 0x33);
+	sdcard_byte(sdc, 0x44);
+	sdcard_byte(sdc, 0x55);
+}
+
+void __CUT_SETUP__selected_card_with_r1_packet(void) {
+	setup_selected_sdcard();
+	send_cmd0();
+}
+
+void __CUT__should_have_invoked_its_cmd_handler_once(void) {
+	ASSERT(calledBack == 1, "Incorrect number of command handler invokations");
+}
+
+void __CUT__should_have_invoked_its_cmd_handler_once_per_cmd(void) {
+	send_cmd0();
+	ASSERT(calledBack == 2, "Incorrect number of command handler invokations");
+}
+
+void __CUT_TAKEDOWN__selected_card_with_r1_packet(void) {
+	sdcard_dispose(sdc);
+}
+

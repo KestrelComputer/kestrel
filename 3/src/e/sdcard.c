@@ -28,6 +28,7 @@ sdcard_byte(SDCard *sdc, BYTE input) {
 
 	if(sdc->cmd_index > 5) {
 		sdc->cmd_handler();
+		sdc->cmd_index = 0;
 	}
 
 	return 0xFF;
