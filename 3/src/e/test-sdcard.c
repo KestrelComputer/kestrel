@@ -34,9 +34,15 @@ my_cmd_handler(void) {
 	calledBack = 1;
 }
 
-void __CUT_BRINGUP__selected_sdcard(void) {
+void setup_selected_sdcard(void) {
 	sdc = sdcard_new();
 	sdcard_select(sdc);
+	calledBack = 0;
+	sdc->cmd_handler = &my_cmd_handler;
+}
+
+void __CUT_BRINGUP__selected_sdcard(void) {
+	setup_selected_sdcard();
 }
 
 void __CUT__should_be_selected(void) {
@@ -44,16 +50,57 @@ void __CUT__should_be_selected(void) {
 }
 
 void __CUT__should_yield_no_result_on_r1_cmd(void) {
-	BYTE r;
-
-	calledBack = 0;
-	sdc->cmd_handler = &my_cmd_handler;
-	r = sdcard_byte(sdc, 0x40);
+	BYTE r = sdcard_byte(sdc, 0x40);
 	ASSERT(r == -1, "SD card responded with something for R1 cmd");
 	ASSERT(!calledBack, "Too early to call command handler yet.");
 }
 
+void __CUT__should_ignore_leading_wait_bytes(void) {
+	BYTE r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == -1, "SD card responded with something for wait cycle");
+	ASSERT(!calledBack, "Spurious command execution discovered.");
+}
+
 void __CUT_TAKEDOWN__selected_sdcard(void) {
+	sdcard_dispose(sdc);
+}
+
+
+
+
+void __CUT_BRINGUP__selected_card_with_r1_cmd(void) {
+	setup_selected_sdcard();
+	sdcard_byte(sdc, 0x40);
+}
+
+void
+send_address(char *msg) {
+	BYTE r;
+
+	r = sdcard_byte(sdc, 0x11);
+	ASSERT(r == -1, msg);
+
+	r = sdcard_byte(sdc, 0x22);
+	ASSERT(r == -1, msg);
+
+	r = sdcard_byte(sdc, 0x33);
+	ASSERT(r == -1, msg);
+
+	r = sdcard_byte(sdc, 0x44);
+	ASSERT(r == -1, msg);
+}
+
+void __CUT__should_accumulate_parameter_bytes(void) {
+	send_address("SD card responded when it should have been accumulating");
+	ASSERT(!calledBack, "Spurious command execution discovered.");
+}
+
+void __CUT__should_invoke_handler_after_crc(void) {
+	send_address("SD card responded before CRC sent");
+	ASSERT(calledBack, "Command execution didn't occur when expected.");
+}
+
+void __CUT_TAKEDOWN__selected_card_with_r1_cmd(void) {
 	sdcard_dispose(sdc);
 }
 

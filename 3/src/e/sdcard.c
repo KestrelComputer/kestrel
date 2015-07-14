@@ -23,6 +23,13 @@ sdcard_dispose(SDCard *sdc) {
 
 BYTE
 sdcard_byte(SDCard *sdc, BYTE input) {
+	sdc->command[sdc->cmd_index] = input;
+	sdc->cmd_index++;
+
+	if(sdc->cmd_index > 5) {
+		sdc->cmd_handler();
+	}
+
 	return 0xFF;
 }
 
