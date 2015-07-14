@@ -25,3 +25,10 @@ BYTE
 sdcard_byte(SDCard *sdc, BYTE input) {
 	return 0xFF;
 }
+
+
+void
+sdcard_select(SDCard *sdc) {
+	sdc->selected = 1;
+}
+
