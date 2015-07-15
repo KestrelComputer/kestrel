@@ -36,8 +36,9 @@ typedef struct SDCard SDCard;
 struct SDCard {
 	int	selected;
 	void	(*cmd_handler)(SDCard *);
-	BYTE	command[6];
+	BYTE	command[SDBUF_SIZE];
 	int	cmd_index;
+	int	cmd_length;
 	BYTE	response[SDBUF_SIZE];
 	int	response_rd;
 	int	response_wr;

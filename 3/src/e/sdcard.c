@@ -11,13 +11,15 @@
 static void sdcard_default_handler(SDCard *);
 static void sdcard_do_read_block(SDCard *);
 static void sdcard_do_write_block(SDCard *);
+static void sdcard_do_write_block_2nd(SDCard *);
 
 
 void
 sdcard_reset(SDCard *sdc) {
 	memset(sdc, 0, sizeof(SDCard));
 	sdc->cmd_handler = &sdcard_default_handler;
-  sdc->blockLength = 1024;
+	sdc->cmd_length = 6;
+	sdc->blockLength = 1024;
 }
 
 
@@ -72,7 +74,7 @@ sdcard_byte(SDCard *sdc, BYTE input) {
 	sdc->command[sdc->cmd_index] = input;
 	sdc->cmd_index++;
 
-	if(sdc->cmd_index > 5) {
+	if(sdc->cmd_index >= sdc->cmd_length) {
 		sdc->cmd_handler(sdc);
 		sdc->cmd_index = 0;
 	}
@@ -178,6 +180,19 @@ sdcard_do_write_block(SDCard *sdc) {
 		return;
 	}
 
+	sdcard_enqueue_response(sdc, 0x00);
+	sdcard_enqueue_response(sdc, 0xFF);
+
+	sdc->cmd_handler = &sdcard_do_write_block_2nd;
+	sdc->cmd_length = sdc->blockLength+3;
+}
+
+static void
+sdcard_do_write_block_2nd(SDCard *sdc) {
+	sdc->cmd_handler = &sdcard_default_handler;
+	sdc->cmd_length = 6;
+
+	sdcard_enqueue_response(sdc, 0xE5);
 	sdcard_enqueue_response(sdc, 0x00);
 	sdcard_enqueue_response(sdc, 0xFF);
 }

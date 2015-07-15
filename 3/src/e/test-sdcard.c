@@ -289,8 +289,6 @@ void __CUT__read_block(void) {
 	for(i = 0; i < 514; i++) {	// 512 bytes + 2 CRC bytes
 		r = sdcard_byte(sdc, 0xFF);
 		if(r != -1) n++;
-		if((i % 16) == 0) fprintf(stderr, "\n");
-		fprintf(stderr, "%02X ", r);
 	}
 	ASSERT(n > 0, "Data should have been sent.");
 
@@ -298,6 +296,37 @@ void __CUT__read_block(void) {
 		r = sdcard_byte(sdc, 0xFF);
 		ASSERT(r == -1, "After packet, SD card sets MISO high");
 	}
+}
+
+void __CUT__write_block(void) {
+	int i, n;
+	BYTE r;
+
+	send_write_block_cmd(0);
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == 0x00, "Card should accept read block command");
+
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == -1, "Protocol says to wait at least 1 byte before data");
+
+	r = sdcard_byte(sdc, 0xFE);
+	ASSERT(r == -1, "Start of data should illicit no response.");
+	for(i = 0; i < 514; i++) {	// 512 bytes + 2 CRC bytes
+		r = sdcard_byte(sdc, 0xAA);
+		ASSERT(r == -1, "Card must not respond before data sent.");
+	}
+
+	/* Obviously, these are artificial timings.  Real code must be
+	 * responsive to differing numbers of wait cycles, etc.
+	 */
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == (BYTE)0xE5, "Card must accept written data.");
+
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == 0, "Card must take time to write the data.");
+
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == -1, "Card must finish writing data.");
 }
 
 void __CUT_TAKEDOWN__sd_read_write_blocks(void) {
