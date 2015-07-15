@@ -10,6 +10,7 @@
 
 static void sdcard_default_handler(SDCard *);
 static void sdcard_do_read_block(SDCard *);
+static void sdcard_do_write_block(SDCard *);
 
 
 void
@@ -115,6 +116,10 @@ sdcard_default_handler(SDCard *sdc) {
 			sdcard_do_read_block(sdc);
 			break;
 
+		case SDCMD_WRITE_BLOCK:
+			sdcard_do_write_block(sdc);
+			break;
+
 		default:
 			sdcard_enqueue_response(sdc, 0x05);
 			break;
@@ -158,5 +163,22 @@ sdcard_do_read_block(SDCard *sdc) {
 	}
 	sdcard_enqueue_response(sdc, 0x01);	/* fake CRC */
 	sdcard_enqueue_response(sdc, 0x01);
+}
+
+static void
+sdcard_do_write_block(SDCard *sdc) {
+	WORD addr =	(((WORD)sdc->command[1] & 0xFF) << 24) |
+			(((WORD)sdc->command[2] & 0xFF) << 16) |
+			(((WORD)sdc->command[3] & 0xFF) << 8) |
+			(((WORD)sdc->command[4] & 0xFF));
+
+	/* Limiting to 1GB for now. */
+	if(addr >= (1024*1048576)) {
+		sdcard_enqueue_response(sdc, 0x20);
+		return;
+	}
+
+	sdcard_enqueue_response(sdc, 0x00);
+	sdcard_enqueue_response(sdc, 0xFF);
 }
 
