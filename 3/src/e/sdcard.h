@@ -41,6 +41,8 @@ struct SDCard {
 	BYTE	response[SDBUF_SIZE];
 	int	response_rd;
 	int	response_wr;
+	int	acmdPrefix;
+	int	blockLength;
 };
 
 

@@ -130,12 +130,32 @@ send_cmd0(void) {
 }
 
 void
+send_cmd55(void) {
+	sdcard_byte(sdc, 64+55);
+	sdcard_byte(sdc, 0x00);
+	sdcard_byte(sdc, 0x00);
+	sdcard_byte(sdc, 0x00);
+	sdcard_byte(sdc, 0x00);
+	sdcard_byte(sdc, 0x01);
+}
+
+void
 send_cmd1(void) {
 	sdcard_byte(sdc, 0x41);
 	sdcard_byte(sdc, 0x00);
 	sdcard_byte(sdc, 0x00);
 	sdcard_byte(sdc, 0x00);
 	sdcard_byte(sdc, 0x00);
+	sdcard_byte(sdc, 0x01);
+}
+
+void
+send_set_block_length(WORD blklen) {
+	sdcard_byte(sdc, 0x50);
+	sdcard_byte(sdc, (blklen >> 24) & 0xFF);
+	sdcard_byte(sdc, (blklen >> 16) & 0xFF);
+	sdcard_byte(sdc, (blklen >> 8) & 0xFF);
+	sdcard_byte(sdc, blklen & 0xFF);
 	sdcard_byte(sdc, 0x01);
 }
 
@@ -194,6 +214,29 @@ void __CUT__rejects_mmc_initialization(void) {
 	send_cmd1();
 	r = sdcard_byte(sdc, 0xFF);
 	ASSERT(r == 0x05, "We're emulating SD V1, not MMC V1");
+}
+
+void __CUT__accepts_sdv1_initialization(void) {
+	BYTE r;
+
+	send_cmd55();
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == 0x01, "ACMD prefix must be recognized.");
+
+	send_cmd1();
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == 0x00, "Expect SD card to fall out of idle state.");
+}
+
+void __CUT__accepts_new_block_length(void) {
+	BYTE r;
+
+	send_cmd55();
+	send_cmd1();
+
+	send_set_block_length(512);
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == 0x00, "Card should accept new block length.");
 }
 
 void __CUT_TAKEDOWN__sd_initialization(void) {
