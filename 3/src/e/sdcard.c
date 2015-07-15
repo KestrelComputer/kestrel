@@ -6,11 +6,15 @@
 #include "sdcard.h"
 
 
+static void sdcard_default_handler(SDCard *);
+
+
 SDCard *
 sdcard_new(void) {
 	SDCard *sdc = malloc(sizeof(SDCard));
 	if(sdc) {
 		memset(sdc, 0, sizeof(SDCard));
+		sdc->cmd_handler = &sdcard_default_handler;
 	}
 	return sdc;
 }
@@ -49,7 +53,12 @@ sdcard_enqueue_response(SDCard *sdc, BYTE b) {
 
 BYTE
 sdcard_byte(SDCard *sdc, BYTE input) {
-	BYTE b = sdcard_dequeue(sdc);
+	BYTE b;
+
+	if(!sdc->selected) return -1;
+
+	b = sdcard_dequeue(sdc);
+	if((input == -1) && (sdc->cmd_index == 0)) return b;
 
 	sdc->command[sdc->cmd_index] = input;
 	sdc->cmd_index++;
@@ -67,5 +76,19 @@ void
 sdcard_select(SDCard *sdc) {
 	sdc->selected = 1;
 	sdc->cmd_index = 0;
+}
+
+
+static void
+sdcard_default_handler(SDCard *sdc) {
+	switch(sdc->command[0]) {
+		case 0x40:
+			sdcard_enqueue_response(sdc, 0x01);
+			break;
+
+		default:
+			sdcard_enqueue_response(sdc, 0x05);
+			break;
+	}
 }
 
