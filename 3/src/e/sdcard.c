@@ -1,12 +1,15 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #include "types.h"
 #include "sdcard.h"
 
 
 static void sdcard_default_handler(SDCard *);
+static void sdcard_do_read_block(SDCard *);
 
 
 void
@@ -108,10 +111,52 @@ sdcard_default_handler(SDCard *sdc) {
 			sdcard_enqueue_response(sdc, 0x00);
 			break;
 
+		case SDCMD_READ_BLOCK:
+			sdcard_do_read_block(sdc);
+			break;
+
 		default:
 			sdcard_enqueue_response(sdc, 0x05);
 			break;
 	}
 	sdc->acmdPrefix = nextPrefix;
+}
+
+
+static void
+sdcard_do_read_block(SDCard *sdc) {
+	int i, h;
+	BYTE buf[2048];
+
+	WORD addr =	(((WORD)sdc->command[1] & 0xFF) << 24) |
+			(((WORD)sdc->command[2] & 0xFF) << 16) |
+			(((WORD)sdc->command[3] & 0xFF) << 8) |
+			(((WORD)sdc->command[4] & 0xFF));
+
+	/* Limiting to 1GB for now. */
+	if(addr >= (1024*1048576)) {
+		sdcard_enqueue_response(sdc, 0x20);
+		return;
+	}
+
+	sdcard_enqueue_response(sdc, 0x00);
+	sdcard_enqueue_response(sdc, 0xFF);
+
+	h = open("sdcard.sdc", O_RDONLY);
+	if(h < 0) {
+		sdcard_enqueue_response(sdc, 0x05);
+		return;
+	}
+
+	lseek(h, addr, SEEK_SET);
+	read(h, buf, sdc->blockLength);
+	close(h);
+
+	sdcard_enqueue_response(sdc, 0xFE);
+	for(i = 0; i < sdc->blockLength; i++) {
+		sdcard_enqueue_response(sdc, buf[i]);
+	}
+	sdcard_enqueue_response(sdc, 0x01);	/* fake CRC */
+	sdcard_enqueue_response(sdc, 0x01);
 }
 

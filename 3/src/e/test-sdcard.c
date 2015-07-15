@@ -159,6 +159,16 @@ send_set_block_length(WORD blklen) {
 	sdcard_byte(sdc, 0x01);
 }
 
+void
+send_read_block_cmd(WORD addr) {
+	sdcard_byte(sdc, 0x51);
+	sdcard_byte(sdc, (addr >> 24) & 0xFF);
+	sdcard_byte(sdc, (addr >> 16) & 0xFF);
+	sdcard_byte(sdc, (addr >> 8) & 0xFF);
+	sdcard_byte(sdc, addr & 0xFF);
+	sdcard_byte(sdc, 0x01);
+}
+
 void __CUT_SETUP__selected_card_with_r1_packet(void) {
 	setup_selected_sdcard();
 	send_cmd0();
@@ -242,3 +252,58 @@ void __CUT__accepts_new_block_length(void) {
 void __CUT_TAKEDOWN__sd_initialization(void) {
 	sdcard_dispose(sdc);
 }
+
+
+
+void __CUT_SETUP__sd_read_write_blocks(void) {
+	BYTE r;
+
+	sdc = sdcard_new();
+	sdcard_select(sdc);
+	send_cmd0();  r = sdcard_byte(sdc, 0xFF);
+	send_cmd55(); r = sdcard_byte(sdc, 0xFF);
+	send_cmd1();  r = sdcard_byte(sdc, 0xFF);
+	send_set_block_length(512);  r = sdcard_byte(sdc, 0xFF);
+}
+
+void __CUT__read_beyond_card_capacity(void) {
+	BYTE r;
+
+	send_read_block_cmd(1024*1048576);
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == 0x20, "Card is only 1GB in size.");
+}
+
+void __CUT__read_block(void) {
+	int i, n;
+	BYTE r;
+
+	send_read_block_cmd(0);
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == 0x00, "Card should accept read block command");
+
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == -1, "Protocol says to wait at least 1 byte before data");
+
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == -2, "Start data block token expected");
+
+	n = 0;
+	for(i = 0; i < 514; i++) {	// 512 bytes + 2 CRC bytes
+		r = sdcard_byte(sdc, 0xFF);
+		if(r != -1) n++;
+		if((i % 16) == 0) fprintf(stderr, "\n");
+		fprintf(stderr, "%02X ", r);
+	}
+	ASSERT(n > 0, "Data should have been sent.");
+
+	for(i = 0; i < 512; i++) {
+		r = sdcard_byte(sdc, 0xFF);
+		ASSERT(r == -1, "After packet, SD card sets MISO high");
+	}
+}
+
+void __CUT_TAKEDOWN__sd_read_write_blocks(void) {
+	sdcard_dispose(sdc);
+}
+
