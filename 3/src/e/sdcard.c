@@ -185,12 +185,29 @@ sdcard_do_write_block(SDCard *sdc) {
 
 	sdc->cmd_handler = &sdcard_do_write_block_2nd;
 	sdc->cmd_length = sdc->blockLength+3;
+	sdc->seek_address = addr;
 }
 
 static void
 sdcard_do_write_block_2nd(SDCard *sdc) {
+	int h;
+
 	sdc->cmd_handler = &sdcard_default_handler;
 	sdc->cmd_length = 6;
+
+	if(sdc->command[0] != -2) {
+		sdcard_enqueue_response(sdc, 0xED);
+		return;
+	}
+
+	h = open("sdcard.sdc", O_RDWR);
+	if(h < 0) {
+		sdcard_enqueue_response(sdc, 0xED);
+		return;
+	}
+	lseek(h, sdc->seek_address, SEEK_SET);
+	write(h, &sdc->command[1], sdc->blockLength);
+	close(h);
 
 	sdcard_enqueue_response(sdc, 0xE5);
 	sdcard_enqueue_response(sdc, 0x00);

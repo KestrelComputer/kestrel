@@ -44,6 +44,7 @@ struct SDCard {
 	int	response_wr;
 	int	acmdPrefix;
 	int	blockLength;
+	WORD	seek_address;
 };
 
 

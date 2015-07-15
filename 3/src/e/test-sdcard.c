@@ -63,6 +63,23 @@ send_write_block_cmd(WORD addr) {
 	send_address_crc(addr);
 }
 
+static void
+write_some_data(void) {
+	int i, n;
+	BYTE r;
+
+	send_write_block_cmd(0);
+	r = sdcard_byte(sdc, 0xFF);
+	r = sdcard_byte(sdc, 0xFF);
+	r = sdcard_byte(sdc, 0xFE);
+	for(i = 0; i < 514; i++) {	// 512 bytes + 2 CRC bytes
+		r = sdcard_byte(sdc, 0xAA);
+	}
+	r = sdcard_byte(sdc, 0xFF);
+	r = sdcard_byte(sdc, 0xFF);
+	r = sdcard_byte(sdc, 0xFF);
+}
+
 
 
 void __CUT_SETUP__fresh_sdcard(void) {
@@ -327,6 +344,26 @@ void __CUT__write_block(void) {
 
 	r = sdcard_byte(sdc, 0xFF);
 	ASSERT(r == -1, "Card must finish writing data.");
+}
+
+void __CUT__verify_block(void) {
+	int i, n;
+	BYTE r;
+
+	write_some_data();
+
+	send_read_block_cmd(0);
+	r = sdcard_byte(sdc, 0xFF);
+	r = sdcard_byte(sdc, 0xFF);
+	r = sdcard_byte(sdc, 0xFF);
+
+	n = 0;
+	for(i = 0; i < 512; i++) {	// 512 bytes + 2 CRC bytes
+		r = sdcard_byte(sdc, 0xFF);
+		ASSERT(r == (BYTE)0xAA, "Write should have succeeded");
+	}
+	r = sdcard_byte(sdc, 0xFF); ASSERT(r == 1, "CRC should not be affected.");
+	r = sdcard_byte(sdc, 0xFF); ASSERT(r == 1, "CRC should not be affected.");
 }
 
 void __CUT_TAKEDOWN__sd_read_write_blocks(void) {
