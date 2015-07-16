@@ -53,6 +53,7 @@ void		sdcard_dispose(SDCard *);
 BYTE		sdcard_byte(SDCard *, BYTE);
 void		sdcard_select(SDCard *);
 void		sdcard_enqueue_response(SDCard *, BYTE);
+void		sdcard_deselect(SDCard *);
 
 #endif
 

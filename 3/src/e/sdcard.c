@@ -85,8 +85,15 @@ sdcard_byte(SDCard *sdc, BYTE input) {
 
 void
 sdcard_select(SDCard *sdc) {
+	if(sdc->selected) return;
 	sdcard_reset(sdc);
 	sdc->selected = 1;
+}
+
+
+void
+sdcard_deselect(SDCard *sdc) {
+	sdcard_reset(sdc);
 }
 
 

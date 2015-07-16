@@ -146,6 +146,20 @@ void __CUT__should_ignore_leading_wait_bytes(void) {
 	ASSERT(!calledBack, "Spurious command execution discovered.");
 }
 
+void __CUT__should_ingore_reselection(void) {
+	BYTE r;
+	sdcard_byte(sdc, 0x40);
+	sdcard_byte(sdc, 0x00);
+	sdcard_byte(sdc, 0x00);
+	sdcard_select(sdc);
+	sdcard_byte(sdc, 0x00);
+	sdcard_byte(sdc, 0x00);
+	sdcard_byte(sdc, 0x01);
+
+	r = sdcard_byte(sdc, 0xFF);
+	ASSERT(r == 0x01, "SD card state should not reset when re-selected");
+}
+
 void __CUT_TAKEDOWN__selected_sdcard(void) {
 	sdcard_dispose(sdc);
 }
@@ -187,6 +201,12 @@ void __CUT__should_have_invoked_its_cmd_handler_once(void) {
 void __CUT__should_have_invoked_its_cmd_handler_once_per_cmd(void) {
 	send_cmd0();
 	ASSERT(calledBack == 2, "Incorrect number of command handler invokations");
+}
+
+void __CUT__should_ignore_commands_after_deselection(void) {
+	sdcard_deselect(sdc);
+	send_cmd0();
+	ASSERT(sdcard_byte(sdc, 0xFF) == -1, "SD card should ignore commands when deselected");
 }
 
 void __CUT_TAKEDOWN__selected_card_with_r1_packet(void) {
