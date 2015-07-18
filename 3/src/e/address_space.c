@@ -13,9 +13,6 @@
 #include "address_space.h"
 
 
-UDWORD gpia_in;
-
-
 static void
 no_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
 	fprintf(stderr, "Error: Writing $%016llX to address $%016llX\n", b, addr);
@@ -35,7 +32,7 @@ do_spi_interface(AddressSpace *as) {
 
 	sdcard_select(as->sdc);
 	if(as->spi_bit_ctr == 0) as->spi_miso = sdcard_peek_byte(as->sdc);
-	gpia_in = (gpia_in & ~GPIA_IN_SD_MISO) | ((as->spi_miso >> 5) & GPIA_IN_SD_MISO);
+	as->gpia_in = (as->gpia_in & ~GPIA_IN_SD_MISO) | ((as->spi_miso >> 5) & GPIA_IN_SD_MISO);
 
 	if(!as->spi_prev_clk && spi_next_clk) {	/* Rising edge of clock */
 		as->spi_mosi = (as->spi_mosi << 1) | ((as->gpia_out & GPIA_OUT_SD_MOSI) >> 2);
@@ -92,7 +89,7 @@ static UDWORD
 gpia_reader(AddressSpace *as, UDWORD addr, int sz) {
 	int shiftAmount = 8 * (addr & 7);
 	UDWORD sources[9] = {
-		gpia_in, 0, 0, 0,
+		as->gpia_in, 0, 0, 0,
 		0, 0, 0, 0,
 		as->gpia_out
 	};

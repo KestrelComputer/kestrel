@@ -20,6 +20,7 @@ struct AddressSpace {
 	RDFUNC	readers[MAX_DEVS];
 
 	UDWORD	gpia_out;
+	UDWORD	gpia_in;
 
 	int	spi_prev_clk;
 	int	spi_bit_ctr;
