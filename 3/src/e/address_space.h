@@ -19,6 +19,8 @@ struct AddressSpace {
 	WRFUNC	writers[MAX_DEVS];
 	RDFUNC	readers[MAX_DEVS];
 
+	UDWORD	gpia_out;
+
 	int	spi_prev_clk;
 	int	spi_bit_ctr;
 	SDCard *sdc;
