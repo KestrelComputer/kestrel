@@ -45,13 +45,12 @@ sdcard_response_empty(SDCard *sdc) {
 
 BYTE
 sdcard_dequeue(SDCard *sdc) {
-	BYTE b;
-	if(sdcard_response_empty(sdc)) {
-		return -1;
+	if(!sdcard_response_empty(sdc)) {
+		BYTE b = sdcard_peek_byte(sdc);
+		sdc->response_rd = (sdc->response_rd + 1) % SDBUF_SIZE;
+		return b;
 	}
-	b = sdc->response[sdc->response_rd];
-	sdc->response_rd = (sdc->response_rd + 1) % SDBUF_SIZE;
-	return b;
+	return -1;
 }
 
 
@@ -219,5 +218,13 @@ sdcard_do_write_block_2nd(SDCard *sdc) {
 	sdcard_enqueue_response(sdc, 0xE5);
 	sdcard_enqueue_response(sdc, 0x00);
 	sdcard_enqueue_response(sdc, 0xFF);
+}
+
+BYTE
+sdcard_peek_byte(SDCard *sdc) {
+	if(sdcard_response_empty(sdc)) {
+		return -1;
+	}
+	return sdc->response[sdc->response_rd];
 }
 

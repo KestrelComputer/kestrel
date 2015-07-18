@@ -8,8 +8,9 @@
 #include "types.h"
 #include "config.h"
 #include "options.h"
-#include "address_space.h"
 #include "sdcard.h"
+#include "gpia.h"
+#include "address_space.h"
 
 
 UDWORD gpia_out;
@@ -28,6 +29,43 @@ no_reader(AddressSpace *as, UDWORD addr, int sz) {
 	return 0xCCCCCCCCCCCCCCCC;
 }
 
+
+static void
+do_spi_interface(AddressSpace *as) {
+	int spi_next_clk = gpia_out & GPIA_OUT_SD_CLK;
+
+	sdcard_select(as->sdc);
+	if(as->spi_bit_ctr == 0) as->spi_miso = sdcard_peek_byte(as->sdc);
+	gpia_in = (gpia_in & ~GPIA_IN_SD_MISO) | ((as->spi_miso >> 5) & GPIA_IN_SD_MISO);
+
+	if(!as->spi_prev_clk && spi_next_clk) {	/* Rising edge of clock */
+		as->spi_mosi = (as->spi_mosi << 1) | ((gpia_out & GPIA_OUT_SD_MOSI) >> 2);
+	}
+	if(as->spi_prev_clk && !spi_next_clk) {	/* Falling edge of clock */
+		as->spi_miso <<= 1;
+		as->spi_bit_ctr = (as->spi_bit_ctr + 1) & 7;
+		if(!as->spi_bit_ctr) {
+			as->spi_miso = sdcard_byte(as->sdc, as->spi_mosi);
+		}
+	}
+	as->spi_prev_clk = spi_next_clk;
+}
+
+static void
+reset_spi_interface(AddressSpace *as) {
+	as->spi_prev_clk = 0;
+	as->spi_bit_ctr = 0;
+	sdcard_deselect(as->sdc);
+}
+
+
+static void
+do_gpia_out(AddressSpace *as) {
+	int sdcard_selected = !(gpia_out & GPIA_OUT_SD_SS);
+
+	if(sdcard_selected) do_spi_interface(as);
+	else reset_spi_interface(as);
+}
 
 static UDWORD byteMasks[] = {
 	0xFF,
@@ -48,6 +86,7 @@ gpia_writer(AddressSpace *as, UDWORD addr, UDWORD ud, int sz) {
 
 	byteMask = byteMasks[sz] << shiftAmount;
 	gpia_out = (gpia_out & ~byteMask) | ((ud << shiftAmount) & byteMask);
+	do_gpia_out(as);
 }
 
 static UDWORD
@@ -270,6 +309,9 @@ make(Options *opts) {
 	}
 	assert(as->rom);
 	assert(as->ram);
+
+	as->sdc = sdcard_new();
+	assert(as->sdc);
 	return as;
 }
 

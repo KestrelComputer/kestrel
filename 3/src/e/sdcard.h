@@ -2,16 +2,6 @@
 #define E_SDCARD_H
 
 
-#define GPIA_OUT_SD_LED		0x0001
-#define GPIA_OUT_SD_SS		0x0002
-#define GPIA_OUT_SD_MOSI	0x0004
-#define GPIA_OUT_SD_CLK		0x0008
-
-#define GPIA_IN_SD_CD		0x0001
-#define GPIA_IN_SD_WP		0x0002
-#define GPIA_IN_SD_MISO		0x0004
-
-
 #define	SDCMD_GO_IDLE_STATE	0
 #define SDCMD_SEND_OP_COND	1
 #define SDCMD_SEND_IF_COND	8
@@ -54,6 +44,7 @@ BYTE		sdcard_byte(SDCard *, BYTE);
 void		sdcard_select(SDCard *);
 void		sdcard_enqueue_response(SDCard *, BYTE);
 void		sdcard_deselect(SDCard *);
+BYTE		sdcard_peek_byte(SDCard *);
 
 #endif
 

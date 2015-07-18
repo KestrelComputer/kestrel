@@ -209,6 +209,15 @@ void __CUT__should_ignore_commands_after_deselection(void) {
 	ASSERT(sdcard_byte(sdc, 0xFF) == -1, "SD card should ignore commands when deselected");
 }
 
+void __CUT__should_support_response_peeking(void) {
+	BYTE p, q;
+
+	p = sdcard_peek_byte(sdc);
+	q = sdcard_byte(sdc, 0xFF);
+	ASSERT(p == 0x01, "SD card peek byte should match R1 response");
+	ASSERT(q == p, "R1 response peeked should match R1 response delivered");
+}
+
 void __CUT_TAKEDOWN__selected_card_with_r1_packet(void) {
 	sdcard_dispose(sdc);
 }
