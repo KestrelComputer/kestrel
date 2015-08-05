@@ -101,7 +101,7 @@ Clients aware of new functionality will use the newer APIs,
 which may grant the client access to enhanced functionality.
 Such as, for instance, automatic layout facilities.
 
-## Solution 2: Separate your model from your view
+## Solution 2: Separate your control from your view
 
 What am I *really* using these `Object` structures for?
 I have two top-level `object.c` API entry points:
