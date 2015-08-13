@@ -464,20 +464,20 @@ but this fact should never be made known to the calculator.
 Therefore,
 the first thing we do is gain access to that display:
 
-  // calc.c
-  int
-  main(int argc, char *argv[]) {
-    Workstation *wk;
-    int erc, i;
-    ...
-    erc = workstation_open(&wk);
-    if(erc) {
-      printf("Problem during initialization: 0x%X\n", erc);
-      return 1;
+    // calc.c
+    int
+    main(int argc, char *argv[]) {
+        Workstation *wk;
+        int erc, i;
+        ...
+        erc = workstation_open(&wk);
+        if(erc) {
+            printf("Problem during initialization: 0x%X\n", erc);
+            return 1;
+        }
+        ...
+        workstation_close(wk);
     }
-    ...
-    workstation_close(wk);
-  }
 
 Inside `workstation.c`,
 the `workstation_open` routine
@@ -515,28 +515,28 @@ starting at index 0 (the first in the array).
 Each object describes a region of interest on the screen:
 
     static Object objs[] = {
-      {1, 50, 25, 0, 0, OT_WINFRAME, 0},
-      {2, 16, 0, 0, 12, OT_TITLE, "Calc"},
-      {3, 0, 0, 16, 12, OT_BITMAP, (char *)&close_icon},
-      {4, 0, 0, 102, 12, OT_LABEL, "0"},
-      {5, 0, 14, 24, 12, OT_BUTTON, "9"},
-      {6, 26, 14, 24, 12, OT_BUTTON, "8"},
-      {7, 52, 14, 24, 12, OT_BUTTON, "7"},
-      {8, 78, 14, 24, 12, OT_BUTTON, "/"},
-      {9, 0, 28, 24, 12, OT_BUTTON, "6"},
-      {10, 26, 28, 24, 12, OT_BUTTON, "5"},
-      {11, 52, 28, 24, 12, OT_BUTTON, "4"},
-      {12, 78, 28, 24, 12, OT_BUTTON, "*"},
-      {13, 0, 42, 24, 12, OT_BUTTON, "3"},
-      {14, 26, 42, 24, 12, OT_BUTTON, "2"},
-      {15, 52, 42, 24, 12, OT_BUTTON, "1"},
-      {16, 78, 42, 24, 12, OT_BUTTON, "-"},
-      {17, 0, 56, 24, 12, OT_BUTTON, "."},
-      {18, 26, 56, 24, 12, OT_BUTTON, "0"},
-      {19, 52, 56, 24, 12, OT_BUTTON, "="},
-      {20, 78, 56, 24, 12, OT_BUTTON, "+"},
+        {1, 50, 25, 0, 0, OT_WINFRAME, 0},
+        {2, 16, 0, 0, 12, OT_TITLE, "Calc"},
+        {3, 0, 0, 16, 12, OT_BITMAP, (char *)&close_icon},
+        {4, 0, 0, 102, 12, OT_LABEL, "0"},
+        {5, 0, 14, 24, 12, OT_BUTTON, "9"},
+        {6, 26, 14, 24, 12, OT_BUTTON, "8"},
+        {7, 52, 14, 24, 12, OT_BUTTON, "7"},
+        {8, 78, 14, 24, 12, OT_BUTTON, "/"},
+        {9, 0, 28, 24, 12, OT_BUTTON, "6"},
+        {10, 26, 28, 24, 12, OT_BUTTON, "5"},
+        {11, 52, 28, 24, 12, OT_BUTTON, "4"},
+        {12, 78, 28, 24, 12, OT_BUTTON, "*"},
+        {13, 0, 42, 24, 12, OT_BUTTON, "3"},
+        {14, 26, 42, 24, 12, OT_BUTTON, "2"},
+        {15, 52, 42, 24, 12, OT_BUTTON, "1"},
+        {16, 78, 42, 24, 12, OT_BUTTON, "-"},
+        {17, 0, 56, 24, 12, OT_BUTTON, "."},
+        {18, 26, 56, 24, 12, OT_BUTTON, "0"},
+        {19, 52, 56, 24, 12, OT_BUTTON, "="},
+        {20, 78, 56, 24, 12, OT_BUTTON, "+"},
 
-      {20, 0, 0, 640, 12, OT_LABEL, "Calculator Version 1.0"},
+        {20, 0, 0, 640, 12, OT_LABEL, "Calculator Version 1.0"},
     };
 
 This array defines how to render the calculator's "window" on the screen.
@@ -560,8 +560,8 @@ That's because I fix them up at run-time (just above the call to `obj_draw`):
     objs[0].height = objs[1].height + objs[19].top + objs[19].height + 3;
 
     for(i = 1; i < 20; i++) {
-      objs[i].left = objs[i].left + objs[0].left + 2;
-      objs[i].top = objs[i].top + objs[0].top + 13;
+        objs[i].left = objs[i].left + objs[0].left + 2;
+        objs[i].top = objs[i].top + objs[0].top + 13;
     }
 
     objs[1].left -= 2;
@@ -666,13 +666,13 @@ typically via a lookup table or a
 `switch` statement,
 we can then dispatch to an appropriate handler.
 
-  void
-  on_button_down(int mx, int my) {
-    int i;
+    void
+    on_button_down(int mx, int my) {
+        int i;
 
-    i = obj_find(objs, 1, mx, my);
-    printf("Clicked on object %d at (%d, %d)\n", i, mx, my);
-  }
+        i = obj_find(objs, 1, mx, my);
+        printf("Clicked on object %d at (%d, %d)\n", i, mx, my);
+    }
 
 If no object is found,
 `obj_find` will return `0xFFFF`,
@@ -682,17 +682,17 @@ since it's not (generally) possible to have a negative array index.
 
 We handle button releases in almost exactly the same way.
 
-  void
-  on_button_up(int mx, int my) {
-    int i;
+    void
+    on_button_up(int mx, int my) {
+        int i;
 
-    i = obj_find(objs, 1, mx, my);
-    if(i == 2) {
-      SDL_Event e;
-      e.type = SDL_QUIT;
-      SDL_PushEvent(&e);
+        i = obj_find(objs, 1, mx, my);
+        if(i == 2) {
+            SDL_Event e;
+            e.type = SDL_QUIT;
+            SDL_PushEvent(&e);
+        }
     }
-  }
 
 The only difference is,
 we check to see if the user clicked on the window's close button.
@@ -702,18 +702,14 @@ and allow program finalization to happen.
 
 ## Summary of influences
 
+|Design Influence|Source|
+|----------------|------|
 |Describe objects with structures|AmigaOS intuition.library, GEM, GEOS|
-
 |Callbacks for event handling|GEOS|
-
 |Workstations and retargetable graphics|GEM|
-
 |Preference for libraries over frameworks|GEM|
-
 |Full-screen ownership|GEOS|
-
 |Windowing as an adjunct library|GEM|
-
 |Automatic layout as an adjunct library|AmigaOS gadtools.library|
 
 ## Lessons Learned
@@ -782,30 +778,30 @@ dedicated resource editors or compilers.
 A better solution would be the use of nested constructors.
 For example:
 
-  return obj_vector(
-    obj_desc(50, 25, 0, 0, OT_WINFRAME, 0),
-    obj_desc(16, 0, 0, 12, OT_TITLE, "Calc"),
-    obj_desc(0, 0, 16, 12, OT_BITMAP, (char *)&close_icon),
-    obj_desc(0, 0, 102, 12, OT_LABEL, "0"),
-    obj_desc(0, 14, 24, 12, OT_BUTTON, "9"),
-    obj_desc(26, 14, 24, 12, OT_BUTTON, "8"),
-    obj_desc(52, 14, 24, 12, OT_BUTTON, "7"),
-    obj_desc(78, 14, 24, 12, OT_BUTTON, "/"),
-    obj_desc(0, 28, 24, 12, OT_BUTTON, "6"),
-    obj_desc(26, 28, 24, 12, OT_BUTTON, "5"),
-    obj_desc(52, 28, 24, 12, OT_BUTTON, "4"),
-    obj_desc(78, 28, 24, 12, OT_BUTTON, "*"),
-    obj_desc(0, 42, 24, 12, OT_BUTTON, "3"),
-    obj_desc(26, 42, 24, 12, OT_BUTTON, "2"),
-    obj_desc(52, 42, 24, 12, OT_BUTTON, "1"),
-    obj_desc(78, 42, 24, 12, OT_BUTTON, "-"),
-    obj_desc(0, 56, 24, 12, OT_BUTTON, "."),
-    obj_desc(26, 56, 24, 12, OT_BUTTON, "0"),
-    obj_desc(52, 56, 24, 12, OT_BUTTON, "="),
-    obj_desc(78, 56, 24, 12, OT_BUTTON, "+"),
-    obj_desc(0, 0, 640, 12, OT_LABEL, "Calculator Version 1.0"),
-    NULL
-  )
+    return obj_vector(
+        obj_desc(50, 25, 0, 0, OT_WINFRAME, 0),
+        obj_desc(16, 0, 0, 12, OT_TITLE, "Calc"),
+        obj_desc(0, 0, 16, 12, OT_BITMAP, (char *)&close_icon),
+        obj_desc(0, 0, 102, 12, OT_LABEL, "0"),
+        obj_desc(0, 14, 24, 12, OT_BUTTON, "9"),
+        obj_desc(26, 14, 24, 12, OT_BUTTON, "8"),
+        obj_desc(52, 14, 24, 12, OT_BUTTON, "7"),
+        obj_desc(78, 14, 24, 12, OT_BUTTON, "/"),
+        obj_desc(0, 28, 24, 12, OT_BUTTON, "6"),
+        obj_desc(26, 28, 24, 12, OT_BUTTON, "5"),
+        obj_desc(52, 28, 24, 12, OT_BUTTON, "4"),
+        obj_desc(78, 28, 24, 12, OT_BUTTON, "*"),
+        obj_desc(0, 42, 24, 12, OT_BUTTON, "3"),
+        obj_desc(26, 42, 24, 12, OT_BUTTON, "2"),
+        obj_desc(52, 42, 24, 12, OT_BUTTON, "1"),
+        obj_desc(78, 42, 24, 12, OT_BUTTON, "-"),
+        obj_desc(0, 56, 24, 12, OT_BUTTON, "."),
+        obj_desc(26, 56, 24, 12, OT_BUTTON, "0"),
+        obj_desc(52, 56, 24, 12, OT_BUTTON, "="),
+        obj_desc(78, 56, 24, 12, OT_BUTTON, "+"),
+        obj_desc(0, 0, 640, 12, OT_LABEL, "Calculator Version 1.0"),
+        NULL
+    )
 
 Several disadvantages exist with this approach:
 
@@ -837,38 +833,38 @@ The trick, it turns out, is to interpret the data structures used as
 *templates* for the constructed data structures behind the scenes.
 Something like so:
 
-    static Object objs[] = {
-      {1, 50, 25, 0, 0, OT_WINFRAME, 0},
-      {2, 16, 0, 0, 12, OT_TITLE, "Calc"},
-      {3, 0, 0, 16, 12, OT_BITMAP, (char *)&close_icon},
-      {4, 0, 0, 102, 12, OT_LABEL, "0"},
-      {5, 0, 14, 24, 12, OT_BUTTON, "9"},
-      {6, 26, 14, 24, 12, OT_BUTTON, "8"},
-      {7, 52, 14, 24, 12, OT_BUTTON, "7"},
-      {8, 78, 14, 24, 12, OT_BUTTON, "/"},
-      {9, 0, 28, 24, 12, OT_BUTTON, "6"},
-      {10, 26, 28, 24, 12, OT_BUTTON, "5"},
-      {11, 52, 28, 24, 12, OT_BUTTON, "4"},
-      {12, 78, 28, 24, 12, OT_BUTTON, "*"},
-      {13, 0, 42, 24, 12, OT_BUTTON, "3"},
-      {14, 26, 42, 24, 12, OT_BUTTON, "2"},
-      {15, 52, 42, 24, 12, OT_BUTTON, "1"},
-      {16, 78, 42, 24, 12, OT_BUTTON, "-"},
-      {17, 0, 56, 24, 12, OT_BUTTON, "."},
-      {18, 26, 56, 24, 12, OT_BUTTON, "0"},
-      {19, 52, 56, 24, 12, OT_BUTTON, "="},
-      {20, 78, 56, 24, 12, OT_BUTTON, "+"},
+        static Object objs[] = {
+            {1, 50, 25, 0, 0, OT_WINFRAME, 0},
+            {2, 16, 0, 0, 12, OT_TITLE, "Calc"},
+            {3, 0, 0, 16, 12, OT_BITMAP, (char *)&close_icon},
+            {4, 0, 0, 102, 12, OT_LABEL, "0"},
+            {5, 0, 14, 24, 12, OT_BUTTON, "9"},
+            {6, 26, 14, 24, 12, OT_BUTTON, "8"},
+            {7, 52, 14, 24, 12, OT_BUTTON, "7"},
+            {8, 78, 14, 24, 12, OT_BUTTON, "/"},
+            {9, 0, 28, 24, 12, OT_BUTTON, "6"},
+            {10, 26, 28, 24, 12, OT_BUTTON, "5"},
+            {11, 52, 28, 24, 12, OT_BUTTON, "4"},
+            {12, 78, 28, 24, 12, OT_BUTTON, "*"},
+            {13, 0, 42, 24, 12, OT_BUTTON, "3"},
+            {14, 26, 42, 24, 12, OT_BUTTON, "2"},
+            {15, 52, 42, 24, 12, OT_BUTTON, "1"},
+            {16, 78, 42, 24, 12, OT_BUTTON, "-"},
+            {17, 0, 56, 24, 12, OT_BUTTON, "."},
+            {18, 26, 56, 24, 12, OT_BUTTON, "0"},
+            {19, 52, 56, 24, 12, OT_BUTTON, "="},
+            {20, 78, 56, 24, 12, OT_BUTTON, "+"},
 
-      {20, 0, 0, 640, 12, OT_LABEL, "Calculator Version 1.0"},
-    };
+            {20, 0, 0, 640, 12, OT_LABEL, "Calculator Version 1.0"},
+        };
 
-    objects = obj_load(objs);
-    if(objects) {
-      // Use objects here.
-      obj_unload(objects);
-    } else {
-      // Something dreadful happened.
-    }
+        objects = obj_load(objs);
+        if(objects) {
+            // Use objects here.
+            obj_unload(objects);
+        } else {
+            // Something dreadful happened.
+        }
 
 This should be more runtime efficient, since we aren't constantly
 creating and destroying
