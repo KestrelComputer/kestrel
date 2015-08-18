@@ -10,7 +10,7 @@
 
 
 extern const struct interface_AddressSpace module_AddressSpace;
-static const struct interface_AddressSpace const *as = &module_AddressSpace;
+static const struct interface_AddressSpace *as = &module_AddressSpace;
 
 
 static DWORD
@@ -395,7 +395,7 @@ step(Processor *p) {
 				break;
 
 			case 1: // SLL
-				p->x[rd] = p->x[rd] << p->x[rs2];
+				p->x[rd] = p->x[rs1] << p->x[rs2];
 				break;
 
 			case 2: // SLT

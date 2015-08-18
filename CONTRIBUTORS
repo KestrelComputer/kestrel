@@ -8,10 +8,17 @@ Brinkhoff, Lars
 Falvo, Samuel A. II
     Project founder and current visionary.
 
+Ford, Scott
+    Designed a really awesome image of a Kestrel's head for use as a logo in
+    print and promotional material.  Thanks so much!  You can find his online
+    presence at http://haliaeetus123.deviantart.com/ .
+
 Stevenson, Scot
     Brought his TASM6502 project to my attention, and let me base vasm on his
     efforts.  Also, let me relicense the work to be compatible with the rest
-    of the Kestrel project.
+    of the Kestrel project.  Although eventually superceded with the Python-
+    version of the 2-pass assembler, the latter couldn't have existed without
+    the former to serve as a reference implementation.
 
 
 And many, many more whom I've forgotten over the years, because I didn't think

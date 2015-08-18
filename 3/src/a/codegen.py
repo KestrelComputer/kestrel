@@ -50,7 +50,7 @@ class RawExporter(object):
 
     def exportSegment(self, seg):
         """
-	    Attempts to write the contents of the provided segment to the file
+        Attempts to write the contents of the provided segment to the file
         provided during construction of this object.
         """
         self._out.write(bytearray(seg.buf))
@@ -69,6 +69,7 @@ class Segment(object):
 
     def byte(self, b):
         """Lay down a single 8-bit integer."""
+        b = b & 255
         if self.lc < self.size():
             self.buf[self.lc] = b
         elif self.lc == self.size():

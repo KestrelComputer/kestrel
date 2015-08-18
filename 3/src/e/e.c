@@ -15,7 +15,7 @@
 #include "processor.h"
 
 extern const struct interface_AddressSpace module_AddressSpace;
-static const struct interface_AddressSpace const *as = &module_AddressSpace;
+static const struct interface_AddressSpace *as = &module_AddressSpace;
 
 extern const struct interface_Processor module_Processor;
 static const struct interface_Processor *pp = &module_Processor;

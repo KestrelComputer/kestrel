@@ -1,0 +1,19 @@
+	include	"cpu/csrs.i"
+	include "cpu/regs.i"
+	include "cpu/ngregs.i"
+	include "debugio.i"
+	include "bios.i"
+	include	"zp.i"
+
+ngaro:	include	"ngaro.asm"
+	include "math.asm"
+
+	align	4
+retroImage:
+	include "retroImage.i"
+retroImageEnd:
+
+	adv	$F0000, $CC
+	include "mlm.asm"
+	jal	x0, vm_start
+
