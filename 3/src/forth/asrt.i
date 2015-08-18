@@ -1,4 +1,4 @@
-		romBase = $0FFFFFFFFFFF0000
+		romBase = $0FFFFFFFFFF00000
 
 		include	"cpu/regs.i"
 		include	"cpu/fregs.i"

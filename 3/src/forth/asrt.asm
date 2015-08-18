@@ -223,6 +223,6 @@ FailLen = * - FailMsg
 PassMsg:	byte	"PASSED", 13, 10
 PassLen = * - PassMsg
 
-		adv	$FF00, $CC
+		adv	$FFF00, $CC
 		jal	x0, start_tests
 
