@@ -80,6 +80,46 @@ expected2len = *-expected0
 expected0len = *-expected0
 		align	4
 
+; asrtLTZero will fail an assertion if the value in A0 is greater than or
+; equal to zero.
+
+asrtLTZero:	blt	a0, x0, aLTZ0
+		or	s7, a0, x0
+		auipc	gp, 0
+aLTZ1:		addi	a0, gp, expectedLT0-aLTZ1
+		addi	a1, x0, expectedLT0len
+		jal	ra, conType
+		or	a0, s7, x0
+		jal	ra, conPutHex64
+		addi	a0, x0, 10
+		jal	ra, conEmit
+		jal	x0, asrtFail
+aLTZ0:		jalr	x0, 0(ra)
+
+expectedLT0:	byte	"Expected less than zero; got "
+expectedLT0len	= *-expectedLT0
+		align	4
+
+; asrtGTZero will fail an assertion if the value in A0 is less than or
+; equal to zero.
+
+asrtGTZero:	beq	a0, x0, *+8
+		bge	a0, x0, aGTZ0
+		or	s7, a0, x0
+		auipc	gp, 0
+aGTZ1:		addi	a0, gp, expectedGT0-aGTZ1
+		addi	a1, x0, expectedGT0len
+		jal	ra, conType
+		or	a0, s7, x0
+		jal	ra, conPutHex64
+		addi	a0, x0, 10
+		jal	ra, conEmit
+		jal	x0, asrtFail
+aGTZ0:		jalr	x0, 0(ra)
+
+expectedGT0:	byte	"Expected greater than zero; got "
+expectedGT0len	= *-expectedGT0
+
 ; asrtIsTrue will fail an assertion if the value in the A0 register is false/zero.
 
 asrtIsTrue:	bne	a0, x0, aIT0
