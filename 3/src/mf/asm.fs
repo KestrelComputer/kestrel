@@ -17,7 +17,7 @@ lgp0
 
 : .align	."  align 8" cr ;
 : _noop		."  addi  x0, x0, 0" cr ;
-: _lit		."  ld    x" r1 . ." , " offset . ." -LGP" lgplab ? ." (gp)" cr ;
+: _lit		."  ld    x" r1 . ." , (" cur @ name type ." -LGP" lgplab ? ." )" offset . ." (gp)" cr ;
 : .add		r1 . ." , x" r2 . ." , x" r3 . cr ;
 : _add		."  add   x" .add ;
 : _sub		."  sub   x" .add ;
@@ -35,7 +35,7 @@ lgp0
 : _!64		."  sd    x" r2 . ." , 0(x" r1 . ." )" cr ;
 : _j		."  jal   x0, L" insn 256/ . cr ;
 : _jz		."  beq   x" r1 . ." , x0, L" param . cr ;
-: _call		."  jal   ra, " insn 256/ . cr ;
+: _call		."  jal   ra, " insn 256/ name type cr ;
 : _rfs		."  jalr  x0, 0(ra)" cr ;
 : drsp		."  addi  rsp, rsp, -8" cr ;
 : irsp		."  addi  rsp, rsp, 8" cr ;
@@ -103,7 +103,7 @@ create procedures
 : dwords0	begin ci @ fi @ >= if exit then dword ci inc again ;
 : .dwords	0 ci ! dwords0 ;
 
-: .label	." NameOfWordHere:" cr ;
+: .label	cur @ name type ." :" cr ;
 
 : opcode	insn 255 and ;
 : dispatch	opcode cells procedures + @ execute ;
