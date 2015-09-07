@@ -145,6 +145,7 @@ label0
 : goto,		8 lshift 16 or insn, ;
 : gotoz,	8 lshift 17 or insn, ;
 
+: begin,	*label dup label, ;
 : if,		*label dup gotoz, ;
 : else,		*label dup goto, swap label, ;
 : then,		label, ;
@@ -155,7 +156,7 @@ label0
 
 target definitions
 
-:: begin	*label dup label, ;;
+:: begin	begin, ;;
 :: again	goto, ;;
 
 :: if		if, ;;
@@ -197,24 +198,20 @@ target definitions
 \ need to provide accessors for the data and stacks.  >R R> and R@ are already
 \ familiar to the programmer.  However, we also introduce >D D> and D@ as
 \ well to provide similar access to the Forth data stack.
+\ 
+\ Note that D@, R@, D!, and R! take indices into the stack, permitting random
+\ access into these structures.
 
 host definitions
 
 : >r,		20 insn, ;
 : r>,		21 insn, ;
-: r@,		22 insn, ;
-: r!,		23 insn, ;
+: r@,		8 lshift 22 or insn, ;
+: r!,		8 lshift 23 or insn, ;
 : >d,		24 insn, ;
 : d>,		25 insn, ;
-: d@,		26 insn, ;
-: d!,		27 insn, ;
-
-: dup,		28 insn, ;
-: over,		29 insn, ;
-: drop,		30 insn, ;
-: nip,		31 insn, ;
-: rot,		32 insn, ;
-: swap,		33 insn, ;
+: d@,		8 lshift 26 or insn, ;
+: d!,		8 lshift 27 or insn, ;
 
 target definitions
 
@@ -227,6 +224,22 @@ target definitions
 :: d@		d@, ;;
 :: d!		d!, ;;
 
+\ The normal Forth stack accessors that you're used to now apply only to the
+\ evaluation stack, NOT to the data stack.  (Sorry!)  Any other approach will
+\ just add too much runtime overhead and will not yield good runtime
+\ performance.
+
+host definitions
+
+: dup,		28 insn, ;
+: over,		29 insn, ;
+: drop,		30 insn, ;
+: nip,		31 insn, ;
+: rot,		32 insn, ;
+: swap,		33 insn, ;
+
+target definitions
+
 :: dup		dup, ;;
 :: over		over, ;;
 :: drop		drop, ;;
@@ -234,9 +247,3 @@ target definitions
 :: rot		rot, ;;
 :: swap		swap, ;;
 
-\ Complete the "new" colon compiler here.
-
-:: :		bl word drop  buf0 fi0 ni0 ;;
-:: ;		rfs, ;;
-
-host definitions
