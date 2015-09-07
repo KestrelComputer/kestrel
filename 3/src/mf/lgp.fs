@@ -15,7 +15,10 @@
 \ ci refers to the current instruction.  fi <= ci < ni.
 variable ci
 
-\ Most of the time, we won't have to do anything.
+\ We use a table of procedures to dispatch to handlers for each instruction
+\ encountered in the compiler buffer.  For most instructions, we don't need
+\ to do anything, but we still need a procedure to dispatch to.  Hence why
+\ we have an empty procedure here.
 : ignore	;
 
 \ When we encounter a lit pseudo-instruction, we need to record the fact
@@ -23,40 +26,32 @@ variable ci
 \ every lit instruction we come across.  inserted e. {True, False}
 variable inserted
 
-\ The address of the current instruction.
+\ When we encounter a lit psuedo-instruction AND we have not yet inserted
+\ an LGP pseudo-instruction, we must insert the LGP instruction in front
+\ of the LIT instruction.
 : addr		ci @ cells buf + ;
-
-\ The size of the program, starting from the current instruction.
 : size		ni @ ci @ - cells ;
-
-\ Insert an LGP pseudo-instruction.
 : vacate	addr dup cell+ size move ;
 : insert	inserted on vacate $22 addr ! ni inc ;
 
-\ Resets the state of inserted since we cannot assume the value of GP
-\ is correct after we return from a subroutine.
+\ When we encounter a CALL instruction, we must assume the value of GP
+\ has been destroyed by the called subroutine.
 : reset		inserted off ;
 
-\ A table of how to work with the current instruction given the current
-\ state of inserted.
+\ Here's that table of procedures I was talking about above.
 create procedures
 ' ignore ,	( neither lit, nor call, or already inserted )
 ' insert ,	( lit and not inserted yet )
 ' reset ,	( call instruction found )
 
-\ The current instruction.
+\ Look at the current instruction, and decide how best to handle it.
+\ Then, execute on that plan.
 : insn		addr @ ;
-
-\ The current opcode.
 : opcode	insn 255 and ;
-
-\ Decide what procedure to execute to properly handle the current instruction.
 : insert?	opcode $01 = inserted @ 0= and ;
 : call?		opcode $12 = ;
 : classify	insert? 1 and call? 2 and or ;
 : plan		classify cells procedures + @ ;
-
-\ Optionally insert an LGP psuedo-instruction into the current program.
 : ?insert	plan execute ;
 
 \ Scan the program, and insert an LGP where it needs to go.
