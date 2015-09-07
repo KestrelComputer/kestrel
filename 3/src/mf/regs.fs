@@ -88,10 +88,10 @@ variable esp
 : _!8		scoot top r1 stop r2 addr ! release release ;
 : _>r		scoot top r1 addr ! release ;
 : _r>		reserve insn top r1 addr ! ;
-: _r@		reserve scoot top r1 $16 or addr ! ;
-: _r!		scoot -256 and 256 * top r1 $17 or addr ! release ;
-: _d@		reserve scoot top r1 $1A or addr ! ;
-: _d!		scoot -256 and 256 * top r1 $1B or addr ! release ;
+: _r@		reserve scoot top r1 addr ! ;
+: _r!		scoot top r1 addr ! release ;
+: _d@		reserve scoot top r1 addr ! ;
+: _d!		scoot top r1 addr ! release ;
 : _dup		pop dup push push ;
 : _over		stop push ;
 : _drop		release ;
