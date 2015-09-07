@@ -1,3 +1,10 @@
+\ This "Machine" Forth compiler exists in several different passes.
+\ Pass 1 is just translation from textual Forth-like representation
+\ into a symbolic form suitable for subsequent processing.
+\ Eventually, the intermediate representation will map 1-to-1 to RISC-V
+\ instruction sequences.  At this point, compilation is done, and we
+\ just emit the generated source code for consumption by the assembler.
+
 \ Utility words that have no better place to go.
 : inc		1 swap +! ;
 
