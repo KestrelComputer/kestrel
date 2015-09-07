@@ -98,6 +98,8 @@ variable esp
 : _swap		top stop top! stop! ;
 : _nip		_swap _drop ;
 : _rot		stop top ttop top! stop! ttop! ;
+: _reset	regmask0 esp0 ;
+: _jz		_@8 _reset ;
 
 create procedures
 ' _noop ,
@@ -107,7 +109,7 @@ create procedures
 ' _add ,	( and )
 ' _add ,	( or )
 ' _add ,	( xor )
-' _noop ,	( label )
+' _reset ,	( label )
 ' _@8 ,		( @8 )
 ' _@8 ,		( @16 )
 ' _@8 ,		( @32 )
@@ -116,10 +118,10 @@ create procedures
 ' _!8 ,		( !16 )
 ' _!8 ,		( !32 )
 ' _!8 ,		( !64 )
-' _noop ,	( J )
-' _@8 ,		( JZ )
-' _noop ,	( CALL )
-' _noop ,	( RFS )
+' _reset ,	( J )
+' _jz ,		( JZ )
+' _reset ,	( CALL )
+' _reset ,	( RFS )
 ' _>r ,		( >R )
 ' _r> ,		( R> )
 ' _r@ ,		( R@ )
