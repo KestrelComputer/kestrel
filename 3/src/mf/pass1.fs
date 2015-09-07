@@ -247,3 +247,5 @@ target definitions
 :: rot		rot, ;;
 :: swap		swap, ;;
 
+host definitions
+
