@@ -34,7 +34,8 @@ lgp0
 : _!32		."  sw    x" r2 . ." , 0(x" r1 . ." )" cr ;
 : _!64		."  sd    x" r2 . ." , 0(x" r1 . ." )" cr ;
 : _j		."  jal   x0, L" insn 256/ . cr ;
-: _jz		."  beq   x" r1 . ." , x0, L" param . cr ;
+: .jz		r1 . ." , x0, L" param . cr ;
+: _jz		."  beq   x" .jz ;
 : _call		."  jal   ra, " insn 256/ name type cr ;
 : _rfs		."  jalr  x0, 0(ra)" cr ;
 : drsp		."  addi  rsp, rsp, -8" cr ;
@@ -58,6 +59,7 @@ lgp0
 : _lgp		1 lgplab +! ." LGP" lgplab ? ." :" cr ."  auipc gp, 0" cr ;
 : _prolog	drsp ."  sd    ra, 0(rsp)" cr ;
 : _epilog	."  ld    ra, 0(rsp)" cr irsp ;
+: _jnz		."  bne   x" .jz ;
 
 create procedures
 ' _noop ,
@@ -97,6 +99,7 @@ create procedures
 ' _lgp ,	( LGP )
 ' _prolog ,	( PROLOG )
 ' _epilog ,	( EPILOG )
+' _jnz ,	( JNZ )
 
 : value		insn s>d hex <# # # # # # # # # # # # # # # # # #> type ;
 : dword		base @ ."   dword $" value cr base ! ;

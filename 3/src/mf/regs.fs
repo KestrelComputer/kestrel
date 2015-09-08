@@ -139,6 +139,7 @@ create procedures
 ' _noop ,	( LGP )
 ' _noop ,	( PROLOG )
 ' _noop ,	( EPILOG )
+' _jz ,		( JNZ )
 
 : opcode	insn 255 and ;
 : dispatch	opcode cells procedures + @ execute ;

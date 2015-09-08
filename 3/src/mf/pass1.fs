@@ -144,9 +144,11 @@ label0
 : label,	8 lshift 7 or insn, ;
 : goto,		8 lshift 16 or insn, ;
 : gotoz,	8 lshift 17 or insn, ;
+: gotonz,	8 lshift $25 or insn, ;
 
 : begin,	*label dup label, ;
 : if,		*label dup gotoz, ;
+: ifz,		*label dup gotonz, ;
 : else,		*label dup goto, swap label, ;
 : then,		label, ;
 
@@ -160,6 +162,7 @@ target definitions
 :: again	goto, ;;
 
 :: if		if, ;;
+:: 0=if		ifz, ;;
 :: else		else, ;;
 :: then		then, ;;
 
