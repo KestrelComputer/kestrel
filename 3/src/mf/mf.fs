@@ -18,7 +18,7 @@ S" asm.fs" included
 
 host definitions
 
-: :0		buf0 fi0 ni0 label0 esp0 regmask0 ;
+: :0		buf0 fi0 ni0 esp0 regmask0 ;
 : pass1		:0 extern ;
 : passes	lgp prolog epilogs reg asm ;
 : ;,		rfs, passes ;
@@ -29,3 +29,8 @@ target definitions
 :: ;		;, ;;
 
 host definitions
+
+label0
+target
+next-arg included
+host
