@@ -100,6 +100,7 @@ variable esp
 : _rot		stop top ttop top! stop! ttop! ;
 : _reset	regmask0 esp0 ;
 : _jz		_@8 _reset ;
+: _lsh		scoot top r1 addr ! ;
 
 create procedures
 ' _noop ,
@@ -140,6 +141,9 @@ create procedures
 ' _noop ,	( PROLOG )
 ' _noop ,	( EPILOG )
 ' _jz ,		( JNZ )
+' _lsh ,	( LSHIFT )
+' _lsh ,	( RSHIFT )
+' _lsh ,	( RSHIFT arithmetic )
 
 : opcode	insn 255 and ;
 : dispatch	opcode cells procedures + @ execute ;

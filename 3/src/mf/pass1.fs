@@ -250,5 +250,19 @@ target definitions
 :: rot		rot, ;;
 :: swap		swap, ;;
 
+\ Logical shifts
+
+host definitions
+
+: 2*,		$26 insn, ;
+: u2/,		$27 insn, ;
+: 2/,		$28 insn, ;
+
+target definitions
+
+:: 2*		2*, ;;
+:: u2/		u2/, ;;
+:: 2/		2/, ;;
+
 host definitions
 

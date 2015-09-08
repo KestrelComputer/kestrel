@@ -60,6 +60,10 @@ lgp0
 : _prolog	drsp ."  sd    ra, 0(rsp)" cr ;
 : _epilog	."  ld    ra, 0(rsp)" cr irsp ;
 : _jnz		."  bne   x" .jz ;
+: .2*		r1 . ." , x" r1 . ." , 1" cr ;
+: _2*		."  slli  x" .2* ;
+: _u2/		."  srli  x" .2* ;
+: _2/		."  srai  x" .2* ;
 
 create procedures
 ' _noop ,
@@ -100,6 +104,9 @@ create procedures
 ' _prolog ,	( PROLOG )
 ' _epilog ,	( EPILOG )
 ' _jnz ,	( JNZ )
+' _2* ,		( LSHIFT )
+' _u2/ ,	( RSHIFT )
+' _2/ ,		( RSHIFT arithmetic )
 
 : value		insn s>d hex <# # # # # # # # # # # # # # # # # #> type ;
 : dword		base @ ."   dword $" value cr base ! ;
