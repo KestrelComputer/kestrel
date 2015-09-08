@@ -160,7 +160,7 @@ step(Processor *p) {
 
 		// AUIPC
 		case 0x17:
-			p->x[rd] = imm20 + p->pc;
+			p->x[rd] = imm20 + ia;
 			break;
 
 		// JAL
