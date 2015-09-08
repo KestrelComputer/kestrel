@@ -64,6 +64,7 @@ lgp0
 : _2*		."  slli  x" .2* ;
 : _u2/		."  srli  x" .2* ;
 : _2/		."  srai  x" .2* ;
+: _jge		."  bge   x" .jz ;
 
 create procedures
 ' _noop ,
@@ -107,6 +108,7 @@ create procedures
 ' _2* ,		( LSHIFT )
 ' _u2/ ,	( RSHIFT )
 ' _2/ ,		( RSHIFT arithmetic )
+' _jge ,	( JGE )
 
 : value		insn s>d hex <# # # # # # # # # # # # # # # # # #> type ;
 : dword		base @ ."   dword $" value cr base ! ;
