@@ -179,9 +179,9 @@ _dbg1:		addi	sp, sp, -32
 		sd	t0, 8(sp)
 		sd	gp, 16(sp)
 		sd	t6, 24(sp)
-		auipc	gp, 0
+_dbg10:		auipc	gp, 0
 
-_dbg10:		ori	a0, x0, 32
+		ori	a0, x0, 32
 		jal	ra, biosPutChar
 		jal	ra, biosPutChar
 		jal	ra, biosPutChar
@@ -265,8 +265,8 @@ vm_nm_tbl:	byte	"NOP....."
 vm_op_tbl_ptr:	dword	b+vm_op_table
 vm_cycle:	addi	sp, sp, -8
 		sd	ra, 0(sp)
-		auipc	gp, 0
-vmc0:		addi	vip, vip, 1
+vmc0:		auipc	gp, 0
+		addi	vip, vip, 1
 		vmiget(t0)
 		addi	t1, x0, 31
 		bge	t0, t1, vm_call
