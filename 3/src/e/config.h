@@ -2,7 +2,7 @@
 
 #define VERSION_MAJOR	0
 #define VERSION_MINOR	2
-#define VERSION_PATCH	0
+#define VERSION_PATCH	2
 
 #define MB		1048576L
 
@@ -24,6 +24,8 @@
 #define r_MEPC		0x341
 #define r_MBADADDR	0x343
 #define r_MCAUSE	0x342
+#define r_MTOHOST	0x780
+#define r_MFROMHOST	0x781
 
 
 #define i_MCPUID	0
@@ -35,6 +37,6 @@
 #define i_MEPC		6
 #define i_MBADADDR	7
 #define i_MCAUSE	8
-#define i_MAXCSR	9
-
-
+#define i_MTOHOST	9
+#define i_MFROMHOST	10
+#define i_MAXCSR	11
