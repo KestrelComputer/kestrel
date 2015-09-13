@@ -57,7 +57,7 @@ int run(int argc, char *argv[]) {
 		pp->step(p);
 	}
 
-	return 0;
+	return p->rc;
 }
 
 

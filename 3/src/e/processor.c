@@ -27,7 +27,7 @@ do_hostif(Processor *p) {
 	cmdptr = p->csr[i_MTOHOST] & -8;
 	cmd = as->fetch_byte(p->as, cmdptr);
 	switch(cmd) {
-	case 0:		p->running = 0; break;
+	case 0:		p->running = 0; p->rc = as->fetch_byte(p->as, cmdptr+1); break;
 	default:	fprintf(stderr, "WARNING: Unknown emulator command %d\n", cmd);
 	};
 	p->csr[i_MFROMHOST] = p->csr[i_MTOHOST];
@@ -139,6 +139,8 @@ make(AddressSpace *as) {
 		p->csr[i_MHARTID] = 0;
 		p->csr[i_MSTATUS] = 0xDD6;	// Make sure to boot in machine mode!!  :)
 		p->csr[i_MTVEC] = -0x200;
+		p->csr[i_MTOHOST] = 0;
+		p->csr[i_MFROMHOST] = 0;
 	}
 	return p;
 }
