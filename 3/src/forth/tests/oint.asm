@@ -5,8 +5,8 @@ setup_emptyLine:
 		sd	x0, zpError(x0)
 		sd	x0, zpCalled(x0)
 		sd	x0, zpWordFound(x0)
-		auipc	t0, 0
-s_eL0:		addi	t0, t0, s_eL__epv-s_eL0
+s_eL0:		auipc	t0, 0
+		addi	t0, t0, s_eL__epv-s_eL0
 		sd	t0, zpV(x0)
 		jalr	x0, 0(ra)
 
@@ -55,8 +55,8 @@ testOintBlankLine:
 
 		addi	t0, x0, blanks8len
 		sd	t0, zpLineLength(x0)
-		auipc	t0, 0
-tOBL0:		addi	t0, t0, blanks8-tOBL0
+tOBL0:		auipc	t0, 0
+		addi	t0, t0, blanks8-tOBL0
 		sd	t0, zpLineBuffer(x0)
 
 		jal	ra, ointInterpretLine
@@ -83,9 +83,9 @@ blanks8len = * - blanks8
 ; dictionary.
 
 setup_OIWIL:	auipc	t0, 0
-s_OIWIL0:	addi	t1, t0, s_OIWIL_epv - s_OIWIL0
+		addi	t1, t0, s_OIWIL_epv - setup_OIWIL
 		sd	t1, zpV(x0)
-		addi	t1, t0, s_OIWIL_line - s_OIWIL0
+		addi	t1, t0, s_OIWIL_line - setup_OIWIL
 		sd	t1, zpLineBuffer(x0)
 		addi	t1, x0, s_OIWIL_linelen
 		sd	t1, zpLineLength(x0)
@@ -144,8 +144,8 @@ s_OIWILF_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
 ep_OIWILF_dictLocateWord:
 		addi	t0, x0, 1
 		sd	t0, zpWordFound(x0)
-		auipc	t0, 0
-epOIWILFd0:	addi	t0, t0, tOIWILF_cb - epOIWILFd0
+epOIWILFd0:	auipc	t0, 0
+		addi	t0, t0, tOIWILF_cb - epOIWILFd0
 		sd	t0, zpWordBody(x0)
 		jalr	x0, 0(rt)
 
@@ -158,8 +158,8 @@ testOintWordInLineFound:
 		sd	ra, zpTestPC(x0)
 
 		jal	ra, setup_OIWIL
-		auipc	t0, 0
-tOIWILF0:	addi	t0, t0, s_OIWILF_epv - tOIWILF0
+tOIWILF0:	auipc	t0, 0
+		addi	t0, t0, s_OIWILF_epv - tOIWILF0
 		sd	t0, zpV(x0)
 
 		jal	rt, ointInterpretLine
@@ -174,9 +174,9 @@ tOIWILF0:	addi	t0, t0, s_OIWILF_epv - tOIWILF0
 ; needs to gracefully recover from this condition.
 
 setup_OIDSU:	auipc	t0, 0
-s_OIDSU0:	addi	t1, t0, s_OIDSU_epv-s_OIDSU0
+		addi	t1, t0, s_OIDSU_epv-setup_OIDSU
 		sd	t1, zpV(x0)
-		addi	t1, t0, s_OIDSU_line-s_OIDSU0
+		addi	t1, t0, s_OIDSU_line-setup_OIDSU
 		sd	t1, zpLineBuffer(x0)
 		addi	t1, x0, s_OIDSU_lineLen
 		sd	t1, zpLineLength(x0)
@@ -191,7 +191,7 @@ s_OIDSU_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
 
 ep_OIDSU_dictLocateWord:
 		auipc	t0, 0
-		addi	t0, t0, ep_OIDSU_errorHandler - *
+		addi	t0, t0, ep_OIDSU_errorHandler - ep_OIDSU_dictLocateWord
 		sd	t0, zpWordBody(x0)
 		sd	t0, zpWordFound(x0)
 		jalr	x0, 0(rt)
@@ -242,9 +242,9 @@ s_OIDSU_lineLen = *-s_OIDSU_line
 ; needs to gracefully recover from this condition, too.
 
 setup_OIDSO:	auipc	t0, 0
-s_OIDSO0:	addi	t1, t0, s_OIDSO_epv-s_OIDSO0
+		addi	t1, t0, s_OIDSO_epv-setup_OIDSO
 		sd	t1, zpV(x0)
-		addi	t1, t0, s_OIDSU_line-s_OIDSO0
+		addi	t1, t0, s_OIDSU_line-setup_OIDSO
 		sd	t1, zpLineBuffer(x0)
 		addi	t1, x0, s_OIDSU_lineLen
 		sd	t1, zpLineLength(x0)
@@ -259,7 +259,7 @@ s_OIDSO_epv:	jal	x0, ep_OIWIL_ointGetAndInterpretLine
 
 ep_OIDSO_dictLocateWord:
 		auipc	t0, 0
-		addi	t0, t0, ep_OIDSO_errorHandler - *
+		addi	t0, t0, ep_OIDSO_errorHandler - ep_OIDSO_dictLocateWord
 		sd	t0, zpWordBody(x0)
 		sd	t0, zpWordFound(x0)
 		jalr	x0, 0(rt)
@@ -307,11 +307,11 @@ testOintDataStackOverflow:
 ; the outer interpreter should attempt to convert it to a number.
 
 setup_OIACVT:	auipc	t0, 0
-s_OIACVT0:	addi	t1, t0, s_OIDSU_line-s_OIACVT0
+		addi	t1, t0, s_OIDSU_line-setup_OIACVT
 		sd	t1, zpLineBuffer(x0)
 		addi	t1, x0, s_OIDSU_lineLen
 		sd	t1, zpLineLength(x0)
-		addi	t1, t0, s_OIACVT_epv-s_OIACVT0
+		addi	t1, t0, s_OIACVT_epv-setup_OIACVT
 		sd	t1, zpV(x0)
 		sd	x0, zpCalled(x0)
 		sd	x0, zpError(x0)
@@ -356,11 +356,11 @@ testOintAttemptConversion:
 ; then the number should be pushed onto the stack.
 
 setup_OICVT:	auipc	t0, 0
-s_OICVT0:	addi	t1, t0, s_OIDSU_line-s_OICVT0
+		addi	t1, t0, s_OIDSU_line-setup_OICVT
 		sd	t1, zpLineBuffer(x0)
 		addi	t1, x0, s_OIDSU_lineLen
 		sd	t1, zpLineLength(x0)
-		addi	t1, t0, s_OICVT_epv-s_OICVT0
+		addi	t1, t0, s_OICVT_epv-setup_OICVT
 		sd	t1, zpV(x0)
 		sd	x0, zpError(x0)
 		sd	x0, zpCalled(x0)
