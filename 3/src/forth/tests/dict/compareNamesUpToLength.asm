@@ -25,8 +25,8 @@ testCNUTL_above:
 		addi	rp, rp, -8
 		sd	rt, 0(rp)
 
-		auipc	a1, 0		; A0 = strA, A1 = strB
-testCNUTL_L0:	addi	a0, a1, testCNUTL_strA - testCNUTL_L0
+testCNUTL_L0:	auipc	a1, 0		; A0 = strA, A1 = strB
+		addi	a0, a1, testCNUTL_strA - testCNUTL_L0
 		addi	a1, a1, testCNUTL_strB - testCNUTL_L0
 		addi	a2, x0, 8	; Both strings are at least 8 chars
 		jal	rt, compareNamesUpToLength
@@ -49,8 +49,8 @@ testCNUTL_behind:
 		addi	rp, rp, -8
 		sd	rt, 0(rp)
 
-		auipc	a0, 0		; A1 = strA, A0 = strB
-testCNUTL_L1:	addi	a1, a0, testCNUTL_strA - testCNUTL_L1
+testCNUTL_L1:	auipc	a0, 0		; A1 = strA, A0 = strB
+		addi	a1, a0, testCNUTL_strA - testCNUTL_L1
 		addi	a0, a0, testCNUTL_strB - testCNUTL_L1
 		addi	a2, x0, 8	; Both strings are at least 8 chars
 		jal	rt, compareNamesUpToLength
@@ -68,8 +68,8 @@ testCNUTL_common:
 		addi	rp, rp, -8
 		sd	rt, 0(rp)
 
-		auipc	a0, 0		; A1 = strA, A0 = strB
-testCNUTL_L2:	addi	a1, a0, testCNUTL_strA - testCNUTL_L2
+testCNUTL_L2:	auipc	a0, 0		; A1 = strA, A0 = strB
+		addi	a1, a0, testCNUTL_strA - testCNUTL_L2
 		addi	a0, a0, testCNUTL_strB - testCNUTL_L2
 		addi	a2, x0, 7	; Both strings common up to 7 chars.
 		jal	rt, compareNamesUpToLength

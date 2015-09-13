@@ -26,8 +26,8 @@ testCN_above:
 		addi	rp, rp, -8
 		sd	rt, 0(rp)
 
-		auipc	a1, 0		; A0 = strA, A1 = strB
-testCN_L0:	addi	a0, a1, testCN_strA - testCN_L0
+testCN_L0:	auipc	a1, 0		; A0 = strA, A1 = strB
+		addi	a0, a1, testCN_strA - testCN_L0
 		addi	a1, a1, testCN_strB - testCN_L0
 		addi	a2, x0, 8	; Both strings are at least 8 chars
 		addi	a3, x0, 8
@@ -51,8 +51,8 @@ testCN_behind:
 		addi	rp, rp, -8
 		sd	rt, 0(rp)
 
-		auipc	a0, 0		; A1 = strA, A0 = strB
-testCN_L1:	addi	a1, a0, testCN_strA - testCN_L1
+testCN_L1:	auipc	a0, 0		; A1 = strA, A0 = strB
+		addi	a1, a0, testCN_strA - testCN_L1
 		addi	a0, a0, testCN_strB - testCN_L1
 		addi	a2, x0, 8	; Both strings are at least 8 chars
 		addi	a3, x0, 8
@@ -71,8 +71,8 @@ testCN_common:
 		addi	rp, rp, -8
 		sd	rt, 0(rp)
 
-		auipc	a0, 0		; A1 = strA, A0 = strB
-testCN_L2:	addi	a1, a0, testCN_strA - testCN_L2
+testCN_L2:	auipc	a0, 0		; A1 = strA, A0 = strB
+		addi	a1, a0, testCN_strA - testCN_L2
 		addi	a0, a0, testCN_strB - testCN_L2
 		addi	a2, x0, 7	; Both strings common up to 7 chars.
 		addi	a3, x0, 7
@@ -90,8 +90,8 @@ testCN_shorter:
 		addi	rp, rp, -8
 		sd	rt, 0(rp)
 
-		auipc	a3, 0		; A0 = strA, A1 = strB
-testCN_L3:	addi	a0, a3, testCN_strA - testCN_L3
+testCN_L3:	auipc	a3, 0		; A0 = strA, A1 = strB
+		addi	a0, a3, testCN_strA - testCN_L3
 		addi	a1, a3, testCN_strA - testCN_L3
 		addi	a2, x0, 6	; A2 = length A, A3 = length B
 		addi	a3, x0, 7	; A2 = length A, A3 = length B
@@ -109,8 +109,8 @@ testCN_longer:
 		addi	rp, rp, -8
 		sd	rt, 0(rp)
 
-		auipc	a3, 0		; A0 = strA, A1 = strB
-testCN_L4:	addi	a0, a3, testCN_strA - testCN_L4
+testCN_L4:	auipc	a3, 0		; A0 = strA, A1 = strB
+		addi	a0, a3, testCN_strA - testCN_L4
 		addi	a1, a3, testCN_strA - testCN_L4
 		addi	a2, x0, 7	; A2 = length A, A3 = length B
 		addi	a3, x0, 6	; A2 = length A, A3 = length B
