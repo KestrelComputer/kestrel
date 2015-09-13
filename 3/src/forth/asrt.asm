@@ -41,8 +41,8 @@ do_nothing:	sd	ra, zpTestPC(x0)
 asrtEquals:	beq	a0, a1, aIZ0
 		or	s7, a1, x0
 		or	s6, a0, x0
-		auipc	gp, 0
-aE0:		addi	a0, gp, expected0-aE0
+aE0:		auipc	gp, 0
+		addi	a0, gp, expected0-aE0
 		addi	a1, x0, expected2len
 		jal	ra, conType
 		or	a0, s7, x0
@@ -63,8 +63,8 @@ got0len = *-got0
 asrtIsFalse:
 asrtIsZero:	beq	a0, x0, aIZ0
 		or	s7, a0, x0
-		auipc	gp, 0
-aIZ1:		addi	a0, gp, expected0-aIZ1
+aIZ1:		auipc	gp, 0
+		addi	a0, gp, expected0-aIZ1
 		addi	a1, x0, expected0len
 		jal	ra, conType
 		or	a0, s7, x0
@@ -85,8 +85,8 @@ expected0len = *-expected0
 
 asrtLTZero:	blt	a0, x0, aLTZ0
 		or	s7, a0, x0
-		auipc	gp, 0
-aLTZ1:		addi	a0, gp, expectedLT0-aLTZ1
+aLTZ1:		auipc	gp, 0
+		addi	a0, gp, expectedLT0-aLTZ1
 		addi	a1, x0, expectedLT0len
 		jal	ra, conType
 		or	a0, s7, x0
@@ -106,8 +106,8 @@ expectedLT0len	= *-expectedLT0
 asrtGTZero:	beq	a0, x0, *+8
 		bge	a0, x0, aGTZ0
 		or	s7, a0, x0
-		auipc	gp, 0
-aGTZ1:		addi	a0, gp, expectedGT0-aGTZ1
+aGTZ1:		auipc	gp, 0
+		addi	a0, gp, expectedGT0-aGTZ1
 		addi	a1, x0, expectedGT0len
 		jal	ra, conType
 		or	a0, s7, x0
@@ -124,8 +124,8 @@ expectedGT0len	= *-expectedGT0
 
 asrtIsTrue:	bne	a0, x0, aIT0
 		or	s7, a0, x0
-		auipc	gp, 0
-aIT1:		addi	a0, gp, expected1-aIT1
+aIT1:		auipc	gp, 0
+		addi	a0, gp, expected1-aIT1
 		addi	a1, x0, expected1len
 		jal	ra, conType
 		or	a0, s7, x0
@@ -241,7 +241,7 @@ aR2:		beq	a0, x0, aR0	; length >= 0
 		jal	x0, aR2		; length >= 0
 
 aR0:		auipc	gp, 0
-aR1:		addi	a0, gp, PassMsg-aR1
+		addi	a0, gp, PassMsg-aR0
 		addi	a1, x0, PassLen
 		jal	ra, conType
 		jal	x0, *
@@ -252,15 +252,15 @@ aR1:		addi	a0, gp, PassMsg-aR1
 ; asrtFail()
 
 asrtFail:	auipc	gp, 0
-aF1:		addi	a0, gp, FailMsg-aF1
+		addi	a0, gp, FailMsg-asrtFail
 		addi	a1, x0, FailLen
 		jal	ra, conType
 		jal	x0, *
 
-FailMsg:	byte	"FAILED", 13, 10
+FailMsg:	byte	13, 10, "FAILED", 13, 10
 FailLen = * - FailMsg
 
-PassMsg:	byte	"PASSED", 13, 10
+PassMsg:	byte	13, 10, "PASSED", 13, 10
 PassLen = * - PassMsg
 
 		adv	$FFF00, $CC
