@@ -244,6 +244,8 @@ aR0:		auipc	gp, 0
 		addi	a0, gp, PassMsg-aR0
 		addi	a1, x0, PassLen
 		jal	ra, conType
+		addi	a0, x0, 0
+		jal	ra, asrtExit
 		jal	x0, *
 
 ; A failed assertion results in the message FAILED appearing on the console.
@@ -255,6 +257,8 @@ asrtFail:	auipc	gp, 0
 		addi	a0, gp, FailMsg-asrtFail
 		addi	a1, x0, FailLen
 		jal	ra, conType
+		addi	a0, x0, 1
+		jal	ra, asrtExit
 		jal	x0, *
 
 FailMsg:	byte	13, 10, "FAILED", 13, 10
@@ -265,4 +269,20 @@ PassLen = * - PassMsg
 
 		adv	$FFF00, $CC
 		jal	x0, start_tests
+
+; If we're running under a compatible emulator, we can use the HTIF registers
+; to gracefully exit back to the host operating system.  Additionally, we can
+; return a POSIX-compatible result code, passed in A0.
+; 
+; Otherwise, this procedure does nothing and just returns to the caller.
+;
+; asrtExit(rc)
+;          A0
+
+asrtExit:	andi	a0, a0, 255
+		slli	a0, a0, 8
+		sd	a0, zpExitCB(x0)
+		addi	a0, x0, zpExitCB
+		csrrw	x0, a0, $780
+		jalr	x0, 0(ra)
 
