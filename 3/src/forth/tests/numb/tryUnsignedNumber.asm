@@ -113,8 +113,8 @@ tNC0:		word	123456
 		byte	"NUMBCONV"
 testNumbConvertable:
 		sd	ra, zpTestPC(x0)
-		auipc	gp, 0
-tNC1:		jal	ra, numbconv_setvecs
+tNC1:		auipc	gp, 0
+		jal	ra, numbconv_setvecs
 		addi	a0, x0, 10
 		sd	a0, zpBase(x0)
 		sd	x0, zpWordIndex(x0)
@@ -151,8 +151,8 @@ tHCU0:		dword	$DEADBEEFFEEDFACE
 		byte	"NUMBHCNV"
 testNumbUpperHex:
 		sd	ra, zpTestPC(x0)
-		auipc	gp, 0
-tHCU1:		jal	ra, numbhexupper_setvecs
+tHCU1:		auipc	gp, 0
+		jal	ra, numbhexupper_setvecs
 		addi	a0, x0, 16
 		sd	a0, zpBase(x0)
 		sd	x0, zpWordIndex(x0)
@@ -189,8 +189,8 @@ tHCL0:		dword	$DEADBEEFFEEDFACE
 		byte	"NUMBLCNV"
 testNumbLowerHex:
 		sd	ra, zpTestPC(x0)
-		auipc	gp, 0
-tHCL1:		jal	ra, numbhexlower_setvecs
+tHCL1:		auipc	gp, 0
+		jal	ra, numbhexlower_setvecs
 		addi	a0, x0, 16
 		sd	a0, zpBase(x0)
 		sd	x0, zpWordIndex(x0)

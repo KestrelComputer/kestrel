@@ -166,8 +166,8 @@ testScanTakeNextWord:
 		addi	a1, x0, 16
 		jal	ra, asrtEquals
 		ld	a0, zpWordStart(x0)
-		auipc	a1, 0
-tSTNW0:		addi	a1, a1, (s_sW0+6)-tSTNW0
+tSTNW0:		auipc	a1, 0
+		addi	a1, a1, (s_sW0+6)-tSTNW0
 		jal	ra, asrtEquals
 		ld	a0, zpWordLength(x0)
 		addi	a1, x0, 10
