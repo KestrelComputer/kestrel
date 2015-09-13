@@ -133,11 +133,20 @@ vmdoio2a:	addi	t1, x0, -5	; How big is your data stack?
 		jal	x0, vmdoio3
 
 vmdoio2b:	addi	t1, x0, -6	; How big is your return/address stack?
-		bne	t0, t1, vmdoio2c
+		bne	t0, t1, vmdoio2g
 		sub	t0, abase, ap
 		srai	t0, t0, 2
 		sw	t0, 20(vport)
 		jal	x0, vmdoio3
+
+vmdoio2g:	addi	t1, x0, -9	; Exit the VM?
+		bne	t0, t1, vmdoio2c
+vmdoio2g0:	auipc	t1, 0
+		addi	t1, t1, __exit_cmdblock - vmdoio2g0
+		csrrw	x0, t1, $780
+		sw	x0, 20(vport)
+		jal	x0, vmdoio3
+__exit_cmdblock: dword	0
 
 vmdoio2c:	addi	t0, x0, -13	; How big is a cell, in bits?
 		bne	t0, t1, vmdoio2d

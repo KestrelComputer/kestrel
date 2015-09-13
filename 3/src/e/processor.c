@@ -13,6 +13,26 @@ extern const struct interface_AddressSpace module_AddressSpace;
 static const struct interface_AddressSpace *as = &module_AddressSpace;
 
 
+static void
+do_hostif(Processor *p) {
+	DWORD cmdptr;
+	BYTE cmd;
+
+	if(p->csr[i_MFROMHOST] == p->csr[i_MTOHOST]) return;
+
+	/* Command blocks should sit on a DWORD boundary.
+	 * Low three bits are used for asynchronous handshaking.
+	 */
+
+	cmdptr = p->csr[i_MTOHOST] & -8;
+	cmd = as->fetch_byte(p->as, cmdptr);
+	switch(cmd) {
+	case 0:		p->running = 0; p->rc = as->fetch_byte(p->as, cmdptr+1); break;
+	default:	fprintf(stderr, "WARNING: Unknown emulator command %d\n", cmd);
+	};
+	p->csr[i_MFROMHOST] = p->csr[i_MTOHOST];
+}
+
 static DWORD
 getCSR(Processor *p, int csr) {
 	switch(csr) {
@@ -24,6 +44,8 @@ getCSR(Processor *p, int csr) {
 	case r_MEPC:		return p->csr[i_MEPC];
 	case r_MBADADDR:	return p->csr[i_MBADADDR];
 	case r_MCAUSE:		return p->csr[i_MCAUSE];
+	case r_MTOHOST:		return p->csr[i_MTOHOST];
+	case r_MFROMHOST:	return p->csr[i_MFROMHOST];
 	default:
 		fprintf(stderr, "Warning: At $%016llX, attempt to read unsupported CSR %d\n", p->pc-4, csr);
 		return 0xCCCCCCCCCCCCCCCC;
@@ -48,6 +70,10 @@ setCSR(Processor *p, int csr, DWORD v) {
 		break;
 	case r_MCAUSE:
 		p->csr[i_MCAUSE] = v & 0x800000000000000F;
+		break;
+	case r_MTOHOST:
+		p->csr[i_MTOHOST] = v;
+		do_hostif(p);
 		break;
 	default:
 		fprintf(stderr, "Warning: At $%016llX, attempt to write $%016llX to unsupported CSR %d\n", p->pc-4, v, csr);
@@ -113,6 +139,8 @@ make(AddressSpace *as) {
 		p->csr[i_MHARTID] = 0;
 		p->csr[i_MSTATUS] = 0xDD6;	// Make sure to boot in machine mode!!  :)
 		p->csr[i_MTVEC] = -0x200;
+		p->csr[i_MTOHOST] = 0;
+		p->csr[i_MFROMHOST] = 0;
 	}
 	return p;
 }
@@ -371,15 +399,15 @@ step(Processor *p) {
 					trap(p, 2);
 					break;
 
-				case 5: // CSRRW
+				case 5: // CSRRWI
 					setCSR(p, imm12, rs1);
 					break;
 
-				case 6: // CSRRS
+				case 6: // CSRRSI
 					orCSR(p, imm12, rs1);
 					break;
 
-				case 7: // CSRRC
+				case 7: // CSRRCI
 					andCSR(p, imm12, ~rs1);
 					break;
 				}
@@ -437,5 +465,3 @@ const struct interface_Processor module_Processor = {
 	.make = &make,
 	.step = &step,
 };
-
-

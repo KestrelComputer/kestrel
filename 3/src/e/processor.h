@@ -9,6 +9,7 @@ struct Processor {
 	UDWORD       pc;
 	AddressSpace *as;
 	int          running;
+	int          rc;
 };
 
 
