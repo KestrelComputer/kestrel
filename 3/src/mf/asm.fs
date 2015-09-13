@@ -65,6 +65,7 @@ lgp0
 : _u2/		."  srli  x" .2* ;
 : _2/		."  srai  x" .2* ;
 : _jge		."  bge   x" .jz ;
+: _gvpea	."  addi  x" r1 . ." , gvp, " param . cr ;
 
 create procedures
 ' _noop ,
@@ -109,6 +110,7 @@ create procedures
 ' _u2/ ,	( RSHIFT )
 ' _2/ ,		( RSHIFT arithmetic )
 ' _jge ,	( JGE )
+' _gvpea ,	( GVPEA )
 
 : value		insn s>d hex <# # # # # # # # # # # # # # # # # #> type ;
 : dword		base @ ."   dword $" value cr base ! ;

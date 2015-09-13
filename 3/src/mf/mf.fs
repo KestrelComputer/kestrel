@@ -22,6 +22,7 @@ host definitions
 : pass1		:0 extern ;
 : passes	lgp prolog epilogs reg asm ;
 : ;,		rfs, passes ;
+: (bye)		bye ;
 
 target definitions
 
@@ -30,7 +31,9 @@ target definitions
 
 host definitions
 
-label0
+gvpofs0 label0
 target
 next-arg included
 host
+(bye)
+

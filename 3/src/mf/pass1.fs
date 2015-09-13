@@ -267,5 +267,35 @@ target definitions
 :: u2/		u2/, ;;
 :: 2/		2/, ;;
 
+\ Variables are reserved relative to a Global Variables Pointer, or GVP
+\ register.  This grants the program up to 4KB of storage for uninitialized
+\ variables.  Offsets range from -2048 to 2047 inclusive, giving enough
+\ storage space for 512 dword-sized variables.
+
+host definitions
+
+variable gvpofs
+: gvpofs0	-2048 gvpofs ! ;
+
+: gvpea,	8 lshift $2A or insn, ;
+: byte:		create gvpofs @ , gvpofs inc does> @ gvpea, ;
+: hword:	create gvpofs @ 1 + -2 and dup , 2 + gvpofs ! does> @ gvpea, ;
+: word:		create gvpofs @ 3 + -4 and dup , 4 + gvpofs ! does> @ gvpea, ;
+: dword:	create gvpofs @ 7 + -8 and dup , 8 + gvpofs ! does> @ gvpea, ;
+: buffer:	create gvpofs @ 7 + -8 and dup , + gvpofs ! does> @ gvpea, ;
+
+target definitions
+
+:: byte		byte: ;;
+:: hword	hword: ;;
+:: word		word: ;;
+:: dword	dword: ;;
+:: buffer	buffer: ;;
+
+:: bytes	;;
+:: hwords	bytes 2* ;;
+:: words	hwords 2* ;;
+:: dwords	words 2* ;;
+
 host definitions
 

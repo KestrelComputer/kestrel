@@ -145,6 +145,7 @@ create procedures
 ' _lsh ,	( RSHIFT )
 ' _lsh ,	( RSHIFT arithmetic )
 ' _jz ,		( JGE )
+' _lit ,	( GVPEA )
 
 : opcode	insn 255 and ;
 : dispatch	opcode cells procedures + @ execute ;
