@@ -70,6 +70,7 @@ zpDPL				= zpRPL + 8
 ; True if negation needed when converting a number.
 zpSign				= zpDPL + 8
 
+; Padding.
 zpReserved1			= zpSign + 1
 zpReserved2			= zpReserved1 + 1
 zpReserved3			= zpReserved2 + 1
@@ -78,3 +79,6 @@ zpReserved5			= zpReserved4 + 1
 zpReserved6			= zpReserved5 + 1
 zpReserved7			= zpReserved6 + 1
 
+; If exiting the emulator, this variable holds the HTIF command
+; block.  Unused otherwise.
+zpExitCB                        = zpReserved7 + 1
