@@ -17,6 +17,14 @@ $0E00000000000001 const dbgin
 : strtail	0 d@ d# 1 - 0 d!  1 d@ d# 1 + 1 d! ;
 : type		begin 0 d@ while 1 d@ c@ >d emit strtail repeat d> d> ;
 
+: div16		0 d@ 2/ 2/ 2/ 2/ 0 d! ;
+: div256	div16 div16 ;
+: pr4		d> d# 15 and s" 0123456789ABCDEF" nip + c@ >d emit ;
+: pr8		0 d@ div16 >d pr4 pr4 ;
+: pr16		0 d@ div256 >d pr8 pr8 ;
+: pr32		0 d@ div256 div256 >d pr16 pr16 ;
+: pr64		0 d@ div256 div256 div256 div256 >d pr32 pr32 ;
+
 $0100000000000000 const gpinp
 $0100000000000008 const gpout
 
@@ -26,6 +34,71 @@ $0100000000000008 const gpout
 : errins	S" CD# should be 0 when card is inserted." >d >d type cr fail ;
 : tins		wait gpinp @ d# 1 and 0=if exit then errins ;
 
+\ "Mount" the SD card.
+
+: sdclk0	gpout @ d# -9 and gpout ! ;
+: sdclk1	gpout @ d# 8 or gpout ! ;
+: sdclkt	gpout @ d# 8 xor gpout ! ;
+
+: sdmosi0	gpout @ d# -5 and gpout ! ;
+: sdmosi1	gpout @ d# 4 or gpout ! ;
+
+: sdcs0		gpout @ d# -3 and gpout ! ;
+: sdcs1		gpout @ d# 2 or gpout ! ;
+
+: _mosi		gpout @ d# -5 and 0 d@ u2/ u2/ u2/ u2/ u2/ d# 4 and or gpout ! 0 d@ 2* 0 d! ;
+: _miso		gpinp @ d# 4 and 2/ 2/ 0 d@ or 0 d! ;
+: sdwmiso	begin gpinp @ d# 4 and if exit then again ;
+
+: sdxbit	_mosi sdclkt sdclkt _miso ;
+: sdexch	sdxbit sdxbit sdxbit sdxbit sdxbit sdxbit sdxbit sdxbit ;
+: sdrx		d# 255 >d sdexch 0 d@ d# 255 and 0 d! ;
+: sdgap		sdrx d> ;
+: sd80cyc	d# 10 >d begin 0 d@ while sdgap d> d# 1 - >d repeat d> ;
+: sdidle	sdclk0 sdmosi1 sdcs1 sd80cyc sdwmiso ;
+
+: sdr1		begin sdrx 0 d@ h# FF xor if exit then d> again ;
+: _sh		d> d> 2* 2* 2* 2* 2* 2* 2* 2* or >d ;
+: sdr7		sdr1 sdrx _sh sdrx _sh sdrx _sh sdrx _sh ;
+
+: _cmd0		h# 40 >d sdexch d> ;
+: _0		h# 00 >d sdexch d> ;
+: _95		h# 95 >d sdexch d> ;
+: sdcmd0	sdcs0 _cmd0 _0 _0 _0 _0 _95 sdr1 sdcs1 sdgap ;
+
+: _cmd8		h# 48 >d sdexch d> ;
+: _1		h# 01 >d sdexch d> ;
+: _AA		h# AA >d sdexch d> ;
+: _87		h# 87 >d sdexch d> ;
+: sdcmd8	sdcs0 _cmd8 _0 _0 _1 _AA _87 sdr7 sdcs1 sdgap ;
+
+: _cmd55	h# 77 >d sdexch d> ;
+: _cmd1		h# 41 >d sdexch d> ;
+: _cmd16	h# 50 >d sdexch d> ;
+
+: sdcmd55	sdcs0 _cmd55 _0 _0 _0 _0 _0 sdr1 sdcs1 sdgap ;
+: sdcmd1	sdcs0 _cmd1 _0 _0 _0 _0 _0 sdr1 sdcs1 sdgap ;
+: _b0		div256 div256 div256 sdexch d> ;
+: _b1		div256 div256 sdexch d> ;
+: _b2		div256 sdexch d> ;
+: sdparam	0 d@ >d _b0 0 d@ >d _b1 0 d@ >d _b2 sdexch d> ;
+: sdcmd16	sdcs0 _cmd16 sdparam sdr1 sdcs1 sdgap ;
+
+: _idlexp	pr64 cr S" Expected idle card after CMD0" >d >d type cr fail ;
+: _v1exp	pr64 cr S" SD V.1 or MMC V.3 card expected" >d >d type cr fail ;
+: _idlexp55	pr64 cr S" Expected idle card after CMD55" >d >d type cr fail ;
+: _sdv1exp	pr64 cr S" Expected SD V.1 card after ACMD41" >d >d type cr fail ;
+: _blksiz	pr64 cr S" Error enforcing 512 byte block size" >d >d type cr fail ;
+
+: mount		sdidle
+		sdcmd0 0 d@ d# 1 xor if _idlexp then d> 
+		sdcmd8 0 d@ h# 05FFFFFFFF xor if _v1exp then d> 
+		begin
+			sdcmd55 0 d@ h# 01 xor if _idlexp55 then d>
+			sdcmd1 0 d@ d# 1 xor if d> d# 0 >d else d> d# 1 >d then
+		d> while repeat
+		d# 512 >d sdcmd16 0 d@ if _blksiz then d> ;
+
 \ Entry point.
 
-: _		tins pass ;
+: _		tins mount pass ;
