@@ -307,5 +307,15 @@ target definitions
 
 :: S"		string, ;; ( " -- to fix editor coloring )
 
+\ Numeric constants are frequently used, so we provide support for them here.
+
+host definitions
+
+: const,	create , does> @ lit, ;
+
+target definitions
+
+:: const	const, ;;
+
 host definitions
 

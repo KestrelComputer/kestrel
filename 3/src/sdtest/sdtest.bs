@@ -1,0 +1,31 @@
+\ Emulator control
+
+extern emu_exit ( see assembly runtime )
+
+: fail		d# 1 emu_exit ;
+: pass		d# 0 emu_exit ;
+
+\ Console I/O
+
+$0E00000000000000 const dbgout
+$0E00000000000001 const dbgin
+
+: ready		begin dbgin c@ if exit then again ;
+
+: emit		d> dbgout c! ;
+: cr		d# 13 >d emit d# 10 >d emit ;
+: strtail	0 d@ d# 1 - 0 d!  1 d@ d# 1 + 1 d! ;
+: type		begin 0 d@ while 1 d@ c@ >d emit strtail repeat d> d> ;
+
+$0100000000000000 const gpinp
+$0100000000000008 const gpout
+
+\ SD card insert tests.
+
+: wait		S" Please insert SD card now." >d >d type cr ready ;
+: errins	S" CD# should be 0 when card is inserted." >d >d type cr fail ;
+: tins		wait gpinp @ d# 1 and 0=if exit then errins ;
+
+\ Entry point.
+
+: _		tins pass ;
