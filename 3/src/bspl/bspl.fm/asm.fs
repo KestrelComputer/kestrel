@@ -15,6 +15,10 @@ variable lgplab
 : lgp0		0 lgplab ! ;
 lgp0
 
+variable strlitctr
+: strlitctr0	0 strlitctr ! ;
+strlitctr0
+
 : .align	."  align 8" cr ;
 : _noop		."  addi  x0, x0, 0" cr ;
 : _lit		."  ld    x" r1 . ." , (" cur @ name type ." -LGP" lgplab ? ." )" offset . ." (gp)" cr ;
@@ -65,6 +69,12 @@ lgp0
 : _u2/		."  srli  x" .2* ;
 : _2/		."  srai  x" .2* ;
 : _jge		."  bge   x" .jz ;
+: _gvpea	."  addi  x" r1 . ." , gvp, " param . cr ;
+: _strlit	."  jal   x" r2 . ." , STRLIT" strlitctr ? cr
+		."  byte  " '" emit param name type '" emit cr
+		."  align 4" cr
+		." STRLIT" strlitctr ? ." :" cr  strlitctr inc
+		."  addi  x" r1 . ." , x0, " param name . drop cr ;
 
 create procedures
 ' _noop ,
@@ -109,6 +119,8 @@ create procedures
 ' _u2/ ,	( RSHIFT )
 ' _2/ ,		( RSHIFT arithmetic )
 ' _jge ,	( JGE )
+' _gvpea ,	( GVPEA )
+' _strlit ,	( STRLIT )
 
 : value		insn s>d hex <# # # # # # # # # # # # # # # # # #> type ;
 : dword		base @ ."   dword $" value cr base ! ;
