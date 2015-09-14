@@ -20,10 +20,10 @@ $0E00000000000001 const dbgin
 : div16		0 d@ 2/ 2/ 2/ 2/ 0 d! ;
 : div256	div16 div16 ;
 : pr4		d> d# 15 and s" 0123456789ABCDEF" nip + c@ >d emit ;
-: pr8		0 d@ div16 >d pr4 pr4 ;
-: pr16		0 d@ div256 >d pr8 pr8 ;
-: pr32		0 d@ div256 div256 >d pr16 pr16 ;
-: pr64		0 d@ div256 div256 div256 div256 >d pr32 pr32 ;
+: pr8		0 d@ >d div16 pr4 pr4 ;
+: pr16		0 d@ >d div256 pr8 pr8 ;
+: pr32		0 d@ >d div256 div256 pr16 pr16 ;
+: pr64		0 d@ >d div256 div256 div256 div256 pr32 pr32 ;
 
 $0100000000000000 const gpinp
 $0100000000000008 const gpout
