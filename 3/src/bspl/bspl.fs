@@ -1,15 +1,17 @@
+#! /usr/bin/env gforth
+
 warnings off
 
 \ Utility words that have no better place to go.
 : inc		1 swap +! ;
 
-S" syms.fs" included
+S" bspl.fm/syms.fs" included
 
-S" pass1.fs" included
-S" lgp.fs" included
-S" prolog-epilog.fs" included
-S" regs.fs" included
-S" asm.fs" included
+S" bspl.fm/pass1.fs" included
+S" bspl.fm/lgp.fs" included
+S" bspl.fm/prolog-epilog.fs" included
+S" bspl.fm/regs.fs" included
+S" bspl.fm/asm.fs" included
 
 \ External definitions have symbol table entries, but don't exist in the
 \ current program listing.  Therefore, we fake such definitions by injecting
