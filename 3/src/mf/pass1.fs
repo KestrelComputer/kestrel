@@ -5,9 +5,6 @@
 \ instruction sequences.  At this point, compilation is done, and we
 \ just emit the generated source code for consumption by the assembler.
 
-\ Utility words that have no better place to go.
-: inc		1 swap +! ;
-
 \ Number of elements in the compiler buffer.
 1024 constant #buf
 
@@ -296,6 +293,19 @@ target definitions
 :: hwords	bytes 2* ;;
 :: words	hwords 2* ;;
 :: dwords	words 2* ;;
+
+\ Strings are constants, and so reside along-side the code.
+\ When you invoke the name of a string, its length and address are put on the stack,
+\ in that order.  This facilitates ANS-like string argument passing conventions with
+\ a minimum of keywords: aString >D >D instead of aString swap >d >d.
+
+host definitions
+
+: string,	34 word count dictate 8 lshift $2B or insn, ;
+
+target definitions
+
+:: S"		string, ;; ( " -- to fix editor coloring )
 
 host definitions
 

@@ -1,10 +1,14 @@
 warnings off
 
+\ Utility words that have no better place to go.
+: inc		1 swap +! ;
+
+S" syms.fs" included
+
 S" pass1.fs" included
 S" lgp.fs" included
 S" prolog-epilog.fs" included
 S" regs.fs" included
-S" syms.fs" included
 S" asm.fs" included
 
 \ External definitions have symbol table entries, but don't exist in the
@@ -31,7 +35,7 @@ target definitions
 
 host definitions
 
-gvpofs0 label0
+strlitctr0 gvpofs0 label0
 target
 next-arg included
 host

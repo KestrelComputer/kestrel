@@ -1,31 +1,21 @@
-extern bye
 \ Exits the emulator with return code 0.
+extern bye
 
-: emit ( ch - )
 \ Sends the character to the user's console.
+: emit ( ch - )
 	d> d# $0E00000000000000 c! ;
 
-: nextch ( addr len - addr+1 len-1 )
 \ Takes the tail of a string.
+: nextch ( addr len - addr+1 len-1 )
 	d> d> d# 1 + >d d# 1 - >d ;
 
-: type ( addr len - )
 \ Sends a string of length len to the console.
+: type ( addr len - )
 	begin 0 d@ while 1 d@ c@ >d emit nextch repeat d> d> drop drop ;
 
-14 bytes buffer text
+\ Various console control characters.
+: cr ( - )	d# 13 >d emit ;
+: lf ( - )	d# 10 >d emit ;
 
-: place	d> 0 d@ c! 0 d@ d# 1 + 0 d! ;
-: h	d# 'h >d place ;
-: e	d# 'e >d place ;
-: l	d# 'l >d place ;
-: o	d# 'o >d place ;
-: w	d# 'w >d place ;
-: r	d# 'r >d place ;
-: d	d# 'd >d place ;
-: space	d# 32 >d place ;
-: cr	d# 13 >d place ;
-: lf	d# 10 >d place ;
-
-: string	text >d h e l l o space w o r l d cr lf text 0 d! d# 13 >d ;
-: _		string type bye ;
+\ Entry-point.
+: _		S" Hello world!" >d >d type cr lf bye ;
