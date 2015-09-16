@@ -17,10 +17,12 @@ static void sdcard_do_write_block_2nd(SDCard *);
 void
 sdcard_reset(SDCard *sdc) {
 	int prefix = sdc->acmdPrefix;
+	int blockLength = sdc->blockLength;
+
 	memset(sdc, 0, sizeof(SDCard));
 	sdc->cmd_handler = &sdcard_default_handler;
 	sdc->cmd_length = 6;
-	sdc->blockLength = 1024;
+	sdc->blockLength = blockLength;
 	sdc->acmdPrefix = prefix;
 }
 
