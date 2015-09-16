@@ -43,7 +43,7 @@ $0100000000000008 const gpout
 
 : sdmosi0	gpout @ d# -5 and gpout ! ;
 : sdmosi1	gpout @ d# 4 or gpout ! ;
-: sdmosi		gpout @ d# -5 and 0 d@ u2/ u2/ u2/ u2/ u2/ d# 4 and or gpout ! 0 d@ 2* 0 d! ;
+: sdmosi	gpout @ d# -5 and 0 d@ u2/ u2/ u2/ u2/ u2/ d# 4 and or gpout ! 0 d@ 2* 0 d! ;
 
 \ Set or clear the SD/MMC card's slave-select (aka chip select) pin.
 
@@ -52,11 +52,8 @@ $0100000000000008 const gpout
 
 \ Retrieve state of the SD/MMC card's MISO pin.  Accumulate the results into
 \ the byte on the top of the data stack.
-\ 
-\ sdwmiso will wait for MISO high before returning.
 
 : sdmiso	gpinp @ d# 4 and 2/ 2/ 0 d@ or 0 d! ;
-: sdwmiso	begin gpinp @ d# 4 and if exit then again ;
 
 \ Exchange a byte of data with the attached SPI slave.
 
@@ -67,6 +64,11 @@ $0100000000000008 const gpout
 \ MOSI high during the transaction.
 
 : sdrx		d# 255 >d sdexch 0 d@ d# 255 and 0 d! ;
+
+\ Wait for MISO line to assert high.
+
+: sdwmiso	begin sdrx d> d# 1 and if exit then again ;
+: sdwdata	begin sdrx d> h# FE xor 0=if exit then again ;
 
 \ Toggle the clock 8 times.  MOSI is high during this operation.  Received
 \ data is discarded.
@@ -89,6 +91,7 @@ $0100000000000008 const gpout
 : _sh		d> d> 2* 2* 2* 2* 2* 2* 2* 2* or >d ;
 : sdr1		begin sdrx 0 d@ h# FF xor if exit then d> again ;
 : sdr7		sdr1 sdrx _sh sdrx _sh sdrx _sh sdrx _sh ;
+: sdr1b		sdr1 sdwmiso ;
 
 \ Canned byte streams for interacting with the SD/MMC device.
 
@@ -96,6 +99,8 @@ $0100000000000008 const gpout
 : _cmd1		h# 41 >d sdexch d> ;
 : _cmd8		h# 48 >d sdexch d> ;
 : _cmd16	h# 50 >d sdexch d> ;
+: _cmd17	h# 51 >d sdexch d> ;
+: _cmd24	h# 58 >d sdexch d> ;
 : _cmd55	h# 77 >d sdexch d> ;
 
 : _0		h# 00 >d sdexch d> ;
@@ -123,6 +128,12 @@ $0100000000000008 const gpout
 
 : sdblksz	sdcs0 _cmd16 sdparam _0 sdr1 sdcs1 sdgap ;
 
+\ Prepares an SD/MMC card for a block of data to write, or to send a block of
+\ data.  Note that these commands leave the SD card selected!
+
+: sdwrcmd	sdcs0 _cmd24 sdparam _0 sdr1 ;
+: sdrdcmd	sdcs0 _cmd17 sdparam _0 sdr1 ;
+
 \ SD card insert tests.
 
 : wait		S" Please insert SD card now." >d >d type cr ready ;
@@ -146,6 +157,35 @@ $0100000000000008 const gpout
 		d> while repeat
 		d# 512 >d sdblksz 0 d@ if _blksiz then d> ;
 
+\ Write tests
+
+: _wrerr	pr64 cr S" Write error cmd phase" >d >d type cr fail ;
+: _wrerr2	pr64 cr S" Write error data phase" >d >d type cr fail ;
+
+: dstart	h# FE >d sdexch d> ;
+: dbody		d# 512 >d begin 0 d@ while 1 d@ >d sdexch d> 0 d@ d# 1 - 0 d! repeat d> d> ;
+: payload	dstart dbody _0 _0 sdr1b sdcs1 0 d@ d# 5 and d# 5 xor if _wrerr2 then d> ;
+: toblk		0 d@ 2* 2* 2* 2* 2* 2* 2* 2* 2* >d ;
+: blockAA	toblk sdwrcmd 0 d@ if _wrerr then d> h# AA >d payload ;
+: block55	toblk sdwrcmd 0 d@ if _wrerr then d> h# 55 >d payload ;
+: wrodd		d# 1 >d begin 0 d@ d# 101 - +if d> exit then blockAA 0 d@ d# 2 + 0 d! again ;
+: wreven	d# 0 >d begin 0 d@ d# 100 - +if d> exit then block55 0 d@ d# 2 + 0 d! again ;
+: write		wrodd wreven ;
+
+\ Read tests
+
+: _rderr	pr64 cr S" Read error cmd phase" >d >d type cr fail ;
+: _rderr2	pr64 cr S" Read error data phase" >d >d type cr fail ;
+
+: chkbyt	sdrx 0 d@ 2 d@ xor if 2 d@ >d pr64 cr 1 d@ >d pr64 cr _rderr2 then d> ;
+: content	sdwdata d# 512 >d begin 0 d@ while chkbyt 0 d@ d# 1 - 0 d! repeat d> sdgap sdgap d> sdcs1 ;
+: checkAA	toblk sdrdcmd 0 d@ if _rderr then d> h# AA >d content ;
+: check55	toblk sdrdcmd 0 d@ if _rderr then d> h# 55 >d content ;
+: rdodd		d# 1 >d begin 0 d@ d# 101 - +if d> exit then checkAA 0 d@ d# 2 + 0 d! again ;
+: rdeven	d# 0 >d begin 0 d@ d# 100 - +if d> exit then check55 0 d@ d# 2 + 0 d! again ;
+
+: read		rdeven rdodd ;
+
 \ Entry point.
 
-: _		tins mount pass ;
+: _		tins mount write read pass ;
