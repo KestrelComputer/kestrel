@@ -50,7 +50,8 @@ create procedures
 : opcode	insn 255 and ;
 : insert?	opcode $01 = inserted @ 0= and ;
 : call?		opcode $12 = ;
-: classify	insert? 1 and call? 2 and or ;
+: label?  opcode $07 = ;
+: classify	insert? 1 and call? label? or 2 and or ;
 : plan		classify cells procedures + @ ;
 : ?insert	plan execute ;
 

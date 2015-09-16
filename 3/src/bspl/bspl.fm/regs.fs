@@ -148,6 +148,7 @@ create procedures
 ' _jz ,		( JGE )
 ' _lit ,	( GVPEA )
 ' _strlit ,	( STRLIT )
+' _jz ,		( JLT )
 
 : opcode	insn 255 and ;
 : dispatch	opcode cells procedures + @ execute ;

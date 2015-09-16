@@ -143,11 +143,13 @@ label0
 : gotoz,	8 lshift 17 or insn, ;
 : gotonz,	8 lshift $25 or insn, ;
 : gotoge,	8 lshift $29 or insn, ;
+: gotolt,	8 lshift $2C or insn, ;
 
 : begin,	*label dup label, ;
 : if,		*label dup gotoz, ;
 : ifz,		*label dup gotonz, ;
 : -if,		*label dup gotoge, ;
+: +if,		*label dup gotolt, ;
 : else,		*label dup goto, swap label, ;
 : then,		label, ;
 
@@ -163,6 +165,7 @@ target definitions
 :: if		if, ;;
 :: 0=if		ifz, ;;
 :: -if		-if, ;;
+:: +if		+if, ;;
 :: else		else, ;;
 :: then		then, ;;
 
@@ -306,6 +309,16 @@ host definitions
 target definitions
 
 :: S"		string, ;; ( " -- to fix editor coloring )
+
+\ Numeric constants are frequently used, so we provide support for them here.
+
+host definitions
+
+: const,	create , does> @ lit, ;
+
+target definitions
+
+:: const	const, ;;
 
 host definitions
 

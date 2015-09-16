@@ -75,6 +75,7 @@ strlitctr0
 		."  align 4" cr
 		." STRLIT" strlitctr ? ." :" cr  strlitctr inc
 		."  addi  x" r1 . ." , x0, " param name . drop cr ;
+: _jlt		."  blt   x" .jz ;
 
 create procedures
 ' _noop ,
@@ -121,6 +122,7 @@ create procedures
 ' _jge ,	( JGE )
 ' _gvpea ,	( GVPEA )
 ' _strlit ,	( STRLIT )
+' _jlt ,	( JLT )
 
 : value		insn s>d hex <# # # # # # # # # # # # # # # # # #> type ;
 : dword		base @ ."   dword $" value cr base ! ;
