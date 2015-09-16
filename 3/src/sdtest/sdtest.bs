@@ -28,61 +28,108 @@ $0E00000000000001 const dbgin
 $0100000000000000 const gpinp
 $0100000000000008 const gpout
 
+\ \\ Low-level, bit-banging SD card access library.
+
+\ Set or toggle the SD/MMC card's clock bit.
+
+: sdclk0	gpout @ d# -9 and gpout ! ;
+: sdclk1	gpout @ d# 8 or gpout ! ;
+: sdclkt	gpout @ d# 8 xor gpout ! ;
+
+\ Set or clear the SD/MMC card's MOSI pin.
+\ For sdmosi, the state of MOSI is taken from bit 7 of the byte on the
+\ data stack.  The byte is shifted for subsequent calls, and to vacate space
+\ for filling in MISO status as well (see sdmiso).
+
+: sdmosi0	gpout @ d# -5 and gpout ! ;
+: sdmosi1	gpout @ d# 4 or gpout ! ;
+: sdmosi		gpout @ d# -5 and 0 d@ u2/ u2/ u2/ u2/ u2/ d# 4 and or gpout ! 0 d@ 2* 0 d! ;
+
+\ Set or clear the SD/MMC card's slave-select (aka chip select) pin.
+
+: sdcs0		gpout @ d# -3 and gpout ! ;
+: sdcs1		gpout @ d# 2 or gpout ! ;
+
+\ Retrieve state of the SD/MMC card's MISO pin.  Accumulate the results into
+\ the byte on the top of the data stack.
+\ 
+\ sdwmiso will wait for MISO high before returning.
+
+: sdmiso	gpinp @ d# 4 and 2/ 2/ 0 d@ or 0 d! ;
+: sdwmiso	begin gpinp @ d# 4 and if exit then again ;
+
+\ Exchange a byte of data with the attached SPI slave.
+
+: sdxbit	sdmosi sdclkt sdclkt sdmiso ;
+: sdexch	sdxbit sdxbit sdxbit sdxbit sdxbit sdxbit sdxbit sdxbit ;
+
+\ Receive a byte from the SPI slave.  Use 255 as the byte sent, to force
+\ MOSI high during the transaction.
+
+: sdrx		d# 255 >d sdexch 0 d@ d# 255 and 0 d! ;
+
+\ Toggle the clock 8 times.  MOSI is high during this operation.  Received
+\ data is discarded.
+
+: sdgap		sdrx d> ;
+
+\ Idle the SD/MMC link, helping to put it into SPI mode.
+
+: sd80cyc	d# 10 >d begin 0 d@ while sdgap d> d# 1 - >d repeat d> ;
+: sdidle	sdclk0 sdmosi1 sdcs1 sd80cyc sdwmiso ;
+
+\ Receive a response from the SD/MMC device.  Depending on the protocol needs,
+\ this can be 1-byte in length (sdr1), or 5-bytes in length (sdr7, which can
+\ also be used to receive R3, R5, et. al. responses too).
+\ 
+\ Bits 0-7 of the return value of sdr1 contains the R1 byte, while for sdr7,
+\ you will find it in bits 32-39.  Bits 0-31 contain the additional four
+\ R3/R5/R7 bytes.
+
+: _sh		d> d> 2* 2* 2* 2* 2* 2* 2* 2* or >d ;
+: sdr1		begin sdrx 0 d@ h# FF xor if exit then d> again ;
+: sdr7		sdr1 sdrx _sh sdrx _sh sdrx _sh sdrx _sh ;
+
+\ Canned byte streams for interacting with the SD/MMC device.
+
+: _cmd0		h# 40 >d sdexch d> ;
+: _cmd1		h# 41 >d sdexch d> ;
+: _cmd8		h# 48 >d sdexch d> ;
+: _cmd16	h# 50 >d sdexch d> ;
+: _cmd55	h# 77 >d sdexch d> ;
+
+: _0		h# 00 >d sdexch d> ;
+: _1		h# 01 >d sdexch d> ;
+: _87		h# 87 >d sdexch d> ;
+: _95		h# 95 >d sdexch d> ;
+: _AA		h# AA >d sdexch d> ;
+
+: sdcmd0	sdcs0 _cmd0 _0 _0 _0 _0 _95 sdr1 sdcs1 sdgap ;
+: sdcmd1	sdcs0 _cmd1 _0 _0 _0 _0 _0 sdr1 sdcs1 sdgap ;
+: sdcmd8	sdcs0 _cmd8 _0 _0 _1 _AA _87 sdr7 sdcs1 sdgap ;
+: sdcmd55	sdcs0 _cmd55 _0 _0 _0 _0 _0 sdr1 sdcs1 sdgap ;
+
+\ Send a 32-bit, big-endian value to the SD/MMC device.
+
+: _b0		div256 div256 div256 sdexch d> ;
+: _b1		div256 div256 sdexch d> ;
+: _b2		div256 sdexch d> ;
+: sdparam	0 d@ >d _b0 0 d@ >d _b1 0 d@ >d _b2 sdexch d> ;
+
+\ Alter the configured block size.  It normally defaults to 1024 bytes.
+\ However, for many applications, 512 bytes is better.  In any case, you
+\ should set it explicitly anyway, because there's no reason to treat the 1024
+\ byte default as a given standard behavior.
+
+: sdblksz	sdcs0 _cmd16 sdparam _0 sdr1 sdcs1 sdgap ;
+
 \ SD card insert tests.
 
 : wait		S" Please insert SD card now." >d >d type cr ready ;
 : errins	S" CD# should be 0 when card is inserted." >d >d type cr fail ;
 : tins		wait gpinp @ d# 1 and 0=if exit then errins ;
 
-\ "Mount" the SD card.
-
-: sdclk0	gpout @ d# -9 and gpout ! ;
-: sdclk1	gpout @ d# 8 or gpout ! ;
-: sdclkt	gpout @ d# 8 xor gpout ! ;
-
-: sdmosi0	gpout @ d# -5 and gpout ! ;
-: sdmosi1	gpout @ d# 4 or gpout ! ;
-
-: sdcs0		gpout @ d# -3 and gpout ! ;
-: sdcs1		gpout @ d# 2 or gpout ! ;
-
-: _mosi		gpout @ d# -5 and 0 d@ u2/ u2/ u2/ u2/ u2/ d# 4 and or gpout ! 0 d@ 2* 0 d! ;
-: _miso		gpinp @ d# 4 and 2/ 2/ 0 d@ or 0 d! ;
-: sdwmiso	begin gpinp @ d# 4 and if exit then again ;
-
-: sdxbit	_mosi sdclkt sdclkt _miso ;
-: sdexch	sdxbit sdxbit sdxbit sdxbit sdxbit sdxbit sdxbit sdxbit ;
-: sdrx		d# 255 >d sdexch 0 d@ d# 255 and 0 d! ;
-: sdgap		sdrx d> ;
-: sd80cyc	d# 10 >d begin 0 d@ while sdgap d> d# 1 - >d repeat d> ;
-: sdidle	sdclk0 sdmosi1 sdcs1 sd80cyc sdwmiso ;
-
-: sdr1		begin sdrx 0 d@ h# FF xor if exit then d> again ;
-: _sh		d> d> 2* 2* 2* 2* 2* 2* 2* 2* or >d ;
-: sdr7		sdr1 sdrx _sh sdrx _sh sdrx _sh sdrx _sh ;
-
-: _cmd0		h# 40 >d sdexch d> ;
-: _0		h# 00 >d sdexch d> ;
-: _95		h# 95 >d sdexch d> ;
-: sdcmd0	sdcs0 _cmd0 _0 _0 _0 _0 _95 sdr1 sdcs1 sdgap ;
-
-: _cmd8		h# 48 >d sdexch d> ;
-: _1		h# 01 >d sdexch d> ;
-: _AA		h# AA >d sdexch d> ;
-: _87		h# 87 >d sdexch d> ;
-: sdcmd8	sdcs0 _cmd8 _0 _0 _1 _AA _87 sdr7 sdcs1 sdgap ;
-
-: _cmd55	h# 77 >d sdexch d> ;
-: _cmd1		h# 41 >d sdexch d> ;
-: _cmd16	h# 50 >d sdexch d> ;
-
-: sdcmd55	sdcs0 _cmd55 _0 _0 _0 _0 _0 sdr1 sdcs1 sdgap ;
-: sdcmd1	sdcs0 _cmd1 _0 _0 _0 _0 _0 sdr1 sdcs1 sdgap ;
-: _b0		div256 div256 div256 sdexch d> ;
-: _b1		div256 div256 sdexch d> ;
-: _b2		div256 sdexch d> ;
-: sdparam	0 d@ >d _b0 0 d@ >d _b1 0 d@ >d _b2 sdexch d> ;
-: sdcmd16	sdcs0 _cmd16 sdparam sdr1 sdcs1 sdgap ;
+\ "Mount" the SD card.  This prepares the card for actual use.
 
 : _idlexp	pr64 cr S" Expected idle card after CMD0" >d >d type cr fail ;
 : _v1exp	pr64 cr S" SD V.1 or MMC V.3 card expected" >d >d type cr fail ;
@@ -97,7 +144,7 @@ $0100000000000008 const gpout
 			sdcmd55 0 d@ h# 01 xor if _idlexp55 then d>
 			sdcmd1 0 d@ d# 1 xor if d> d# 0 >d else d> d# 1 >d then
 		d> while repeat
-		d# 512 >d sdcmd16 0 d@ if _blksiz then d> ;
+		d# 512 >d sdblksz 0 d@ if _blksiz then d> ;
 
 \ Entry point.
 
