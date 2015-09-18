@@ -83,7 +83,7 @@ I'll probably write any finished assembler in Forth,
 since Forth ports much more easily than C (and, thus, any languages build via C).
 
 The code examples below will only show the relevant code excerpts.
-You can find the full source code [here](https://github.com/sam-falvo/kestrel/commit/5f86f2a267c26585c5187fef4f4e11a3495db029).
+You can find the full source code [here](https://github.com/KestrelComputer/kestrel/commit/5f86f2a267c26585c5187fef4f4e11a3495db029).
 
 #### Syntax
 

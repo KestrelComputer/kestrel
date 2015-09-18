@@ -64,7 +64,7 @@ Forth implements the *read*, *eval*, and *loop* bits of a *read-eval-print-loop*
 
 Announcing that Forth is running is a trivial matter, and I won't refine it here.
 It basically involves pumping characters to a debug port at present,
-for which I already have working, [known-good code in the MLM](https://github.com/sam-falvo/kestrel/blob/master/3/src/mlm/mlm.asm#L559-L610).
+for which I already have working, [known-good code in the MLM](https://github.com/KestrelComputer/kestrel/blob/master/3/src/mlm/mlm.asm#L559-L610).
 Similarly with printing the OK prompt.
 
 I'll get to line input later.

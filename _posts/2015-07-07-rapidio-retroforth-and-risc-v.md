@@ -49,13 +49,13 @@ A blog post on how it works will be forth-coming.
 That Retro actually exists now, though, means that people can actually start playing with the computer _now_.
 And that's just awesome in my book.
 
-You can find my RetroForth work in the [`x-ngaro` branch](https://github.com/sam-falvo/kestrel/tree/x-ngaro) until I actually merge it to master.
+You can find my RetroForth work in the [`master` branch](https://github.com/KestrelComputer/kestrel).
 
 ## RISC-V Workshop Success
 
 Having a working Ngaro VM was a nice bonus for an unrelated event: the 2nd RISC-V Workshop.
 
-I gave a [poster](http://sam-falvo.github.io/kestrel/images/poster-full.pdf) presentation on June 29 covering the Kestrel, my mission, vision, and justification.
+I gave a [poster](http://kestrelcomputer.github.io/kestrel/images/poster-full.pdf) presentation on June 29 covering the Kestrel, my mission, vision, and justification.
 This presentation was surprisingly successful, considering that
 everyone else in attendance were working either in the deep-embedded space or in the supercomputing realms.
 

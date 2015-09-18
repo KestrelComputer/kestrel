@@ -18,7 +18,7 @@ which the processor executes sequentially after a fetch cycle.
 It offers both word- and byte-sized fetches and stores,
 a truly minimal set of arithmetic and logic operators,
 and a basic set of control flow instructions.
-You can read more about it by [downloading its datasheet](https://github.com/sam-falvo/kestrel/blob/master/cores/S16X4A/doc/datasheet.pdf).
+You can read more about it by [downloading its datasheet](https://github.com/KestrelComputer/kestrel/blob/master/cores/S16X4A/doc/datasheet.pdf).
 
 When I first wrote the Verilog for this processor, I had intended it only to serve as a hardware debugging processor.
 64KiB seemed plenty large enough for this task, and indeed, the existence of the MGIA, KIA, and the GPIA I/O adapters vindicate its success in this role.
