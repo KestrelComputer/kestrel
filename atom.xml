@@ -4,10 +4,10 @@ layout: null
 <?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>Kestrel Project</title>
-  <link href="http://sam-falvo.github.io/kestrel/atom" rel="self"/>
-  <link href="http://sam-falvo.github.io/kestrel"/>
+  <link href="http://kestrelcomputer.github.io/kestrel/atom" rel="self"/>
+  <link href="http://kestrelcomputer.github.io/kestrel"/>
   <updated>{{ site.time | date_to_xmlschema }}</updated>
-  <id>http://sam-falvo.github.io/kestrel</id>
+  <id>http://kestrelcomputer.github.io/kestrel</id>
   <author>
     <name>Samuel A. Falvo II</name>
     <email>kc5tja@arrl.net</email>
@@ -15,9 +15,9 @@ layout: null
   {% for post in site.posts %}
     <entry>
       <title>{{ post.title }}</title>
-      <link href="http://sam-falvo.github.io/kestrel{{ post.url }}"/>
+      <link href="http://kestrelcomputer.github.io/kestrel{{ post.url }}"/>
       <updated>{{ post.date | date_to_xmlschema }}</updated>
-      <id>http://sam-falvo.github.io/kestrel{{ post.id }}</id>
+      <id>http://kestrelcomputer.github.io/kestrel{{ post.id }}</id>
       <content type="html">{{ post.content | xml_escape }}</content>
     </entry>
   {% endfor %}

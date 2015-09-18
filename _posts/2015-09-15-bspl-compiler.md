@@ -16,7 +16,7 @@ previous generations of
 I call it BSPL,
 short for Bootstrapping Systems Programming Language.
 
-As I've [written in the past](http://sam-falvo.github.io/kestrel/2015/03/11/why-not-machine-forth/),
+As I've [written in the past](http://kestrelcomputer.github.io/kestrel/2015/03/11/why-not-machine-forth/),
 the RISC-V architecture is
 singularly difficult to write a
 Machine Forth dialect for.
@@ -36,7 +36,7 @@ and utterly trivial to debug.
 You could reasonably get a Machine Forth compiler
 for x86
 running in about two days worth of effort.
-I know, [because I've done it,](https://github.com/sam-falvo/kestrel/blob/master/cores/Kestrel-2/sw/asm.fs)
+I know, [because I've done it,](https://github.com/KestrelComputer/kestrel/blob/master/cores/Kestrel-2/sw/asm.fs)
 albeit for the Kestrel-2.
 
 PowerPC, RISC-V, MIPS, SPARC, and other kinds of RISCy CPUs,
@@ -371,7 +371,7 @@ Notice there's an instruction called `label`?
 Control flow happens relative to *labels*,
 the index of which is declared using the `label` primitive.
 Note that a label may be declared *after* it's referenced
-([see the definition of `if`](https://github.com/sam-falvo/kestrel/blob/master/3/src/bspl/bspl.fm/pass1.fs#L148)),
+([see the definition of `if`](https://github.com/KestrelComputer/kestrel/blob/master/3/src/bspl/bspl.fm/pass1.fs#L148)),
 which means we would need at least two compiler passes to resolve them.
 (Currently, BSPL emits assembly source listings,
 relying on a subsequent call to an assembler to perform the 2nd pass.
@@ -419,7 +419,7 @@ This can go on forever as long as `ni` doesn't overflow the buffer.
 Several compiler passes exist to incrementally refine the code
 into a representation closer to a native RISC-V instruction stream.
 Arguably,
-the [first pass](https://github.com/sam-falvo/kestrel/blob/master/3/src/bspl/bspl.fm/pass1.fs)
+the [first pass](https://github.com/KestrelComputer/kestrel/blob/master/3/src/bspl/bspl.fm/pass1.fs)
 is translating the source into symbolic form.
 All subsequent passes exist to
 massage the highest-level intermediate representation discussed previously
@@ -464,7 +464,7 @@ Further, because any called subroutines may reset the global pointer,
 for these subroutines might use literals themselves,
 we need to also insert it in front of the first literal load after any subroutine calls.
 The logic behind
-the [lgp.fs module](https://github.com/sam-falvo/kestrel/blob/master/3/src/bspl/bspl.fm/lgp.fs)
+the [lgp.fs module](https://github.com/KestrelComputer/kestrel/blob/master/3/src/bspl/bspl.fm/lgp.fs)
 implements this intelligence.
 
 When the `lgp.fs` pass completes,
@@ -508,7 +508,7 @@ make it smaller/faster/better later.
 ### Prolog and Epilog Insertion
 
 I actually list two passes inside
-the [prolog-epilog.fs module](https://github.com/sam-falvo/kestrel/blob/master/3/src/bspl/bspl.fm/prolog-epilog.fs).
+the [prolog-epilog.fs module](https://github.com/KestrelComputer/kestrel/blob/master/3/src/bspl/bspl.fm/prolog-epilog.fs).
 The prolog pass basically asks the question,
 "Do I need to incur the overhead of preserving the return address register?"
 It works by scanning through the compiled set of instructions,
@@ -540,7 +540,7 @@ to one RISC-V instruction.
 
 So far, however,
 we have not addressed the issue of register allocation.
-The [register assignment pass](https://github.com/sam-falvo/kestrel/blob/master/3/src/bspl/bspl.fm/regs.fs)
+The [register assignment pass](https://github.com/KestrelComputer/kestrel/blob/master/3/src/bspl/bspl.fm/regs.fs)
 works to allocate enumeration stack registers
 and assigns them as appropriate to source and/or destination slots for individual instructions.
 
@@ -627,7 +627,7 @@ corresponds to one CPU instruction.
 If any optimization passes were run,
 then the program in the compile buffer should be as close to optimal as
 stack-architecture compiler technology can bring it.
-So, the [final pass](https://github.com/sam-falvo/kestrel/blob/master/3/src/bspl/bspl.fm/asm.fs)
+So, the [final pass](https://github.com/KestrelComputer/kestrel/blob/master/3/src/bspl/bspl.fm/asm.fs)
 through the compile buffer
 produces the assembly language listing.
 It walks through every instruction in the compiler buffer,
