@@ -1,5 +1,5 @@
 .banner {
-    background: #333;
+    background: white;
     padding: 50px 10px 30px;
 }
 
@@ -8,7 +8,8 @@
 }
 
 .project-title {
-    color: white;
+    color: black;
+    font-weight: bold;
 }
 
 .tar_download_link {
@@ -26,7 +27,7 @@
     background: url("../images/sprite_download.png") no-repeat scroll right top transparent;
 }
 
-.text-justify {text-align: justify;}
+.text-justify {text-align: left;}
 
 .zip_download_link {
     display: block;

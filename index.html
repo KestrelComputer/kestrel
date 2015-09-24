@@ -4,21 +4,26 @@ title: Kestrel
 ---
 
 <div class="row first-content">
-	<div class="col-md-8">
-		<p>The Kestrel project is all about freedom of computing and self-education using all-homebrew design, right down to having openly documented hardware and software at all levels, from register-transfer logic all the way up to OS API and user tutorials.</p>
+	<div class="col-md-12">
+	<ul>
+	<li>No back doors.  No hardware locks or encryption.  Open hardware means you can completely understand the hardware.</li>
+	<li>No memberships in expensive special interest groups or trade organizations required to contribute peripherals.</li>
+	<li>No fear of bricking your computer trying to install the OS of your choice.  Bootstrap process is fully disclosed.</li>
+	<li>Designed to empower and encourage the owner to learn about and even tweak the software and the hardware for their own benefit.</li>
+<!--	<li>A single programmers reference guide explains everything from custom FPGA cores to the stock OS APIs that use them.</li> -->
+<!--	<li>No mass storage or operating system?  Hack around in the built-in, ROM-resident programming language environment.</li> -->
+	<li>Built on 64-bit <a href="http://riscv.org">RISC-V</a>-compatible processor technology.</li>
+	<li>Compatible with <a href="http://digilentinc.com/Products/Detail.cfm?NavPath=2,400,789&Prod=NEXYS2">Digilent Nexys-2</a> FPGA development board.</li>
+	</ul>
 	</div>
 </div>
 <div class="row">
-	<div class="col-md-4">
-		<h3>Kestrel-3 User's Guide Available Now</h3>
-    <p>With the recent progress made on the Kestrel-3 emulator, I've decided to start to maintain the Kestrel documentation as an integral part of the development process.  Happily, the very first results of this is now available for viewing.  <a href="http://leanpub.com/k3ug">Click here to review the user's guide on LeanPub now!</a></p>
-    <p><a href="{{ site.baseurl }}/2015/04/19/users-guide-available-now/">Read more...</a></p>
+	<div class="col-md-12">
+		<p>The Kestrel project is all about freedom of computing and the freedom of learning using a completely open hardware and software design.</p>
 	</div>
-	<div class="col-md-4">
-		<h3>Why?</h3>
-		<p>With each passing day, technically capable consumers of computing technology increasingly lose their rights with computer hardware.	The successful deployment of UEFI in the market, with Microsoft controlling which operating systems receive a key that permits it to be booted, poses a potential threat to system- and application-software and hardware development freedom.  While some look to prominent Linux suppliers as an escape from the Intel/Microsoft/Hollywood oligarchy, I have taken a different route -- I decided to build my own computer completely from scratch.  My computer architecture is fully open; anyone can review the source, learn from, and hack it to suit their needs.</p>
-	</div>
-	<div class="col-md-4">
+</div>
+<div class="row">
+	<div class="col-md-8">
 		<h3>Latest Posts</h3>
 		<p><a href="{{site.baseurl}}/atom.xml">(ATOM Feed)</a></p>
 		<dl class="dl-horizontal">
@@ -27,16 +32,25 @@ title: Kestrel
 			{% endfor %}
 		</dl>
 	</div>
-</div>
-<div class="row">
 	<div class="col-md-4">
-		<h3>Featured: Towards a performant, scalable, and consistent I/O subsystem for the Kestrel-3</h3>
-    <p>Today, I presented a tech-talk on what I'm currently thinking the Kestrel-3's I/O architecture should be. I'm calling the I/O implementation "PatientIO", as a pun on "RapidIO." For the purposes of this talk, PatientIO and RapidIO can be thought of identically. PatientIO differs from RapidIO only in how device enumeration happens, and on supported interconnect media; however, these topics are not covered.</p>
-		<p><a href="{{ site.baseurl }}/2015/07/27/towards-patientio/">Read more...</a></p>
-	</div>
-	<div class="col-md-4">
-		<h3>Featured: Shoulders of Giants</h3>
-		<p>The list below summarizes some of the most interesting ideas from each market or specific computer.  Over time, as the Kestrel hardware and software evolves, you might see one or two of the ideas listed below shine through.  Or, you might see something else all-together.  This list cannot be considered exhaustive.  <a href="{{ site.baseurl }}/2013/11/19/of-shoulders-and-giants">Read more...</a></p>
+		<div class="row">
+			<h3>Kestrel-3 User's Guide Available Now</h3>
+			<p>With the recent progress made on the Kestrel-3 emulator, I've decided to start to maintain the Kestrel documentation as an integral part of the development process.  Happily, the very first results of this is now available for viewing.  <a href="http://leanpub.com/k3ug">Click here to review the user's guide on LeanPub now!</a></p>
+			<p><a href="{{ site.baseurl }}/2015/04/19/users-guide-available-now/">Read more...</a></p>
+		</div>
+		<div class="row">
+			<h3>Why?</h3>
+			<p>With each passing day, technically capable consumers of computing technology increasingly lose their rights with computer hardware.	The successful deployment of UEFI in the market, with Microsoft controlling which operating systems receive a key that permits it to be booted, poses a potential threat to system- and application-software and hardware development freedom.  While some look to prominent Linux suppliers as an escape from the Intel/Microsoft/Hollywood oligarchy, I have taken a different route -- I decided to build my own computer completely from scratch.  My computer architecture is fully open; anyone can review the source, learn from, and hack it to suit their needs.</p>
+		</div>
+		<div class="row">
+			<h3>Featured: Towards a performant, scalable, and consistent I/O subsystem for the Kestrel-3</h3>
+			<p>Today, I presented a tech-talk on what I'm currently thinking the Kestrel-3's I/O architecture should be. I'm calling the I/O implementation "PatientIO", as a pun on "RapidIO." For the purposes of this talk, PatientIO and RapidIO can be thought of identically. PatientIO differs from RapidIO only in how device enumeration happens, and on supported interconnect media; however, these topics are not covered.</p>
+			<p><a href="{{ site.baseurl }}/2015/07/27/towards-patientio/">Read more...</a></p>
+		</div>
+		<div class="row">
+			<h3>Featured: Shoulders of Giants</h3>
+			<p>The list below summarizes some of the most interesting ideas from each market or specific computer.  Over time, as the Kestrel hardware and software evolves, you might see one or two of the ideas listed below shine through.  Or, you might see something else all-together.  This list cannot be considered exhaustive.  <a href="{{ site.baseurl }}/2013/11/19/of-shoulders-and-giants">Read more...</a></p>
+		</div>
 	</div>
 </div>
 
