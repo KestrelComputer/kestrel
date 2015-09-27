@@ -2,10 +2,63 @@
 layout: default
 ---
 <div class="row first-content">
-	<h2>{{ page.title }}</h2>
-	<p>{{ page.date | date_to_string }}</p>
+	<div class="col-md-8">
+		<h2>{{ page.title }}</h2>
+		<p>{{ page.date | date_to_string }}</p>
 
-	<div>
-	{{ content }}
+		<div>
+		{{ content }}
+		</div>
+	</div>
+	<div class="col-md-4">
+		<div><img src="{{site.baseurl}}/images/author.jpg" alt="author" width="50%"/></div>
+		<p><i>Samuel A. Falvo II</i></p>
+		<h4>About the Author</h4>
+		<p>
+		  Software engineer by day.
+		  Amateur computer engineer by night.
+		  Founded the Kestrel Computer Project as a proof-of-concept back in 2007,
+		  with the Kestrel-1 computer built around the <a href="http://wdesignc.com/wdc/documentation.cfm">65816</a> CPU.
+		  Since then,
+		  he's evolved the design to use a simple stack-architecture CPU with the
+		  <a href="https://github.com/KestrelComputer/kestrel/tree/master/cores">Kestrel-2</a>,
+		  and is now in the process of refining the design once more with
+		  a 64-bit <a href="http://riscv.org">RISC-V compatible</a> engine in the Kestrel-3.
+		</p>
+		<p>
+		  Samuel is or was:
+		  <ul>
+		  <li>a <a href="http://www.forth.org">Forth</a>,
+		  <a href="http://oberon07.com/">Oberon</a>,
+		  <a href="http://jsoftware.com/">J</a>,
+		  and <a href="http://www.golang.org/">Go</a> enthusiast.</li>
+		  <li>an amateur radio operator (KC5TJA/6).</li>
+		  <li>an amateur photographer.</li>
+		  <li>an intermittent amateur astronomer, astrophotographer.</li>
+		  <li>a student of two martial arts (don't worry; he's still rather poor at them, so you're still safe around him.  Or not, depending on your point of view).</li>
+		  <li>a former semiconductor verification technician for the HIPP-II and HIPP-III line of Hifn, Inc. line-speed compression and encryption VLSI chips.</li>
+		  <li>the co-founder of Armored Internet, a small yet well-respected Internet Service Provider in Carlsbad, CA that, sadly, had to close its doors after three years.</li>
+		  <li>the author of Andromeda, a proprietary fork of <a href="https://github.com/sam-falvo/gcom">GCOM</a>,
+		  the Microsoft COM-compatible object runtime
+		  for the <a href="http://www.amigahistory.plus.com/amigade.html">AmigaDE</a>
+		  software stack.
+		  It eventually influenced
+		  <a href="http://www.amigaos.net/">AmigaOS 4.0</a>'s bizarre "interface" concept for exec libraries.
+		  (Please accept my apologies for this architectural blemish;
+		  I warned them not to use it in AmigaOS, but they didn't listen.)</li>
+		  <li>the former maintainer and contributor to <a href="http://gophercloud.io">Gophercloud</a>.</li>
+		  <li>a contributor to <a href="https://github.com/rackerlabs/mimic">Mimic</a>.</li>
+		  </ul>
+		</p>
+		<p>
+		  Samuel seeks inspirations in many things,
+		  but is particularly moved by those things which moved or enabled him as a child.
+		  These include all things Commodore, Amiga, Atari,
+		  and all those old Radio-Electronics magazines he used to read as a kid.
+		</p>
+		<p>
+		  Today, he lives in the San Francisco Bay Area with his beautiful wife, Steph,
+		  and four cats; 13, 6.5, Tabitha, and Panther.
+		</p>
 	</div>
 </div>
