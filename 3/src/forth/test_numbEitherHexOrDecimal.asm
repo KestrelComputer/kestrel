@@ -1,9 +1,8 @@
 		include "asrt.i"
 
 		include "err.asm"
+		include "numb.asm"
 		include "tests/numb/eitherHexOrDecimal.asm"
-		include "numb_eitherHexOrDecimal.asm"
-		include "numb_nextChar.asm"
 
 
 epv_numbTryUnsignedNumber = 0
@@ -12,6 +11,9 @@ epv_numbTryUnsignedNumber = 0
 numbTryUnsignedNumber:
 		ld	t0, zpV(x0)
 		jalr	x0, epv_numbTryUnsignedNumber(t0)
+
+math_multiply:
+charUpper:	jalr	x0, 0(ra)
 
 
 		align 4
