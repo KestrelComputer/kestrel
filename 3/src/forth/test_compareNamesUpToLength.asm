@@ -1,5 +1,5 @@
 		include "asrt.i"
-		include "compareNamesUpToLength.asm"
+		include "dict.asm"
 		include "tests/dict/compareNamesUpToLength.asm"
 ;
 ; Suite Definition

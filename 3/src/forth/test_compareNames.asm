@@ -1,12 +1,11 @@
 		include "asrt.i"
-		include "compareNames.asm"
+		include "dict.asm"
 		include "tests/dict/compareNames.asm"
 
 ;
 ; Dependencies
 ;
 
-		include "compareNamesUpToLength.asm"
 
 ;
 ; Suite Definition
