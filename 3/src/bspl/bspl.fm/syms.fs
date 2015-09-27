@@ -57,5 +57,9 @@ variable cur
 : adr!		index @ cells names + ! ;
 : define	remember len! adr! index @ dup cur ! index inc ;
 
+\ We're supposed to record symbol names.  But, we can also be used to store
+\ strings as well.  Just don't mix up your indices, OK?
+: dictate	remember len! adr! index @ dup 1+ index ! ;
+
 \ Given a symbol, retrieve the corresponding name.
 : name		cells dup names + @ swap lengths + @ ;

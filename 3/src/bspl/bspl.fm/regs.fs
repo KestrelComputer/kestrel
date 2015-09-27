@@ -101,6 +101,7 @@ variable esp
 : _reset	regmask0 esp0 ;
 : _jz		_@8 _reset ;
 : _lsh		scoot top r1 addr ! ;
+: _strlit	reserve reserve scoot stop r1 top r2 addr ! ;
 
 create procedures
 ' _noop ,
@@ -145,6 +146,9 @@ create procedures
 ' _lsh ,	( RSHIFT )
 ' _lsh ,	( RSHIFT arithmetic )
 ' _jz ,		( JGE )
+' _lit ,	( GVPEA )
+' _strlit ,	( STRLIT )
+' _jz ,		( JLT )
 
 : opcode	insn 255 and ;
 : dispatch	opcode cells procedures + @ execute ;

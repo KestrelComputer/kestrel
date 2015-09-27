@@ -18,7 +18,8 @@ blicb_sizeof	= blicb_capacity+8
 ; RAM for easy access.
 
 zp_uartBase	= 0
-zp_initSP	= zp_uartBase+8
+zp_gpiaBase	= zp_uartBase+8
+zp_initSP	= zp_gpiaBase+8
 zp_initTable	= zp_initSP+8
 zp_userRegs	= zp_initTable+8
 zp_inpIndex	= zp_userRegs+32*8	; Reserving space for X0 avoids special-case logic.
@@ -44,6 +45,7 @@ coldBoot:
 
 initTable:
 	dword	$0E00000000000000
+	dword	$0100000000000000
 	dword	$0000000000010000
 
 banner:
@@ -91,7 +93,9 @@ coldInit:
 	sd	ra,zp_initTable(x0)
 	ld	t0,0(ra)		; T0 = UART base
 	sd	t0,zp_uartBase(x0)
-	ld	t0,8(ra)		; T0 = initial SP
+	ld	t0,8(ra)		; T0 = GPIA base
+	sd	t0,zp_gpiaBase(x0)
+	ld	t0,16(ra)		; T0 = initial SP
 	sd	t0,zp_initSP(x0)
 	or	sp,x0,t0
 	ebreak				; Enter monitor.
@@ -711,6 +715,116 @@ notBS:
 	jal	ra, biosPutChar
 	jal	x0, waitForKey
 
+; Send an SD/MMC Card Command
+;
+; Command packet is in register A0 according to the following bit-fields:
+;	47-40: Command byte
+;	39-08: Address parameter
+;	07-00: CRC (unused)
+;
+; This function doesn't return anything.  A0 will be destroyed.
+
+sdCommand:
+	addi	sp, sp, -24
+	sd	ra, 0(sp)
+	sd	s0, 8(sp)
+	sd	s1, 16(sp)
+
+	addi	s0, a0, 0	; S0 = command packet
+	addi	s1, x0, 6	; S1 = # of bytes to send
+
+sdC0:	srli	a0, s0, 40	; Select byte to send
+	slli	s0, s0, 8	; Advance command packet buffer
+	jal	ra, sdByte	; Send byte
+	addi	s1, s1, -1	; Repeat for all bytes
+	bne	s1, x0, sdC0
+
+	ld	s1, 16(sp)
+	ld	s0, 8(sp)
+	ld	ra, 0(sp)
+	addi	sp, sp, 24
+	jalr	x0, 0(ra)
+
+sdCommand_brk:
+	jal	ra, sdCommand
+	ebreak
+
+; This procedure waits for a response from the SD card.
+; A0 will hold the result value in bits 7-0.
+
+sdR1:	addi	sp, sp, -8
+	sd	ra, 0(sp)
+
+sdR10:	jal	ra, sdToken
+	andi	t0, a0, $80
+	bne	t0, x0, sdR10
+
+	ld	ra, 0(sp)
+	addi	sp, sp, 8
+	jalr	x0, 0(ra)
+
+sdR1_brk:
+	jal	ra, sdR1
+	ebreak
+
+; This procedure waits for a data token from the SD card.
+; A0 will hold the result value in bits 7-0.
+; This procedure does NOT time out.
+
+sdToken:
+	addi	sp, sp, -8
+	sd	ra, 0(sp)
+
+sdT0:	ori	a0, x0, $FF
+	jal	ra, sdByte
+	ori	t0, x0, $FF
+	beq	a0, t0, sdT0
+
+	ld	ra, 0(sp)
+	addi	sp, sp, 8
+	jalr	x0, 0(ra)
+
+sdToken_brk:
+	jal	ra, sdToken
+	ebreak
+
+; This procedure exchanges a byte with the SPI peripheral.
+; The byte to be sent is in bits 7-0 of register A0.
+; Upon return, A0 bits 7-0 will contain the received byte.
+; Bits 63-8 are ignored on entry, and zeroed on return.
+
+sdByte:
+	ld	t0, zp_gpiaBase(x0)
+	ori	t3, x0, 8		; Transmission unit is a byte
+
+sdB0:	andi	t2, a0, $80		; Send A0[7] to device
+	srli	t2, t2, 5
+	lb	t1, 8(t0)
+	andi	t1, t1, $FFB
+	or	t1, t1, t2
+	sb	t1, 8(t0)
+
+	ori	t1, t1, $008		; Strobe the clock
+	sb	t1, 8(t0)
+	andi	t1, t1, $FF7
+	sb	t1, 8(t0)
+
+	slli	a0, a0, 1		; Receive bit into A0[0]
+	lb	t1, 0(t0)
+	srli	t1, t1, 2
+	andi	t1, t1, 1
+	or	a0, a0, t1
+
+	addi	t3, t3, -1		; Repeat for all 8 bits
+	bne	t3, x0, sdB0
+
+	andi	a0, a0, $FF
+	jalr	x0, 0(ra)
+
+sdByte_brk:
+	jal	ra, sdByte
+	ebreak
+
 ;
 ; CPU Vectors
 ;
@@ -726,4 +840,8 @@ notBS:
 	adv	$FFEFC, $CC	; NMI
 	jal	x0, brkEntry
 	jal	x0, coldBoot	; Reset Vector
+	jal	x0, sdCommand_brk	; 04
+	jal	x0, sdR1_brk	; 08
+	jal	x0, sdToken_brk	; 0C
+	jal	x0, sdByte_brk	; 10
 

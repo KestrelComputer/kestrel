@@ -1,11 +1,17 @@
+#! /usr/bin/env gforth
+
 warnings off
 
-S" pass1.fs" included
-S" lgp.fs" included
-S" prolog-epilog.fs" included
-S" regs.fs" included
-S" syms.fs" included
-S" asm.fs" included
+\ Utility words that have no better place to go.
+: inc		1 swap +! ;
+
+S" bspl.fm/syms.fs" included
+
+S" bspl.fm/pass1.fs" included
+S" bspl.fm/lgp.fs" included
+S" bspl.fm/prolog-epilog.fs" included
+S" bspl.fm/regs.fs" included
+S" bspl.fm/asm.fs" included
 
 \ External definitions have symbol table entries, but don't exist in the
 \ current program listing.  Therefore, we fake such definitions by injecting
@@ -22,6 +28,7 @@ host definitions
 : pass1		:0 extern ;
 : passes	lgp prolog epilogs reg asm ;
 : ;,		rfs, passes ;
+: (bye)		bye ;
 
 target definitions
 
@@ -30,7 +37,9 @@ target definitions
 
 host definitions
 
-label0
+strlitctr0 gvpofs0 label0
 target
 next-arg included
 host
+(bye)
+

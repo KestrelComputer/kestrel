@@ -8,6 +8,8 @@
 #include "types.h"
 #include "config.h"
 #include "options.h"
+#include "sdcard.h"
+#include "gpia.h"
 #include "address_space.h"
 
 
@@ -21,6 +23,78 @@ static UDWORD
 no_reader(AddressSpace *as, UDWORD addr, int sz) {
 	fprintf(stderr, "Error: Reading from address $%016llX; returning $CC\n", addr);
 	return 0xCCCCCCCCCCCCCCCC;
+}
+
+
+static void
+do_spi_interface(AddressSpace *as) {
+	int spi_next_clk = as->gpia_out & GPIA_OUT_SD_CLK;
+
+	sdcard_select(as->sdc);
+	if(as->spi_bit_ctr == 0) as->spi_miso = sdcard_peek_byte(as->sdc);
+	as->gpia_in = (as->gpia_in & ~GPIA_IN_SD_MISO) | ((as->spi_miso >> 5) & GPIA_IN_SD_MISO);
+
+	if(!as->spi_prev_clk && spi_next_clk) {	/* Rising edge of clock */
+		as->spi_mosi = (as->spi_mosi << 1) | ((as->gpia_out & GPIA_OUT_SD_MOSI) >> 2);
+	}
+	if(as->spi_prev_clk && !spi_next_clk) {	/* Falling edge of clock */
+		as->spi_miso <<= 1;
+		as->spi_bit_ctr = (as->spi_bit_ctr + 1) & 7;
+		if(!as->spi_bit_ctr) {
+			as->spi_miso = sdcard_byte(as->sdc, as->spi_mosi);
+		}
+	}
+	as->spi_prev_clk = spi_next_clk;
+}
+
+static void
+reset_spi_interface(AddressSpace *as) {
+	as->spi_prev_clk = 0;
+	as->spi_bit_ctr = 0;
+	sdcard_deselect(as->sdc);
+}
+
+
+static void
+do_gpia_out(AddressSpace *as) {
+	int sdcard_selected = !(as->gpia_out & GPIA_OUT_SD_SS);
+
+	if(sdcard_selected) do_spi_interface(as);
+	else reset_spi_interface(as);
+}
+
+static UDWORD byteMasks[] = {
+	0xFF,
+	0xFFFF,
+	0xFFFFFFFF,
+	0xFFFFFFFFFFFFFFFF,
+};
+
+static void
+gpia_writer(AddressSpace *as, UDWORD addr, UDWORD ud, int sz) {
+	UDWORD byteMask;
+	int shiftAmount = 8 * (addr & 7);
+
+	/* Only GPIA Register 1 is an output register. */
+	if((addr & 0x8) != 0x8) {
+		return;
+	}
+
+	byteMask = byteMasks[sz] << shiftAmount;
+	as->gpia_out = (as->gpia_out & ~byteMask) | ((ud << shiftAmount) & byteMask);
+	do_gpia_out(as);
+}
+
+static UDWORD
+gpia_reader(AddressSpace *as, UDWORD addr, int sz) {
+	int shiftAmount = 8 * (addr & 7);
+	UDWORD sources[9] = {
+		as->gpia_in, 0, 0, 0,
+		0, 0, 0, 0,
+		as->gpia_out
+	};
+
+	return (sources[addr & 8] >> shiftAmount) & byteMasks[sz];
 }
 
 
@@ -220,6 +294,8 @@ make(Options *opts) {
 	as->readers[15] = rom_reader;
 	as->writers[0] = ram_writer;
 	as->readers[0] = ram_reader;
+	as->writers[1] = gpia_writer;
+	as->readers[1] = gpia_reader;
 	as->writers[14] = uart_writer;
 	as->readers[14] = uart_reader;
 
@@ -229,6 +305,9 @@ make(Options *opts) {
 	}
 	assert(as->rom);
 	assert(as->ram);
+
+	as->sdc = sdcard_new();
+	assert(as->sdc);
 	return as;
 }
 

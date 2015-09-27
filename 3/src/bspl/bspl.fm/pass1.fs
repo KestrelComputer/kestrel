@@ -5,9 +5,6 @@
 \ instruction sequences.  At this point, compilation is done, and we
 \ just emit the generated source code for consumption by the assembler.
 
-\ Utility words that have no better place to go.
-: inc		1 swap +! ;
-
 \ Number of elements in the compiler buffer.
 1024 constant #buf
 
@@ -146,11 +143,13 @@ label0
 : gotoz,	8 lshift 17 or insn, ;
 : gotonz,	8 lshift $25 or insn, ;
 : gotoge,	8 lshift $29 or insn, ;
+: gotolt,	8 lshift $2C or insn, ;
 
 : begin,	*label dup label, ;
 : if,		*label dup gotoz, ;
 : ifz,		*label dup gotonz, ;
 : -if,		*label dup gotoge, ;
+: +if,		*label dup gotolt, ;
 : else,		*label dup goto, swap label, ;
 : then,		label, ;
 
@@ -166,6 +165,7 @@ target definitions
 :: if		if, ;;
 :: 0=if		ifz, ;;
 :: -if		-if, ;;
+:: +if		+if, ;;
 :: else		else, ;;
 :: then		then, ;;
 
@@ -266,6 +266,59 @@ target definitions
 :: 2*		2*, ;;
 :: u2/		u2/, ;;
 :: 2/		2/, ;;
+
+\ Variables are reserved relative to a Global Variables Pointer, or GVP
+\ register.  This grants the program up to 4KB of storage for uninitialized
+\ variables.  Offsets range from -2048 to 2047 inclusive, giving enough
+\ storage space for 512 dword-sized variables.
+
+host definitions
+
+variable gvpofs
+: gvpofs0	-2048 gvpofs ! ;
+
+: gvpea,	8 lshift $2A or insn, ;
+: byte:		create gvpofs @ , gvpofs inc does> @ gvpea, ;
+: hword:	create gvpofs @ 1 + -2 and dup , 2 + gvpofs ! does> @ gvpea, ;
+: word:		create gvpofs @ 3 + -4 and dup , 4 + gvpofs ! does> @ gvpea, ;
+: dword:	create gvpofs @ 7 + -8 and dup , 8 + gvpofs ! does> @ gvpea, ;
+: buffer:	create gvpofs @ 7 + -8 and dup , + gvpofs ! does> @ gvpea, ;
+
+target definitions
+
+:: byte		byte: ;;
+:: hword	hword: ;;
+:: word		word: ;;
+:: dword	dword: ;;
+:: buffer	buffer: ;;
+
+:: bytes	;;
+:: hwords	bytes 2* ;;
+:: words	hwords 2* ;;
+:: dwords	words 2* ;;
+
+\ Strings are constants, and so reside along-side the code.
+\ When you invoke the name of a string, its length and address are put on the stack,
+\ in that order.  This facilitates ANS-like string argument passing conventions with
+\ a minimum of keywords: aString >D >D instead of aString swap >d >d.
+
+host definitions
+
+: string,	34 word count dictate 8 lshift $2B or insn, ;
+
+target definitions
+
+:: S"		string, ;; ( " -- to fix editor coloring )
+
+\ Numeric constants are frequently used, so we provide support for them here.
+
+host definitions
+
+: const,	create , does> @ lit, ;
+
+target definitions
+
+:: const	const, ;;
 
 host definitions
 
