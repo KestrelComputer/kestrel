@@ -5,6 +5,8 @@
 #ifndef E_ADDRESS_SPACE_H
 #define E_ADDRESS_SPACE_H
 
+#include "sdcard.h"
+
 
 typedef struct AddressSpace	AddressSpace;
 
@@ -16,6 +18,15 @@ struct AddressSpace {
 	UBYTE	*ram;
 	WRFUNC	writers[MAX_DEVS];
 	RDFUNC	readers[MAX_DEVS];
+
+	UDWORD	gpia_out;
+	UDWORD	gpia_in;
+
+	int	spi_prev_clk;
+	int	spi_bit_ctr;
+	SDCard *sdc;
+	BYTE	spi_miso;
+	BYTE	spi_mosi;
 };
 
 
