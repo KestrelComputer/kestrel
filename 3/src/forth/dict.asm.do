@@ -1,2 +1,2 @@
-redo-ifchange dict/*.asm
-cat dict/*.asm >$3
+redo-ifchange dict/*.asm dict.i
+cat dict.i dict/*.asm >$3

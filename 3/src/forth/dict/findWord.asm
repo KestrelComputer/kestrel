@@ -15,13 +15,13 @@ dictFindWord:	addi	rp, rp, -48
 
 		ld	s4, zpContext(x0)
 dfwAgain:	beq	s4, x0, dfwNotFound
-		ld	a0, 8(s4)	; header name
-		ld	a2, 16(s4)	; header name length
+		ld	a0, wh_name(s4)	; header name
+		ld	a2, wh_len(s4)	; header name length
 		ld	a1, 8(rp)	; key name
 		ld	a3, 16(rp)	; key name length
 		jal	ra, compareNames
 		beq	a0, x0, dfwFound
-		ld	s4, 0(s4)
+		ld	s4, wh_next(s4)
 		jal	x0, dfwAgain
 
 dfwNotFound:	addi	a0, x0, 0
