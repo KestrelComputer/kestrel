@@ -82,3 +82,8 @@ zpReserved7			= zpReserved6 + 1
 ; If exiting the emulator, this variable holds the HTIF command
 ; block.  Unused otherwise.
 zpExitCB                        = zpReserved7 + 1
+
+; Pointer to the most recently defined word.  Note that this is NOT
+; the word currently being defined, if one exists.
+zpContext			= zpExitCB + 8
+
