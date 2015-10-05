@@ -1,0 +1,112 @@
+The main event loop is responsible for multiplexing the CPU's time amongst the
+different sources of interruption that demand its attention.  It's structurally
+the simplest part of the kernel.
+
+    Mainloop:
+        forever
+            while jobsRemain do
+                callNextJob
+            end
+            
+            while not jobsRemain do
+                waitForInterrupt
+            end
+        end
+
+The Kestrel's concept of a "job" does not agree with what, say, a mainframe
+sysop would associate with the term.  For this reason, I'm open to new
+terminology.  For now, however, I'll associate "job" with "anything the computer
+needs to do right now."  
+
+That said, we need a job queue.  For now, and at risk of prematurely selecting
+an implementation, I'll define a job queue as a circular queue of jobs.  The job
+queue has a head and tail index.  We know the queue is empty when the head and
+tail are equal; or, put another way,
+
+    jobsRemain:
+        Answer true if queue head != queue tail, otherwise false.
+
+Invoking the job requires calling the job's handler function with a continuation
+of some kind.  But, when we do this, we must first remove the job from the
+queue.  If the job is in the middle of a loop, for example, the job could
+try to reschedule itself.
+
+    callNextJob:
+        getJobHandlerAndContinuation
+        removeJobFromQueue
+        callHandlerWithContinuation
+
+Removing an element from the queue simply means we increment the head index,
+modulo the size of the queue.  Strictly speaking, we needn't check for an empty
+queue, but it's good programming practice to do so anyway.  The check is
+effectively free, so why not?
+
+    removeJobFromQueue:
+        if jobsRemain then
+            increment head of the queue.
+
+The main loop is great at receiving events to process, but as you can see, it
+fails utterly to encompass the act of event generation.  Thus, we need some way
+to add jobs to the job queue.
+
+    addJobToQueue:
+        if not jobsFull then
+            appendJobToQueue
+            increment tail of the queue.
+
+At its core, a job is just a function that needs to be called.  It cannot be
+called in isolation though; the need to rip the stack of an otherwise blocking
+procedure requires we must pass along a pointer to some contextual information
+as well, the "continuation", if you will.
+
+We could identify a unique job by callback function and context pairs.  Passing
+two items around as parameters may be a bit inconvenient, however; it's easier
+to just refer to a single item.  Thus, we describe a job using a record:
+
+    Job = callback, context
+
+The job structure's address will become the job's ID, should we have a need to
+uniquely managed that job.
+
+In a perfect world, we would always have room to place a job.  If we have a
+finite number of Job records in memory, then we know how big of a job queue we
+need to ensure this precondition.  If the client wants to dispatch multiple
+"threads" of execution of the same code, it'll need to (somehow) create a unique
+Job structure for each.  We inevitably run into the case that a job queue may
+need to be dynamically resized.
+
+For the Forth runtime itself, I can arrange a static number of jobs.  That's
+easy; however, software written _in_ Forth itself might end up with jobs it
+creates on its own.  I can conceive of overflowing the job queue fairly easily.
+Therefore, we need to handle this case, even if Forth itself never uses it.
+
+One approach is to require the use of dynamically managed memory, and just
+double the size of the queue whenever we run out.  Discarding the reference to
+the old queue, it'll eventually be garbage collected.
+
+    addJobToQueue: REVISED
+        while jobsFull do
+            doubleJobQueueSize
+        end
+        appendJobToQueue
+        increment tail of the queue.
+
+    doubleJobQueueSize:
+        allocateNewJobQueueOfLength: current queue length * 2.
+        copyQueueIntoExpansion
+
+Alternatively, we can have an interested party register a callback, and *if* it
+wants to, it can do the same, or it can take whatever steps are necessary to
+terminate the currently running program and return to the Forth OK prompt.  Or,
+we can just panic if no callback has been registered.
+
+Originally, I was thinking of using a Cheney semi-space garbage collector, since
+it requires half the amount of code to work as your typical malloc/free
+allocator.  However, since the dictionary cannot move in the address space once
+it's allocated and in use, it looks like I'll need to make use of a mark-and-
+sweep allocator instead.  Alas, this is problematic because it requires free-
+list management, and that's one of the reasons traditional malloc/free takes up
+so much code to implement (when freeing a block of memory during a sweep phase,
+you need to remember to coalesce freed blocks).  In other words, mark-and-sweep
+builds on top of a traditional malloc/free implementation.
+
