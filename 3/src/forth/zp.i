@@ -72,18 +72,24 @@ zpSign				= zpDPL + 8
 
 ; Padding.
 zpReserved1			= zpSign + 1
-zpReserved2			= zpReserved1 + 1
-zpReserved3			= zpReserved2 + 1
-zpReserved4			= zpReserved3 + 1
-zpReserved5			= zpReserved4 + 1
-zpReserved6			= zpReserved5 + 1
-zpReserved7			= zpReserved6 + 1
+
+; Kernel step queue head and tail indices.
+; NOTE: HALFWORDS.
+zpStepHead			= zpReserved1 + 1
+zpStepTail			= zpStepHead + 2
+
+; Kernel step queue size in elements.  It must be a power of two.
+; NOTE: HALFWORD.
+zpStepQSize			= zpStepTail + 2
 
 ; If exiting the emulator, this variable holds the HTIF command
 ; block.  Unused otherwise.
-zpExitCB                        = zpReserved7 + 1
+zpExitCB                        = zpStepQSize + 2
 
 ; Pointer to the most recently defined word.  Note that this is NOT
 ; the word currently being defined, if one exists.
 zpContext			= zpExitCB + 8
+
+; Pointer to step queue's first word.
+zpStepQ				= zpContext + 8
 

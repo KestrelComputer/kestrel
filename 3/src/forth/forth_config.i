@@ -8,3 +8,5 @@ lboundRS        = $0000000000F00000
 uboundDS        = $0000000000F00000
 lboundDS        = $0000000000E00000
 
+; The kernel needs a place to store the queue of execution steps to perform.
+stepQueue	= $0000000000D00000
