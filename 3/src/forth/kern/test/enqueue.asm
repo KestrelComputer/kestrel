@@ -46,14 +46,15 @@ testK_queueFull:
 ; and we don't crash along the way).
 
 		align	8
+testK_enq_cba:	dword	romBase+testK_enqueue_cb
 		byte	"KTODO   "
 testK_todo:	addi	rp, rp, -8
 		sd	rt, 0(rp)
 		sd	x0, zpCalled(x0)
+		jal	rt, kernInit
 
 tK_t0:		auipc	gp, 0
-		jal	rt, kernInit
-		addi	a0, gp, testK_enqueue_cb-tK_t0
+		ld	a0, testK_enq_cba-tK_t0(gp)
 		addi	a1, x0, $CC
 		jal	rt, kernToDo
 		jal	rt, asrtIsTrue
@@ -61,7 +62,7 @@ tK_t0:		auipc	gp, 0
 		addi	a1, x0, 1
 		jal	rt, asrtEquals
 
-		addi	a0, gp, testK_enqueue_cb-tK_t0
+		ld	a0, testK_enq_cba-tK_t0(gp)
 		addi	a1, x0, $DD
 		jal	rt, kernToDo
 		jal	rt, asrtIsTrue
@@ -74,6 +75,9 @@ tK_t0:		auipc	gp, 0
 		jal	rt, kernEventCycle
 		ld	a0, zpCalled(x0)
 		addi	a1, x0, $CC
+		jal	rt, asrtEquals
+		jal	rt, kernStepsPending
+		addi	a1, x0, 1
 		jal	rt, asrtEquals
 
 		jal	rt, kernEventCycle
@@ -90,6 +94,42 @@ testK_enqueue_cb:
 		jalr	x0, 0(rt)
 		
 
+; To determine if the queue is empty, you'd use kernStepsPending.
+; If zero is returned, you know the queue is empty.  Otherwise, the value
+; may be used, e.g., for performance graphing purposes.
+
+		align	8
+		byte	"KSPEND  "
+testK_stepsPending:
+		addi	rp, rp, -8
+		sd	rt, 0(rp)
+
+		jal	rt, kernInit
+		jal	rt, kernStepsPending
+		jal	rt, asrtIsZero
+
+		addi	a0, x0, 3
+		sh	a0, zpStepHead(x0)
+		sh	a0, zpStepTail(x0)
+		jal	rt, kernStepsPending
+		jal	rt, asrtIsZero
+
+		sh	x0, zpStepHead(x0)
+		jal	rt, kernStepsPending
+		addi	a1, x0, 3
+		jal	rt, asrtEquals
+
+		addi	a0, x0, 126
+		sh	a0, zpStepHead(x0)
+		sh	x0, zpStepTail(x0)
+		jal	rt, kernStepsPending
+		addi	a1, x0, 2
+		jal	rt, asrtEquals
+
+		ld	rt, 0(rp)
+		addi	rp, rp, 8
+		jalr	x0, 0(rt)
+
 ;
 ; Suite Definition
 ;
@@ -97,9 +137,10 @@ testK_enqueue_cb:
 		align 4
 start_tests:	jal	a0, asrtBoot
 		align	8
-		dword	2
+		dword	4
 		dword	romBase+testK_init
 		dword	romBase+testK_queueFull
+		dword	romBase+testK_stepsPending
 		dword	romBase+testK_todo
 
 		; Must be the very last thing in the ROM image.

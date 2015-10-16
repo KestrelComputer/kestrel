@@ -16,9 +16,31 @@ kernInit:	auipc	gp, 0
 		sh	a0, zpStepQSize(x0)
 		jalr	x0, 0(rt)
 
+;
+; Perform a single iteration of the kernel's main event loop.
+;
+; kernEventCycle()
+;
+
 kernEventCycle:
-kernStepsPending:
-		addi	a0, x0, 0
+		addi	rp, rp, -8
+		sd	rt, 0(rp)
+
+		jal	rt, kernStepsPending
+		beq	a0, x0, kEC_bored
+
+		ld	a1, zpStepQ(x0)
+		lhu	a0, zpStepHead(x0)
+		slli	a0, a0, 4		; 16 byte queue entry
+		add	a1, a1, a0
+		jal	rt, kernNextHead
+		sh	a0, zpStepHead(x0)
+		ld	a0, 0(a1)
+		ld	a1, 8(a1)
+		jalr	rt, 0(a0)
+
+kEC_bored:	ld	rt, 0(rp)
+		addi	rp, rp, 8
 		jalr	x0, 0(rt)
 
 ;
@@ -59,13 +81,32 @@ kernStepsPending:
 ; Register A1 is used to pass arbitrary data; the kernel does not interpret
 ; this value in any way.
 
-kernToDo:	addi	rp, rp, -8
+kernToDo:	addi	rp, rp, -24
 		sd	rt, 0(rp)
+		sd	a0, 8(rp)
+		sd	a1, 16(rp)
 
-		addi	a0, x0, 1
+		jal	rt, kernStepQFull
+		bne	a0, x0, kTD_full
 
-		ld	rt, 0(rp)
-		addi	rp, rp, 8
+		ld	a0, zpStepQ(x0)
+		lhu	a1, zpStepTail(x0)
+		slli	a1, a1, 4		; 16 byte queue entry
+		add	a0, a0, a1
+
+		ld	a1, 8(rp)
+		sd	a1, 0(a0)
+		ld	a1, 16(rp)
+		sd	a1, 8(a0)
+
+		jal	rt, kernNextTail
+		sh	a0, zpStepTail(x0)
+		addi	a0, a0, 1
+		jal	x0, kTD_rfs
+
+kTD_full:	addi	a0, x0, 0
+kTD_rfs:	ld	rt, 0(rp)
+		addi	rp, rp, 24
 		jalr	x0, 0(rt)
 
 ;
@@ -78,13 +119,8 @@ kernToDo:	addi	rp, rp, -8
 kernStepQFull:	addi	rp, rp, -8
 		sd	rt, 0(rp)
 
-		lhu	a0, zpStepTail(x0)
-		addi	a0, a0, 1
-		lhu	a1, zpStepQSize(x0)
-		addi	a1, a1, -1
-		and	a0, a0, a1
+		jal	rt, kernNextTail
 		lhu	a1, zpStepHead(x0)
-
 		bne	a0, a1, kSQ_notFull
 		addi	a0, x0, 1
 kSQ_rfs:	ld	rt, 0(rp)
@@ -93,3 +129,57 @@ kSQ_rfs:	ld	rt, 0(rp)
 
 kSQ_notFull:	addi	a0, x0, 0
 		jal	x0, kSQ_rfs
+
+; Determine the number of steps pending in the kernel's queue.
+;
+; nevt = kernStepsPending()
+;  A0
+
+kernStepsPending:
+		addi	rp, rp, -8
+		sd	rt, 0(rp)
+
+		jal	rt, kernNextTail	; head < tail+1 ==>
+		lhu	a1, zpStepHead(x0)	; head <= tail.
+		blt	a1, a0, kSP_nowrap
+		ld	a2, zpStepQSize(x0)	; else, head >= tail+1 ==>
+		add	a0, a0, a2		; head < tail+qsize+1
+kSP_nowrap:	addi	a0, a0, -1		; head < tail+qsize
+		sub	a0, a0, a1
+
+		ld	rt, 0(rp)
+		addi	rp, rp, 8
+		jalr	x0, 0(rt)
+
+; Answer the next tail index.  Note that it does NOT bump the tail.
+;
+; next = kernNextTail()
+;  A0
+
+kernNextTail:	addi	rp, rp, -8
+		sd	a1, 0(rp)
+		lhu	a0, zpStepTail(x0)
+		addi	a0, a0, 1
+		lhu	a1, zpStepQSize(x0)
+		addi	a1, a1, -1
+		and	a0, a0, a1
+		ld	a1, 0(rp)
+		addi	rp, rp, 8
+		jalr	x0, 0(rt)
+
+; Answer the next head index.  Note that it does NOT bump the head.
+;
+; next = kernNextHead()
+;  A0
+
+kernNextHead:	addi	rp, rp, -8
+		sd	a1, 0(rp)
+		lhu	a0, zpStepHead(x0)
+		addi	a0, a0, 1
+		lhu	a1, zpStepQSize(x0)
+		addi	a1, a1, -1
+		and	a0, a0, a1
+		ld	a1, 0(rp)
+		addi	rp, rp, 8
+		jalr	x0, 0(rt)
+
