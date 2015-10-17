@@ -139,12 +139,41 @@ kernStepsPending:
 		addi	rp, rp, -8
 		sd	rt, 0(rp)
 
+		; There are two cases here.  In the most obvious case,
+		; the tail exceeds the head in memory, like so:
+		;
+		;                   |
+		; | |#|#|#|#|#| | | |
+		;    H         T    |
+		;
+		; In this case, the number of items in the queue is
+		; obviously T-H.  When the reverse is true, however,
+		; we have the following situation:
+		;
+		;                   |
+		; |#| | | | | |#|#|#|
+		;    T         H    |
+		;
+		; The easiest way to fix this is to "pretend" that
+		; our queue is twice its actual size, and that the tail
+		; is actually residing in the 2nd half.
+		;
+		;                   |
+		; |#| | | | | |#|#|#|#| | | | | |#|#|#| 
+		;    T         H    |  T'
+		;
+		; In this case, the number of items in the queue is
+		; T'-H.  Note that T'-T = queue max size always.
+		;
+		; The code below performs a check to see which situation
+		; applies, and makes appropriate adjustments.
+
 		jal	rt, kernNextTail	; head < tail+1 ==>
 		lhu	a1, zpStepHead(x0)	; head <= tail.
 		blt	a1, a0, kSP_nowrap
 		ld	a2, zpStepQSize(x0)	; else, head >= tail+1 ==>
 		add	a0, a0, a2		; head < tail+qsize+1
-kSP_nowrap:	addi	a0, a0, -1		; head < tail+qsize
+kSP_nowrap:	addi	a0, a0, -1		; head < tail(+qsize)
 		sub	a0, a0, a1
 
 		ld	rt, 0(rp)
