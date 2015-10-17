@@ -8,6 +8,8 @@ roms+=" dict/test/compareNames.rom"
 roms+=" dict/test/compareNamesUpToLength.rom"
 roms+=" dict/test/findWord.rom"
 
+roms+=" kern/test/enqueue.rom"
+
 roms+=" test/char.rom"
 roms+=" test/dstk.rom"
 roms+=" test/math.rom"
