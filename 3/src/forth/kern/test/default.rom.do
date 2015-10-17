@@ -5,7 +5,7 @@ SRCF=$(basename $2 .rom)
 redo-ifchange $BIND/a
 
 redo-ifchange $SRCD/asrt.i $SRCD/asrt.asm
-redo-ifchange $SRCD/dict.asm
+redo-ifchange $SRCD/kern.asm
 
 a from $SRCF.asm to $3 quiet
 
