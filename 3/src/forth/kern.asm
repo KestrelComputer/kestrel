@@ -5,6 +5,8 @@
 ;
 ; kernInit()
 ;
+; Destroys: A0
+;
 		align 8
 stpqbase:	dword	stepQueue
 kernInit:	auipc	gp, 0
@@ -19,7 +21,12 @@ kernInit:	auipc	gp, 0
 ;
 ; Perform a single iteration of the kernel's main event loop.
 ;
+; If the step queue is not empty, pop the queue and invoke the
+; callback with its associated context.  Otherwise, take no action.
+;
 ; kernEventCycle()
+;
+; Destroys: A0, A1, plus any registers destroyed by the callback.
 ;
 
 kernEventCycle:
@@ -52,6 +59,9 @@ kEC_bored:	ld	rt, 0(rp)
 ;
 ; kernToDo returns non-zero if successful; or, zero if the step queue is full.
 ;
+; kernToDo will not allocate memory; it's safe to call from an interrupt
+; handler.
+;
 ; The callback procedure takes two parameters in CPU registers A0 and A1,
 ; like so:
 ;
@@ -78,8 +88,14 @@ kEC_bored:	ld	rt, 0(rp)
 ;		srli	a0, a0, 2
 ;		; 0 <= A0 < 4, providing an index into _footab.
 ;
+; This technique most often finds use in interpreted languages where large
+; jump tables are more burdensome to implement than alternative control flows.
+;
 ; Register A1 is used to pass arbitrary data; the kernel does not interpret
 ; this value in any way.
+;
+; Destroys: A1
+;
 
 kernToDo:	addi	rp, rp, -24
 		sd	rt, 0(rp)
@@ -115,6 +131,8 @@ kTD_rfs:	ld	rt, 0(rp)
 ; full = kernStepQFull()
 ;  A0
 ;
+; Destroys: A1
+;
 
 kernStepQFull:	addi	rp, rp, -8
 		sd	rt, 0(rp)
@@ -130,10 +148,14 @@ kSQ_rfs:	ld	rt, 0(rp)
 kSQ_notFull:	addi	a0, x0, 0
 		jal	x0, kSQ_rfs
 
+;
 ; Determine the number of steps pending in the kernel's queue.
 ;
 ; nevt = kernStepsPending()
 ;  A0
+;
+; Destroys: A1 A2
+;
 
 kernStepsPending:
 		addi	rp, rp, -8
