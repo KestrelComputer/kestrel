@@ -1,0 +1,20 @@
+\ Exits the emulator with return code 0.
+extern bye
+
+\ Sends the character to the user's console.
+: emit ( ch - )
+	d> d# $0E00000000000000 c! ;
+
+\ Takes the tail of a string.
+: nextch ( addr len - addr+1 len-1 )
+	d> d> d# 1 + >d d# 1 - >d ;
+
+\ Sends a string of length len to the console.
+: type ( addr len - )
+	begin 0 d@ while 1 d@ c@ >d emit nextch repeat d> d> drop drop ;
+
+\ Various console control characters.
+: cr ( - )	d# 13 >d emit d# 10 >d emit ;
+
+\ Luke-warm boot.
+: _		S" Booting STS V1.5" >d >d type cr bye ;
