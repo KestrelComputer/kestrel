@@ -5,5 +5,5 @@
 ra      = x1    ; Return address
 dsp     = x2    ; Data stack pointer.
 rsp     = x3    ; Return stack pointer.
-gvp     = x4    ; Global vector pointer.
+gvp     = x4    ; Global variables pointer.
 gp      = x5    ; Globals pointer.
