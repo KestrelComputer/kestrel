@@ -7,3 +7,4 @@ dsp     = x2    ; Data stack pointer.
 rsp     = x3    ; Return stack pointer.
 gvp     = x4    ; Global variables pointer.
 gp      = x5    ; Globals pointer.
+t0	= x6	; Temporary used by the compiler.

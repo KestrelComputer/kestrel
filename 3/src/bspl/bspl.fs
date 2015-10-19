@@ -19,6 +19,28 @@ S" bspl.fm/asm.fs" included
 \ fake a word which, when invoked, compiles a call to that routine.
 : extern	>in @ bl word count define swap >in ! create , does> @ call, ;
 
+\ Jump tables are important structures, permitting polymorphic
+\ program execution.  Note that these constructs exist outside
+\ of any colon definition; therefore, they emit raw assembly
+\ language immediately!
+
+  ( I'd like to find a better place to put this code. )
+  ( Unfortunately, I have a bit of a circular dependency if )
+  ( I place it where it logically should go. )
+
+: jtasm		."  align 8" cr 32 word count type ." :" cr
+		."  jal t0, __jumptable__" cr ;
+: jump-table,	>in @ jtasm >in ! extern ;
+: entry,	32 word count 2dup S" ;" compare if ."  jal x0, " type cr 1 else 0 then ;
+: jump-entries,	begin entry, 0= until ;
+
+target definitions
+
+:: jump-table:		jump-table, ;
+:: jump-entries:	jump-entries, ;
+
+host definitions
+
 \ The new colon compiler starts here.  It's technically part of
 \ pass 1 implementation, but ; drives subsequent passes as well.
 

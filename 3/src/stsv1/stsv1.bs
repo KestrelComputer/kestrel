@@ -1,6 +1,9 @@
 \ Exits the emulator with return code 0.
 extern bye
 
+\ Supports vectored execution.
+extern call
+
 \ Sends the character to the user's console.
 : emit ( ch - )
 	d> d# $0E00000000000000 c! ;
@@ -182,14 +185,7 @@ dword: mplsiz	\ Memory Pool Size
 
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-
-\ Luke-warm boot.  After BSPL's start-up code completes, it jumps to _
-\ (yes, that's a single underscore).  BSPL's runtime does not expect _ to
-\ return.
-
-: banner	S" Booting STS V1.5" >d >d type cr ;
-: mem0		h# 2000 >d  d# 16777216 d# 8192 - >d fmtmem ;
-		( Nexys2 has 16MB of on-board RAM )
+\ This code is a test suite for getmem and fremem.
 
 : get0		d# 1024 >d getmem
 		d> 0=if S" expected non-null address from getmem" >d >d type cr bye then
@@ -221,4 +217,24 @@ dword: mplsiz	\ Memory Pool Size
 : fre3		h# 2C40 >d fremem ;
 
 : memtest	get0 get1 get2 fre1 get3 fre1 fre0 get4 get5 fre0 fre3 fre2 get6 ;
-: _		cr banner mem0 memtest bye ;
+
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+\ Luke-warm boot.  After BSPL's start-up code completes, it jumps to _
+\ (yes, that's a single underscore).  BSPL's runtime does not expect _ to
+\ return.
+
+: banner	S" Booting STS V1.5" >d >d type cr ;
+: mem0		h# 2000 >d  d# 16777216 d# 8192 - >d fmtmem ;
+		( Nexys2 has 16MB of on-board RAM )
+
+: procA		S" Procedure A" >d >d ;
+: procB		S" Procedure B" >d >d ;
+jump-table: jumptab
+jump-entries: procA procB ;
+: testA		jumptab d> d# 0 + >d call type cr ;
+: testB		jumptab d> d# 4 + >d call type cr ;
+
+
+: _		cr banner mem0 memtest testA testB bye ;
