@@ -16,5 +16,160 @@ extern bye
 \ Various console control characters.
 : cr ( - )	d# 13 >d emit d# 10 >d emit ;
 
-\ Luke-warm boot.
-: _		S" Booting STS V1.5" >d >d type cr bye ;
+: shr4		d> u2/ u2/ u2/ u2/ >d ;
+: shr15		shr4 shr4 shr4 d> u2/ u2/ u2/ >d ;
+: shr30		shr15 shr15 ;
+: shl4		d> 2* 2* 2* 2* >d ;
+: _1		d> S" 0123456789ABCDEF" nip + c@ >d emit ;
+: _4		0 d@ >d shr30 shr30 _1  shl4 ;
+: _16		_4 _4 _4 _4 ;
+: _64		_16 _16 _16 _16 d> ;
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+\ These routines provide a dynamic memory management facility, allowing
+\ applications to request blocks of memory of a given size, and to release it
+\ later if required.
+\ 
+\ Pools are maintained through a singly linked, circular list of nodes with
+\ the invariant that a node N can point to node M if and only if M appears at
+\ a higher address than N, and which follows N immediately.  So, if looking at
+\ a memory dump of three nodes, A, B, and C in that order, A generally cannot
+\ point directly to C.  The sole exception is if A and B both represent free
+\ chunks of memory, where B's space coalesces with A to reduce fragmentation.
+\ An order like A, C, B is simply right out, no matter what.  If this happens,
+\ the memory pool is corrupted, and will inevitably lead to a crash.
+\ 
+\ The structure of a node follows (offsets in cells):
+\ 
+\ +0	next		Pointer to next node in the list, or back to first
+\			node.
+\ 
+\ +1	--1111....	The size of the allocation, in bytes, excluding the
+\			header.  Note that memory may not be requested in
+\			units smaller than sixteen bytes.
+\ 
+\ +1	--....111.	Unused bits.  Must be set to zero on writing, and
+\			ignored on read.
+\ 
+\ +1	--.......1	1=block is allocated; 0=block is free.
+
+dword: mplsta	\ Memory Pool Start
+dword: mplsiz	\ Memory Pool Size
+
+\ fmtmem formats a memory pool with the required metadata to support
+\ allocation requests.  The mplsta variable must point to the start of the
+\ memory pool, while mplsiz must contain its size, in bytes.  fmtmem does not
+\ return, and cannot fail.
+\
+\ Beware: formatting a pool that's been previously used will, in effect,
+\ forcefully deallocate everything from that pool.
+
+: fmtmem ( a u -- )
+	d> mplsiz ! d> mplsta !
+	mplsta @ mplsta @ !	( circular list node points to itself )
+	mplsiz @ d# -16 and d# 16 -	( size of first free block )
+	mplsta @ d# 8 + ! ;
+
+\ getmem allocates at least u bytes of memory.  If successful it returns the
+\ address of the allocated block, and a success flag.  Otherwise, undefined
+\ results and a false flag are returned.
+
+: gmsplit ( u a -- u a )
+	\ Make sure that it makes sense to split.
+	\ The current space must hold at least one header and
+	\ one 16 byte block, totalling 32 bytes, after splitting.
+	1 d@ d# 32 + 0 d@ d# 8 + @ d# -16 and -
+	-if
+S" GMSPLIT:" >d >d type cr
+		0 d@ 1 d@ + d# 16 + >d		( addr of next block )
+	  S" ADDR OF SPLIT BLOCK: " >d >d type 0 d@ >d _64 cr
+			1 d@ @ 0 d@ !		( link to next block )
+	  S" ADDR OF NEXT BLOCK: " >d >d type 0 d@ @ >d _64 cr
+			1 d@ d# 8 + @  2 d@ - d# 16 -
+				0 d@ d# 8 + !	( size of next block )
+	  S" SIZE OF NEXT BLOCK: " >d >d type 0 d@ d# 8 + @ >d _64 cr
+			0 d@  1 d@ !		( this blk -> next )
+			2 d@ d# 1 or  1 d@ d# 8 + !
+	  S" UPDATE THIS BLOCK: " >d >d type 1 d@ @ >d _64 cr
+	  S" RESIZED THIS BLOCK: " >d >d type 1 d@ d# 8 + @ >d _64 cr
+		d>
+	then ;
+
+: getmem ( u -- a -1 | ? 0 )
+	d> d# 15 + d# -16 and >d	( round to at least 16 bytes )
+
+	mplsta @ >d
+
+	begin ( u a )
+		\ Search for a free block.
+
+S" BEGIN: " >d >d type space 0 d@ >d _64 cr
+
+		begin 0 d@ d# 8 + @ d# 1 and while
+S"   ALLOCATED.  " >d >d type
+			d> @ >d				( next mem block )
+S" Trying " >d >d type 0 d@ >d _64 cr
+			0 d@ mplsta @ xor 0=if		( all blocks alloc'ed )
+				d# 0 0 d! exit
+			then
+		repeat
+
+S" SELECTED: " >d >d type space 0 d@ >d _64 cr
+
+		\ here, 0 d@ points to a free block.
+		\ It still might be too small though.
+
+		0 d@ d# 8 + @ d# -16 and  1 d@ -  +if	( block is big enough )
+			gmsplit
+			0 d@ d# 16 + 1 d!  d# -1 0 d!  exit
+		then
+
+S" TOO SMALL.  " >d >d type
+
+		\ Block too small, try the next block.
+
+		d> @ >d
+S" Trying " >d >d type 0 d@ >d _64 cr
+		0 d@ mplsta @ xor 0=if d# 0 0 d! exit then
+	again ;
+
+\ fremem releases a block of memory, whose pointer was returned by the
+\ getmem procedure.
+
+: fremem ( a -- )
+	d> d# 16 - >d		( recover header address )
+	0 d@ d# 8 + @ d# -2 and	( clear allocated bit )
+	d> d# 8 + ! ;
+
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+\ Luke-warm boot.  After BSPL's start-up code completes, it jumps to _
+\ (yes, that's a single underscore).  BSPL's runtime does not expect _ to
+\ return.
+
+: banner	S" Booting STS V1.5" >d >d type cr ;
+: mem0		h# 2000 >d  d# 16777216 d# 8192 - >d fmtmem ;
+		( Nexys2 has 16MB of on-board RAM )
+
+: get0		d# 1024 >d getmem
+		d> 0=if S" expected non-null address from getmem" >d >d type cr bye then
+		0 d@ h# 2010 xor if S" Expected block at $2010, got:" >d >d type _64 cr bye then ;
+: get1		d# 1024 >d getmem
+		d> 0=if S" expected non-null addr from getmem 2" >d >d type cr bye then
+		0 d@ h# 2420 xor if S" Expected block at $2420, got:" >d >d type _64 cr bye then ;
+: get2		d# 1024 >d getmem
+		d> 0=if S" expected non-null addr from getmem 3" >d >d type cr bye then
+		0 d@ h# 2830 xor if S" Expected block at $2830, got:" >d >d type _64 cr bye then ;
+: get3		d# 1024 >d getmem
+		d> 0=if S" expected non-null addr from getmem 4" >d >d type cr bye then
+		0 d@ h# 2420 xor if S" Expected block at $2420 (get3), got:" >d >d type _64 cr bye then ;
+: fre1		h# 2420 >d fremem ;
+: fre0		h# 2010 >d fremem ;
+: get4		d# 2048 >d getmem
+		d> 0=if S" expected non-null address from getmem 5" >d >d type cr bye then
+		0 d@ h# 2010 xor if S" Expected 2K block at $2010 (get4), got:" >d >d type _64 cr bye then ;
+
+: memtest	get0 get1 get2 fre1 get3 fre1 fre0 S" ----" >d >d type cr get4 ;
+: _		cr banner mem0 memtest bye ;
