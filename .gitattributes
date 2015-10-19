@@ -1,1 +1,5 @@
+*.bs linguist-language=Forth
+*.do linguist-language=Shell
 *.fs linguist-language=Forth
+*.i linguist-language=Assembly
+*.inc linguist-language=Forth
