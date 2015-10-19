@@ -81,18 +81,12 @@ dword: mplsiz	\ Memory Pool Size
 	\ one 16 byte block, totalling 32 bytes, after splitting.
 	1 d@ d# 32 + 0 d@ d# 8 + @ d# -16 and -
 	-if
-S" GMSPLIT:" >d >d type cr
 		0 d@ 1 d@ + d# 16 + >d		( addr of next block )
-	  S" ADDR OF SPLIT BLOCK: " >d >d type 0 d@ >d _64 cr
 			1 d@ @ 0 d@ !		( link to next block )
-	  S" ADDR OF NEXT BLOCK: " >d >d type 0 d@ @ >d _64 cr
 			1 d@ d# 8 + @  2 d@ - d# 16 -
 				0 d@ d# 8 + !	( size of next block )
-	  S" SIZE OF NEXT BLOCK: " >d >d type 0 d@ d# 8 + @ >d _64 cr
 			0 d@  1 d@ !		( this blk -> next )
 			2 d@ d# 1 or  1 d@ d# 8 + !
-	  S" UPDATE THIS BLOCK: " >d >d type 1 d@ @ >d _64 cr
-	  S" RESIZED THIS BLOCK: " >d >d type 1 d@ d# 8 + @ >d _64 cr
 		d>
 	else
 		( Too small to split; just mark whole thing allocated )
@@ -107,18 +101,12 @@ S" GMSPLIT:" >d >d type cr
 	begin ( u a )
 		\ Search for a free block.
 
-		S" BEGIN: " >d >d type space 0 d@ >d _64 cr
-
 		begin 0 d@ d# 8 + @ d# 1 and while
-			S"   ALLOCATED.  " >d >d type
 			d> @ >d				( next mem block )
-			S" Trying " >d >d type 0 d@ >d _64 cr
 			0 d@ mplsta @ xor 0=if		( all blocks alloc'ed )
 				d# 0 0 d! exit
 			then
 		repeat
-
-		S" SELECTED: " >d >d type space 0 d@ >d _64 cr
 
 		\ here, 0 d@ points to a free block.
 		\ It still might be too small though.
@@ -127,17 +115,13 @@ S" GMSPLIT:" >d >d type cr
 
 		0 d@ @ >d d# 1 >d ( a b continue )
 		begin 0 d@ while
-			S"   CONSIDERING: " >d >d type 1 d@ >d _64
 			1 d@ mplsta @ xor 0=if
-				S" ..END OF POOL" >d >d type
 				d> d# 0 >d
 			else
 			1 d@ d# 8 + @ d# 1 and if
 				\ Adjacent block is allocated; stop coalescing
-				S" ..ADJACENT BLOCK ALLOC" >d >d type
 				d> d# 0 >d
 			else
-				S" ..COALESCING" >d >d type
 				\ Assimilate node b's total size.
 				d# 16		( size of b's header )
 				1 d@ d# 8 + @ + ( size of b's block )
@@ -148,7 +132,6 @@ S" GMSPLIT:" >d >d type cr
 				1 d@ @ 2 d@ !	( a.next = b.next )
 				1 d@ @ 1 d!	( b = b.next )
 			then then
-			cr
 		repeat
 		d> d>	( Discard continue flag and node b reference )
 
@@ -160,12 +143,9 @@ S" GMSPLIT:" >d >d type cr
 			0 d@ d# 16 + 1 d!  d# -1 0 d!  exit
 		then
 
-S" TOO SMALL.  " >d >d type
-
 		\ Block too small, try the next block.
 
 		d> @ >d
-S" Trying " >d >d type 0 d@ >d _64 cr
 		0 d@ mplsta @ xor 0=if d# 0 0 d! exit then
 	again ;
 
@@ -239,6 +219,5 @@ S" Trying " >d >d type 0 d@ >d _64 cr
 : fre2		h# 2830 >d fremem ;
 : fre3		h# 2C40 >d fremem ;
 
-: m____		S" ----" >d >d type cr ;
-: memtest	get0 get1 get2 m____ fre1 get3 m____ fre1 fre0 m____ get4 get5 m____ fre0 fre3 fre2 get6 ;
+: memtest	get0 get1 get2 fre1 get3 fre1 fre0 get4 get5 fre0 fre3 fre2 get6 ;
 : _		cr banner mem0 memtest bye ;
