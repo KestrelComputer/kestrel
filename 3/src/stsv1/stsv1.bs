@@ -16,6 +16,7 @@ extern bye
 \ Various console control characters.
 : cr ( - )	d# 13 >d emit d# 10 >d emit ;
 
+\ For debugging, _64 is used to print a 64-bit value in hex.
 : shr4		d> u2/ u2/ u2/ u2/ >d ;
 : shr15		shr4 shr4 shr4 d> u2/ u2/ u2/ >d ;
 : shr30		shr15 shr15 ;
