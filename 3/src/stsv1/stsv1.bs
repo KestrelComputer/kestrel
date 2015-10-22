@@ -264,7 +264,14 @@ dword: mplsiz	\ Memory Pool Size
   S" If a copy of the MPL was not distributed with this file, you can obtain one at" >d >d type cr
   S" https://mozilla.org/MPL/2.0/ ." >d >d type cr ;
 
+: ident		title copyr license ;
+: prompt	S" > " >d >d type ;
+
 \ Gap buffer implementation to accept user input.
+\ NOTE: This is an incomplete port of the implementation used in Kestrel-2
+\ because we don't have raw PS/2 keyboard access, nor a directly addressible
+\ terminal at our disposal.  When I enhance the emulator, this will change,
+\ and we can revise the input handling to facilitate better editing features.
 
 dword: ls	( points at buffer )
 dword: le	( points at beginning of gap )
@@ -275,17 +282,13 @@ dword: re	( points just beyond last character )
 : nobuf		S" E01 Insufficient memory for shell input buffer." >d >d panic ;
 : initsh	d# 160 >d getmem d> 0=if nobuf then d> ls ! resetsh ;
 
-: ident		title copyr license ;
-: prompt	S" > " >d >d type ;
 : lebump	le @ d# 1 - le ! ;
 : bs		ls @ le @ xor if backspace space backspace lebump then ;
-: del		;
 : bumple	le @ d# 1 + le ! ;
 : bumprs	rs @ d# 1 + rs ! ;
 : insert	0 d@ le @ c!  bumple ;
 : graphic	le @ rs @ xor if insert 0 d@ emit then ;
 : handle	0 d@ d# 8 xor 0=if bs exit then
-		0 d@ d# 127 xor 0=if del exit then
 		graphic ;
 : collapse	rs @ c@ le @ c!  bumple bumprs ;
 : finish	begin rs @ re @ xor 0=if exit then collapse again ;
@@ -303,7 +306,8 @@ dword: re	( points just beyond last character )
 
 : accept	resetsh begin getkey 0 d@ d# 10 xor 0=if d> finish ls @ >d le @ ls @ - >d exit then handle again ;
 
-: romshell	cr ident initsh begin prompt accept cr type cr again ;
+: unknown	S" : unknown command" >d >d type ;
+: romshell	cr ident initsh begin prompt accept cr type unknown cr again ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
