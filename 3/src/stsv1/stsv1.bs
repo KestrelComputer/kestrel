@@ -18,6 +18,8 @@ extern call
 
 \ Various console control characters.
 : cr ( - )	d# 13 >d emit d# 10 >d emit ;
+: space ( - )	d# 32 >d emit ;
+: backspace	d# 8 >d emit ;
 
 \ For debugging, _64 is used to print a 64-bit value in hex.
 : shr4		d> u2/ u2/ u2/ u2/ >d ;
@@ -227,6 +229,25 @@ dword: mplsiz	\ Memory Pool Size
 \ disk or SD card).  The shell is present in ROM only for debug
 \ and bootstrapping purposes.
 
+( Some utilities which I think will become official STS procedures )
+
+\ Blocks until a valid ASCII character has been received from the
+\ user's keyboard.  This procedure bypasses the file I/O interface,
+\ so use with caution.  Where possible, use the file I/O interface
+\ instead.  Note that getkey does not offer a timeout!
+\
+\ getkey ( -- ch )
+
+: getkey	begin d# $0E00000000000001 c@ >d 0 d@ if exit then d> again ;
+		( Use emulator debugger port for now. )
+
+\ Prints an arbitrary string to the user's console, then blocks forever.
+\
+\ panic ( caddr u -- )
+
+: panic		type cr begin again ;
+
+
 : title
   S"     #####     ######    #####  " >d >d type cr
   S"    ##   ##      ##     ##   ## " >d >d type cr
@@ -243,11 +264,46 @@ dword: mplsiz	\ Memory Pool Size
   S" If a copy of the MPL was not distributed with this file, you can obtain one at" >d >d type cr
   S" https://mozilla.org/MPL/2.0/ ." >d >d type cr ;
 
+\ Gap buffer implementation to accept user input.
+
+dword: ls	( points at buffer )
+dword: le	( points at beginning of gap )
+dword: rs	( points at text following gap )
+dword: re	( points just beyond last character )
+
+: resetsh	ls @ le !  ls @ d# 160 + rs !  ls @ d# 160 + re ! ;
+: nobuf		S" E01 Insufficient memory for shell input buffer." >d >d panic ;
+: initsh	d# 160 >d getmem d> 0=if nobuf then d> ls ! resetsh ;
+
 : ident		title copyr license ;
 : prompt	S" > " >d >d type ;
-: getkey	begin d# $0E00000000000001 c@ >d 0 d@ if exit then d> again ;
-: accept	begin getkey emit again ;
-: romshell	cr ident begin prompt accept cr again ;
+: lebump	le @ d# 1 - le ! ;
+: bs		ls @ le @ xor if backspace space backspace lebump then ;
+: del		;
+: bumple	le @ d# 1 + le ! ;
+: bumprs	rs @ d# 1 + rs ! ;
+: insert	0 d@ le @ c!  bumple ;
+: graphic	le @ rs @ xor if insert 0 d@ emit then ;
+: handle	0 d@ d# 8 xor 0=if bs exit then
+		0 d@ d# 127 xor 0=if del exit then
+		graphic ;
+: collapse	rs @ c@ le @ c!  bumple bumprs ;
+: finish	begin rs @ re @ xor 0=if exit then collapse again ;
+
+\ Block until the user has finished entering a whole line of text.
+\ The user can use backspace and DEL keys to correct errors.
+\ Use CTRL-F and CTRL-B to cursor forward or backward.
+\
+\ Note that subsequent calls to this procedure WILL OVERWRITE the
+\ contents of the buffer from last time, so if you need to preserve
+\ the contents of the buffer, you must do so before calling accept
+\ again.
+\ 
+\ accept ( -- caddr u )
+
+: accept	resetsh begin getkey 0 d@ d# 10 xor 0=if d> finish ls @ >d le @ ls @ - >d exit then handle again ;
+
+: romshell	cr ident initsh begin prompt accept cr type cr again ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
