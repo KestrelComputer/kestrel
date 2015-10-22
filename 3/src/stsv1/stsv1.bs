@@ -221,6 +221,36 @@ dword: mplsiz	\ Memory Pool Size
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
+\ The ROM-resident shell.  Eventually, this will be placed into
+\ an executable that resides in the ROM filesystem.  From there,
+\ it will eventually find its way onto removable media (e.g.,
+\ disk or SD card).  The shell is present in ROM only for debug
+\ and bootstrapping purposes.
+
+: title
+  S"     #####     ######    #####  " >d >d type cr
+  S"    ##   ##      ##     ##   ## " >d >d type cr
+  S"   ##           ##     ##      " >d >d type cr
+  S"    #####       ##      #####  " >d >d type cr
+  S"       ##      ##          ## " >d >d type cr
+  S"  ##   ##      ##     ##   ## " >d >d type cr
+  S"  #####       ##      #####  " >d >d type cr
+  S"                             " >d >d type cr
+  S"           STS V1.5" >d >d type cr cr ;
+: copyr		S" Copyright 2014-2015 Samuel A. Falvo II, et. al." >d >d type cr cr ;
+: license
+  S" This software is subject to the terms of the Mozilla Public License, v. 2.0." >d >d type cr
+  S" If a copy of the MPL was not distributed with this file, you can obtain one at" >d >d type cr
+  S" https://mozilla.org/MPL/2.0/ ." >d >d type cr ;
+
+: ident		title copyr license ;
+: prompt	S" > " >d >d type ;
+: getkey	begin d# $0E00000000000001 c@ >d 0 d@ if exit then d> again ;
+: accept	begin getkey emit again ;
+: romshell	cr ident begin prompt accept cr again ;
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
 \ Luke-warm boot.  After BSPL's start-up code completes, it jumps to _
 \ (yes, that's a single underscore).  BSPL's runtime does not expect _ to
 \ return.
@@ -229,12 +259,5 @@ dword: mplsiz	\ Memory Pool Size
 : mem0		h# 2000 >d  d# 16777216 d# 8192 - >d fmtmem ;
 		( Nexys2 has 16MB of on-board RAM )
 
-: procA		S" Procedure A" >d >d ;
-: procB		S" Procedure B" >d >d ;
-jump-table: jumptab
-jump-entries: procA procB ;
-: testA		jumptab d> d# 0 + >d call type cr ;
-: testB		jumptab d> d# 4 + >d call type cr ;
+: _		cr banner mem0 memtest romshell bye ;
 
-
-: _		cr banner mem0 memtest testA testB bye ;
