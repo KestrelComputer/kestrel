@@ -18,6 +18,8 @@ extern call
 
 \ Various console control characters.
 : cr ( - )	d# 13 >d emit d# 10 >d emit ;
+: space ( - )	d# 32 >d emit ;
+: backspace	d# 8 >d emit ;
 
 \ For debugging, _64 is used to print a 64-bit value in hex.
 : shr4		d> u2/ u2/ u2/ u2/ >d ;
@@ -221,6 +223,115 @@ dword: mplsiz	\ Memory Pool Size
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
+\ The ROM-resident shell.  Eventually, this will be placed into
+\ an executable that resides in the ROM filesystem.  From there,
+\ it will eventually find its way onto removable media (e.g.,
+\ disk or SD card).  The shell is present in ROM only for debug
+\ and bootstrapping purposes.
+
+( Some utilities which I think will become official STS procedures )
+
+\ Blocks until a valid ASCII character has been received from the
+\ user's keyboard.  This procedure bypasses the file I/O interface,
+\ so use with caution.  Where possible, use the file I/O interface
+\ instead.  Note that getkey does not offer a timeout!
+\
+\ getkey ( -- ch )
+
+: getkey	begin d# $0E00000000000001 c@ >d 0 d@ if exit then d> again ;
+		( Use emulator debugger port for now. )
+
+\ Prints an arbitrary string to the user's console, then blocks forever.
+\
+\ panic ( caddr u -- )
+
+: panic		type cr begin again ;
+
+
+: title
+  S"     #####     ######    #####  " >d >d type cr
+  S"    ##   ##      ##     ##   ## " >d >d type cr
+  S"   ##           ##     ##      " >d >d type cr
+  S"    #####       ##      #####  " >d >d type cr
+  S"       ##      ##          ## " >d >d type cr
+  S"  ##   ##      ##     ##   ## " >d >d type cr
+  S"  #####       ##      #####  " >d >d type cr
+  S"                             " >d >d type cr
+  S"           STS V1.5" >d >d type cr cr ;
+: copyr		S" Copyright 2014-2015 Samuel A. Falvo II, et. al." >d >d type cr cr ;
+: license
+  S" This software is subject to the terms of the Mozilla Public License, v. 2.0." >d >d type cr
+  S" If a copy of the MPL was not distributed with this file, you can obtain one at" >d >d type cr
+  S" https://mozilla.org/MPL/2.0/ ." >d >d type cr ;
+
+: ident		title copyr license ;
+: prompt	S" > " >d >d type ;
+
+\ Gap buffer implementation to accept user input.
+\ NOTE: This is an incomplete port of the implementation used in Kestrel-2
+\ because we don't have raw PS/2 keyboard access, nor a directly addressible
+\ terminal at our disposal.  When I enhance the emulator, this will change,
+\ and we can revise the input handling to facilitate better editing features.
+
+dword: ls	( points at buffer )
+dword: le	( points at beginning of gap )
+dword: rs	( points at text following gap )
+dword: re	( points just beyond last character )
+
+: resetsh	ls @ le !  ls @ d# 160 + rs !  ls @ d# 160 + re ! ;
+: nobuf		S" E01 Insufficient memory for shell input buffer." >d >d panic ;
+: initsh	d# 160 >d getmem d> 0=if nobuf then d> ls ! resetsh ;
+
+: lebump	le @ d# 1 - le ! ;
+: bs		ls @ le @ xor if backspace space backspace lebump then ;
+: bumple	le @ d# 1 + le ! ;
+: bumprs	rs @ d# 1 + rs ! ;
+: insert	0 d@ le @ c!  bumple ;
+: graphic	le @ rs @ xor if insert 0 d@ emit then ;
+: handle	0 d@ d# 8 xor 0=if bs exit then
+		graphic ;
+: collapse	rs @ c@ le @ c!  bumple bumprs ;
+: finish	begin rs @ re @ xor 0=if exit then collapse again ;
+
+\ Block until the user has finished entering a whole line of text.
+\ The user can use backspace and DEL keys to correct errors.
+\ Use CTRL-F and CTRL-B to cursor forward or backward.
+\
+\ Note that subsequent calls to this procedure WILL OVERWRITE the
+\ contents of the buffer from last time, so if you need to preserve
+\ the contents of the buffer, you must do so before calling accept
+\ again.
+\ 
+\ accept ( -- caddr u )
+
+: accept	resetsh begin getkey 0 d@ d# 10 xor 0=if d> finish ls @ >d le @ ls @ - >d exit then handle again ;
+
+: unknown	S" : unknown command" >d >d type ;
+
+: dropchar	d> d> d# 1 + >d d# 1 - >d ;
+
+: skipws
+  begin	0 d@ 0=if exit then
+	1 d@ c@ d# 33 - +if exit then
+	dropchar
+  again ;
+
+: skipnws
+  begin	0 d@ 0=if exit then
+	1 d@ c@ d# 33 - -if exit then
+	dropchar
+  again ;
+
+: romshell
+  cr ident initsh
+  begin	prompt accept
+	skipws 1 d@ >r skipnws 1 d@ 0 r@ - r> >d >d
+	cr type unknown cr
+	d> d>
+  again ;
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
 \ Luke-warm boot.  After BSPL's start-up code completes, it jumps to _
 \ (yes, that's a single underscore).  BSPL's runtime does not expect _ to
 \ return.
@@ -229,12 +340,5 @@ dword: mplsiz	\ Memory Pool Size
 : mem0		h# 2000 >d  d# 16777216 d# 8192 - >d fmtmem ;
 		( Nexys2 has 16MB of on-board RAM )
 
-: procA		S" Procedure A" >d >d ;
-: procB		S" Procedure B" >d >d ;
-jump-table: jumptab
-jump-entries: procA procB ;
-: testA		jumptab d> d# 0 + >d call type cr ;
-: testB		jumptab d> d# 4 + >d call type cr ;
+: _		cr banner mem0 memtest romshell bye ;
 
-
-: _		cr banner mem0 memtest testA testB bye ;
