@@ -307,7 +307,28 @@ dword: re	( points just beyond last character )
 : accept	resetsh begin getkey 0 d@ d# 10 xor 0=if d> finish ls @ >d le @ ls @ - >d exit then handle again ;
 
 : unknown	S" : unknown command" >d >d type ;
-: romshell	cr ident initsh begin prompt accept cr type unknown cr again ;
+
+: dropchar	d> d> d# 1 + >d d# 1 - >d ;
+
+: skipws
+  begin	0 d@ 0=if exit then
+	1 d@ c@ d# 33 - +if exit then
+	dropchar
+  again ;
+
+: skipnws
+  begin	0 d@ 0=if exit then
+	1 d@ c@ d# 33 - -if exit then
+	dropchar
+  again ;
+
+: romshell
+  cr ident initsh
+  begin	prompt accept
+	skipws 1 d@ >r skipnws 1 d@ 0 r@ - r> >d >d
+	cr type unknown cr
+	d> d>
+  again ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
