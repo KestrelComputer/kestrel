@@ -223,6 +223,21 @@ dword: mplsiz	\ Memory Pool Size
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
+\ Filesystem Dispatcher and API
+
+
+\ loadseg is used to bring a program image into memory.
+\ unloadseg frees that memory.
+\
+\ loadseg ( caddr u -- a 0 | ? err )
+\ unloadseg ( a -- )
+
+: loadseg	d> d> d# 0 >d d# 123 >d ;
+
+: unloadseg	d> ;
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
 \ The ROM-resident shell.  Eventually, this will be placed into
 \ an executable that resides in the ROM filesystem.  From there,
 \ it will eventually find its way onto removable media (e.g.,
@@ -331,8 +346,13 @@ dword: re	( points just beyond last character )
 
 : romshell
   cr ident initsh
-  begin	prompt accept cmd
-	cr type unknown cr
+  begin	prompt accept cr cmd
+	1 d@ >d 1 d@ >d loadseg d> if
+		d> type unknown cr
+	else
+		unloadseg
+		d> d>
+	then
 	d> d>
   again ;
 
