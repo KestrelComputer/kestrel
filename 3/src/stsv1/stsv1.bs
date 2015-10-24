@@ -308,24 +308,30 @@ dword: re	( points just beyond last character )
 
 : unknown	S" : unknown command" >d >d type ;
 
+\ Isolate the command in a command-line.  The original command string is not
+\ altered in any way.
+\ 
+\ cmd ( caddr u -- caddr u caddr' u' )
+
 : dropchar	d> d> d# 1 + >d d# 1 - >d ;
 
-: skipws
+: skipws ( caddr u -- caddr' u' )
   begin	0 d@ 0=if exit then
 	1 d@ c@ d# 33 - +if exit then
 	dropchar
   again ;
 
-: skipnws
+: skipnws ( caddr u -- caddr' u' )
   begin	0 d@ 0=if exit then
 	1 d@ c@ d# 33 - -if exit then
 	dropchar
   again ;
 
+: cmd		skipws 1 d@ >r skipnws 1 d@ 0 r@ - r> >d >d ;
+
 : romshell
   cr ident initsh
-  begin	prompt accept
-	skipws 1 d@ >r skipnws 1 d@ 0 r@ - r> >d >d
+  begin	prompt accept cmd
 	cr type unknown cr
 	d> d>
   again ;
