@@ -323,11 +323,14 @@ host definitions
 
 : ""		34 word count ;
 : string,	"" dictate 8 lshift $2B or insn, ;
+: .dword	."  dword " 2dup type ." , " type ." _len" cr ;
+: .strdesc	."  align 8" cr .dword ;
 
 target definitions
 
 :: "		"" ;;
 :: S"		string, ;; ( " -- to fix editor coloring )
+:: str,		.strdesc ;;
 
 \ Numeric constants are frequently used, so we provide support for them here.
 

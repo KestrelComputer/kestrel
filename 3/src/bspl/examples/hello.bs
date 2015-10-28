@@ -23,5 +23,7 @@ extern bye
 \ External string example.
 " Hello external world!" string aString
 
+" aString" str,
+
 \ Entry-point.
 : _		inline bye ;
