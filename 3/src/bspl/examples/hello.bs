@@ -24,9 +24,10 @@ extern bye
 " Hello external world!" string aString
 
 record stringDescriptor
-" aString" str,
+" aString" str,		( address/length of string )
+  -$100000 d,		( ROM base address )
 
-: count		0 d@ d# 8 + @ >d  1 d@ @ d# $FFFFFFFFFFF00000 + 1 d! ;
+: count		0 d@ d# 8 + @ >d  1 d@ @ 1 d@ d# 16 + @ + 1 d! ;
                 ( Bias applied for ROM's base address )
 
 : external	stringDescriptor count type cr lf ;

@@ -298,6 +298,25 @@ target definitions
 :: words	hwords 2* ;;
 :: dwords	words 2* ;;
 
+\ Static data structure constructors.
+
+host definitions
+
+: dword,	."  align 8" cr ."  dword " . cr ;
+: word,		."  align 4" cr ."  word " . cr ;
+: hword,	."  align 2" cr ."  hword " . cr ;
+: byte,		."  byte " . cr ;
+
+target definitions
+
+:: d,		dword, ;;
+:: w,		word, ;;
+:: h,		hword, ;;
+:: b,		byte, ;;
+
+:: ,		dword, ;;	( , is historical )
+:: c,		byte, ;;	( c, is historical )
+
 \ Strings are easily defined inside colon definitions with S".  However,
 \ that doesn't help build static data structures which need strings.
 \ The string word helps.
