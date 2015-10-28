@@ -326,12 +326,13 @@ host definitions
 : quote		[char] " emit ;
 : .strlabf	bl word count type ;
 : .strlab	>in @ .strlabf >in ! ;
-: str,		.strlab ." : byte " quote type quote cr ;
+: str,		.strlab ." : byte " quote pad count type quote cr ;
 : len,		.strlab ." _len = *-" .strlabf cr ;
+: >pad		dup pad c! pad 1+ swap move ;
 
 target definitions
 
-:: string	str, len, ;;
+:: string	>pad str, len, ;;
 
 \ Strings are constants, and so reside along-side the code.
 \ When you invoke the name of a string, its length and address are put on the stack,
