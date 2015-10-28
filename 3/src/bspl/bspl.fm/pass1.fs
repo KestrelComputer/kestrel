@@ -284,6 +284,7 @@ variable gvpofs
 : dword:	create gvpofs @ 7 + -8 and dup , 8 + gvpofs ! does> @ gvpea, ;
 : buffer:	create gvpofs @ 7 + -8 and dup , + gvpofs ! does> @ gvpea, ;
 
+
 target definitions
 
 :: byte		byte: ;;
@@ -297,6 +298,22 @@ target definitions
 :: words	hwords 2* ;;
 :: dwords	words 2* ;;
 
+\ Strings are easily defined inside colon definitions with S".  However,
+\ that doesn't help build static data structures which need strings.
+\ The string word helps.
+
+host definitions
+
+: quote		[char] " emit ;
+: .strlabf	bl word count type ;
+: .strlab	>in @ .strlabf >in ! ;
+: str,		.strlab ." : byte " quote type quote cr ;
+: len,		.strlab ." _len = *-" .strlabf cr ;
+
+target definitions
+
+:: string	str, len, ;;
+
 \ Strings are constants, and so reside along-side the code.
 \ When you invoke the name of a string, its length and address are put on the stack,
 \ in that order.  This facilitates ANS-like string argument passing conventions with
@@ -304,10 +321,12 @@ target definitions
 
 host definitions
 
-: string,	34 word count dictate 8 lshift $2B or insn, ;
+: ""		34 word count ;
+: string,	"" dictate 8 lshift $2B or insn, ;
 
 target definitions
 
+:: "		"" ;;
 :: S"		string, ;; ( " -- to fix editor coloring )
 
 \ Numeric constants are frequently used, so we provide support for them here.

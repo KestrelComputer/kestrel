@@ -17,5 +17,11 @@ extern bye
 : cr ( - )	d# 13 >d emit ;
 : lf ( - )	d# 10 >d emit ;
 
+\ Inline string example.
+: inline	S" Hello world!" >d >d type cr lf ;
+
+\ External string example.
+" Hello external world!" string aString
+
 \ Entry-point.
-: _		S" Hello world!" >d >d type cr lf bye ;
+: _		inline bye ;
