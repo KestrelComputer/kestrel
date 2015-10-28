@@ -19,6 +19,20 @@ S" bspl.fm/asm.fs" included
 \ fake a word which, when invoked, compiles a call to that routine.
 : extern	>in @ bl word count define swap >in ! create , does> @ call, ;
 
+\ Records are subroutines that push the address of the data that follows.
+\ They behave analogously to CREATE'd words in Forth.
+: .thunk
+  ."  align 8" cr
+  bl word count 2dup type ." :" cr
+  ."  auipc gp, 0" cr
+  ."  addi  dsp, dsp, -8" cr
+  ."  addi  x16, gp, (*+16)-" type cr
+  ."  sd    x16, 0(dsp)" cr
+  ."  jalr  x0, 0(ra)" cr 
+  ."  addi  x0, x0, x0" cr ;	( maintain 64-bit alignment )
+
+: record	>in @ extern >in ! .thunk ;
+
 \ Jump tables are important structures, permitting polymorphic
 \ program execution.  Note that these constructs exist outside
 \ of any colon definition; therefore, they emit raw assembly
