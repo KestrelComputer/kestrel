@@ -185,6 +185,34 @@ dword: mplsiz	\ Memory Pool Size
 	repeat
 	d> d> ;
 
+\ Moves a block of memory from src to dst.  The block moved will consist
+\ of len bytes.  NOTE: Currently, it does not handle overlapping blocks
+\ of memory.  It implements a simple, slow, byte-granular, ascending
+\ memory move.
+
+: movmem ( src dst len -- )
+	begin
+		0 d@ 0=if d> d> d> exit then
+		2 d@ c@ 1 d@ c!
+		2 d@ d# 1 + 2 d!
+		1 d@ d# 1 + 1 d!
+		0 d@ d# 1 - 0 d!
+	again ;
+
+\ Sets a block of memory to an arbitrary byte value.
+
+: setmem ( dst len c -- )
+	begin
+		1 d@ 0=if d> d> d> exit then
+		0 d@ 2 d@ c!
+		2 d@ d# 1 + 2 d!
+		1 d@ d# 1 - 1 d!
+	again ;
+
+\ Zeros a block of memory.
+
+: zermem ( dst len -- )
+	d# 0 >d setmem ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 \ This code is a test suite for getmem and fremem.
@@ -218,8 +246,260 @@ dword: mplsiz	\ Memory Pool Size
 : fre2		h# 2830 >d fremem ;
 : fre3		h# 2C40 >d fremem ;
 
-: memtest	get0 get1 get2 fre1 get3 fre1 fre0 get4 get5 fre0 fre3 fre2 get6 ;
+: memtest
+	S" memtest:" >d >d type cr
+	get0 get1 get2 fre1 get3 fre1 fre0 get4 get5 fre0 fre3 fre2 get6
+	S" OK" >d >d type cr ;
 
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+\ Duplicate a string in memory.  The only way this can fail is
+\ if no memory is available for allocation; in this case, 0
+\ is returned.  Otherwise, a suitably sized block of memory
+\ is allocated, and the original string copied into it.  The
+\ address returned is that of the new string.
+\ 
+\ Note that the caller is responsible for invoking fremem on
+\ the duplicated string.
+
+: strDup ( caddr u -- caddr' -1 | ? 0 )
+	0 d@ >d getmem  0 d@ 0=if
+		d> d> d# 0 >d exit
+	then d>
+	1 d@ >d		( caddr u caddr' u )
+	3 d@ 2 d!	( caddr caddr caddr' u )
+	1 d@ 3 d!	( caddr' caddr caddr' u )
+	movmem d# -1 >d ;
+
+\ Return true if and only if the two strings match, including
+\ case.
+
+extern asmstrcmp
+
+: strEql ( a1 u1 a2 u2 -- -1 | 0 )
+	asmstrcmp d> 0=if d# -1 >d exit then
+	d# 0 >d ;
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+\ ObjEnt objects bind a name to an STS object of some kind.
+\ +0	Name
+\ +8	Name Length
+\ +16	Pointer to next entity
+\ +24	Pointer to object
+
+32 const szObjEnt
+
+\ Initializes an object entry to default state.
+
+: objEntInit ( a -- a )
+	0 d@ >d  szObjEnt >d  zermem ;
+
+\ Answers the length of the name for the entity.
+
+: objEntNameLength ( a -- n )
+	d> d# 8 + @ >d ;
+
+\ Answers the pointer to the entity name.
+
+: objEntNamePtr ( a -- a' )
+	d> @ >d ;
+
+\ Answers the next object in the entity chain, if any.
+
+: objEntNext ( a -- a' )
+	d> d# 16 + @ >d ;
+
+\ Answers the object that the entity names.
+
+: objEntObject ( a -- a' )
+	d> d# 24 + @ >d ;
+
+\ Sets the object that the entity binds.
+
+: objEntSetObject ( a' a -- )
+	d> d# 24 + d> swap ! ;
+
+\ Creates a new entity.
+
+: objEntNew ( -- a -1 | ? 0 )
+	szObjEnt >d getmem 0 d@ 0=if exit then d> 
+	objEntInit d# -1 >d ;
+
+\ Disposes of an entity allocated by objEntNew.
+
+: objEntDispose ( a -- )
+	0 d@ @ if 0 d@ @ fremem then	( free name )
+	fremem ;
+
+\ Changes the name of the entity.
+\ NOTE: Currently, you are responsible for freeing the original
+\ name.  Changing the name without doing so will leak memory.
+
+: objEntSetName ( caddr u a -- -1 | 0 )
+	1 d@ 0 d@ d# 8 + !	( set length )
+	2 d@ >d 2 d@ >d strDup d> 0=if
+		d> d> d> d>
+		d# 0 >d exit
+	then
+	d> d> !		( set name pointer )
+	d> d> d# -1 >d ;
+
+\ Answers the name of the entity.
+
+: objEntName ( a -- caddr u )
+	0 d@ >d objEntNameLength
+	1 d@ @ 1 d! ;
+
+\ Answers true if the entity possesses the given name.
+
+: objEntIsNamed ( caddr u a -- -1 | 0 )
+	objEntName strEql ;
+
+: objEntTCreation
+	objEntNew 0 d@ 0=if S"   creation: failed" >d >d type cr bye then d>
+	objEntDispose ;
+
+: _testName
+	S" testName" >d >d ;
+
+: objEntTName
+	objEntNew 0 d@ 0=if S"   name: creation" >d >d type cr bye then d>
+	_testName 2 d@ >d objEntSetName d> 0=if S"   name: set name" >d >d type cr bye then
+	0 d@ >d objEntName
+		d> d# 8 xor if S"   name: length mismatch" >d >d type cr bye then
+		_testName d> d> d> xor 0=if S"   name: not copied" >d >d type cr bye then
+	0 d@ >d objEntName _testName strEql d> 0=if S"   name: not equal" >d >d type cr bye then
+	objEntDispose ;
+
+: objEntTest
+	S" ObjEnt:" >d >d type cr
+	objEntTCreation objEntTName
+	S" OK" >d >d type cr ;
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+\ ObjDir objects map names to other (compatible) objects.  These
+\ form the basis for STS' filesystem abstraction.  They are
+\ essentially singly-linked lists of name->object pairs that
+\ happens to also know which ObjDir is its container.
+\ 
+\ +0	Parent
+\ +8	Pointer to first ObjEnt record, or NULL.
+
+16 const szObjDir
+
+\ Answers the directory's parent.  If the directory is the root
+\ directory, it will answer itself.
+
+: objDirParent ( a -- a' )
+	d> @ >d ;
+
+\ Answers the first ObjEnt assigned to the directory.
+
+: objDirFirst ( a -- a' )
+	d> d# 8 + @ >d ;
+
+\ Initializes an ObjDir.
+
+: objDirInit ( a -- a )
+	0 d@ >d szObjDir >d zermem
+	0 d@ 0 d@ ! ;		( we're a root directory )
+
+\ Creates a new ObjDir directory object.
+
+: objDirNew ( -- a -1 | ? 0 )
+	szObjDir >d getmem 0 d@ 0=if exit then d>
+	objDirInit d# -1 >d ;
+
+\ Disposes of the object directory.  You should remove all
+\ mounts before calling this procedure, or you will leak
+\ memory.
+
+: objDirDispose ( a -- )
+	fremem ;
+
+\ Adds an ObjEnt to the head of the ObjDir's list of bindings.
+
+: objDirAddHead ( e a -- )
+	0 d@ >d objDirFirst d> 1 d@ d# 16 + !	( set next field )
+	d> d# 8 + d> swap ! ;
+
+\ Removes an ObjEnt from the head of the ObjDir's binding list.
+
+: objDirRemHead ( a -- a' )
+	0 d@ >d objDirFirst
+	0 d@ >d objEntNext  d> 1 d@ d# 8 + !
+	d> 0 d! ;
+
+\ Walks the object hierarchy by name, and if the named resource is
+\ found, return it and a true flag.  Otherwise, return a false flag.
+
+: objDirWalk ( caddr u a -- a' -1 | ? 0 )
+	1 d@ 0=if	( null name? )
+		0 d@ 2 d!  d# -1 1 d!  d>  exit
+	then
+	objDirFirst begin 0 d@ while
+		2 d@ >d 2 d@ >d 2 d@ >d objEntIsNamed d> if
+			objEntObject d> 1 d!  d# -1 0 d! exit
+		then
+		objEntNext
+	repeat d# 0 1 d! d> ;
+
+: objDirTCreate
+	objDirNew d> 0=if S"   create: failed" >d >d type cr bye then
+	objDirDispose ;
+
+: objDirTParent
+	objDirNew d> 0=if S"   parent: creation" >d >d type cr bye then
+	0 d@ >d objDirParent d> 0 d@ xor if S"   parent: expected root dir" >d >d type cr bye then
+	objDirDispose ;
+
+: objDirTEmpty
+	objDirNew d> 0=if S"  empty: creation" >d >d type cr bye then
+	0 d@ >d objDirFirst d> if S"   empty: content unexpected" >d >d type cr bye then
+	objDirDispose ;
+
+: objDirTFirst
+	objDirNew d> 0=if S"   first: creation" >d >d type cr bye then
+	objEntNew d> 0=if S"   first: entity" >d >d type cr bye then
+	S" woohoo" >d >d 2 d@ >d objEntSetName d> 0=if S"   first: entity name" >d >d type cr bye then
+	h# DEADBEEF >d 1 d@ >d objEntSetObject
+	0 d@ >d 2 d@ >d objDirAddHead
+
+	1 d@ >d objDirFirst d> 0 d@ xor if S" first: mismatch" >d >d type cr bye then
+	1 d@ >d objDirRemHead d>
+	objEntDispose objDirDispose ;
+
+\ BSPL cannot record an empty string with S" ", so this procedure
+\ pushes a zero-length string onto the stack manually.
+: _emptystr
+	d# 0 >d d# 0 >d ;
+
+: objDirTWalk
+	objDirNew d> 0=if S"   walk: dir" >d >d type cr bye then
+
+	objEntNew d> 0=if S"   walk: ent" >d >d type cr bye then
+	S" woo" >d >d 2 d@ >d objEntSetName d> 0=if S"   walk: ent name" >d >d type cr bye then
+	h# 1111 >d 1 d@ >d objEntSetObject
+	0 d@ >d 2 d@ >d objDirAddHead
+
+	_emptystr 3 d@ >d objDirWalk
+		d> 0=if S" walk: can't find self" >d >d type cr bye then
+		d> 1 d@ xor if S"   walk: self expected" >d >d type cr bye then
+	S" woo" >d >d 3 d@ >d objDirWalk
+		d> 0=if S" walk: can't find woo" >d >d type cr bye then
+		d> h# 1111 xor if S"   walk: woo expected" >d >d type cr bye then
+	S" bar" >d >d 3 d@ >d objDirWalk
+		d> if S" walk: missing file found?" >d >d type cr bye then
+		d>
+
+	objEntDispose objDirDispose ;
+	
+: objDirTest
+	S" objdir:" >d >d type cr
+	objDirTCreate objDirTParent objDirTEmpty objDirTFirst objDirTWalk
+	S" OK" >d >d type cr ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -340,5 +620,6 @@ dword: re	( points just beyond last character )
 : mem0		h# 2000 >d  d# 16777216 d# 8192 - >d fmtmem ;
 		( Nexys2 has 16MB of on-board RAM )
 
-: _		cr banner mem0 memtest romshell bye ;
+: selfTest	memtest objEntTest objDirTest ;
+: _		cr banner mem0 selfTest romshell bye ;
 
