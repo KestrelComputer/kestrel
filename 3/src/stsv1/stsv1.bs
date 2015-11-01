@@ -252,6 +252,14 @@ dword: mplsiz	\ Memory Pool Size
 	S" OK" >d >d type cr ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\
+\ The string library maintains useful string-related procedures.
+
+
+\ BSPL cannot record an empty string with S" ", so this procedure
+\ pushes a zero-length string onto the stack manually.
+: _emptystr
+	d# 0 >d d# 0 >d ;
 
 \ Duplicate a string in memory.  The only way this can fail is
 \ if no memory is available for allocation; in this case, 0
@@ -279,6 +287,79 @@ extern asmstrcmp
 : strEql ( a1 u1 a2 u2 -- -1 | 0 )
 	asmstrcmp d> 0=if d# -1 >d exit then
 	d# 0 >d ;
+
+\ Splits a string at the first slash, intended for filesystem
+\ navigation purposes.  This procedure always returns two strings.
+\ The table below explains the relationship between an input string
+\ I, and the resulting prefix string P and suffix string S:
+\
+\ I		P		S
+\ ""		""		""
+\ "/"		""		""
+\ "foo"		"foo"		""
+\ "foo/"	"foo"		""
+\ "/foo"	""		"foo"
+\ "/foo/"	""		"foo/"
+\ "foo/bar"	"foo"		"bar"
+\ "foo/bar/"	"foo"		"bar/"
+\ "///"		""		"//"
+
+: strSplitSlash ( ia iu -- sa su pa pu )
+	1 d@ >d d# 0 >d		( sa su pa pu )
+	begin
+		2 d@ 0=if exit then
+		3 d@ c@ char / lit, xor 0=if
+			2 d@ d# 1 - 2 d!
+			3 d@ d# 1 + 3 d!
+			exit
+		then
+		0 d@ d# 1 + 0 d!
+		2 d@ d# 1 - 2 d!
+		3 d@ d# 1 + 3 d!
+	again ;
+		
+: strTSplitEmpty
+	_emptystr strSplitSlash
+		d> if S"   splitEmpty: prefix length" >d >d type cr bye then d>
+		d> if S"   splitEmpty: suffix length" >d >d type cr bye then d>
+	S" /" >d >d strSplitSlash
+		d> if S"   splitEmpty: / prefix length" >d >d type cr bye then d>
+		d> if S"   splitEmpty: / suffix length" >d >d type cr bye then d> ;
+
+: strTSplitSlash
+	S" foo" >d >d strSplitSlash
+		d> d# 3 xor if S"   splitSlash: prefix length" >d >d type cr bye then
+		d# 3 >d S" foo" >d >d strEql d> 0=if S"   splitSlash: prefix" >d >d type cr bye then
+		d> if S"   splitSlash: suffix length" >d >d type cr bye then d>
+	S" foo/" >d >d strSplitSlash
+		d> d# 3 xor if S"   splitSlash: / prefix length" >d >d type cr bye then
+		d# 3 >d S" foo" >d >d strEql d> 0=if S"   splitSlash: / prefix" >d >d type cr bye then
+		d> if S"   splitSlash: / suffix length" >d >d type cr bye then d>
+	S" /foo" >d >d strSplitSlash
+		d> if S"   splitSlash: prefix length /foo" >d >d type cr bye then d>
+		d> d# 3 xor if S"   splitSlash: suffix length /foo" >d >d type cr bye then
+		d# 3 >d S" foo" >d >d strEql d> 0=if S"   splitSlash: suffix /foo" >d >d type cr bye then
+	S" /foo/" >d >d strSplitSlash
+		d> if S"   splitSlash: prefix length /foo/" >d >d type cr bye then d>
+		d> d# 4 xor if S"   splitSlash: suffix length /foo/" >d >d type cr bye then
+		d# 4 >d S" foo/" >d >d strEql d> 0=if S"   splitSlash: suffix /foo/" >d >d type cr bye then ;
+
+: strTSplitBlort
+	S" foo/blort" >d >d strSplitSlash
+		d> d# 3 xor if S"   splitBlort: prefix length" >d >d type cr bye then
+		d# 3 >d S" foo" >d >d strEql d> 0=if S"   splitBlort: prefix" >d >d type cr bye then
+		d> d# 5 xor if S"   splitBlort: suffix length" >d >d type cr bye then
+		d# 5 >d S" blort" >d >d strEql d> 0=if S"   splitBlort: suffix" >d >d type cr bye then
+	S" foo/blort/" >d >d strSplitSlash
+		d> d# 3 xor if S"   splitBlort: prefix length" >d >d type cr bye then
+		d# 3 >d S" foo" >d >d strEql d> 0=if S"   splitBlort: prefix" >d >d type cr bye then
+		d> d# 6 xor if S"   splitBlort: suffix length" >d >d type cr bye then
+		d# 6 >d S" blort/" >d >d strEql d> 0=if S"   splitBlort: suffix" >d >d type cr bye then ;
+
+: strTest
+	S" str:" >d >d type cr
+	strTSplitEmpty strTSplitSlash strTSplitBlort
+	S" OK" >d >d type cr ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -329,7 +410,7 @@ extern asmstrcmp
 \ Disposes of an entity allocated by objEntNew.
 
 : objEntDispose ( a -- )
-	0 d@ @ if 0 d@ @ fremem then	( free name )
+	0 d@ @ if 0 d@ @ >d fremem then	( free name )
 	fremem ;
 
 \ Changes the name of the entity.
@@ -395,6 +476,14 @@ extern asmstrcmp
 : objDirParent ( a -- a' )
 	d> @ >d ;
 
+
+\ Assigns the object a new parent.  Objects can belong to only 
+\ one parent.
+
+: objDirSetParent ( p a -- )
+	d> d> swap ! ;
+
+
 \ Answers the first ObjEnt assigned to the directory.
 
 : objDirFirst ( a -- a' )
@@ -434,17 +523,25 @@ extern asmstrcmp
 
 \ Walks the object hierarchy by name, and if the named resource is
 \ found, return it and a true flag.  Otherwise, return a false flag.
+\
+\ Note that this procedure is recursive; it uses memory in proportion
+\ to the depth of the sought resource.  If the object tree is
+\ malformed so that a cycle exists, this procedure will overflow your
+\ stack and crash the system.
 
 : objDirWalk ( caddr u a -- a' -1 | ? 0 )
 	1 d@ 0=if	( null name? )
 		0 d@ 2 d!  d# -1 1 d!  d>  exit
 	then
-	objDirFirst begin 0 d@ while
-		2 d@ >d 2 d@ >d 2 d@ >d objEntIsNamed d> if
-			objEntObject d> 1 d!  d# -1 0 d! exit
+	objDirFirst  2 d@ >d  2 d@ >d  strSplitSlash ( caddr u e sa su pa pu )
+	begin 4 d@ while
+		1 d@ >d 1 d@ >d 6 d@ >d objEntIsNamed d> if
+			3 d@ 6 d!  2 d@ 5 d!
+			d> d> d> d>
+			objEntObject objDirWalk exit
 		then
-		objEntNext
-	repeat d# 0 1 d! d> ;
+		4 d@ >d objEntNext d> 4 d!
+	repeat d# 0 5 d! d> d> d> d> d> ;
 
 : objDirTCreate
 	objDirNew d> 0=if S"   create: failed" >d >d type cr bye then
@@ -471,34 +568,83 @@ extern asmstrcmp
 	1 d@ >d objDirRemHead d>
 	objEntDispose objDirDispose ;
 
-\ BSPL cannot record an empty string with S" ", so this procedure
-\ pushes a zero-length string onto the stack manually.
-: _emptystr
-	d# 0 >d d# 0 >d ;
-
-: objDirTWalk
+: objDirTWalk1
 	objDirNew d> 0=if S"   walk: dir" >d >d type cr bye then
+
+	objDirNew d> 0=if S"   walk: subdir" >d >d type cr bye then
+	1 d@ >d 1 d@ >d objDirSetParent
 
 	objEntNew d> 0=if S"   walk: ent" >d >d type cr bye then
 	S" woo" >d >d 2 d@ >d objEntSetName d> 0=if S"   walk: ent name" >d >d type cr bye then
-	h# 1111 >d 1 d@ >d objEntSetObject
-	0 d@ >d 2 d@ >d objDirAddHead
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d 3 d@ >d objDirAddHead
 
-	_emptystr 3 d@ >d objDirWalk
+	_emptystr 4 d@ >d objDirWalk
 		d> 0=if S" walk: can't find self" >d >d type cr bye then
-		d> 1 d@ xor if S"   walk: self expected" >d >d type cr bye then
-	S" woo" >d >d 3 d@ >d objDirWalk
+		d> 2 d@ xor if S"   walk: self expected" >d >d type cr bye then
+	S" woo" >d >d 4 d@ >d objDirWalk
 		d> 0=if S" walk: can't find woo" >d >d type cr bye then
-		d> h# 1111 xor if S"   walk: woo expected" >d >d type cr bye then
-	S" bar" >d >d 3 d@ >d objDirWalk
+		d> 1 d@ xor if S"   walk: woo expected" >d >d type cr bye then
+	S" bar" >d >d 4 d@ >d objDirWalk
 		d> if S" walk: missing file found?" >d >d type cr bye then
 		d>
 
-	objEntDispose objDirDispose ;
+	objEntDispose objDirDispose objDirDispose ;
 	
+: objDirTWalk2
+	\ Construct the following object tree:
+	\
+	\ root
+	\   sd1
+	\   sd2
+	\      sd3
+	\         sd4
+
+	objDirNew d> 0=if S"   walk2: root" >d >d type cr bye then
+	objDirNew d> 0=if S"   walk2: subdir1" >d >d type cr bye then
+	objDirNew d> 0=if S"   walk2: subdir2" >d >d type cr bye then
+	objDirNew d> 0=if S"   walk2: subdir3" >d >d type cr bye then
+	objDirNew d> 0=if S"   walk2: subdir4" >d >d type cr bye then
+
+	( root sd1 sd2 sd3 sd4 )
+
+	4 d@ >d 4 d@ >d objDirSetParent
+	4 d@ >d 3 d@ >d objDirSetParent
+	2 d@ >d 2 d@ >d objDirSetParent
+	1 d@ >d 1 d@ >d objDirSetParent
+
+	objEntNew d> 0=if S"   walk2: e1" >d >d type cr bye then
+	objEntNew d> 0=if S"   walk2: e2" >d >d type cr bye then
+	objEntNew d> 0=if S"   walk2: e3" >d >d type cr bye then
+	objEntNew d> 0=if S"   walk2: e4" >d >d type cr bye then
+
+	( root sd1 sd2 sd3 sd4 e1 e2 e3 e4 )
+	
+	S" sd1" >d >d 5 d@ >d objEntSetName d> 0=if S"   walk2: name sd1" >d >d type cr bye then
+	S" sd2" >d >d 4 d@ >d objEntSetName d> 0=if S"   walk2: name sd2" >d >d type cr bye then
+	S" sd3" >d >d 3 d@ >d objEntSetName d> 0=if S"   walk2: name sd3" >d >d type cr bye then
+	S" sd4" >d >d 2 d@ >d objEntSetName d> 0=if S"   walk2: name sd4" >d >d type cr bye then
+
+	7 d@ >d 4 d@ >d objEntSetObject
+	6 d@ >d 3 d@ >d objEntSetObject
+	5 d@ >d 2 d@ >d objEntSetObject
+	4 d@ >d 1 d@ >d objEntSetObject
+
+	3 d@ >d 9 d@ >d objDirAddHead
+	2 d@ >d 9 d@ >d objDirAddHead
+	1 d@ >d 7 d@ >d objDirAddHead
+	0 d@ >d 6 d@ >d objDirAddHead
+
+	S" sd2/sd3/sd4" >d >d 10 d@ >d objDirWalk
+		d> 0=if S"   walk2: can't find sd4" >d >d type cr bye then
+		d> 4 d@ xor if S"   walk2: sd4 expected" >d >d type cr bye then
+
+	objEntDispose objEntDispose objEntDispose objEntDispose
+	objDirDispose objDirDispose objDirDispose objDirDispose objDirDispose ;
+
 : objDirTest
 	S" objdir:" >d >d type cr
-	objDirTCreate objDirTParent objDirTEmpty objDirTFirst objDirTWalk
+	objDirTCreate objDirTParent objDirTEmpty objDirTFirst objDirTWalk1 objDirTWalk2
 	S" OK" >d >d type cr ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -620,6 +766,6 @@ dword: re	( points just beyond last character )
 : mem0		h# 2000 >d  d# 16777216 d# 8192 - >d fmtmem ;
 		( Nexys2 has 16MB of on-board RAM )
 
-: selfTest	memtest objEntTest objDirTest ;
+: selfTest	memtest strTest objEntTest objDirTest ;
 : _		cr banner mem0 selfTest romshell bye ;
 
