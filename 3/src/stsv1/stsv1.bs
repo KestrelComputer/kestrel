@@ -460,42 +460,82 @@ extern asmstrcmp
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
+\ Obj objects represent generic filing system objects in a
+\ unified name space.  ObjEnt structures refer to instances of
+\ Obj.  Depending on the nature of the object, they could be
+\ ObjDir, ObjFile, or some other Obj-derived entity.  Note that
+\ Obj *itself* is abstract, and cannot be instantiated in any
+\ meaningful sense on its own.  See ObjDir (below) for one way
+\ to refine Obj into something reifiable.
+
+\ Obj objects consist of a single field: a pointer to a jump
+\ table.
+
+8 const szObj
+
+\ Answers the object's jump table.
+
+: objVTable ( a -- a' )
+	d> @ >d ;
+
+\ Walks the object hierarchy by name, and if the named resource is
+\ found, return it and a true flag.  Otherwise, return a false flag.
+\
+\ Note that this procedure is recursive; it uses memory in proportion
+\ to the depth of the sought resource.  If the object tree is
+\ malformed so that a cycle exists, this procedure will overflow your
+\ stack and crash the system.
+
+: objWalk ( caddr u a -- a' -1 | ? 0 )
+	0 d@ >d objVTable call ;
+
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
 \ ObjDir objects map names to other (compatible) objects.  These
 \ form the basis for STS' filesystem abstraction.  They are
 \ essentially singly-linked lists of name->object pairs that
 \ happens to also know which ObjDir is its container.
 \ 
-\ +0	Parent
-\ +8	Pointer to first ObjEnt record, or NULL.
+\ +0	VTable
+\ +8	Parent
+\ +16	Pointer to first ObjEnt record, or NULL.
 
-16 const szObjDir
+24 const szObjDir
 
 \ Answers the directory's parent.  If the directory is the root
 \ directory, it will answer itself.
 
 : objDirParent ( a -- a' )
-	d> @ >d ;
-
+	d> d# 8 + @ >d ;
 
 \ Assigns the object a new parent.  Objects can belong to only 
 \ one parent.
 
 : objDirSetParent ( p a -- )
-	d> d> swap ! ;
-
+	d> d# 8 + d> swap ! ;
 
 \ Answers the first ObjEnt assigned to the directory.
 
 : objDirFirst ( a -- a' )
-	d> d# 8 + @ >d ;
+	d> d# 16 + @ >d ;
+
+\ Objects are polymorphic in some circumstances.  The following
+\ jump table provides linkage to the methods corresponding to
+\ object messages of similar names.
+
+jump-table: objDir_vtable
+jump-entries: objDirWalk ;
 
 \ Initializes an ObjDir.
 
 : objDirInit ( a -- a )
 	0 d@ >d szObjDir >d zermem
-	0 d@ 0 d@ ! ;		( we're a root directory )
+	objDir_vtable d> 0 d@ !				( vtable )
+	0 d@ >d 0 d@ >d objDirSetParent ;		( we're a root directory )
 
-\ Creates a new ObjDir directory object.
+\ Creates a new ObjDir directory object.  By default, it assumes
+\ it's a root directory.  Use objDirSetParent to change this.
 
 : objDirNew ( -- a -1 | ? 0 )
 	szObjDir >d getmem 0 d@ 0=if exit then d>
@@ -512,13 +552,13 @@ extern asmstrcmp
 
 : objDirAddHead ( e a -- )
 	0 d@ >d objDirFirst d> 1 d@ d# 16 + !	( set next field )
-	d> d# 8 + d> swap ! ;
+	d> d# 16 + d> swap ! ;
 
 \ Removes an ObjEnt from the head of the ObjDir's binding list.
 
 : objDirRemHead ( a -- a' )
 	0 d@ >d objDirFirst
-	0 d@ >d objEntNext  d> 1 d@ d# 8 + !
+	0 d@ >d objEntNext  d> 1 d@ d# 16 + !
 	d> 0 d! ;
 
 \ Walks the object hierarchy by name, and if the named resource is
@@ -529,6 +569,9 @@ extern asmstrcmp
 \ malformed so that a cycle exists, this procedure will overflow your
 \ stack and crash the system.
 
+: objWalk ( caddr u a -- a' -1 | ? 0 )
+	0 d@ >d objVTable call ;
+
 : objDirWalk ( caddr u a -- a' -1 | ? 0 )
 	1 d@ 0=if	( null name? )
 		0 d@ 2 d!  d# -1 1 d!  d>  exit
@@ -538,7 +581,7 @@ extern asmstrcmp
 		1 d@ >d 1 d@ >d 6 d@ >d objEntIsNamed d> if
 			3 d@ 6 d!  2 d@ 5 d!
 			d> d> d> d>
-			objEntObject objDirWalk exit
+			objEntObject objWalk exit
 		then
 		4 d@ >d objEntNext d> 4 d!
 	repeat d# 0 5 d! d> d> d> d> d> ;
@@ -766,6 +809,12 @@ dword: re	( points just beyond last character )
 : mem0		h# 2000 >d  d# 16777216 d# 8192 - >d fmtmem ;
 		( Nexys2 has 16MB of on-board RAM )
 
-: selfTest	memtest strTest objEntTest objDirTest ;
+jump-table: ctvt
+jump-entries: callTestProc banner ;
+
+: callTestProc	S" call:" >d >d type cr S" ok" >d >d type cr ;
+: callTest	ctvt call  ctvt d> d# 4 + >d call ;
+
+: selfTest	memtest callTest strTest objEntTest objDirTest ;
 : _		cr banner mem0 selfTest romshell bye ;
 
