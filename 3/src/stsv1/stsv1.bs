@@ -489,6 +489,11 @@ extern asmstrcmp
 : objWalk ( caddr u a -- a' -1 | ? 0 )
 	0 d@ >d objVTable call ;
 
+\ Disposes of the object.
+
+: objDispose ( a -- )
+	0 d@ >d objVTable d> d# 4 + >d call ;
+
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -525,7 +530,7 @@ extern asmstrcmp
 \ object messages of similar names.
 
 jump-table: objDir_vtable
-jump-entries: objDirWalk ;
+jump-entries: objDirWalk objDirDispose ;
 
 \ Initializes an ObjDir.
 
@@ -568,9 +573,6 @@ jump-entries: objDirWalk ;
 \ to the depth of the sought resource.  If the object tree is
 \ malformed so that a cycle exists, this procedure will overflow your
 \ stack and crash the system.
-
-: objWalk ( caddr u a -- a' -1 | ? 0 )
-	0 d@ >d objVTable call ;
 
 : objDirWalk ( caddr u a -- a' -1 | ? 0 )
 	1 d@ 0=if	( null name? )
@@ -678,12 +680,12 @@ jump-entries: objDirWalk ;
 	1 d@ >d 7 d@ >d objDirAddHead
 	0 d@ >d 6 d@ >d objDirAddHead
 
-	S" sd2/sd3/sd4" >d >d 10 d@ >d objDirWalk
+	S" sd2/sd3/sd4" >d >d 10 d@ >d objWalk
 		d> 0=if S"   walk2: can't find sd4" >d >d type cr bye then
 		d> 4 d@ xor if S"   walk2: sd4 expected" >d >d type cr bye then
 
 	objEntDispose objEntDispose objEntDispose objEntDispose
-	objDirDispose objDirDispose objDirDispose objDirDispose objDirDispose ;
+	objDispose objDispose objDispose objDispose objDispose ;
 
 : objDirTest
 	S" objdir:" >d >d type cr
