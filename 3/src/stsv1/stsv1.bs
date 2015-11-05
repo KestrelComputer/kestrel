@@ -31,6 +31,12 @@ extern call
 : _16		_4 _4 _4 _4 ;
 : _64		_16 _16 _16 _16 d> ;
 
+\ Filesystem error codes.
+
+-1 const ErrNotFound	( resource not found )
+-2 const ErrRelative	( path not absolute )
+-3 const ErrIsIterable	( resource is not a file, but requires iteration )
+
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 \ These routines provide a dynamic memory management facility, allowing
@@ -494,6 +500,11 @@ extern asmstrcmp
 : objDispose ( a -- )
 	0 d@ >d objVTable d> d# 4 + >d call ;
 
+\ Opens the resource.  If successful, an SCB is returned to the user.
+\ Otherwise a failure flag is returned.
+
+: objOpen ( a -- scb 0 | ? errcode )
+	0 d@ >d objVTable d> d# 8 + >d call ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -530,7 +541,12 @@ extern asmstrcmp
 \ object messages of similar names.
 
 jump-table: objDir_vtable
-jump-entries: objDirWalk objDirDispose ;
+jump-entries: objDirWalk objDirDispose objDirOpen ;
+
+\ Attempt to open a directory should return ErrIsIterable.
+
+: objDirOpen ( a -- ? ErrIsIterable )
+	ErrIsIterable >d ;
 
 \ Initializes an ObjDir.
 
@@ -694,6 +710,52 @@ jump-entries: objDirWalk objDirDispose ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
+\ The filesystem interface is responsible for maintaining an
+\ in-memory description of the current filesystem layout, as
+\ well as providing methods of accessing resources in the
+\ filesystem.
+
+\ open attempts to resolve the given filename to a resource,
+\ and asks the resource to create a new connection to it.
+\ If successful, a stream control block (SCB) is returned to
+\ the caller; otherwise, a nil result is returned, along with
+\ an error code.
+
+dword: rootnode
+
+: open ( caddr u -- scb 0 | ? errcode )
+	0 d@ 0=if ErrNotFound 0 d! exit then
+	1 d@ c@  char / lit,  xor if ErrRelative 0 d! exit then
+	1 d@ d# 1 + 1 d!  0 d@ d# 1 - 0 d!	( eat the / )
+	rootnode @ >d objWalk
+	d> 0=if ErrNotFound 0 d! exit then
+	objOpen ;
+
+: fsTOpen
+	objDirNew d> 0=if S"   open: root dir" >d >d type cr bye then
+	d> rootnode !
+
+	objDirNew d> 0=if S"   open: subdir" >d >d type cr bye then
+	rootnode @ >d 1 d@ >d objDirSetParent
+	objEntNew d> 0=if S"   open: subdir name" >d >d type cr bye then
+	S" aDir" >d >d 2 d@ >d objEntSetName d>
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d rootnode @ >d objDirAddHead
+
+	_emptystr open d> ErrNotFound xor if S"   open: how to find unnamed file?" >d >d type cr bye then d>
+	S" aDir" >d >d open d> ErrRelative xor if S"   open: only absolute names" >d >d type cr bye then d>
+	S" /aDir" >d >d open d> ErrIsIterable xor if S"   open: dirs are iterables" >d >d type cr bye then d>
+
+	objEntDispose
+	objDispose  rootnode @ >d objDispose ;
+
+: fsTest
+	S" fs:" >d >d type cr
+	fsTOpen
+	S" ok" >d >d type cr ;
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
 \ The ROM-resident shell.  Eventually, this will be placed into
 \ an executable that resides in the ROM filesystem.  From there,
 \ it will eventually find its way onto removable media (e.g.,
@@ -817,6 +879,6 @@ jump-entries: callTestProc banner ;
 : callTestProc	S" call:" >d >d type cr S" ok" >d >d type cr ;
 : callTest	ctvt call  ctvt d> d# 4 + >d call ;
 
-: selfTest	memtest callTest strTest objEntTest objDirTest ;
+: selfTest	memtest callTest strTest objEntTest objDirTest fsTest ;
 : _		cr banner mem0 selfTest romshell bye ;
 
