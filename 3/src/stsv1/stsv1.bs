@@ -725,10 +725,17 @@ jump-entries: objDirWalk objDirDispose objDirOpen ;
 \ +8	rom file pointer
 \ +16	read index
 
+( Placed here to eliminate circular dependency. )
+: romFileGetContents ( a -- caddr u )
+	0 d@ d# 16 + @ >d  1 d@ d# 8 + @ 1 d! ;
+
 24 const szRomScb
 
 jump-table: romScb_vtable
-jump-entries: romScbDispose romScbRead ;
+jump-entries: romScbDispose romScbRead romScbSize ;
+
+: romScbSize ( a -- n )
+	d> d# 8 + @ >d romFileGetContents 0 d@ 1 d! d> ;
 
 : romScbNew ( -- a -1 | ? 0 )
 	szRomScb >d getmem d> 0=if d# 0 exit then
@@ -741,10 +748,6 @@ jump-entries: romScbDispose romScbRead ;
 
 : romScbSetFile ( scb a -- )
 	1 d@ 0 d@ d# 8 + !  d> d> ;
-
-( Placed here to eliminate circular dependency. )
-: romFileGetContents ( a -- caddr u )
-	0 d@ d# 16 + @ >d  1 d@ d# 8 + @ 1 d! ;
 
 : romScbRead ( caddr u scb -- actual errCode )
 	0 d@ d# 8 + @ >d romFileGetContents	( caddr u scb base len )
@@ -810,6 +813,7 @@ dword: rootnode
 \ 
 \ +0	close	( scb -- )
 \ +4	read	( caddr u scb -- actual errcode )
+\ +8	filsiz	( scb -- file-size )
 
 : scbVTable ( a -- a' )
 	objVTable ;
@@ -820,8 +824,47 @@ dword: rootnode
 : close ( scb -- )
 	0 d@ >d scbVTable call ;
 
+\ Read in the next sequence of bytes from the resource represented
+\ by the SCB.  If the resource is not readable, an error will result.
+\ Otherwise, the actual number of bytes read will be returned.
+\ If 0 bytes are returned, you may be at the end of the stream.
+
 : read ( caddr u scb -- actual 0 | ? errcode )
 	0 d@ >d scbVTable d> d# 4 + >d call ;
+
+\ Determine the size of a file without changing the read/write pointer.
+
+: filsiz ( scb -- n )
+	0 d@ >d scbVTable d> d# 8 + >d call ;
+
+\ Unloads a program from memory.
+
+: unloadseg ( seg -- )
+	fremem ;
+
+\ Load a set of program segments into memory, and if required,
+\ perform appropriate relocations so that the loaded code may be
+\ executable in-place.
+
+: loadseg ( caddr u -- seg 0 | ? errcode )
+	open 0 d@ if exit then d>
+	0 d@ >d filsiz  ( h fsize )
+	0 d@ >d getmem d> 0=if
+		( h fsize ? )
+		2 d@ 0 d! close
+		ErrNoMemory 0 d! exit
+	then
+	( h fsize seg )
+	0 d@ >d 2 d@ >d 4 d@ >d read
+	( h fsize seg actual flag )
+	0 d@ if
+		d> 2 d! d> unloadseg 1 d@ >d close exit
+	then d>
+	0 d@ 2 d@ xor if
+		ErrTooBig 2 d! d> unloadseg 1 d@ >d close exit
+	then d>
+	2 d@ >d close
+	0 d@ 2 d!  d# 0 1 d!  d> ;
 
 : fsTOpenDir
 	objDirNew d> 0=if S"   opendir: root dir" >d >d type cr bye then
@@ -840,7 +883,7 @@ dword: rootnode
 
 	objEntDispose objDispose  rootnode @ >d objDispose ;
 
-: fsTOpenFile
+: fsTOpenFileSetup
 	objDirNew d> 0=if S"   openfil: root dir" >d >d type cr bye then
 	d> rootnode !
 
@@ -850,8 +893,13 @@ dword: rootnode
 	objEntNew d> 0=if S"   openfil: filename" >d >d type cr bye then
 	S" aFile" >d >d 2 d@ >d objEntSetName d>
 	1 d@ >d 1 d@ >d objEntSetObject
-	0 d@ >d rootnode @ >d objDirAddHead
+	0 d@ >d rootnode @ >d objDirAddHead ;
 
+: fsTOpenFileCleanup
+	objEntDispose objDispose rootnode @ >d objDispose ;
+
+: fsTOpenFile
+	fsTOpenFileSetup
 	S" /aFile" >d >d open d> if S"   openfil: file should have opened" >d >d type cr bye then
 
 	( WARNING: I'm going to corrupt high memory here. )
@@ -878,11 +926,17 @@ dword: rootnode
 	d> d# 1 xor if S"   openfil: read 4: length mismatch" >d >d type cr bye then
 	h# FF0000 >d d# 1 >d S" F" >d >d strEql d> 0=if S"   openfil: read 4: bytes mismatch" >d >d type cr bye then
 
-	close objEntDispose objDispose rootnode @ >d objDispose ;
+	close fsTOpenFileCleanup ;
+
+: fsTLoadSeg
+	fsTOpenFileSetup
+	S" /aFile" >d >d loadseg
+	d> if S"   loadseg: expected to work" >d >d type cr bye then
+	unloadseg fsTOpenFileCleanup ;
 
 : fsTest
 	S" fs:" >d >d type cr
-	fsTOpenDir fsTOpenFile
+	fsTOpenDir fsTOpenFile fsTLoadSeg
 	S" ok" >d >d type cr ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
