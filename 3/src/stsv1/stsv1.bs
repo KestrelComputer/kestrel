@@ -37,6 +37,7 @@ extern call
 -2 const ErrRelative	( path not absolute )
 -3 const ErrIsIterable	( resource is not a file, but requires iteration )
 -4 const ErrNoMemory	( out of memory )
+-5 const ErrTooBig	( request is too big )
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -710,7 +711,16 @@ jump-entries: objDirWalk objDirDispose objDirOpen ;
 	S" OK" >d >d type cr ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ ROM-resident "files" are just binary blobs stored in ROM,
+\ with descriptors to record their location.  Really, they're
+\ not much more sophisticated than strings.
+\
+\ +0	vtable
+\ +8	base pointer of binary data
+\ +16	length of binary data in bytes
+\
 \ ROM-resident files which are opened have their own SCBs.
+\ 
 \ +0	vtable
 \ +8	rom file pointer
 \ +16	read index
@@ -718,7 +728,7 @@ jump-entries: objDirWalk objDirDispose objDirOpen ;
 24 const szRomScb
 
 jump-table: romScb_vtable
-jump-entries: romScbDispose ;
+jump-entries: romScbDispose romScbRead ;
 
 : romScbNew ( -- a -1 | ? 0 )
 	szRomScb >d getmem d> 0=if d# 0 exit then
@@ -729,16 +739,24 @@ jump-entries: romScbDispose ;
 : romScbDispose ( a -- )
 	fremem ;
 
-: romScbSetFile ( romF a -- )
+: romScbSetFile ( scb a -- )
 	1 d@ 0 d@ d# 8 + !  d> d> ;
 
-\ ROM-resident "files" are just binary blobs stored in ROM,
-\ with descriptors to record their location.  Really, they're
-\ not much more sophisticated than strings.
-\
-\ +0	vtable
-\ +8	base pointer of binary data
-\ +16	length of binary data in bytes
+( Placed here to eliminate circular dependency. )
+: romFileGetContents ( a -- caddr u )
+	0 d@ d# 16 + @ >d  1 d@ d# 8 + @ 1 d! ;
+
+: romScbRead ( caddr u scb -- actual errCode )
+	0 d@ d# 8 + @ >d romFileGetContents	( caddr u scb base len )
+	2 d@ d# 16 + @ 3 d@ +  0 d@ d# 1 +  -  -if
+		1 d@ 2 d@ d# 16 + @ + >d
+		5 d@ >d
+		5 d@ >d movmem
+		2 d@ d# 16 + @  3 d@ +  2 d@ d# 16 + !
+		3 d@ 4 d!  d# 0 3 d!
+		d> d> d> exit
+	then
+	0 d@  2 d@ d# 16 + @  -  3 d! d> d> romScbRead ;
 
 24 const szRomFile
 
@@ -751,9 +769,6 @@ jump-entries: romFileWalk fremem romFileOpen ;
 
 : romFileSetContents ( caddr u a -- )
 	2 d@ 0 d@ d# 8 + !   1 d@ 0 d@ d# 16 + !  d> d> d> ;
-
-: romFileGetContents ( a -- caddr u )
-	0 d@ d# 16 + @ >d  1 d@ d# 8 + @ 1 d! ;
 
 : romFileOpen ( a -- scb 0 | ? errcode )
 	romScbNew d> 0=if ErrNoMemory >d exit then
@@ -789,6 +804,13 @@ dword: rootnode
 	d> 0=if ErrNotFound 0 d! exit then
 	objOpen ;
 
+\ SCBs have different implementations completely; they're opaque
+\ data types as far as the client is concerned.  However, they
+\ all share one thing in common: the layout of their v-table.
+\ 
+\ +0	close	( scb -- )
+\ +4	read	( caddr u scb -- actual errcode )
+
 : scbVTable ( a -- a' )
 	objVTable ;
 
@@ -797,6 +819,9 @@ dword: rootnode
 
 : close ( scb -- )
 	0 d@ >d scbVTable call ;
+
+: read ( caddr u scb -- actual 0 | ? errcode )
+	0 d@ >d scbVTable d> d# 4 + >d call ;
 
 : fsTOpenDir
 	objDirNew d> 0=if S"   opendir: root dir" >d >d type cr bye then
@@ -828,7 +853,31 @@ dword: rootnode
 	0 d@ >d rootnode @ >d objDirAddHead
 
 	S" /aFile" >d >d open d> if S"   openfil: file should have opened" >d >d type cr bye then
-		
+
+	( WARNING: I'm going to corrupt high memory here. )
+	( I can do this because self-tests run BEFORE the OS actually boots. )
+	( But, if you see weird bugs, remove me and replace me with a proper getmem'd buffer. )
+
+	h# FF0000 >d d# 5 >d 2 d@ >d read
+	d> if S"   openfil: read 1: should have worked" >d >d type cr bye then
+	d> d# 5 xor if S"   openfil: read 1: length mismatch" >d >d type cr bye then
+	h# FF0000 >d d# 5 >d S" 01234" >d >d strEql d> 0=if S"   openfil: read 1: bytes mismatch" >d >d type cr bye then
+
+	h# FF0000 >d d# 5 >d 2 d@ >d read
+	d> if S"   openfil: read 2: should have worked" >d >d type cr bye then
+	d> d# 5 xor if S"   openfil: read 2: length mismatch" >d >d type cr bye then
+	h# FF0000 >d d# 5 >d S" 56789" >d >d strEql d> 0=if S"   openfil: read 2: bytes mismatch" >d >d type cr bye then
+
+	h# FF0000 >d d# 5 >d 2 d@ >d read
+	d> if S"   openfil: read 3: should have worked" >d >d type cr bye then
+	d> d# 5 xor if S"   openfil: read 3: length mismatch" >d >d type cr bye then
+	h# FF0000 >d d# 5 >d S" ABCDE" >d >d strEql d> 0=if S"   openfil: read 3: bytes mismatch" >d >d type cr bye then
+
+	h# FF0000 >d d# 5 >d 2 d@ >d read
+	d> if S"   openfil: read 4: should have worked" >d >d type cr bye then
+	d> d# 1 xor if S"   openfil: read 4: length mismatch" >d >d type cr bye then
+	h# FF0000 >d d# 1 >d S" F" >d >d strEql d> 0=if S"   openfil: read 4: bytes mismatch" >d >d type cr bye then
+
 	close objEntDispose objDispose rootnode @ >d objDispose ;
 
 : fsTest
