@@ -941,21 +941,6 @@ dword: rootnode
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
-\ Filesystem Dispatcher and API
-
-
-\ loadseg is used to bring a program image into memory.
-\ unloadseg frees that memory.
-\
-\ loadseg ( caddr u -- a 0 | ? err )
-\ unloadseg ( a -- )
-
-: loadseg	d> d> d# 0 >d d# 123 >d ;
-
-: unloadseg	d> ;
-
-\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-
 \ The ROM-resident shell.  Eventually, this will be placed into
 \ an executable that resides in the ROM filesystem.  From there,
 \ it will eventually find its way onto removable media (e.g.,
