@@ -21,6 +21,7 @@ romtagtest:	auipc	gp, 0
 		jal	ra, rt2		; bad checksum
 		jal	ra, rt3		; matchword 1
 		jal	ra, rt4		; matchword 2
+		jal	ra, rt5		; dword alignment
 
 		ld	ra, 0(rsp)
 		addi	rsp, rsp, 8
@@ -79,7 +80,7 @@ rt2:		auipc	gp, 0
 		addi	rsp, rsp, -8
 		sd	ra, 0(rsp)
 		addi	dsp, dsp, -8
-		addi	x16, gp, invalidrt-rt1
+		addi	x16, gp, invalidrt-rt2
 		sd	x16, 0(dsp)
 		jal	ra, isromtag
 		ld	x16, 0(dsp)
@@ -114,7 +115,7 @@ rt3:		auipc	gp, 0
 		addi	rsp, rsp, -8
 		sd	ra, 0(rsp)
 		addi	dsp, dsp, -8
-		addi	x16, gp, invalidrt2-rt1
+		addi	x16, gp, invalidrt2-rt3
 		sd	x16, 0(dsp)
 		jal	ra, isromtag
 		ld	x16, 0(dsp)
@@ -149,7 +150,7 @@ rt4:		auipc	gp, 0
 		addi	rsp, rsp, -8
 		sd	ra, 0(rsp)
 		addi	dsp, dsp, -8
-		addi	x16, gp, invalidrt3-rt1
+		addi	x16, gp, invalidrt3-rt4
 		sd	x16, 0(dsp)
 		jal	ra, isromtag
 		ld	x16, 0(dsp)
@@ -168,6 +169,42 @@ rt4fail:	auipc	gp, 0
 		jal	ra, cr
 		jal	x0, bye
 
+; Given an address to a RomTag with a poor alignment, isromtag should
+; yield false.
+
+rt5fmsg:	byte	"   rt5"
+rt5flen		= *-rt5fmsg
+
+		align	8
+		word	0
+invalidrt4:	word	$c0de0000, $0000da7a, 1, $FFFFFFFF-($c0de0000+$da7a+9)
+		word	1, 1, 1, 1
+		word	1, 1, 1, 1
+
+		align	4
+rt5:		auipc	gp, 0
+		addi	rsp, rsp, -8
+		sd	ra, 0(rsp)
+		addi	dsp, dsp, -8
+		addi	x16, gp, invalidrt4-rt5
+		sd	x16, 0(dsp)
+		jal	ra, isromtag
+		ld	x16, 0(dsp)
+		bne	x16, x0, rt5fail
+		addi	dsp, dsp, 8
+		ld	ra, 0(rsp)
+		addi	rsp, rsp, 8
+		jalr	x0, 0(ra)
+rt5fail:	auipc	gp, 0
+		addi	dsp, dsp, -8
+		addi	x16, gp, rt5fmsg-rt5fail
+		sd	x16, 8(dsp)
+		addi	x16, x0, rt5flen
+		sd	x16, 0(dsp)
+		jal	ra, type
+		jal	ra, cr
+		jal	x0, bye
+
 ;
 ; Answers true if the specified RomTag is valid.
 ;
@@ -179,6 +216,9 @@ isrtm1:		word	$c0de0000
 isrtm2:		word	$0000da7a
 isromtag:	auipc	gp, 0
 		ld	t0, 0(dsp)	; T0 -> RomTag
+
+		andi	t1, t0, 7	; Verify alignment
+		bne	t1, x0, isrtn
 
 		lw	t1, 0(t0)	; Check first matchword
 		lw	t2, isrtm1-isromtag(gp)
