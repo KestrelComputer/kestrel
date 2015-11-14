@@ -1059,8 +1059,6 @@ dword: re	( points just beyond last character )
 	d> d>
   again ;
 
-\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-
 \ Luke-warm boot.  After BSPL's start-up code completes, it jumps to _
 \ (yes, that's a single underscore).  BSPL's runtime does not expect _ to
 \ return.
@@ -1075,6 +1073,10 @@ jump-entries: callTestProc banner ;
 : callTestProc	S" call:" >d >d type cr S" ok" >d >d type cr ;
 : callTest	ctvt call  ctvt d> d# 4 + >d call ;
 
-: selfTest	memtest callTest strTest objEntTest objDirTest fsTest ;
+extern romtagtest
+
+: selfTest	memtest callTest strTest objEntTest objDirTest fsTest
+		romtagtest ;
+
 : _		cr banner mem0 selfTest romshell bye ;
 

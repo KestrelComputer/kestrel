@@ -22,6 +22,7 @@ a3		= x10
 t1		= x11
 t2		= x12
 
+		include	"romtag.asm"
 		include	"stsv1.asm"
 
 ; The following string-compare software comes from a ROM-resident Forth
