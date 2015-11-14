@@ -654,6 +654,15 @@ jump-entries: objDirWalk objDirDispose objDirOpen ;
 
 	objEntDispose objDirDispose objDirDispose ;
 	
+: objDirTWalk3
+	objDirNew d> 0=if S"   walk3: dir" >d >d type cr bye then
+	h# DEADBEEF >d h# FEEDFACE >d S" foobar" >d >d 4 d@ >d objWalk
+	d> if S"   walk3: failure expected" >d >d type cr bye then
+	d>
+	d> h# FEEDFACE xor if S"   walk3: stack imbalance 1" >d >d type cr bye then
+	d> h# DEADBEEF xor if S"   walk3: stack imbalance 2" >d >d type cr bye then
+	objDispose ;
+
 : objDirTWalk2
 	\ Construct the following object tree:
 	\
@@ -707,7 +716,7 @@ jump-entries: objDirWalk objDirDispose objDirOpen ;
 
 : objDirTest
 	S" objdir:" >d >d type cr
-	objDirTCreate objDirTParent objDirTEmpty objDirTFirst objDirTWalk1 objDirTWalk2
+	objDirTCreate objDirTParent objDirTEmpty objDirTFirst objDirTWalk1 objDirTWalk2 objDirTWalk3
 	S" OK" >d >d type cr ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -804,7 +813,7 @@ dword: rootnode
 	1 d@ c@  char / lit,  xor if ErrRelative 0 d! exit then
 	1 d@ d# 1 + 1 d!  0 d@ d# 1 - 0 d!	( eat the / )
 	rootnode @ >d objWalk
-	d> 0=if ErrNotFound 0 d! exit then
+	d> 0=if ErrNotFound >d exit then
 	objOpen ;
 
 \ SCBs have different implementations completely; they're opaque
@@ -1118,6 +1127,7 @@ dword: re	( points just beyond last character )
 	1 d@ >d 1 d@ >d loadseg d> if
 		d> type unknown cr
 	else
+		S" Hello world!" >d >d type cr
 		unloadseg
 		d> d>
 	then
@@ -1132,6 +1142,30 @@ dword: re	( points just beyond last character )
 : mem0		h# 2000 >d  d# 16777216 d# 8192 - >d fmtmem ;
 		( Nexys2 has 16MB of on-board RAM )
 
+: fs0
+	objDirNew d> 0=if S" dir / failed" >d >d panic then
+	d> rootnode !
+
+	objDirNew d> 0=if S" dir /rom failed" >d >d panic then
+	objEntNew d> 0=if S" ent /rom failed" >d >d panic then
+	S" rom" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom failed" >d >d panic then
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d rootnode @ >d objDirAddHead
+
+	( root[dir ent] )
+
+	romFileNew d> 0=if S" fil /rom/foo failed" >d >d panic then
+	S" Hello" >d >d 2 d@ >d romFileSetContents
+	objEntNew d> 0=if S" ent /rom/foo failed" >d >d panic then
+	S" foo" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/foo failed" >d >d panic then
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d 4 d@ >d objDirAddHead
+
+	( root[dir ent] foo[fil ent] )
+
+	d> d> d> d> ;
+
+
 jump-table: ctvt
 jump-entries: callTestProc banner ;
 
@@ -1142,5 +1176,5 @@ jump-entries: callTestProc banner ;
 : selfTest	memtest callTest strTest objEntTest objDirTest fsTest
 		romtagtest ;
 
-: _		cr banner mem0 selfTest romshell bye ;
+: _		cr banner mem0 selfTest fs0 romshell bye ;
 
