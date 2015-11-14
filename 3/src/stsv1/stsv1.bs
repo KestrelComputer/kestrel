@@ -849,21 +849,34 @@ dword: rootnode
 \ Unloads a program from memory.
 
 : unloadseg ( seg -- )
-	fremem ;
+	0 d@ d# 16 - 0 d! fremem ;
 
-\ Load a set of program segments into memory, and if required,
-\ perform appropriate relocations so that the loaded code may be
-\ executable in-place.
+\ Load a set of program segments into memory, and if required
+\ for the executable format, perform appropriate relocations
+\ so that the loaded code may be executable in-place.
+\ 
+\ If successful, a reference to the first (of potentially many)
+\ segments will be returned, along with a success code of zero.
+\ Otherwise, the segment reference is undefined, and an error
+\ code is returned.
+\ 
+\ Note that the segment reference returned points to the first
+\ actual byte of data or code.  Segment-specific linkage appears
+\ at negative offsets from this reference.
 
 : loadseg ( caddr u -- seg 0 | ? errcode )
 	open 0 d@ if exit then d>
 	0 d@ >d filsiz  ( h fsize )
-	0 d@ >d getmem d> 0=if
+	0 d@ d# 16 + >d getmem d> 0=if
 		( h fsize ? )
 		2 d@ 0 d! close
 		ErrNoMemory 0 d! exit
 	then
 	( h fsize seg )
+	d# 0 0 d@ !		( next link is null )
+	1 d@ 0 d@ d# 8 + !	( size of segment data )
+	0 d@ d# 16 + 0 d!	( refer to the data bytes from now on )
+
 	0 d@ >d 2 d@ >d 4 d@ >d read
 	( h fsize seg actual flag )
 	0 d@ if
