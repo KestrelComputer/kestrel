@@ -1158,11 +1158,10 @@ $a652d8fc93a8b317 const IID_ISTSExecutable_L
 		d> if	( seg iidlo iidhi end addr )
 			S" Hello world!" >d >d type cr
 			d> d> d> d>
-			unloadseg
 		else
-			unloadseg
-			type S" : not an executable" >d >d type cr
+			2 d@ >d 2 d@ >d type S" : not an executable" >d >d type cr
 		then
+		unloadseg
 		d> d>
 	then
 	d> d>
