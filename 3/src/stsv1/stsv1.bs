@@ -846,6 +846,15 @@ dword: rootnode
 : filsiz ( scb -- n )
 	0 d@ >d scbVTable d> d# 8 + >d call ;
 
+\ Answers the first and last byte of memory encompassed by
+\ the first segment of the segment(s) referenced.  This
+\ function's primary utility is in looking for romtags.
+\ See also findtag.
+
+: segspan ( seg -- end start )
+	0 d@ >d					( seg start )
+	1 d@ d# -8 + @ 0 d@ + d# 1 - 1 d! ;	( end start )
+
 \ Unloads a program from memory.
 
 : unloadseg ( seg -- )
@@ -1134,14 +1143,26 @@ dword: re	( points just beyond last character )
 
 : cmd		skipws 1 d@ >r skipnws 1 d@ 0 r@ - r> >d >d ;
 
+$3b506cb48b1311e5 const IID_ISTSExecutable_H
+$a652d8fc93a8b317 const IID_ISTSExecutable_L
+
 : romshell
   cr ident initsh
   begin	prompt accept cr cmd
 	1 d@ >d 1 d@ >d loadseg d> if
 		d> type unknown cr
 	else
-		S" Hello world!" >d >d type cr
-		unloadseg
+		IID_ISTSExecutable_L >d
+		IID_ISTSExecutable_H >d
+		2 d@ >d segspan findtag
+		d> if	( seg iidlo iidhi end addr )
+			S" Hello world!" >d >d type cr
+			d> d> d> d>
+			unloadseg
+		else
+			unloadseg
+			type S" : not an executable" >d >d type cr
+		then
 		d> d>
 	then
 	d> d>
