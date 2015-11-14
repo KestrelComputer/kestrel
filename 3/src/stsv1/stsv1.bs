@@ -939,6 +939,71 @@ dword: rootnode
 	fsTOpenDir fsTOpenFile fsTLoadSeg
 	S" ok" >d >d type cr ;
 
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\
+\ RomTag structures are intended to stand out when sought.
+\ Embedded in code, they serve to point out to some other program
+\ some important detail about the block of memory (usually code)
+\ in which they sit.
+\ 
+\ +0	Match word 1.  This MUST be $C0DE0000.
+\ +4	Match word 2.  This MUST be $0000DA7A.
+\ +8	How many bytes to skip before finding the next RomTag.
+\ +12	Checksum.
+\ +16	128-bit component object interface ID.
+\ +32	Offset to component object.
+\ +40	Reserved; must be set to zero.
+\ +44	Reserved; must be set to zero.
+\ 
+\ A valid RomTag satisfies the following criteria:
+\ 
+\ 1.  All fields, when viewed as 32-bit words, must add up to $FFFFFFFF.
+\ 2.  The RomTag must be aligned on an 8-byte boundary.
+\ 3.  The offset to the component object is relative to the RomTag itself.
+\
+\ See romtag.asm for documentation on isromtag.
+extern isromtag
+
+\ Given a region of memory to scan, starting with start and ending with end,
+\ try to find a RomTag for an object with the provided interface (iidLo and
+\ iidHi).  If one is found, return its address and a success flag, such that,
+\ with minimum stack manipulation, continued application in a loop will find
+\ succeeding RomTags.  If no RomTag exists, pop everything off the stack and
+\ return a failure code.
+
+: findtag ( iidLo iidHi end start -- iidLo iidHi end addr -1 | 0 )
+	begin
+		0 d@ 1 d@ - +if  d> d> d> d> d# 0 >d exit  then
+		0 d@ >d isromtag d> if
+			0 d@ d# 16 + @ 2 d@ xor 0=if
+				0 d@ d# 24 + @ 3 d@ xor 0=if
+					d# -1 >d exit
+				then
+			then
+		then
+		0 d@ d# 8 + 0 d!
+	again ;
+
+extern rt1
+extern rt2
+extern rt3
+extern rt4
+extern rt5
+
+: rt6	h# 100000001 >d h# 100000001 >d d# -1 >d d# -1048576 >d findtag
+	d> d# -1 xor if S"   rt6: 1st" >d >d type cr bye then
+	d> d# 8 + >d findtag
+	d> d# -1 xor if S"   rt6: 2nd" >d >d type cr bye then
+	d> d> d> d> ;
+
+: rt7	h# ABCD >d h# DEF0 >d d# -1 >d d# -1048576 >d findtag
+	d> if S"   rt7" >d >d type cr bye then ;
+
+: romtagtest
+	S" romtag:" >d >d type cr
+	rt1 rt2 rt3 rt4 rt5 rt6 rt7
+	S" ok" >d >d type cr ;
+
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 \ The ROM-resident shell.  Eventually, this will be placed into
@@ -1073,7 +1138,6 @@ jump-entries: callTestProc banner ;
 : callTestProc	S" call:" >d >d type cr S" ok" >d >d type cr ;
 : callTest	ctvt call  ctvt d> d# 4 + >d call ;
 
-extern romtagtest
 
 : selfTest	memtest callTest strTest objEntTest objDirTest fsTest
 		romtagtest ;

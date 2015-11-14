@@ -1,32 +1,3 @@
-; romtagtest drives the test cases for RomTag support.
-; This procedure will never return if a test fails.
-
-romtagmsg:	byte	"romtag:"
-romtaglen	= *-romtagmsg
-
-		align	4
-romtagtest:	auipc	gp, 0
-		addi	rsp, rsp, -8
-		sd	ra, 0(rsp)
-
-		addi	dsp, dsp, -16
-		addi	x16, gp, romtagmsg-romtagtest
-		sd	x16, 8(dsp)
-		addi	x16, x0, romtaglen
-		sd	x16, 0(dsp)
-		jal	ra, type
-		jal	ra, cr
-
-		jal	ra, rt1		; happy path
-		jal	ra, rt2		; bad checksum
-		jal	ra, rt3		; matchword 1
-		jal	ra, rt4		; matchword 2
-		jal	ra, rt5		; dword alignment
-
-		ld	ra, 0(rsp)
-		addi	rsp, rsp, 8
-		jalr	x0, 0(ra)
-
 ; A valid, if bogus, RomTag
 
 rt1fmsg:	byte	"   rt1"
@@ -204,6 +175,12 @@ rt5fail:	auipc	gp, 0
 		jal	ra, type
 		jal	ra, cr
 		jal	x0, bye
+
+; The following RomTag exists purely to satisfy the rt6 test in stsv1.bs.
+
+		align	8
+		word	$c0de0000, $0000da7a, 0, $FFFFFFFF-($c0de0000+$da7a+8)
+		word	1, 1, 1, 1, 1, 1, 1, 1
 
 ;
 ; Answers true if the specified RomTag is valid.
