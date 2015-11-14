@@ -1043,6 +1043,19 @@ extern rt5
 \ disk or SD card).  The shell is present in ROM only for debug
 \ and bootstrapping purposes.
 
+\ COM interfaces relevant to shell executables.
+
+\ IUnknown interface w/ BSPL ABI has IID
+\ {617cd948-8b15-11e5-a652-d8fc93a8b317}.
+
+$617cd9488b1511e5 const IID_IUnknown_H
+$a652d8fc93a8b317 const IID_IUnknown_L
+
+\ ISTSExecutable interface has CLSID {3b506cb4-8b13-11e5-a652-d8fc93a8b317}.
+
+$3b506cb48b1311e5 const IID_ISTSExecutable_H
+$a652d8fc93a8b317 const IID_ISTSExecutable_L
+
 ( Some utilities which I think will become official STS procedures )
 
 \ Blocks until a valid ASCII character has been received from the
@@ -1142,9 +1155,6 @@ dword: re	( points just beyond last character )
   again ;
 
 : cmd		skipws 1 d@ >r skipnws 1 d@ 0 r@ - r> >d >d ;
-
-$3b506cb48b1311e5 const IID_ISTSExecutable_H
-$a652d8fc93a8b317 const IID_ISTSExecutable_L
 
 : romshell
   cr ident initsh
