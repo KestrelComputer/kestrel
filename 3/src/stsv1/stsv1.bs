@@ -1,3 +1,7 @@
+\ Get the version of the STS kernel.
+: getver ( -- rev minor major )
+	d# 0 >d  d# 5 >d  d# 1 >d  ;
+
 \ Exits the emulator with return code 0.
 extern bye
 
@@ -1084,13 +1088,27 @@ dword: re	( points just beyond last character )
 
 : cmd		skipws 1 d@ >r skipnws 1 d@ 0 r@ - r> >d >d ;
 
+: _write ;	( not implemented yet )
+: _seek ;	( not implemented yet )
+
+jump-table: sts_vt
+jump-entries: getver ; ( version identification )
+jump-entries: getmem fremem movmem setmem zermem ; ( memory management )
+jump-entries: open close filsiz read _write _seek ; ( file I/O )
+jump-entries: loadseg unloadseg ; ( executable I/O )
+jump-entries: strEql strDup strSplitSlash ; ( basic string library )
+jump-entries: emit type cr space _64 ;	( console output )
+
 : romshell
   cr ident initsh
   begin	prompt accept cr cmd
 	1 d@ >d 1 d@ >d loadseg d> if
 		d> type unknown cr
 	else
-		0 d@ d# 8 + >d call
+		( caddr u caddr' u' seg )
+		d# 0 >d sts_vt
+		2 d@ d# 8 + >d call
+		d> d>
 		unloadseg
 		d> d>
 	then
