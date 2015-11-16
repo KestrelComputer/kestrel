@@ -38,6 +38,7 @@ extern call
 -3 const ErrIsIterable	( resource is not a file, but requires iteration )
 -4 const ErrNoMemory	( out of memory )
 -5 const ErrTooBig	( request is too big )
+-6 const ErrNotExec	( file is not a recognized executable )
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -894,6 +895,9 @@ dword: rootnode
 	0 d@ 2 d@ xor if
 		ErrTooBig 2 d! d> unloadseg 1 d@ >d close exit
 	then d>
+	0 d@ @32 h# 8067 ( JALR X0, 0[X1] ) xor if
+		ErrNotExec 1 d! unloadseg 1 d@ >d close exit
+	then
 	2 d@ >d close
 	0 d@ 2 d!  d# 0 1 d!  d> ;
 
@@ -914,6 +918,8 @@ dword: rootnode
 
 	objEntDispose objDispose  rootnode @ >d objDispose ;
 
+word: dummy_hdr
+
 : fsTOpenFileSetup
 	objDirNew d> 0=if S"   openfil: root dir" >d >d type cr bye then
 	d> rootnode !
@@ -924,10 +930,19 @@ dword: rootnode
 	objEntNew d> 0=if S"   openfil: filename" >d >d type cr bye then
 	S" aFile" >d >d 2 d@ >d objEntSetName d>
 	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d rootnode @ >d objDirAddHead
+
+	romFileNew d> 0=if S"   openfil: exec" >d >d type cr bye then
+	dummy_hdr >d d# 4 >d 2 d@ >d romFileSetContents
+	h# 8067 dummy_hdr !
+
+	objEntNew d> 0=if S"   openfil: execname" >d >d type cr bye then
+	S" anExe" >d >d 2 d@ >d objEntSetName d>
+	1 d@ >d 1 d@ >d objEntSetObject
 	0 d@ >d rootnode @ >d objDirAddHead ;
 
 : fsTOpenFileCleanup
-	objEntDispose objDispose rootnode @ >d objDispose ;
+	objEntDispose objDispose objEntDispose objDispose rootnode @ >d objDispose ;
 
 : fsTOpenFile
 	fsTOpenFileSetup
@@ -961,7 +976,7 @@ dword: rootnode
 
 : fsTLoadSeg
 	fsTOpenFileSetup
-	S" /aFile" >d >d loadseg
+	S" /anExe" >d >d loadseg 0 d@ >d _64 cr 
 	d> if S"   loadseg: expected to work" >d >d type cr bye then
 	unloadseg fsTOpenFileCleanup ;
 
@@ -1042,19 +1057,6 @@ extern rt5
 \ it will eventually find its way onto removable media (e.g.,
 \ disk or SD card).  The shell is present in ROM only for debug
 \ and bootstrapping purposes.
-
-\ COM interfaces relevant to shell executables.
-
-\ IUnknown interface w/ BSPL ABI has IID
-\ {617cd948-8b15-11e5-a652-d8fc93a8b317}.
-
-$617cd9488b1511e5 const IID_IUnknown_H
-$a652d8fc93a8b317 const IID_IUnknown_L
-
-\ ISTSExecutable interface has CLSID {3b506cb4-8b13-11e5-a652-d8fc93a8b317}.
-
-$3b506cb48b1311e5 const IID_ISTSExecutable_H
-$a652d8fc93a8b317 const IID_ISTSExecutable_L
 
 ( Some utilities which I think will become official STS procedures )
 
@@ -1162,15 +1164,7 @@ dword: re	( points just beyond last character )
 	1 d@ >d 1 d@ >d loadseg d> if
 		d> type unknown cr
 	else
-		IID_ISTSExecutable_L >d
-		IID_ISTSExecutable_H >d
-		2 d@ >d segspan findtag
-		d> if	( seg iidlo iidhi end addr )
-			S" Hello world!" >d >d type cr
-			d> d> d> d>
-		else
-			2 d@ >d 2 d@ >d type S" : not an executable" >d >d type cr
-		then
+		0 d@ d# 8 + >d call
 		unloadseg
 		d> d>
 	then
@@ -1184,6 +1178,9 @@ dword: re	( points just beyond last character )
 : banner	S" Booting STS V1.5" >d >d type cr ;
 : mem0		h# 2000 >d  d# 16777216 d# 8192 - >d fmtmem ;
 		( Nexys2 has 16MB of on-board RAM )
+
+extern prg_hello_start
+extern prg_hello_len
 
 : fs0
 	objDirNew d> 0=if S" dir / failed" >d >d panic then
@@ -1203,10 +1200,19 @@ dword: re	( points just beyond last character )
 	S" foo" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/foo failed" >d >d panic then
 	1 d@ >d 1 d@ >d objEntSetObject
 	0 d@ >d 4 d@ >d objDirAddHead
+	d> d>
 
-	( root[dir ent] foo[fil ent] )
+	romFileNew d> 0=if S" fil /rom/hello failed" >d >d panic then
+	prg_hello_start prg_hello_len 2 d@ >d romFileSetContents
+	objEntNew d> 0=if S" ent /rom/hello failed" >d >d panic then
+	S" hello" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/hello failed" >d >d panic then
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d 4 d@ >d objDirAddHead
+	d> d>
 
-	d> d> d> d> ;
+	( root[dir ent] )
+
+	d> d> ;
 
 
 jump-table: ctvt
