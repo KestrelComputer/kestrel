@@ -11,16 +11,16 @@ used by a program running under the STS operating system.
 An executable file consists of an 8-byte header,
 followed by the actual software.
 
-		dword	$0000000000008067
-	start:	; code follows.
+                dword   $0000000000008067
+        start:  ; code follows.
 
 An assembler which produces only raw binary output
 is sufficient to generate the header, as above,
 or, it may generate it through the following sequence:
 
-		jalr	x0, 0(x1)
-		word	0
-	start:	; code follows
+                jalr    x0, 0(x1)
+                word    0
+        start:  ; code follows
 
 ## Code, Data, and BSS Segments
 
@@ -68,13 +68,13 @@ When a program is launched under STS, the registers are set
 as follows, according to the ABI established by the current
 BSPL compiler.
 
-	PC		Base address of the header, plus 8.
-	X1		Return Address to whatever launched your program
-	X2		Data Stack Pointer
-	X3		Return Stack Pointer
-	X4		Global Variables Pointer
-	X5..X15		Undefined; best not to use them without saving first.
-	X16..X31	Undefined; these needn't be saved.
+        PC              Base address of the header, plus 8.
+        X1              Return Address to whatever launched your program
+        X2              Data Stack Pointer
+        X3              Return Stack Pointer
+        X4              Global Variables Pointer
+        X5..X15         Undefined; best not to use them without saving first.
+        X16..X31        Undefined; these needn't be saved.
 
 ### PC
 
@@ -126,13 +126,13 @@ and to actually invoke STS system calls.
 
 The linkage structure MUST be laid out as follows on caller's data stack:
 
-	DSP+0		Pointer to STS system call jump table.
-	DSP+8		Return code (defaults to 0).
-	DSP+16		Undefined; reserved for the caller's use.
-	DSP+24		Length of the command name.
-	DSP+32		Address of the command name.
-	DSP+40		Length of the command tail.
-	DSP+48		Address of the command tail.
+        DSP+0           Pointer to STS system call jump table.
+        DSP+8           Return code (defaults to 0).
+        DSP+16          Undefined; reserved for the caller's use.
+        DSP+24          Length of the command name.
+        DSP+32          Address of the command name.
+        DSP+40          Length of the command tail.
+        DSP+48          Address of the command tail.
 
 #### STS System Call Jump Table
 
@@ -188,7 +188,7 @@ Neither STS nor its shells interpret the command tail.
 
 For instance, let's suppose you write the following command on the shell:
 
-	copy from /rom/* to /ramdisk all
+        copy from /rom/* to /ramdisk all
 
 The program, when run, will have the command name of `"copy"` (sans quotes)
 and the tail set to `" from /rom/* to /ramdisk all"`.
