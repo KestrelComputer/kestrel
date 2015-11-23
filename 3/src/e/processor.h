@@ -15,7 +15,7 @@ struct Processor {
 
 struct interface_Processor {
 	Processor *(*make)(AddressSpace *as);
-	void (*step)(Processor *);
+	void (*step)(Processor *, Timeline *);
 };
 
 extern const struct interface_Processor module_Processor;

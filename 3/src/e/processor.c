@@ -6,12 +6,15 @@
 #include "config.h"
 #include "options.h"
 #include "address_space.h"
+#include "timeline.h"
 #include "processor.h"
 
 
 extern const struct interface_AddressSpace module_AddressSpace;
 static const struct interface_AddressSpace *as = &module_AddressSpace;
 
+extern const struct interface_Timeline module_Timeline;
+static const struct interface_Timeline *tt = &module_Timeline;
 
 static void
 do_hostif(Processor *p) {
@@ -147,7 +150,7 @@ make(AddressSpace *as) {
 
 
 static void
-step(Processor *p) {
+step(Processor *p, Timeline *t) {
 	WORD ir;
 	int opc, rd, fn3, rs1, rs2, imm12, imm12s, disp12;
 	DWORD imm20, disp20, ia;
@@ -157,6 +160,7 @@ step(Processor *p) {
 	ia = p->pc;
 	ir = as->fetch_word(p->as, ia);
 	p->pc = ia + 4;
+	tt->step(t, 2);		// 32-bit fetches take 2 cycles over 16-bit bus.
 
 	/* This takes a bunch of time.  But it's still faster than live FPGA hardware.  ;) */
 	opc = ir & 0x7F;
@@ -249,37 +253,45 @@ step(Processor *p) {
 				case 0: // LB
 					p->x[rd] = as->fetch_byte(p->as, p->x[rs1] + imm12);
 					p->x[rd] |= -(p->x[rd] & 0x80);
+					tt->step(t, 1);
 					break;
 
 				case 1: // LH
 					p->x[rd] = as->fetch_hword(p->as, p->x[rs1] + imm12);
 					p->x[rd] |= -(p->x[rd] & 0x8000);
+					tt->step(t, 1);
 					break;
 
 				case 2: // LW
 					p->x[rd] = as->fetch_word(p->as, p->x[rs1] + imm12);
 					p->x[rd] |= -(p->x[rd] & 0x80000000);
+					tt->step(t, 2);
 					break;
 
 				case 3: // LD
 					p->x[rd] = as->fetch_dword(p->as, p->x[rs1] + imm12);
 					// p->x[rd] |= -(p->x[rd] & 0x8000000000000000);
+					tt->step(t, 4);
 					break;
 
 				case 4: // LBU
 					p->x[rd] = as->fetch_byte(p->as, p->x[rs1] + imm12);
+					tt->step(t, 1);
 					break;
 
 				case 5: // LHU
 					p->x[rd] = as->fetch_hword(p->as, p->x[rs1] + imm12);
+					tt->step(t, 1);
 					break;
 
 				case 6: // LWU
 					p->x[rd] = as->fetch_word(p->as, p->x[rs1] + imm12);
+					tt->step(t, 2);
 					break;
 
 				case 7: // LDU
 					p->x[rd] = as->fetch_dword(p->as, p->x[rs1] + imm12);
+					tt->step(t, 4);
 					break;
 			}
 			break;
@@ -288,18 +300,22 @@ step(Processor *p) {
 			switch(fn3) {
 				case 0: // SB
 					as->store_byte(p->as, p->x[rs1]+imm12s, p->x[rs2]);
+					tt->step(t, 1);
 					break;
 
 				case 1: // SH
 					as->store_hword(p->as, p->x[rs1]+imm12s, p->x[rs2]);
+					tt->step(t, 1);
 					break;
 
 				case 2: // SW
 					as->store_word(p->as, p->x[rs1]+imm12s, p->x[rs2]);
+					tt->step(t, 2);
 					break;
 
 				case 3: // SD
 					as->store_dword(p->as, p->x[rs1]+imm12s, p->x[rs2]);
+					tt->step(t, 4);
 					break;
 
 				default:
