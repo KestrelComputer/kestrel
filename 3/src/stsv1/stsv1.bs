@@ -1120,8 +1120,8 @@ jump-entries: emit type cr space _64 ;	( console output )
 \ return.
 
 : banner	S" Booting STS V1.5" >d >d type cr ;
-: mem0		h# 2000 >d  d# 16777216 d# 8192 - >d fmtmem ;
-		( Nexys2 has 16MB of on-board RAM )
+: mem0		h# 2000 >d  d# 16777216 h# 12000 - >d fmtmem ;
+		( Nexys2 has 16MB of on-board RAM, less 8K for low RAM, and 64K for MGIA framebuffer. )
 
 extern prg_hello_start
 extern prg_hello_len
