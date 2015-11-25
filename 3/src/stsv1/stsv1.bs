@@ -746,7 +746,13 @@ jump-entries: objDirWalk objDirDispose objDirOpen ;
 24 const szRomScb
 
 jump-table: romScb_vtable
-jump-entries: romScbDispose romScbRead romScbSize ;
+jump-entries: romScbDispose romScbRead romScbSize romScbSeek ;
+
+: romScbSeek ( pos a -- a' 0 | ? errcode )
+	0 d@ d# 8 + @ d# 16 + @   1 d@ - -if  ErrTooBig 0 d! exit then
+	0 d@ d# 16 + @
+		1 d@  0 d@ d# 16 + !
+	1 d!  d# 0 0 d! ;
 
 : romScbSize ( a -- n )
 	d> d# 8 + @ >d romFileGetContents 0 d@ 1 d! d> ;
@@ -828,6 +834,7 @@ dword: rootnode
 \ +0	close	( scb -- )
 \ +4	read	( caddr u scb -- actual errcode )
 \ +8	filsiz	( scb -- file-size )
+\ +12	seek	( offset scb -- oldpos errcode )
 
 : scbVTable ( a -- a' )
 	objVTable ;
@@ -850,6 +857,11 @@ dword: rootnode
 
 : filsiz ( scb -- n )
 	0 d@ >d scbVTable d> d# 8 + >d call ;
+
+\ Seeks to a spot in the file.
+
+: seek ( offset scb -- oldpos 0 | ? errcode )
+	0 d@ >d scbVTable d> d# 12 + >d call ;
 
 \ Unloads a program from memory.
 
@@ -939,13 +951,33 @@ word: dummy_hdr
 : fsTOpenFileCleanup
 	objEntDispose objDispose objEntDispose objDispose rootnode @ >d objDispose ;
 
+: fsTSeekFile
+	fsTOpenFileSetup
+	S" /aFile" >d >d open d> if S"   seek: open" >d >d type cr bye then
+
+	d# 6 >d 1 d@ >d seek d> if S"   seek: seek" >d >d type cr bye then
+	d> d# 0 xor if S"   seek: old position" >d >d type cr bye then
+
+	h# FF0000 >d d# 5 >d 2 d@ >d read
+	d> if S"   seek: should have worked" >d >d type cr bye then
+	d> d# 5 xor if S"   seek: length mismatch" >d >d type cr bye then
+
+	h# FF0000 >d d# 5 >d
+	S" 6789A" >d >d strEql d> 0=if S"   seek: bytes mismatch" >d >d type cr bye then
+
+	d# 0 >d 1 d@ >d seek d> if S"   seek: rewind" >d >d type cr bye then
+	d> d# 11 xor if S"   seek: rewind old pos" >d >d type cr bye then
+
+	d# 100 >d  1 d@ >d  seek d>  0=if S"   seek: bounds" >d >d type cr bye then d>
+
+	close fsTOpenFileCleanup ;
+
 : fsTOpenFile
 	fsTOpenFileSetup
 	S" /aFile" >d >d open d> if S"   openfil: file should have opened" >d >d type cr bye then
 
-	( WARNING: I'm going to corrupt high memory here. )
+	( WARNING: I'm going to corrupt MGIA frame buffer space here. )
 	( I can do this because self-tests run BEFORE the OS actually boots. )
-	( But, if you see weird bugs, remove me and replace me with a proper getmem'd buffer. )
 
 	h# FF0000 >d d# 5 >d 2 d@ >d read
 	d> if S"   openfil: read 1: should have worked" >d >d type cr bye then
@@ -971,13 +1003,13 @@ word: dummy_hdr
 
 : fsTLoadSeg
 	fsTOpenFileSetup
-	S" /anExe" >d >d loadseg 0 d@ >d _64 cr 
+	S" /anExe" >d >d loadseg
 	d> if S"   loadseg: expected to work" >d >d type cr bye then
 	unloadseg fsTOpenFileCleanup ;
 
 : fsTest
 	S" fs:" >d >d type cr
-	fsTOpenDir fsTOpenFile fsTLoadSeg
+	fsTOpenDir fsTOpenFile fsTLoadSeg fsTSeekFile
 	S" ok" >d >d type cr ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
@@ -1089,12 +1121,11 @@ dword: re	( points just beyond last character )
 : cmd		skipws 1 d@ >r skipnws 1 d@ 0 r@ - r> >d >d ;
 
 : _write ;	( not implemented yet )
-: _seek ;	( not implemented yet )
 
 jump-table: sts_vt
 jump-entries: getver ; ( version identification )
 jump-entries: getmem fremem movmem setmem zermem ; ( memory management )
-jump-entries: open close filsiz read _write _seek ; ( file I/O )
+jump-entries: open close filsiz read _write seek ; ( file I/O )
 jump-entries: loadseg unloadseg ; ( executable I/O )
 jump-entries: strEql strDup strSplitSlash ; ( basic string library )
 jump-entries: emit type cr space _64 ;	( console output )
