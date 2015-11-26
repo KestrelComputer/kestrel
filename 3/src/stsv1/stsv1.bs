@@ -1029,7 +1029,7 @@ word: dummy_hdr
 \
 \ getkey ( -- ch )
 
-: getkey	begin d# $0E00000000000001 c@ >d 0 d@ if exit then d> again ;
+: getkey	begin d# $0E00000000000000 c@ if d# $0E00000000000001 c@ >d exit then d> again ;
 		( Use emulator debugger port for now. )
 
 \ Prints an arbitrary string to the user's console, then blocks forever.
