@@ -1,4 +1,9 @@
 ; Milestone-2 port for Kestrel-3 ROM Filesystem.
+;
+; Since this code is sharing space with other ROM-resident firmware,
+; all symbols defined for Milestone-2 are prefixed with 'm2'.  Sorry.
+; I think my next assembler will have actual namespace support.
+
 
 rombase = $FFFFFFFFFFF00000
 
@@ -12,6 +17,7 @@ m2rstack	= 16
 m2gvp		= 24
 m2tailptr	= 32	; Pointer into command tail buffer.
 m2taillen	= 40	; Length of command tail.
+m2segptr	= 48	; Our place in memory.
 
 ; Start of Milestone-2 port.
 
@@ -31,6 +37,8 @@ run_m2: addi	rsp, rsp, -8
 	sd	gvp, m2gvp(x15)
 	ld	x16, 0(dsp)
 	sd	x16, m2stsBase(x15)
+	ld	x16, 16(dsp)
+	sd	x16, m2segptr(x15)
 
 	; We want to open the file specified on the command tail.  However,
 	; before we attempt this, we want to strip spaces first.
@@ -47,31 +55,19 @@ m2L110:	beq	x16, x0, m2L100	; Stop scanning if no more text
 m2L100:	sd	x17, m2tailptr(x15)
 	sd	x16, m2taillen(x15)
 
-	; DEBUG: Let's see what this evaluates to, shall we?
+	; m2tailptr/len refers to a filename that we can open and process.
+	; Bytes 0-1 of the file contains a count of the number of slides
+	; to display.  Bytes 2-1023 contain *byte* offsets to the slide
+	; display lists.
 
-	addi	dsp, dsp, -16
-	jal	ra, m2msgptr
-	sd	x16, 8(dsp)
-	addi	x16, x0, m2msglen
-	sd	x16, 0(dsp)
-	jal	ra, m2type
+	; For now, though I want to do something else, since I'm on a flight
+	; to PHL.  I'd like to get whatever comes out of m2type to appear
+	; in the MGIA frame buffer.
 
-	addi	dsp, dsp, -16
-	jal	ra, m2data
-	ld	x16, m2tailptr(x15)
-	sd	x16, 8(dsp)
-	ld	x16, m2taillen(x15)
-	sd	x16, 0(dsp)
-	jal	ra, m2type
+	; First, let's plot the letter "A" at (0,0) on the screen.  Something
+	; really basic.  Right?
 
-	addi	dsp, dsp, -16
-	jal	ra, m2clquo
-	sd	x16, 8(dsp)
-	addi	x16, x0, m2cllen
-	sd	x16, 0(dsp)
-	jal	ra, m2type
-
-	jal	ra, m2cr
+	jal	ra, m2plotch
 
 	; Main program drops through to m2exit, which terminates the program
 	; safely.  Only resource leaks that could happen are open files.
@@ -108,10 +104,39 @@ m2cr:	addi	rsp, rsp, -8
 	addi	rsp, rsp, 8
 	jalr	x0, STS_CR(x16)
 
+; Plot a character to the screen.
+
+	align	8
+m2fb:	dword	$FF0000
+m2font:	dword	__m2_font-start_m2+67
+m2plotch:
+	auipc	gp, 0
+	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+
+	jal	ra, m2data			; X15 -> global data
+	ld	x15, m2segptr(x15)		; X15 -> base address for our image
+	ld	x16, m2fb-m2plotch(gp)		; X16 -> framebuffer
+	ld	x17, m2font-m2plotch(gp)	; X17 -> character tile
+	add	x17, x17, x15
+	addi	x18, x0, 8
+
+m2L200:	lb	x19, 0(x17)
+	sb	x19, 0(x16)
+	addi	x16, x16, 80
+	addi	x17, x17, 256
+	addi	x18, x18, -1
+	bne	x18, x0, m2L200
+
+	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, 0(ra)
 
 	align	8
 	addi	x0, x0, 0
 m2data:	jalr	x15, 0(ra)
+	dword	0, 0, 0, 0
+	dword	0, 0, 0, 0
 	dword	0, 0, 0, 0
 	dword	0, 0, 0, 0
 
@@ -149,4 +174,11 @@ prg_m2_len:
 	ld	x16, i_len_m2-prg_m2_len(gp)
 	sd	x16, 0(dsp)
 	jalr	x0, 0(ra)
+
+; Font bitmap.
+
+	align	8
+__m2_font:
+	include	"m2font.asm"
+
 end_m2:
