@@ -67,6 +67,7 @@ m2L100:	sd	x17, m2tailptr(x15)
 	; First, let's plot the letter "A" at (0,0) on the screen.  Something
 	; really basic.  Right?
 
+	jal	ra, m2cls
 	jal	ra, m2plotch
 
 	; Main program drops through to m2exit, which terminates the program
@@ -103,6 +104,23 @@ m2cr:	addi	rsp, rsp, -8
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
 	jalr	x0, STS_CR(x16)
+
+; Clears the screen.
+
+	align	8
+m2cls_fb:
+	dword	$FF0000
+m2cls_fbsz:
+	dword	$9600	; 640x480 monochrome bitmap
+
+m2cls:	auipc	gp, 0
+	ld	x16, m2cls_fb-m2cls(gp)
+	ld	x17, m2cls_fbsz-m2cls(gp)
+m2L300:	sd	x0, 0(x16)
+	addi	x16, x16, 8
+	addi	x17, x17, -8
+	bne	x17, x0, m2L300
+	jalr	x0, 0(ra)
 
 ; Plot a character to the screen.
 
