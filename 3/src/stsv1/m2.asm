@@ -9,15 +9,32 @@ rombase = $FFFFFFFFFFF00000
 
 	include	"stsapi.inc"
 
+; Foreign code requires we dedicate some registers for its use.
+
+t1	= x7
+t2	= x8
+t3	= x9
+t4	= x10
+a0	= x11
+a1	= x12
+a2	= x13
+a3	= x14
+sp	= dsp
+
 ; Data offsets.  Call m2data to get pointer to this structure in X15.
 
 m2stsBase	= 0
 m2dstack	= 8
 m2rstack	= 16
 m2gvp		= 24
+
 m2tailptr	= 32	; Pointer into command tail buffer.
 m2taillen	= 40	; Length of command tail.
 m2segptr	= 48	; Our place in memory.
+m2cx		=   56	; Cursor X position.
+m2cy		=   58	; Cursor Y position.
+m2__1		=   60	; reserved.
+m2__2		=   62	; reserved.
 
 ; Start of Milestone-2 port.
 
@@ -67,8 +84,15 @@ m2L100:	sd	x17, m2tailptr(x15)
 	; First, let's plot the letter "A" at (0,0) on the screen.  Something
 	; really basic.  Right?
 
+	addi	x16, x0, 0
+	addi	x17, x0, 0
+	jal	ra, m2at
 	jal	ra, m2cls
-	jal	ra, m2plotch
+
+	jal	ra, m2data
+	ld	x16, m2tailptr(x15)
+	ld	x17, m2taillen(x15)
+	jal	ra, m2write
 
 	; Main program drops through to m2exit, which terminates the program
 	; safely.  Only resource leaks that could happen are open files.
@@ -105,6 +129,22 @@ m2cr:	addi	rsp, rsp, -8
 	addi	rsp, rsp, 8
 	jalr	x0, STS_CR(x16)
 
+; Positions the text cursor.  Only bits 15-0 are significant for each
+; coordinate.  At present, for an 8x8 font, (0, 0) <= (x, y) < (80, 60).
+; Precise limits will depend on font height.
+;
+; m2at(cx, cy)
+;      X16 X17
+
+m2at:	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+	jal	ra, m2data
+	sh	x16, m2cx(x15)
+	sh	x17, m2cy(x15)
+	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, 0(ra)
+
 ; Clears the screen.
 
 	align	8
@@ -122,24 +162,76 @@ m2L300:	sd	x0, 0(x16)
 	bne	x17, x0, m2L300
 	jalr	x0, 0(ra)
 
-; Plot a character to the screen.
+; m2write writes a string to the screen, starting at the current cursor
+; position.
+;
+; m2write(adr, len)
+;         X16  X17
+
+	align	8
+m2write:
+	addi	rsp, rsp, -24
+	sd	ra, 0(rsp)
+	sd	x16, 8(rsp)
+	sd	x17, 16(rsp)
+	
+m2L400:	ld	x16, 16(rsp)
+	beq	x16, x0, m2L410
+	ld	x16, 8(rsp)
+	lb	x16, 0(x16)
+	jal	ra, m2plotch
+	jal	ra, m2data
+	lh	x16, m2cx(x15)
+	addi	x16, x16, 1
+	sh	x16, m2cx(x15)
+	ld	x16, 8(rsp)
+	addi	x16, x16, 1
+	sd	x16, 8(rsp)
+	ld	x16, 16(rsp)
+	addi	x16, x16, -1
+	sd	x16, 16(rsp)
+	jal	x0, m2L400
+
+m2L410:	ld	ra, 0(rsp)
+	ld	x16, 8(rsp)
+	ld	x17, 16(rsp)
+	addi	rsp, rsp, 24
+	jalr	x0, 0(ra)
+
+; Plot a character to the screen.  Only the low 8-bits of the parameter
+; are considered.
+;
+; m2plotch(chr)
+;          X16
 
 	align	8
 m2fb:	dword	$FF0000
-m2font:	dword	__m2_font-start_m2+67
+m2font:	dword	__m2_font-start_m2
+m2640:	dword	640
 m2plotch:
 	auipc	gp, 0
 	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 
 	jal	ra, m2data			; X15 -> global data
-	ld	x15, m2segptr(x15)		; X15 -> base address for our image
-	ld	x16, m2fb-m2plotch(gp)		; X16 -> framebuffer
-	ld	x17, m2font-m2plotch(gp)	; X17 -> character tile
-	add	x17, x17, x15
-	addi	x18, x0, 8
+	ld	x17, m2segptr(x15)		; X15 -> base address for our image
+	ld	x18, m2font-m2plotch(gp)	; X17 -> character tile.
+	add	x17, x17, x18
+	andi	x16, x16, 255
+	add	x17, x17, x16
 
-m2L200:	lb	x19, 0(x17)
+	ld	a0, m2cy(x15)			; Calculate frame buffer address
+	ld	a1, m2640-m2plotch(gp)
+	jal	ra, mathMultiply		; A0 = 640*y
+	jal	ra, m2data
+	ld	a1, m2cx(x15)
+	add	a0, a0, a1			; A0 = 640*y + x
+	ld	a1, m2fb-m2plotch(gp)
+	add	x16, a0, a1			; X16 = FBBASE + 640y + x
+
+	addi	x18, x0, 8			; Font height, pixels.
+
+m2L200:	lb	x19, 0(x17)			; Copy the character tile.
 	sb	x19, 0(x16)
 	addi	x16, x16, 80
 	addi	x17, x17, 256
@@ -198,5 +290,9 @@ prg_m2_len:
 	align	8
 __m2_font:
 	include	"m2font.asm"
+
+; Math library.
+
+	include "math.asm"
 
 end_m2:
