@@ -172,7 +172,7 @@ int run(int argc, char *argv[]) {
 		goto out;
 	}
 
-	tt->schedule(t, &do_crt_frame, 480*400, crt);
+	tt->schedule(t, &do_crt_frame, 525*400, crt);
 
 	while(running) {
 		tt->pending(t);
