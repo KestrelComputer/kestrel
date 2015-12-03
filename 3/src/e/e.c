@@ -31,11 +31,17 @@ static const struct interface_Timeline *tt = &module_Timeline;
 
 static struct termios stored_settings;
 
+#define PIXEL Uint32
+#define WHITE 0xFFFFFFFF
+#define BLACK 0x00000000
+#define PIXELFORMAT SDL_PIXELFORMAT_ARGB8888
+
+
 struct MGIA {
 	SDL_Window *win;
 	SDL_Renderer *ren;
 	SDL_Texture *tex;
-	Uint32 *pix;
+	PIXEL *pix;
 	int scanline;
 	AddressSpace *fb;
 };
@@ -87,12 +93,12 @@ struct MGIA *makeMGIA(char *title, AddressSpace *fb) {
 		if(!m->ren) goto out;
 		m->tex = SDL_CreateTexture(
 			m->ren,
-			SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING,
+			PIXELFORMAT, SDL_TEXTUREACCESS_STREAMING,
 			640, 480
 		);
 		if(!m->tex) goto out;
 		SDL_SetTextureBlendMode(m->tex, SDL_BLENDMODE_NONE);
-		m->pix = (Uint32 *)(malloc(640 * 480 * sizeof(Uint32)));
+		m->pix = (PIXEL *)(malloc(640 * 480 * sizeof(PIXEL)));
 		if(!m->pix) goto out;
 		m->fb = fb;
 	}
@@ -106,7 +112,7 @@ out:	destroyMGIA(m);
 void do_crt_frame(Timeline *t, void *pcrt) {
 	struct MGIA *crt = (struct MGIA *)pcrt;
 	DWORD fbaddr = 0xFF0000;
-	Uint32 *pixadr, *p;
+	PIXEL *pixadr, *p;
 	int pitch;
 	HWORD h, i, j;
 
@@ -121,11 +127,11 @@ void do_crt_frame(Timeline *t, void *pcrt) {
 			h = ((h >> 8) & 0xFF) | ((h & 0xFF) << 8);
 			fbaddr += 2;
 			for(j = 0; j < 16; j++) {
-				*p++ = (h & 0x8000) ? 0xFFFFFFFF : 0;
+				*p++ = (h & 0x8000) ? WHITE : BLACK;
 				h <<= 1;
 			}
 		}
-		pixadr = (Uint32 *)(((char *)pixadr) + pitch);
+		pixadr = (PIXEL *)(((char *)pixadr) + pitch);
 	}
 	SDL_UnlockTexture(crt->tex);
 	SDL_RenderClear(crt->ren);
