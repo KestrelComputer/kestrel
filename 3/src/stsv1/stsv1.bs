@@ -1160,6 +1160,9 @@ extern prg_hello_len
 extern prg_m2_start
 extern prg_m2_len
 
+extern prg_fbtest_start
+extern prg_fbtest_len
+
 : fs0
 	objDirNew d> 0=if S" dir / failed" >d >d panic then
 	d> rootnode !
@@ -1184,6 +1187,14 @@ extern prg_m2_len
 	prg_hello_start prg_hello_len 2 d@ >d romFileSetContents
 	objEntNew d> 0=if S" ent /rom/hello failed" >d >d panic then
 	S" hello" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/hello failed" >d >d panic then
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d 4 d@ >d objDirAddHead
+	d> d>
+
+	romFileNew d> 0=if S" fil /rom/fbtest failed" >d >d panic then
+	prg_fbtest_start prg_fbtest_len 2 d@ >d romFileSetContents
+	objEntNew d> 0=if S" ent /rom/fbtest failed" >d >d panic then
+	S" fbtest" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/fbtest failed" >d >d panic then
 	1 d@ >d 1 d@ >d objEntSetObject
 	0 d@ >d 4 d@ >d objDirAddHead
 	d> d>
