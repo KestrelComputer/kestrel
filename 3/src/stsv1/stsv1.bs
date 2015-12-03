@@ -1029,7 +1029,7 @@ word: dummy_hdr
 \
 \ getkey ( -- ch )
 
-: getkey	begin d# $0E00000000000001 c@ >d 0 d@ if exit then d> again ;
+: getkey	begin d# $0E00000000000000 c@ if d# $0E00000000000001 c@ >d exit then again ;
 		( Use emulator debugger port for now. )
 
 \ Prints an arbitrary string to the user's console, then blocks forever.
@@ -1157,6 +1157,12 @@ jump-entries: emit type cr space _64 ;	( console output )
 extern prg_hello_start
 extern prg_hello_len
 
+extern prg_m2_start
+extern prg_m2_len
+
+extern prg_fbtest_start
+extern prg_fbtest_len
+
 : fs0
 	objDirNew d> 0=if S" dir / failed" >d >d panic then
 	d> rootnode !
@@ -1181,6 +1187,22 @@ extern prg_hello_len
 	prg_hello_start prg_hello_len 2 d@ >d romFileSetContents
 	objEntNew d> 0=if S" ent /rom/hello failed" >d >d panic then
 	S" hello" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/hello failed" >d >d panic then
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d 4 d@ >d objDirAddHead
+	d> d>
+
+	romFileNew d> 0=if S" fil /rom/fbtest failed" >d >d panic then
+	prg_fbtest_start prg_fbtest_len 2 d@ >d romFileSetContents
+	objEntNew d> 0=if S" ent /rom/fbtest failed" >d >d panic then
+	S" fbtest" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/fbtest failed" >d >d panic then
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d 4 d@ >d objDirAddHead
+	d> d>
+
+	romFileNew d> 0=if S" fil /rom/m2 failed" >d >d panic then
+	prg_m2_start prg_m2_len 2 d@ >d romFileSetContents
+	objEntNew d> 0=if S" ent /rom/m2 failed" >d >d panic then
+	S" m2" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/m2 failed" >d >d panic then
 	1 d@ >d 1 d@ >d objEntSetObject
 	0 d@ >d 4 d@ >d objDirAddHead
 	d> d>
