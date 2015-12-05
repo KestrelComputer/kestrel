@@ -85,7 +85,7 @@ m2L100:	sd	x17, m2tailptr(x15)
 	; really basic.  Right?
 
 	addi	x16, x0, 0
-	addi	x17, x0, 0
+	addi	x17, x0, 2
 	jal	ra, m2at
 	jal	ra, m2cls
 
@@ -199,7 +199,10 @@ m2L410:	ld	ra, 0(rsp)
 	jalr	x0, 0(ra)
 
 ; Plot a character to the screen.  Only the low 8-bits of the parameter
-; are considered.
+; are considered.  The character is plotted at the coordinate last set
+; by a call to m2at.  The coordinate is NOT incremented; subsequent
+; calls to m2plotch will cause the previously plotted character to be
+; overwritten.
 ;
 ; m2plotch(chr)
 ;          X16
@@ -220,11 +223,11 @@ m2plotch:
 	andi	x16, x16, 255
 	add	x17, x17, x16
 
-	ld	a0, m2cy(x15)			; Calculate frame buffer address
+	lh	a0, m2cy(x15)			; Calculate frame buffer address
 	ld	a1, m2640-m2plotch(gp)
 	jal	ra, mathMultiply		; A0 = 640*y
 	jal	ra, m2data
-	ld	a1, m2cx(x15)
+	lh	a1, m2cx(x15)
 	add	a0, a0, a1			; A0 = 640*y + x
 	ld	a1, m2fb-m2plotch(gp)
 	add	x16, a0, a1			; X16 = FBBASE + 640y + x
@@ -242,6 +245,8 @@ m2L200:	lb	x19, 0(x17)			; Copy the character tile.
 	addi	rsp, rsp, 8
 	jalr	x0, 0(ra)
 
+; Global Milestone-2 data.
+
 	align	8
 	addi	x0, x0, 0
 m2data:	jalr	x15, 0(ra)
@@ -249,17 +254,6 @@ m2data:	jalr	x15, 0(ra)
 	dword	0, 0, 0, 0
 	dword	0, 0, 0, 0
 	dword	0, 0, 0, 0
-
-	align	4
-m2msgptr:
-	jalr	x16, 0(ra)
-	byte	"You attempted to open ``"
-m2msglen = *-m2msgptr-4
-
-	align	4
-m2clquo: jalr	x16, 0(ra)
-	byte	"''"
-m2cllen = *-m2clquo-4
 
 ; This code is not normally part of an application.  It exists only
 ; to overcome limitations with BSPL's ability to include an address
