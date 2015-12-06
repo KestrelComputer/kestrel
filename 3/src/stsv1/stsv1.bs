@@ -1160,6 +1160,9 @@ extern prg_hello_len
 extern prg_m2_start
 extern prg_m2_len
 
+extern prg_m2slides_start
+extern prg_m2slides_len
+
 extern prg_fbtest_start
 extern prg_fbtest_len
 
@@ -1203,6 +1206,14 @@ extern prg_fbtest_len
 	prg_m2_start prg_m2_len 2 d@ >d romFileSetContents
 	objEntNew d> 0=if S" ent /rom/m2 failed" >d >d panic then
 	S" m2" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/m2 failed" >d >d panic then
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d 4 d@ >d objDirAddHead
+	d> d>
+
+	romFileNew d> 0=if S" fil /rom/m2.slides failed" >d >d panic then
+	prg_m2slides_start prg_m2slides_len 2 d@ >d romFileSetContents
+	objEntNew d> 0=if S" ent /rom/m2.slides failed" >d >d panic then
+	S" m2.slides" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/m2.slides failed" >d >d panic then
 	1 d@ >d 1 d@ >d objEntSetObject
 	0 d@ >d 4 d@ >d objDirAddHead
 	d> d>
