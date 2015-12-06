@@ -117,6 +117,7 @@ hrtsToken = 261
 wfiToken = 262
 vmfenceToken = 263
 includeToken = 264
+incbinToken = 265
 
 endOfInputToken = 999
 
@@ -426,6 +427,7 @@ def kindOfIdentifier(s):
         'FENCE_VM': vmfenceToken,
         'VMFENCE': vmfenceToken,    # alias
         'INCLUDE': includeToken,
+        'INCBIN': incbinToken,
     }
     return kindMap.get(s, identifierToken)
 
@@ -697,6 +699,14 @@ def includeHandler(asm, tok):
     includedFile = includedFile.a
     asm.include(includedFile)
 
+def incbinHandler(asm, tok):
+    includedFile = expression(asm, 0)
+    if includedFile.kind != EN_STR:
+        raise Exception(
+            "On line {}, expected string parameter".format(asm.line)
+        )
+    asm.incbin(includedFile.a)
+
 fileScopeHandlers = {
     commentToken: commentHandler,
     identifierToken: labelOrAssignmentHandler,
@@ -770,6 +780,7 @@ fileScopeHandlers = {
     wfiToken: lambda a, t: placeOpcode(a, 0x10200073),
     vmfenceToken: lambda a, t: placeOpcode(a, 0x10100073),
     includeToken: lambda a, t: includeHandler(a, t),
+    incbinToken: lambda a, t: incbinHandler(a, t),
 }
 
 
@@ -1167,6 +1178,11 @@ class Assembler(object):
         self.tokenStream = oldTokenStream
         self.cursor = oldCursor
 
+    def incbin(self, filename):
+        f = file(filename).read()
+        for ch in f:
+            self.recordByte(ExprNode(EN_INT, ord(ch)))
+
     def include(self, filename):
         dirname, basename = (os.path.dirname(filename), os.path.basename(filename))
         if dirname == '':
@@ -1174,11 +1190,11 @@ class Assembler(object):
 
         oldPath = os.getcwd()
         os.chdir(dirname)
-	oldLine = self.line
-	self.line = 0
+        oldLine = self.line
+        self.line = 0
         self.pass1(open(basename, "r"), filename)
         os.chdir(oldPath)
-	self.line = oldLine
+        self.line = oldLine
 
     def main(self):
         """This implements the main user interface of Polaris.  It drives the
