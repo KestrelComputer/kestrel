@@ -33,7 +33,7 @@ m2taillen	= 40	; Length of command tail.
 m2segptr	= 48	; Our place in memory.
 m2cx		=   56	; Cursor X position.
 m2cy		=   58	; Cursor Y position.
-m2__1		=   60	; reserved.
+m2nslides	=   60	; Number of slides in the current slide deck.
 m2__2		=   62	; reserved.
 
 ; Start of Milestone-2 port.
@@ -73,29 +73,54 @@ m2L100:	sd	x17, m2tailptr(x15)
 	sd	x16, m2taillen(x15)
 
 	; m2tailptr/len refers to a filename that we can open and process.
+	; Let's attempt to open the file.  STS doesn't track resources, so
+	; with luck, we won't crash while the file is open.
+
+	addi	dsp, dsp, -16
+	sd	x17, 8(dsp)
+	sd	x16, 0(dsp)
+	jal	ra, m2open
+	ld	x16, 0(dsp)
+	bne	x16, x0, m2L120
+
 	; Bytes 0-1 of the file contains a count of the number of slides
 	; to display.  Bytes 2-1023 contain *byte* offsets to the slide
 	; display lists.
+	;
+	; Attempt to discover how many slides exist.
 
-	; For now, though I want to do something else, since I'm on a flight
-	; to PHL.  I'd like to get whatever comes out of m2type to appear
-	; in the MGIA frame buffer.
-
-	; First, let's plot the letter "A" at (0,0) on the screen.  Something
-	; really basic.  Right?
-
-	addi	x16, x0, 0
+	addi	dsp, dsp, -24
+	ld	x16, 32(dsp)
+	sd	x16, 0(dsp)	; Read using SCB
+	addi	x16, x0, 2	; of length 2 bytes
+	sd	x16, 8(dsp)
+	jal	ra, m2data	; into m2nslides
+	addi	x16, x15, m2nslides
+	sd	x16, 16(dsp)
+	jal	ra, m2read
+	ld	x16, 0(dsp)	; error during read?
+	bne	x16, x0, m2L130
+	ld	x16, 8(dsp)
 	addi	x17, x0, 2
-	jal	ra, m2at
-	jal	ra, m2cls
+	bne	x16, x17, m2L130
+	addi	dsp, dsp, 16
 
-	jal	ra, m2data
-	ld	x16, m2tailptr(x15)
-	ld	x17, m2taillen(x15)
-	jal	ra, m2write
+	addi	dsp, dsp, 8
+	jal	ra, m2close
+	jal	ra, m2cr
+	jal	x0, m2exit
 
-	; Main program drops through to m2exit, which terminates the program
-	; safely.  Only resource leaks that could happen are open files.
+	; If we're here, that means the attempt to read has failed.
+m2L130:	jal	ra, m2nslidesfailedmsg
+	jal	x0, m2L120+4
+
+	; If we're here, that means the attempt to open the slides file
+	; failed.  Print an error message and return to the OS.
+m2L120:	jal	ra, m2openfailedmsg
+	sd	x16, 0(dsp)
+	sd	x17, 8(dsp)
+	jal	ra, m2type
+	jal	ra, m2cr
 
 m2exit: jal	ra, m2data
 	ld	gvp, m2gvp(x15)
@@ -105,6 +130,23 @@ m2exit: jal	ra, m2data
 	addi	rsp, rsp, 8
 	jalr	x0, 0(ra)
 
+	align	8
+m2openfailedmsg:
+	addi	x16, x0, m2__openfailedlen
+	jalr	x17, 0(ra)
+m2__openfailedmsg:
+	byte	"File open failed."
+m2__openfailedlen = *-m2__openfailedmsg
+
+	align	8
+m2nslidesfailedmsg:
+	addi	x16, x0, m2__nslidesfailedlen
+	jalr	x17, 0(ra)
+m2__nslidesfailedmsg:
+	byte	"Cannot read number of slides."
+m2__nslidesfailedlen = *-m2__nslidesfailedmsg
+
+	align	4
 m2_64:	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 	jal	ra, m2data
@@ -128,6 +170,31 @@ m2cr:	addi	rsp, rsp, -8
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
 	jalr	x0, STS_CR(x16)
+
+m2open:	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+	jal	ra, m2data
+	ld	x16, m2stsBase(x15)
+	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, STS_OPEN(x16)
+
+m2read:	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+	jal	ra, m2data
+	ld	x16, m2stsBase(x15)
+	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, STS_READ(x16)
+
+m2close:
+	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+	jal	ra, m2data
+	ld	x16, m2stsBase(x15)
+	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, STS_CLOSE(x16)
 
 ; Positions the text cursor.  Only bits 15-0 are significant for each
 ; coordinate.  At present, for an 8x8 font, (0, 0) <= (x, y) < (80, 60).
