@@ -34,7 +34,8 @@ m2segptr	= 48	; Our place in memory.
 m2cx		=   56	; Cursor X position.
 m2cy		=   58	; Cursor Y position.
 m2nslides	=   60	; Number of slides in the current slide deck.
-m2__2		=   62	; reserved.
+m2cslide	=   62	; Current slide (1 <= cslide <= nslides)
+m2ip		= 64	; Current instruction pointer
 
 ; Start of Milestone-2 port.
 
@@ -105,9 +106,16 @@ m2L100:	sd	x17, m2tailptr(x15)
 	bne	x16, x17, m2L130
 	addi	dsp, dsp, 16
 
+	; Always start out with the first slide.
+
+	jal	ra, m2data
+	addi	x16, x0, 1
+	sh	x16, m2cslide(x15)
+	jal	ra, m2repaint
+	jal	ra, m2eventloop
+
 	addi	dsp, dsp, 8
 	jal	ra, m2close
-	jal	ra, m2cr
 	jal	x0, m2exit
 
 	; If we're here, that means the attempt to read has failed.
@@ -129,6 +137,174 @@ m2exit: jal	ra, m2data
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
 	jalr	x0, 0(ra)
+
+m2_jumptab:
+	jal	x0, m2L610
+	jal	x0, m2first
+	jal	x0, m2prev
+	jal	x0, m2next
+	jal	x0, m2last
+m2eventloop:
+	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+
+m2L600:	jal	ra, m2repaint
+	jal	ra, m2getkey
+	lbu	x16, 0(dsp)
+	addi	dsp, dsp, 8
+	addi	x16, x16, -48
+	blt	x16, x0, m2L600	; < 0? Ignore.
+	addi	x17, x0, 5
+	bge	x16, x17, m2L600 ; >= 5? Ignore too.
+
+	; 0 <= x16 < 5; index into a jump table.
+	slli	x16, x16, 2
+m2L620:	auipc	gp, 0
+	add	x16, x16, gp
+	addi	x16, x16, m2_jumptab-m2L620
+	jalr	x0, 0(x16)
+
+m2first:
+	addi	x16, x0, 1
+	jal	ra, m2data
+	sh	x16, m2cslide(x15)
+	jal	x0, m2L600
+
+m2last:
+	jal	ra, m2data
+	lh	x16, m2nslides(x15)
+	sh	x16, m2cslide(x15)
+	jal	x0, m2L600
+
+m2prev: jal	ra, m2data
+	lh	x16, m2cslide(x15)
+	addi	x16, x16, -1
+	beq	x16, x0, m2L600
+	sh	x16, m2cslide(x15)
+	jal	x0, m2L600
+
+m2next:	jal	ra, m2data
+	lh	x16, m2cslide(x15)
+	lh	x17, m2nslides(x15)
+	beq	x16, x17, m2L600
+	addi	x16, x16, 1
+	sh	x16, m2cslide(x15)
+	jal	x0, m2L600
+
+m2L610:	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, 0(ra)
+
+	; Repaint the frame buffer for the current slide.
+	; Requires a data stack frame like so:
+	; DSP+8 = An open SCB of slide deck file.
+	; DSP+0 = 0 (free for use)
+	;
+	; Returns with the same stack frame.
+m2repaint:
+	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+
+	; seek to 0.
+
+	addi	dsp, dsp, -16
+	ld	x16, 24(dsp)
+	sd	x16, 0(dsp)
+	sd	x0, 8(dsp)
+	jal	ra, m2seek
+
+	; read in slide index.
+
+	addi	dsp, dsp, -8
+	ld	x16, 32(dsp)
+	sd	x16, 0(dsp)
+	addi	x16, x0, 1024
+	sd	x16, 8(dsp)
+	jal	ra, m2blockbuf
+	sd	x16, 16(dsp)
+	jal	ra, m2read
+
+	; seek to appropriate slide offset.
+
+	jal	ra, m2data
+	lh	x17, m2cslide(x15)
+	slli	x17, x17, 1
+	jal	ra, m2blockbuf
+	add	x16, x16, x17
+	lh	x16, 0(x16)
+	sd	x16, 8(dsp)
+	ld	x16, 24(dsp)
+	sd	x16, 0(dsp)
+	jal	ra, m2seek
+
+	; read in slide data.
+
+	addi	dsp, dsp, -8
+	ld	x16, 32(dsp)
+	sd	x16, 0(dsp)
+	addi	x16, x0, 1024
+	sd	x16, 8(dsp)
+	jal	ra, m2blockbuf
+	sd	x16, 16(dsp)
+	jal	ra, m2read
+	addi	dsp, dsp, 16	; don't care about status or actual length read.
+
+	; interpret data.
+	jal	ra, m2blockbuf
+	jal	ra, m2data
+	sd	x16, m2ip(x15)
+	jal	ra, m2cls
+	jal	ra, m2draw
+
+	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, 0(ra)
+	
+	; interprets a graphics string located at m2ip.
+	; The string MUST end with an END opcode ($01).
+m2draw: addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+
+m2L500: jal	ra, m2data
+	ld	x16, m2ip(x15)
+	lbu	x17, 0(x16)
+
+	addi	x18, x0, $00		; NOP?
+	beq	x17, x18, m2nop
+
+	addi	x18, x0, $01		; END?
+	beq	x17, x18, m2L510
+
+	addi	x18, x0, $10		; TEXT?
+	beq	x17, x18, m2text
+
+m2nop:	addi	x16, x16, 2
+	sd	x16, m2ip(x15)
+	jal	x0, m2L500
+	
+m2text:	lbu	x17, 1(x16)
+	jal	ra, m2data
+	sh	x17, m2cy(x15)
+	lbu	x17, 2(x16)
+	sh	x17, m2cx(x15)
+	lbu	x17, 3(x16)
+	addi	x16, x16, 4
+	jal	ra, m2write
+
+	jal	ra, m2data
+	ld	x16, m2ip(x15)
+	lbu	x17, 3(x16)
+	addi	x17, x17, 1
+	andi	x17, x17, -2
+	addi	x17, x17, 4
+	add	x16, x16, x17
+	sd	x16, m2ip(x15)
+	jal	x0, m2L500
+
+m2L510: ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, 0(ra)
+
 
 	align	8
 m2openfailedmsg:
@@ -179,6 +355,14 @@ m2open:	addi	rsp, rsp, -8
 	addi	rsp, rsp, 8
 	jalr	x0, STS_OPEN(x16)
 
+m2seek:	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+	jal	ra, m2data
+	ld	x16, m2stsBase(x15)
+	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, STS_SEEK(x16)
+
 m2read:	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 	jal	ra, m2data
@@ -195,6 +379,15 @@ m2close:
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
 	jalr	x0, STS_CLOSE(x16)
+
+m2getkey:
+	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+	jal	ra, m2data
+	ld	x16, m2stsBase(x15)
+	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, STS_GETKEY(x16)
 
 ; Positions the text cursor.  Only bits 15-0 are significant for each
 ; coordinate.  At present, for an 8x8 font, (0, 0) <= (x, y) < (80, 60).
@@ -277,7 +470,7 @@ m2L410:	ld	ra, 0(rsp)
 	align	8
 m2fb:	dword	$FF0000
 m2font:	dword	__m2_font-start_m2
-m2640:	dword	640
+m2640:	dword	1280
 m2plotch:
 	auipc	gp, 0
 	addi	rsp, rsp, -8
@@ -292,18 +485,18 @@ m2plotch:
 
 	lh	a0, m2cy(x15)			; Calculate frame buffer address
 	ld	a1, m2640-m2plotch(gp)
-	jal	ra, mathMultiply		; A0 = 640*y
+	jal	ra, mathMultiply		; A0 = BYTES_PER_ROW*y
 	jal	ra, m2data
 	lh	a1, m2cx(x15)
-	add	a0, a0, a1			; A0 = 640*y + x
+	add	a0, a0, a1			; A0 = BYTES_PER_ROW*y + x
 	ld	a1, m2fb-m2plotch(gp)
-	add	x16, a0, a1			; X16 = FBBASE + 640y + x
+	add	x16, a0, a1			; X16 = FBBASE + B_P_R*y + x
 
 	addi	x18, x0, 8			; Font height, pixels.
 
 m2L200:	lb	x19, 0(x17)			; Copy the character tile.
 	sb	x19, 0(x16)
-	addi	x16, x16, 80
+	addi	x16, x16, 160
 	addi	x17, x17, 256
 	addi	x18, x18, -1
 	bne	x18, x0, m2L200
@@ -345,6 +538,30 @@ prg_m2_len:
 	ld	x16, i_len_m2-prg_m2_len(gp)
 	sd	x16, 0(dsp)
 	jalr	x0, 0(ra)
+
+; Block buffer; a 1024-byte I/O scratch pad.
+; Easier than using getmem.
+
+	align	8
+m2blockbuf:
+	addi	x0, x0, 0
+	jalr	x16, 0(ra)
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
 
 ; Font bitmap.
 

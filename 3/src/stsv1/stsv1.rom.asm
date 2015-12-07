@@ -26,6 +26,7 @@ t2		= x12
 		include	"stsv1.asm"
 		include "hello.asm"
 		include "m2.asm"
+		include	"m2slides.asm"
 		include "fbtest.asm"
 
 ; The following string-compare software comes from a ROM-resident Forth
