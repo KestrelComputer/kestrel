@@ -34,7 +34,7 @@ m2segptr	= 48	; Our place in memory.
 m2cx		=   56	; Cursor X position.
 m2cy		=   58	; Cursor Y position.
 m2nslides	=   60	; Number of slides in the current slide deck.
-m2__2		=   62	; reserved.
+m2cslide	=   62	; Current slide (1 <= cslide <= nslides)
 
 ; Start of Milestone-2 port.
 
@@ -105,9 +105,15 @@ m2L100:	sd	x17, m2tailptr(x15)
 	bne	x16, x17, m2L130
 	addi	dsp, dsp, 16
 
+	; Always start out with the first slide.
+
+	jal	ra, m2data
+	addi	x16, x0, 1
+	sh	x16, m2cslide(x15)
+	jal	ra, m2repaint
+
 	addi	dsp, dsp, 8
 	jal	ra, m2close
-	jal	ra, m2cr
 	jal	x0, m2exit
 
 	; If we're here, that means the attempt to read has failed.
@@ -130,6 +136,69 @@ m2exit: jal	ra, m2data
 	addi	rsp, rsp, 8
 	jalr	x0, 0(ra)
 
+	; Repaint the frame buffer for the current slide.
+	; DSP+8 = SCB
+	; DSP+0 = 0 (free for use)
+
+m2repaint:
+	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+
+	; seek to 0.
+
+	addi	dsp, dsp, -16
+	ld	x16, 24(dsp)
+	sd	x16, 0(dsp)
+	sd	x0, 8(dsp)
+	jal	ra, m2seek
+
+	; read in slide index.
+
+	addi	dsp, dsp, -8
+	ld	x16, 32(dsp)
+	sd	x16, 0(dsp)
+	addi	x16, x0, 1024
+	sd	x16, 8(dsp)
+	jal	ra, m2blockbuf
+	sd	x16, 16(dsp)
+	jal	ra, m2read
+
+	; seek to appropriate slide offset.
+
+	jal	ra, m2data
+	lh	x17, m2cslide(x15)
+	slli	x17, x17, 1
+	jal	ra, m2blockbuf
+	add	x16, x16, x17
+	lh	x16, 0(x16)
+	sd	x16, 8(dsp)
+	ld	x16, 24(dsp)
+	sd	x16, 0(dsp)
+	jal	ra, m2seek
+
+	; read in slide data.
+
+	addi	dsp, dsp, -8
+	ld	x16, 32(dsp)
+	sd	x16, 0(dsp)
+	addi	x16, x0, 1024
+	sd	x16, 8(dsp)
+	jal	ra, m2blockbuf
+	sd	x16, 16(dsp)
+	jal	ra, m2read
+
+	; interpret data.
+	jal	ra, m2blockbuf
+	ld	x16, 0(x16)
+	sd	x16, 0(dsp)
+	jal	ra, m2_64
+	jal	ra, m2cr
+	addi	dsp, dsp, 8
+
+	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, 0(ra)
+	
 	align	8
 m2openfailedmsg:
 	addi	x16, x0, m2__openfailedlen
@@ -178,6 +247,14 @@ m2open:	addi	rsp, rsp, -8
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
 	jalr	x0, STS_OPEN(x16)
+
+m2seek:	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+	jal	ra, m2data
+	ld	x16, m2stsBase(x15)
+	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, STS_SEEK(x16)
 
 m2read:	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
@@ -345,6 +422,30 @@ prg_m2_len:
 	ld	x16, i_len_m2-prg_m2_len(gp)
 	sd	x16, 0(dsp)
 	jalr	x0, 0(ra)
+
+; Block buffer; a 1024-byte I/O scratch pad.
+; Easier than using getmem.
+
+	align	8
+m2blockbuf:
+	addi	x0, x0, 0
+	jalr	x16, 0(ra)
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
+	dword	0, 0, 0, 0, 0, 0, 0, 0
 
 ; Font bitmap.
 
