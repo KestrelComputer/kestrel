@@ -112,6 +112,7 @@ m2L100:	sd	x17, m2tailptr(x15)
 	addi	x16, x0, 1
 	sh	x16, m2cslide(x15)
 	jal	ra, m2repaint
+	jal	ra, m2eventloop
 
 	addi	dsp, dsp, 8
 	jal	ra, m2close
@@ -137,13 +138,69 @@ m2exit: jal	ra, m2data
 	addi	rsp, rsp, 8
 	jalr	x0, 0(ra)
 
+m2_jumptab:
+	jal	x0, m2L610
+	jal	x0, m2first
+	jal	x0, m2prev
+	jal	x0, m2next
+	jal	x0, m2last
+m2eventloop:
+	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+
+m2L600:	jal	ra, m2repaint
+	jal	ra, m2getkey
+	lbu	x16, 0(dsp)
+	addi	dsp, dsp, 8
+	addi	x16, x16, -48
+	blt	x16, x0, m2L600	; < 0? Ignore.
+	addi	x17, x0, 5
+	bge	x16, x17, m2L600 ; >= 5? Ignore too.
+
+	; 0 <= x16 < 5; index into a jump table.
+	slli	x16, x16, 2
+m2L620:	auipc	gp, 0
+	add	x16, x16, gp
+	addi	x16, x16, m2_jumptab-m2L620
+	jalr	x0, 0(x16)
+
+m2first:
+	addi	x16, x0, 1
+	jal	ra, m2data
+	sh	x16, m2cslide(x15)
+	jal	x0, m2L600
+
+m2last:
+	jal	ra, m2data
+	lh	x16, m2nslides(x15)
+	sh	x16, m2cslide(x15)
+	jal	x0, m2L600
+
+m2prev: jal	ra, m2data
+	lh	x16, m2cslide(x15)
+	addi	x16, x16, -1
+	beq	x16, x0, m2L600
+	sh	x16, m2cslide(x15)
+	jal	x0, m2L600
+
+m2next:	jal	ra, m2data
+	lh	x16, m2cslide(x15)
+	lh	x17, m2nslides(x15)
+	beq	x16, x17, m2L600
+	addi	x16, x16, 1
+	sh	x16, m2cslide(x15)
+	jal	x0, m2L600
+
+m2L610:	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, 0(ra)
+
 	; Repaint the frame buffer for the current slide.
 	; Requires a data stack frame like so:
 	; DSP+8 = An open SCB of slide deck file.
 	; DSP+0 = 0 (free for use)
 	;
 	; Returns with the same stack frame.
-
 m2repaint:
 	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
@@ -323,6 +380,15 @@ m2close:
 	addi	rsp, rsp, 8
 	jalr	x0, STS_CLOSE(x16)
 
+m2getkey:
+	addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+	jal	ra, m2data
+	ld	x16, m2stsBase(x15)
+	ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, STS_GETKEY(x16)
+
 ; Positions the text cursor.  Only bits 15-0 are significant for each
 ; coordinate.  At present, for an 8x8 font, (0, 0) <= (x, y) < (80, 60).
 ; Precise limits will depend on font height.
@@ -404,7 +470,7 @@ m2L410:	ld	ra, 0(rsp)
 	align	8
 m2fb:	dword	$FF0000
 m2font:	dword	__m2_font-start_m2
-m2640:	dword	640
+m2640:	dword	1280
 m2plotch:
 	auipc	gp, 0
 	addi	rsp, rsp, -8
@@ -419,18 +485,18 @@ m2plotch:
 
 	lh	a0, m2cy(x15)			; Calculate frame buffer address
 	ld	a1, m2640-m2plotch(gp)
-	jal	ra, mathMultiply		; A0 = 640*y
+	jal	ra, mathMultiply		; A0 = BYTES_PER_ROW*y
 	jal	ra, m2data
 	lh	a1, m2cx(x15)
-	add	a0, a0, a1			; A0 = 640*y + x
+	add	a0, a0, a1			; A0 = BYTES_PER_ROW*y + x
 	ld	a1, m2fb-m2plotch(gp)
-	add	x16, a0, a1			; X16 = FBBASE + 640y + x
+	add	x16, a0, a1			; X16 = FBBASE + B_P_R*y + x
 
 	addi	x18, x0, 8			; Font height, pixels.
 
 m2L200:	lb	x19, 0(x17)			; Copy the character tile.
 	sb	x19, 0(x16)
-	addi	x16, x16, 80
+	addi	x16, x16, 160
 	addi	x17, x17, 256
 	addi	x18, x18, -1
 	bne	x18, x0, m2L200
