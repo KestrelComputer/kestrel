@@ -35,6 +35,7 @@ m2cx		=   56	; Cursor X position.
 m2cy		=   58	; Cursor Y position.
 m2nslides	=   60	; Number of slides in the current slide deck.
 m2cslide	=   62	; Current slide (1 <= cslide <= nslides)
+m2ip		= 64	; Current instruction pointer
 
 ; Start of Milestone-2 port.
 
@@ -137,8 +138,11 @@ m2exit: jal	ra, m2data
 	jalr	x0, 0(ra)
 
 	; Repaint the frame buffer for the current slide.
-	; DSP+8 = SCB
+	; Requires a data stack frame like so:
+	; DSP+8 = An open SCB of slide deck file.
 	; DSP+0 = 0 (free for use)
+	;
+	; Returns with the same stack frame.
 
 m2repaint:
 	addi	rsp, rsp, -8
@@ -186,19 +190,65 @@ m2repaint:
 	jal	ra, m2blockbuf
 	sd	x16, 16(dsp)
 	jal	ra, m2read
+	addi	dsp, dsp, 16	; don't care about status or actual length read.
 
 	; interpret data.
 	jal	ra, m2blockbuf
-	ld	x16, 0(x16)
-	sd	x16, 0(dsp)
-	jal	ra, m2_64
-	jal	ra, m2cr
-	addi	dsp, dsp, 8
+	jal	ra, m2data
+	sd	x16, m2ip(x15)
+	jal	ra, m2cls
+	jal	ra, m2draw
 
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
 	jalr	x0, 0(ra)
 	
+	; interprets a graphics string located at m2ip.
+	; The string MUST end with an END opcode ($01).
+m2draw: addi	rsp, rsp, -8
+	sd	ra, 0(rsp)
+
+m2L500: jal	ra, m2data
+	ld	x16, m2ip(x15)
+	lbu	x17, 0(x16)
+
+	addi	x18, x0, $00		; NOP?
+	beq	x17, x18, m2nop
+
+	addi	x18, x0, $01		; END?
+	beq	x17, x18, m2L510
+
+	addi	x18, x0, $10		; TEXT?
+	beq	x17, x18, m2text
+
+m2nop:	addi	x16, x16, 2
+	sd	x16, m2ip(x15)
+	jal	x0, m2L500
+	
+m2text:	lbu	x17, 1(x16)
+	jal	ra, m2data
+	sh	x17, m2cy(x15)
+	lbu	x17, 2(x16)
+	sh	x17, m2cx(x15)
+	lbu	x17, 3(x16)
+	addi	x16, x16, 4
+	jal	ra, m2write
+
+	jal	ra, m2data
+	ld	x16, m2ip(x15)
+	lbu	x17, 3(x16)
+	addi	x17, x17, 1
+	andi	x17, x17, -2
+	addi	x17, x17, 4
+	add	x16, x16, x17
+	sd	x16, m2ip(x15)
+	jal	x0, m2L500
+
+m2L510: ld	ra, 0(rsp)
+	addi	rsp, rsp, 8
+	jalr	x0, 0(ra)
+
+
 	align	8
 m2openfailedmsg:
 	addi	x16, x0, m2__openfailedlen
