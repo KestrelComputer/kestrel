@@ -236,8 +236,8 @@ Some things to take note of:
 
 1. The "self" pseudo-pointer is simply `$`.
 2. Members of `$` need no particular qualification.
-3. We no longer need an explicit `next` construct.
-4. Methods on $ are invoked like any other procedure.
+3. We no longer need an explicit `with` construct.
+4. Methods on `$` are invoked like any other procedure.
 
 These features allow us to revisit `fmtmem` from the very beginning:
 
