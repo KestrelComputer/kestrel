@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Lessons Learned #2: Records"
-date:   2015-12-08 16:07:00
+date:   2015-12-09 14:40:00
 ---
 
 Right now, BSPL offers three methods of accessing state.
