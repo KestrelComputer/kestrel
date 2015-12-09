@@ -470,7 +470,7 @@ m2L410:	ld	ra, 0(rsp)
 	align	8
 m2fb:	dword	$FF0000
 m2font:	dword	__m2_font-start_m2
-m2640:	dword	1280
+m2640:	dword	1760
 m2plotch:
 	auipc	gp, 0
 	addi	rsp, rsp, -8
