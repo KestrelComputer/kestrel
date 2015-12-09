@@ -129,9 +129,9 @@ For example, taking the above definition of `fs0` and turning it into a C data s
 
     /* Convenience definitions; perhaps in a header file somewhere. */
 
-    #define struct ObjDir OBJDIR;
-    #define struct ObjEnt OBJENT;
-    #define struct RomFile ROMFILE;
+    #define OBJDIR struct ObjDir
+    #define OBJENT struct ObjEnt
+    #define ROMFILE struct RomFile
 
     OBJENT _m2slides = { NULL,       &_m2,     "m2.slides", (OBJ *)&_m2slidesfile, etc };
     OBJENT _m2 =       { &_m2slides, &_fbtest, "m2",        (OBJ *)&_m2file,       etc };
