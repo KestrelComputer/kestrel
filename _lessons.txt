@@ -1,0 +1,77 @@
+Lessons Learned from using BSPL to port STS V1 -> STS V1.5 for Kestrel-3.
+
+1.  RPN notation is convenient and compact, but difficult to add higher-level features to.  S-expressions are *almost* as simple to work with as RPN, *almost* as compact, but is inherently lexically structured.  Although you now need a parser, the regular structure greatly simplifies the parser.  LESSON: Use s-expressions going forward.  The increase in complexity seems justified.
+
+2.  Access to structure fields, particularly to a single, specific structure, happens frequently.  If a symbol doesn't refer to a local variable, or a parameter, then it would be very notationally convenient to assume it refers to a structure member.  LESSON: Strongly consider single-dispatch, object-/component-oriented architecture.
+
+3.  When implementing the filesystem dispatch mechanism in STS V1.5, I ran into double-free bugs.  None were too difficult to debug and fix, but it was time wasted.  Considering I spend maybe four to six hours a week on Kestrel work, I'm not happy with the level of debugging effort this required.  Perhaps more importantly, during the implementation of getmem and fremem, I spent considerable time tracking down bugs in the heap defragmentation code.  LESSON: Use garbage collection.  A Cheney-style semi-space heap management approach should be sufficient for the operating system kernel.  It'll require about half as much code to get working, and it virtually eliminates double-free and related complexities from the business code.  It DOES use double the memory (it's a copying, compacting collector algorithm), but it at least would be easy to get working.  Optimizations can always happen later.  It also will not meet real-time requirements; however, if you're opening a file by walking an arbitrary object tree, you've already eliminated any hope for real-time guarantees.
+
+==============
+
+4.  The RISC-V architecture offers no hardware stack.  Accessing parameters, local variables, object members, and even some globals all use the same set of instructions, albeit with different base address registers.  LESSON: allocate activation frames the same way regular data objects/records are allocated.  There is virtually zero cost to doing this.  It allows the application's "stack" to grow as needed as a built-in feature/artifact of the allocation policy.
+
+5.  When implementing object tree walks, keep a counter for the number of recursions.  When it reaches zero (if counting down), assume the resource isn't found.  Otherwise, you run the risk of exhausting memory or overflowing the stack with infinite recursion with a cyclic graph.  Ideally, decrement the counter on each reparse, and not on each subdirectory reference.
+
+6.  Stack imbalances happen more frequently with BSPL than I'd like (as with all descendants of Forth).  Strong static typing would catch just about every one of these.  LESSON: Use strong static typing.  Make the typing as strong as you know how.  Arity checks are not enough.  ALTERNATIVELY: write tooling which generates code in a manner consistent with reducing the probability of a stack imbalance.
+
+7.  Speaking of object trees, it remains unclear to me that they offer any significant value over a linear name-space, either as a user or especially as a systems implementor.  They are hard and fickle to get right, and while it's easy enough to get name resolution working correctly, getting things like "cd ..; pwd" working is actually a hard enough problem that a genius-level software engineer can only "solve" it for Plan 9 using a memory-inefficient, brute-force solution (namely, storing a complete copy of the filename per tree node as directory traversal happens.  If you get to a specific point through N paths, too bad: that one point now has N nodes, each named for its unique path).  Meanwhile, IBM's linear data set naming approach for OS/360 -> z/OS has remained intact despite mainframes handling everything from kilobytes to petabytes of data across tens to thousands of different volumes in high load, low response-time situations.  It's also not clear to me that a hierarchical namespace with Unix-like semantics is the only way to deliver on its feature-set.  LESSON LEARNED: Linear name-spaces solve the problem for 80% or more of what I'd ever use it for, and it's substantially simpler to implement than a Unix-semantics hierarchical namespace.  There's nothing inherently wrong with Unix-like semantics, but I don't think it's worth the expense of putting it into the kernel.  Unlike z/OS, though, I would use a longer filename; I'd choose, say, 160 byte filenames, allowing me to use 9 qualifiers of 16 characters each, with some slop left over.  I also wouldn't impose a hard limit on qualifier length.
+
+8.  I think I understand why JCL is the way it is.  I'm pretty sure IBM engineers had run into similar problems I'm having with STS, namely, trying to figure out how a launched program interacts with its controlling shell and/or the OS itself.  For example, a Unix process has a file handle table, environment variables, and the command line argument vector as part of its running environment.  OS/360, I'm sure, does not have any of these things.  So, how do you communicate relevant features to a launched program while still retaining the smallest possible surface area for OS/shell interaction?  LESSON LEARNED: Use symbolic names to represent files, which the application can open if/when needed.  The *OS* then maintains a symbolic mapping of name to file control block.  While the OS maintains this table, it's the *shell* that populates it.  Environment variables are expressed directly.  Standard files are expressed as environment settings bound to FCBs.  Command-line arguments are bound to FCBs configured to read from a subset of the JCL itself (c.f. Tripos, which copies CLI arguments into a string buffer, and creates an SCB to read from it).  NOTE: Not saying STS or any future OS I write should do this.  Just saying that this historical context makes a whole lot of sense, and it's not something I would have thought of without having been put into this position myself.
+
+9.  Forget about single-pass compilers for RISC-V architectures.  The ISA just isn't designed, let alone optimized, for one-pass code generation.  When compiling code, do so to an intermediate representation that is amenable to single-pass compilation.  This becomes your "first pass."  Then, from there, incrementally refine the IR, molding it like clay, until it finally resembles the final output assembly (or binary) language.
+
+10.  You can get surprisingly far in operating system development without having the concept of a "process."  However, you'll eventually need/want one when it comes time to invoke a command on behalf of another program (e.g., a shell).  Without it, you'd need to pass in things like command-line tail, environment variables, etc. manually.  LESSON LEARNED: Define and use processes early on.  Even before trying to load programs from storage.  Having that interface in hand and ready will make the process of "loading" that much easier.  Note that "process" here includes the Unix-concept of what a process is, but isn't limited to it.  MS-DOS, for example, used Program Segment Prefixes as surrogate process structures, and Tripos has processes that all reside in a single address space.  The single, unifying item between all these implementations is that a "process" serves at least the following roles: (1) a central repository for program-relevant information, like command-line parameters or environment variables, (2) the address, index of, or handle to the process structure serves to uniquely identify the job that's running, and (3) a means by which the operating system can keep track of process-related resources.
+
+11.  ELF specifies that a process launched using its loader be passed an "auxv" vector.  This is literally a *taglist* (as in AmigaOS-style taglist) which sits inline on the process' initial thread's stack, behind the final environment variable pointer.  From there, the raw bytes comprising the command line and environment variable text occupies the bottom-most portions of the process' stack.  See http://articles.manugarg.com/aboutelfauxiliaryvectors .
+
+12.  Unix-style directories lack metadata indicating if a file is an executable or not.  This makes the loader more complicated, since we now have to check headers and react to them.  It'd be easier if we could just open the file, check if the file is an executable, long before we decide to dispatch to a loader format parser.  LESSON LEARNED: This is a low-priority item.  Directory entries or inodes should have a definite "file type" field associated with them.  Different loader formats would have different file types.  (This can be generalized to supporting arbitrary metadata through extended attributes, such as associating a mime-type.)
+
+13.  Different calling conventions for system- and application-programming interface really stinks.  It'd be nice if they could be unified (at least conceptually, if not in practice).  LESSON LEARNED: The system call interface should use a system-wide component architecture, such as COM.  This would allow a module to be compilable in supervisor-space or user-space, single-address-space or multi-address-space, in a consistent manner.  Only a thin veneer between components would need to change based on the kind of runtime that exists.
+
+14.  Just as one should lift themselves away from raw assembler as quickly as possible to maximize leverage and productivity when programming, one should lift themselves away from relying on internal kernel interfaces as quickly as possible.  The sooner you can express programs, modules, etc. as if they were normal programs in your operating system, the better.  LESSON LEARNED: minimize the number of unique interfaces you have to write in a kernel.  Even if components to the operating system sit inside the kernel, they should, as much as possible, be written just like any other kernel process that would be loaded from disk.
+
+15.  Asynchronous video emulation incurs a 100x performance HIT (40MHz -> 0.3MHz, estimated).  This makes implementing MGIA support for the e emulator difficult.  LESSON LEARNED: (A) Always write your system software as if it were running in an emulator, and exploit it if it is.  REVISED: I re-engineered the code, and now I get 2.5MHz estimated performance.  Still, I think the lesson continues to be viable. --OR-- (B) Do not integrate a terminal interface with the core computer.  Treat all I/O consistently through channel I/O, including graphical console I/O.  That way, your emulator can be built in the most efficient manner possible, and video updates occur inherently asynchronously, without the need to burden the emulator's main core with cycle-level estimations of what to do and when.
+
+16.  Assemblers and languages should always have a name-scoping construct.  An assembler namespace would just prefix all symbols defined with a common prefix.
+
+17.  Passing parameters by stack to system calls is a royal pain in the ass.  Precious few system calls have consistent argument order, or even the same kinds of arguments.  LESSON LEARNED: Treat system calls like message passing.  Define parameter/control blocks for services, passing parameters and receiving responses via these control blocks using standardized fields.  Share as many control blocks and their fields as possible across the different service entry points.  Below illustrates why: note that the overwhelming majority of STS system calls take an address and length parameter.
+
+        KEY:        XXX -- output only
+                    Xxx -- input and output
+                    xxx -- input only
+
+        getver      REV MIN MAJ
+        emit                    chr
+        type                        adr len
+        fmtmem                      adr len
+        fremem                      adr
+        getmem                      ADR len
+        movmem                      adr len dst
+        setmem                  chr adr len
+        zermem                      adr len
+        strDup                      Adr         FLG
+        strEql                      adr len ad' FLG ln'
+        open                        adr len     FLG     SCB
+        close                                           scb
+        read                        adr Len     FLG     scb
+        filsiz                          LEN             scb
+        seek                        Ofs         FLG     scb
+        unloadseg                   seg
+        loadseg                     Adr len     FLG
+        polkey                                  FLG
+        getkey                  chr
+
+
+        adr used 15/21 = 71.4% of the time.
+        len used 12/21 = 57.1% of the time.
+        flg used 7/21 = 33.3% of the time.
+        scb used 5/21 = 23.8% of the time.
+        chr used 3/21 = 14.3% of the time.
+        dst used 2/21 = 9.5% of the time.
+        ln'
+        rev
+        min
+        maj used 1/21 = 4.8% of the time.
+
+18.  Extends lesson 17.  If an application allocates and manages its own control blocks, then the kernel need not track these resources.  The concept of an "open file" should be specific to the user application, not the kernel.  That is, the kernel should be stateless to the maximum extent possible.  LESSON LEARNED: Stateful constructs like SCBs and read/write/seek APIs are bad.  Replace them with stateless equivalents, and let the application manage its own state.  That way, crashing applications cannot suck resources indefinitely.  The kernel should impose protections against mutually untrustworthy applications, of course, as a cache kernel or exokernel would.
+
