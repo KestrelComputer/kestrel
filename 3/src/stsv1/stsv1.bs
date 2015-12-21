@@ -1172,11 +1172,13 @@ dword: liblist
 	repeat
 	ErrNotFound 0 d! ;
 
-: getlib ( caddr u n -- hlib 0 | ? erc )
+: getlib ( caddr u n -- jt hlib 0 | ? ? erc )
 	fndlib
-	0 d@ if exit then d>
+	0 d@ if 0 d@ >d exit then d>
 	0 d@ d# 16 + @ >d call	( invoke open handler )
-	0 d@ if exit then
+	0 d@ if 0 d@ >d exit then
+	( hlib 0 )
+	0 d@ >d  2 d@ 1 d!  1 d@ d# 16 + @ 2 d!		( jt hlib 0 )
 	1 d@ d# 48 + @  d# 1 +  1 d@ d# 48 + ! ;
 
 : rellib ( hlib -- erc )
@@ -1198,9 +1200,10 @@ dword: libTexpungeCalled
 : libTclose ( -- )	d# 1 libTcloseCalled ! ;
 : libTexpunge ( -- )	d# 1 libTexpungeCalled ! ;
 : libTzero ( -- 0 )	d# 0 >d ;
+: libTcustom ( -- )	d# 2 libTopenCalled ! ;
 
 jump-table: lib_null_jt
-jump-entries: libTopen libTclose libTexpunge libTzero ;
+jump-entries: libTopen libTclose libTexpunge libTzero libTcustom ;
 
 : libTfndlib
 	S" sts.test.1" >d >d d# 0 >d fndlib
@@ -1241,10 +1244,12 @@ jump-entries: libTopen libTclose libTexpunge libTzero ;
 	d# 0 libTopenCalled !  d# 0 libTcloseCalled !  d# 0 libTexpungeCalled !
 	S" sts.null.1" >d >d d# 1 >d lib_null_jt h# 0 >d addlib d> ( hlib )
 
-	S" sts.null.1" >d >d d# 1 >d getlib ( hlib  hlib erc )
+	S" sts.null.1" >d >d d# 1 >d getlib ( hlib  jt hlib erc )
 	d> if S"   get: unexpected failure trying to open rom-resident library" >d >d type cr bye then
-	d> 0 d@ xor if S"   get: expected same library" >d >d type cr bye then
+	d> 1 d@ xor if S"   get: expected same library" >d >d type cr bye then
 	libTopenCalled @ 0=if S"   get: open didn't get called" >d >d type cr bye then
+	d> d# 16 + >d call
+	libTopenCalled @ d# 2 xor if S"   get: incorrect jumptable?" >d >d type cr bye then
 	0 d@ >d rmvlib d> 0=if S"   get: removal of in-use lib" >d >d type cr bye then
 
 	rellib d> if S"   get: rellib failed" >d >d type cr bye then
