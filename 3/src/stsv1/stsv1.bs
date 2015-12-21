@@ -1391,7 +1391,7 @@ jump-entries: open close filsiz read _write seek ; ( file I/O )
 jump-entries: loadseg unloadseg ; ( executable I/O )
 jump-entries: strEql strDup strSplitSlash ; ( basic string library )
 jump-entries: emit type cr space _64 polkey getkey ; ( console I/O )
-jump-entries: fndlib addlib rmvlib ; ( libraries )
+jump-entries: fndlib addlib rmvlib getlib rellib ; ( libraries )
 
 : romshell
   cr ident initsh
