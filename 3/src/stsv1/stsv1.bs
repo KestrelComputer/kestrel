@@ -1172,13 +1172,43 @@ dword: liblist
 	repeat
 	ErrNotFound 0 d! ;
 
+: getlib ( caddr u n -- hlib 0 | ? erc )
+	fndlib
+	0 d@ if exit then d>
+	0 d@ d# 16 + @ >d call	( invoke open handler )
+	0 d@ if exit then
+	1 d@ d# 48 + @  d# 1 +  1 d@ d# 48 + ! ;
+
+: rellib ( hlib -- erc )
+	0 d@ d# 48 + @
+	if	0 d@ d# 16 + @ d# 4 + >d call	( call close handler )
+		0 d@ d# 48 + @ d# -1 +  0 d@ d# 48 + !  ( decrement open count )
+	then 
+	0 d@ d# 48 + @
+	0=if	0 d@ d# 16 + @ d# 8 + >d call	( call expunge handler )
+		rmvlib exit
+	then
+	d# 0 0 d! ;
+
+dword: libTopenCalled
+dword: libTcloseCalled
+dword: libTexpungeCalled
+
+: libTopen ( -- erc )	d# 0 >d  d# 1 libTopenCalled ! ;
+: libTclose ( -- )	d# 1 libTcloseCalled ! ;
+: libTexpunge ( -- )	d# 1 libTexpungeCalled ! ;
+: libTzero ( -- 0 )	d# 0 >d ;
+
+jump-table: lib_null_jt
+jump-entries: libTopen libTclose libTexpunge libTzero ;
+
 : libTfndlib
 	S" sts.test.1" >d >d d# 0 >d fndlib
 	d> ErrNotFound xor if S"   fnd: test not added yet" >d >d type cr bye then
 	d> ;
 
 : libTaddlib
-	S" sts.test.2" >d >d d# 1 >d h# 2222 >d h# 0 >d addlib
+	S" sts.test.2" >d >d d# 1 >d lib_null_jt h# 0 >d addlib
 	d> if S"   add: unexpected error adding" >d >d type cr bye then
 	liblist @ liblist xor 0=if S"   add: adding node didn't update list header" >d >d type cr bye then
 
@@ -1200,17 +1230,32 @@ dword: liblist
 	d> 0=if S"   rmv: Removed library wasn't removed." >d >d type cr bye then d> ;
 
 : libTrmv2
-	S" sts.test.3" >d >d d# 1 >d h# 2222 >d h# 0 >d addlib
+	S" sts.test.3" >d >d d# 1 >d lib_null_jt h# 0 >d addlib
 	d> if S"   rmv2: unexpected error adding" >d >d type cr bye then
 	d# 1 0 d@ d# 48 + !
 	0 d@ >d rmvlib d> ErrInUse xor if S"   rmv2: library still in use" >d >d type cr bye then
 	d# 0 0 d@ d# 48 + !
 	rmvlib d> if S"   rmv2: library no longer in use" >d >d type cr bye then ;
 
+: libTget
+	d# 0 libTopenCalled !  d# 0 libTcloseCalled !  d# 0 libTexpungeCalled !
+	S" sts.null.1" >d >d d# 1 >d lib_null_jt h# 0 >d addlib d> ( hlib )
+
+	S" sts.null.1" >d >d d# 1 >d getlib ( hlib  hlib erc )
+	d> if S"   get: unexpected failure trying to open rom-resident library" >d >d type cr bye then
+	d> 0 d@ xor if S"   get: expected same library" >d >d type cr bye then
+	libTopenCalled @ 0=if S"   get: open didn't get called" >d >d type cr bye then
+	0 d@ >d rmvlib d> 0=if S"   get: removal of in-use lib" >d >d type cr bye then
+
+	rellib d> if S"   get: rellib failed" >d >d type cr bye then
+	libTcloseCalled @ 0=if S"   get: close didn't get called" >d >d type cr bye then
+	libTexpungeCalled @ 0=if S"   get: expunge didn't get called" >d >d type cr bye then ;
+
 : libTest
 	S" lib:" >d >d type cr
 	liblist liblist !
 	libTfndlib libTaddlib libTrmvlib libTrmv2
+	libTget
 	S" ok" >d >d type cr ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
