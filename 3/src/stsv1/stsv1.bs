@@ -43,6 +43,7 @@ extern call
 -4 const ErrNoMemory	( out of memory )
 -5 const ErrTooBig	( request is too big )
 -6 const ErrNotExec	( file is not a recognized executable )
+-7 const ErrInUse	( resource is still in use )
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
@@ -1013,6 +1014,260 @@ word: dummy_hdr
 	S" ok" >d >d type cr ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+\ Libraries are (disk-)resident collections of related programs,
+\ identifiable under a unique name, and intended to be used by
+\ other programs and libraries.  Libraries are expected to
+\ follow semantic versioning practices.  The name of the library
+\ includes the major version number as the lowest level
+\ qualifier.  For example, "sts.blitter.1" identifies the standard
+\ blitter library, major version 1.  This is just a naming
+\ convention, but when used with minorVersion, you'll see its value.
+\ 
+\ Libraries are also identified by their minor version level
+\ as well.  While the major version must match precisely, being
+\ a part of the name of the library, a library will be compatible
+\ with an application if its minor version is greater than or
+\ equal to that requested by an application.
+\
+\ Libraries are kept in a linked list, and managed by STS.
+\ A Library Control Block looks like this:
+\ 
+\ +0	Next
+\ +8	Segment pointer
+\ +16	Jump table pointer
+\ +24	Minor version
+\ +32	Name length
+\ +40	Name
+\ +48	Open counter
+
+\ 56 bytes total
+
+dword: liblist
+
+\ Find a library by name and minor version.
+\ If the named library cannot be found, then return ErrNotFound.
+\ If the named library can be found, but yet doesn't meet the minimum
+\ version requirement, continue scanning for another candidate library;
+\ if none remains, return ErrNotFound.
+\ Otherwise, return the library's handle.
+
+: fndlib ( caddr u n -- hlib 0 | ? erc )
+	liblist @ >d  ( caddr u n ll )
+	begin	0 d@ liblist xor
+	while	3 d@ >d 3 d@ >d  ( caddr u n ll caddr u )
+		2 d@ d# 40 + @ >d  ( caddr u n ll caddr u nam )
+		3 d@ d# 32 + @ >d  ( caddr u n ll caddr u nam namlen )
+		strEql  ( caddr u n ll eqf )
+		d>
+		if	0 d@ d# 24 + @  1 d@ -
+			+if	0 d@ 3 d! d# 0 2 d! d> d> exit
+			then
+		then
+		0 d@ @ 0 d!
+	repeat
+	ErrNotFound 2 d! d> d> ;
+
+\ Makes a library known to the rest of the STS environment.
+\ The library name is NOT checked for uniqueness, for it is
+\ conceivable that different implementations corresponding
+\ to different versions can be loaded concurrently.  However,
+\ this is not a recommended practice, and is left only for
+\ advanced users.
+\
+\ The jump table must point to a dword-aligned set of JAL
+\ instructions, like so:
+\ 
+\	JAL X0, openHandler
+\	JAL X0, closeHandler
+\	JAL X0, expungeHandler
+\	JAL X0, reservedHandler
+\	JAL X0, myFunction1
+\	JAL X0, myFunction2
+\	JAL X0, myFunction3
+\	JAL X0, myFunction4
+\	...etc...
+\
+\ The first entry is invoked by STS itself when a library
+\ is opened with `getlib`.  This procedure must return an
+\ error code; the library will be opened only when the
+\ error code is zero.
+\
+\ `closeHandler` is invoked when the client application
+\ calls `rellib`.  Every successful open attempt must have
+\ a corresponding close attempt.  Closing a library cannot
+\ fail.
+\ 
+\ `expungeHandler` is invoked when STS realizes that the
+\ library has no current users, and is prepared to unload
+\ the library from memory.  Its purpose is to undo any
+\ global initializations that took place when the library
+\ was first loaded.  Like `closeHandler`, it cannot fail.
+\
+\ The segment pointer must be non-zero for libraries loaded
+\ from storage.  Only ROM-resident libraries may have a
+\ zero segment pointer.
+\
+\ If the registration attempt is successful, the library
+\ will have an open count of *zero*, but STS will not yet
+\ unload the library.  This gives a client application
+\ a chance to use it (presuming that addlib was invoked by
+\ getlib).
+\
+\ If successful, a handle to the library is returned.
+\ Otherwise, a relevant error code is returned.
+
+: addlib ( caddr u n jumptab segptr -- hlib 0 | ? erc )
+	d# 56 >d getmem d> if
+		( caddr u n jumptab segptr hlib )
+		1 d@ 0 d@ d# 8 + !
+		2 d@ 0 d@ d# 16 + !
+		3 d@ 0 d@ d# 24 + !
+		4 d@ 0 d@ d# 32 + !
+		5 d@ >d 5 d@ >d strDup d> if
+			( caddr u n jumptab segptr hlib caddr' )
+			0 d@ 1 d@ d# 40 + !
+			d# 0 1 d@ d# 48 + !
+			liblist @ 1 d@ !  1 d@ liblist !
+			d> d> d> d> d>
+			liblist @ 1 d!  d# 0 0 d! exit
+		then
+
+		\ If we're here, we couldn't duplicate the name;
+		\ out of memory.  Sorry.  :(
+
+		1 d@ >d fremem
+		d> d> d> d> d>
+		ErrNoMemory 0 d!
+	else
+		ErrNoMemory 4 d!
+		d> d> d> d>
+	then ;
+
+\ rmvlib attempts to remove a library and unload the program backing it.
+\ If it is not possible to perform this action, a suitable error
+\ response is given (e.g., ErrInUse).  Otherwise, if successful,
+\ zero is returned.
+
+: rmvlib ( hlib -- erc )
+	\ Find hlib in list, and remove it if possible.
+	\ Keep track of both predecessor and current node pointers
+	\ (pp and ll, respectively) along the way.
+	\ If the node is found, then set predecessor's next link
+	\ to the found node's next link, thus removing the node
+	\ from the list.  Then, dispose of the node.
+	liblist >d liblist @ >d ( hlib pp ll )
+	begin	0 d@ liblist xor
+	while	0 d@ 2 d@ xor
+		0=if	0 d@ d# 48 + @
+			if	ErrInUse 2 d! d> d> exit
+			then
+
+			0 d@ @  1 d@ !			( pred->next = succ )
+			0 d@ d# 40 + @ >d fremem	( free the duplicated name )
+			0 d@ >d fremem			( free the node itself )
+			d> d> d# 0 0 d! exit
+		then
+		0 d@ @ 0 d!
+		1 d@ @ 1 d!
+	repeat
+	ErrNotFound 0 d! ;
+
+: getlib ( caddr u n -- jt hlib 0 | ? ? erc )
+	fndlib
+	0 d@ if 0 d@ >d exit then d>
+	0 d@ d# 16 + @ >d call	( invoke open handler )
+	0 d@ if 0 d@ >d exit then
+	( hlib 0 )
+	0 d@ >d  2 d@ 1 d!  1 d@ d# 16 + @ 2 d!		( jt hlib 0 )
+	1 d@ d# 48 + @  d# 1 +  1 d@ d# 48 + ! ;
+
+: rellib ( hlib -- erc )
+	0 d@ d# 48 + @
+	if	0 d@ d# 16 + @ d# 4 + >d call	( call close handler )
+		0 d@ d# 48 + @ d# -1 +  0 d@ d# 48 + !  ( decrement open count )
+	then 
+	0 d@ d# 48 + @
+	0=if	0 d@ d# 16 + @ d# 8 + >d call	( call expunge handler )
+		rmvlib exit
+	then
+	d# 0 0 d! ;
+
+dword: libTopenCalled
+dword: libTcloseCalled
+dword: libTexpungeCalled
+
+: libTopen ( -- erc )	d# 0 >d  d# 1 libTopenCalled ! ;
+: libTclose ( -- )	d# 1 libTcloseCalled ! ;
+: libTexpunge ( -- )	d# 1 libTexpungeCalled ! ;
+: libTzero ( -- 0 )	d# 0 >d ;
+: libTcustom ( -- )	d# 2 libTopenCalled ! ;
+
+jump-table: lib_null_jt
+jump-entries: libTopen libTclose libTexpunge libTzero libTcustom ;
+
+: libTfndlib
+	S" sts.test.1" >d >d d# 0 >d fndlib
+	d> ErrNotFound xor if S"   fnd: test not added yet" >d >d type cr bye then
+	d> ;
+
+: libTaddlib
+	S" sts.test.2" >d >d d# 1 >d lib_null_jt h# 0 >d addlib
+	d> if S"   add: unexpected error adding" >d >d type cr bye then
+	liblist @ liblist xor 0=if S"   add: adding node didn't update list header" >d >d type cr bye then
+
+	( hlib )
+
+	S" sts.test.2" >d >d d# 0 >d fndlib
+	d> if S"   add: added library cannot be found" >d >d type cr bye then
+	d> d> xor if S"   add: found library handle != added handle" >d >d type cr bye then
+
+	S" sts.test.2" >d >d d# 3 >d fndlib
+	d> 0=if S"   add: lib not new enough" >d >d type cr bye then d> ;
+
+: libTrmvlib
+	S" sts.test.2" >d >d d# 0 >d fndlib ( from previous test )
+	d> if S"   rmv: not supposed to error out here" >d >d type cr bye then
+	rmvlib
+	d> if S"   rmv: lib removal not supposed to error" >d >d type cr bye then
+	S" sts.test.2" >d >d d# 0 >d fndlib
+	d> 0=if S"   rmv: Removed library wasn't removed." >d >d type cr bye then d> ;
+
+: libTrmv2
+	S" sts.test.3" >d >d d# 1 >d lib_null_jt h# 0 >d addlib
+	d> if S"   rmv2: unexpected error adding" >d >d type cr bye then
+	d# 1 0 d@ d# 48 + !
+	0 d@ >d rmvlib d> ErrInUse xor if S"   rmv2: library still in use" >d >d type cr bye then
+	d# 0 0 d@ d# 48 + !
+	rmvlib d> if S"   rmv2: library no longer in use" >d >d type cr bye then ;
+
+: libTget
+	d# 0 libTopenCalled !  d# 0 libTcloseCalled !  d# 0 libTexpungeCalled !
+	S" sts.null.1" >d >d d# 1 >d lib_null_jt h# 0 >d addlib d> ( hlib )
+
+	S" sts.null.1" >d >d d# 1 >d getlib ( hlib  jt hlib erc )
+	d> if S"   get: unexpected failure trying to open rom-resident library" >d >d type cr bye then
+	d> 1 d@ xor if S"   get: expected same library" >d >d type cr bye then
+	libTopenCalled @ 0=if S"   get: open didn't get called" >d >d type cr bye then
+	d> d# 16 + >d call
+	libTopenCalled @ d# 2 xor if S"   get: incorrect jumptable?" >d >d type cr bye then
+	0 d@ >d rmvlib d> 0=if S"   get: removal of in-use lib" >d >d type cr bye then
+
+	rellib d> if S"   get: rellib failed" >d >d type cr bye then
+	libTcloseCalled @ 0=if S"   get: close didn't get called" >d >d type cr bye then
+	libTexpungeCalled @ 0=if S"   get: expunge didn't get called" >d >d type cr bye then ;
+
+: libTgetbad
+	S" sts.null.2" >d >d d# 0 >d getlib ( ? ? erc )
+	d> 0=if S"  getbad: unknown library successful?" >d >d type cr bye then d> d> ;
+
+: libTest
+	S" lib:" >d >d type cr
+	liblist liblist !
+	libTfndlib libTaddlib libTrmvlib libTrmv2
+	libTget libTgetbad
+	S" ok" >d >d type cr ;
+
+\ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
 \ The ROM-resident shell.  Eventually, this will be placed into
 \ an executable that resides in the ROM filesystem.  From there,
@@ -1136,6 +1391,7 @@ jump-entries: open close filsiz read _write seek ; ( file I/O )
 jump-entries: loadseg unloadseg ; ( executable I/O )
 jump-entries: strEql strDup strSplitSlash ; ( basic string library )
 jump-entries: emit type cr space _64 polkey getkey ; ( console I/O )
+jump-entries: fndlib addlib rmvlib getlib rellib ; ( libraries )
 
 : romshell
   cr ident initsh
@@ -1236,7 +1492,9 @@ jump-entries: callTestProc banner ;
 : callTestProc	S" call:" >d >d type cr S" ok" >d >d type cr ;
 : callTest	ctvt call  ctvt d> d# 4 + >d call ;
 
-: selfTest	memtest callTest strTest objEntTest objDirTest fsTest ;
+: selfTest	memtest callTest strTest objEntTest objDirTest fsTest libTest ;
 
-: _		cr banner mem0 selfTest fs0 romshell bye ;
+: lib0		liblist liblist ! ;
+
+: _		cr banner mem0 selfTest fs0 lib0 romshell bye ;
 
