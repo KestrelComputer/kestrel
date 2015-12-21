@@ -68,8 +68,8 @@ STS_GETKEY	=	92
 
 ; The following entry points are definitely part of the STS API.
 
-STS_FNDLIB	=	100	; V1.5+
-STS_ADDLIB	=	108	; V1.5+
-STS_RMVLIB	=	116	; V1.5+
-STS_GETLIB	=	124	; V1.5+
-STS_RELLIB	=	132	; V1.5+
+STS_FNDLIB	=	96	; V1.5+
+STS_ADDLIB	=	100	; V1.5+
+STS_RMVLIB	=	104	; V1.5+
+STS_GETLIB	=	108	; V1.5+
+STS_RELLIB	=	112	; V1.5+
