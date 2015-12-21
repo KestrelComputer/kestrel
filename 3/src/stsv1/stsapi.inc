@@ -65,3 +65,10 @@ STS_SPACE	=	80
 STS_HEX64	=	84
 STS_POLKEY	=	88
 STS_GETKEY	=	92
+
+; The following entry points are definitely part of the STS API.
+
+STS_FNDLIB	=	100	; V1.5+
+STS_ADDLIB	=	108	; V1.5+
+STS_RMVLIB	=	116	; V1.5+
+
