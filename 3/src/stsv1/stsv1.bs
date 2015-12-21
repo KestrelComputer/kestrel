@@ -1256,11 +1256,15 @@ jump-entries: libTopen libTclose libTexpunge libTzero libTcustom ;
 	libTcloseCalled @ 0=if S"   get: close didn't get called" >d >d type cr bye then
 	libTexpungeCalled @ 0=if S"   get: expunge didn't get called" >d >d type cr bye then ;
 
+: libTgetbad
+	S" sts.null.2" >d >d d# 0 >d getlib ( ? ? erc )
+	d> 0=if S"  getbad: unknown library successful?" >d >d type cr bye then d> d> ;
+
 : libTest
 	S" lib:" >d >d type cr
 	liblist liblist !
 	libTfndlib libTaddlib libTrmvlib libTrmv2
-	libTget
+	libTget libTgetbad
 	S" ok" >d >d type cr ;
 
 \ \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
