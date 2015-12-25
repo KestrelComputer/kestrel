@@ -137,24 +137,26 @@ tbf0:		jal	x31, tb_i_fntest
 tbf0data:	dword	$0000000000000000
 		hword	tbFn0-tbf0data, $30
 
-tb_i_fntest:	addi	x31, x31, 7
+; Perform a raster op test.  Print a diagnostic if the test fails.
+
+tb_i_fntest:	addi	x31, x31, 7		; Point X31 to inline test descriptor.
 		andi	x31, x31, -8
 
 		addi	rsp, rsp, -8
 		sd	ra, 0(rsp)
 
-tb4:		auipc	gp, 0
+tb4:		auipc	gp, 0			; Load standard arguments for function.
 		ld	x16, tbimm_FF00FF00FF00FF00-tb4(gp)
 		ld	x17, tbimm_00005555AAAAFFFF-tb4(gp)
 
-		lh	x30, 8(x31)
+		lh	x30, 8(x31)		; Invoke raster op function.
 		add	x30, x30, x31
 		jalr	ra, 0(x30)
 
-		ld	x17, 0(x31)
+		ld	x17, 0(x31)		; Check for expected result.
 		beq	x16, x17, tbfnok
 
-		lh	x17, 10(x31)
+		lh	x17, 10(x31)		; No match; print diagnostic.
 tb5:		auipc	gp, 0
 		addi	x16, gp, tbfailmsg-tb5
 		sb	x17, 0(x16)
@@ -162,7 +164,7 @@ tb5:		auipc	gp, 0
 		jal	ra, tbtype
 		jal	ra, tbcr
 
-tbfnok:		ld	ra, 0(rsp)
+tbfnok:		ld	ra, 0(rsp)		; Match; return.
 		addi	rsp, rsp, 8
 		jalr	x0, 0(ra)
 
@@ -281,6 +283,7 @@ tbcr:		addi	rsp, rsp, -8
 		jalr	x0, STS_CR(x16)
 
 ; These data are the sprite image and mask.
+; They are in MGIA format (big-endian).
 
 mousArrw:	byte	$00, $00 
 		byte	$60, $00 

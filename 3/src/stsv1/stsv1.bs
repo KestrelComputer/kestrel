@@ -1429,6 +1429,9 @@ extern prg_m2slides_len
 extern prg_fbtest_start
 extern prg_fbtest_len
 
+extern prg_testblit_start
+extern prg_testblit_len
+
 : fs0
 	objDirNew d> 0=if S" dir / failed" >d >d panic then
 	d> rootnode !
@@ -1477,6 +1480,14 @@ extern prg_fbtest_len
 	prg_m2slides_start prg_m2slides_len 2 d@ >d romFileSetContents
 	objEntNew d> 0=if S" ent /rom/m2.slides failed" >d >d panic then
 	S" m2.slides" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/m2.slides failed" >d >d panic then
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d 4 d@ >d objDirAddHead
+	d> d>
+
+	romFileNew d> 0=if S" fil /rom/prg.testblit failed" >d >d panic then
+	prg_testblit_start prg_testblit_len 2 d@ >d romFileSetContents
+	objEntNew d> 0=if S" ent /rom/prg.testblit failed" >d >d panic then
+	S" prg.testblit" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/prg.testblit failed" >d >d panic then
 	1 d@ >d 1 d@ >d objEntSetObject
 	0 d@ >d 4 d@ >d objDirAddHead
 	d> d>

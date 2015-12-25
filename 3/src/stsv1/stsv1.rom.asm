@@ -28,6 +28,7 @@ t2		= x12
 		include "m2.asm"
 		include	"m2slides.asm"
 		include "fbtest.asm"
+		include "blitter.asm"
 
 ; The following string-compare software comes from a ROM-resident Forth
 ; interpreter.  It's been unit-tested and shown to work in that project.
