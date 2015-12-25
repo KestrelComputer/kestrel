@@ -4,6 +4,23 @@ start_prg_testblit:
 		word	0
 		jal	x0, testBlit
 
+;== REGISTERS ==
+;
+; The blitter logic is optimized to use a lot of registers,
+; to ensure best balance of performance versus convenient
+; interface.  These equations will help readability.
+
+bsrcdat	= x16	; data dword from source bitmap
+bdstdat	= x17	; data dword from destination bitmap
+bsrcprv	= x18	; previous dword from source bitmap
+bropfn	= x19	; pointer to raster op function
+bshiftl	= x20	; distance to shift left (0 <= bshiftl <= 64)
+bshiftr	= x21	; distance to shift right (0 <= bshiftl <= 64)
+bcache	= x22	; work register
+bsrcadr	= x23	; pointer to next source dword
+bdstadr	= x24	; pointer to next destination dword
+
+
 ;== DATA ==
 
 		align	8
@@ -47,6 +64,8 @@ tb0:		auipc	gp, 0
 		jal	ra, tbfE
 		jal	ra, tbfF
 
+		jal	ra, tbShiftLeft
+
 tb1:		auipc	gp, 0
 		addi	x16, gp, tbtok-tb1
 		addi	x17, x0, tbtoklen
@@ -56,6 +75,86 @@ tb1:		auipc	gp, 0
 		ld	ra, 0(rsp)
 		addi	rsp, rsp, 8
 		jalr	x0, 0(ra)
+
+; Test shifting logic.
+
+tbShiftLeft:	jal	x31, tb_i_shltest
+		align	8
+tbsldata:	dword	$AA000000000000FC	; source data
+		dword	$0000000000AAAAAA	; computed destination data
+		dword	$5000000000AAAFEA	; expected destination data
+		dword	$0000000000000005	; expected previous source value
+		dword	tbFn7-tbsldata		; D=D OR S		
+
+tb_i_shltest:	addi	rsp, rsp, -8
+		sd	ra, 0(rsp)
+
+		addi	x31, x31, 7		; Ensure X31 points to our control block
+		andi	x31, x31, -8
+
+		addi	bsrcadr, x31, 0		; BSRCADR -> source "bitmap" dword
+		addi	bdstadr, x31, 8		; BDSTADR -> destination "bitmap" dword
+		addi	bsrcprv, x0, 0		; Always initialize to 0.
+		addi	bshiftr, x0, 61		; shift 3 bits left; 64-3=61
+		addi	bshiftl, x0, 3		; shift 3 bits left
+		ld	bropfn, 32(x31)		; compute address of ROP procedure
+		add	bropfn, bropfn, x31
+		jal	ra, tbDWord		; blit a single dword.
+
+		addi	dsp, dsp, -8
+		sd	x31, 0(dsp)
+
+		add	bcache, x31, 0
+		beq	bdstadr, bcache, tbdstok
+		jal	ra, tb_i_print
+		byte	"   shltest: BDSTADR has unexpected value", 13, 10, 0
+
+		align	4
+tbdstok:	ld	x31, 0(dsp)
+		addi	bcache, x31, -8
+		beq	bsrcadr, bcache, tbsrcok
+		jal	ra, tb_i_print
+		byte	"   shltest: BSRCADR has unexpected value", 13, 10, 0
+
+		align	4
+tbsrcok:	ld	x31, 0(dsp)
+		ld	bcache, 24(x31)
+		beq	bsrcprv, bcache, tbprvok
+		jal	ra, tb_i_print
+		byte	"   shltest: BSRCPRV has unexpected value", 13, 10, 0
+
+		align	4
+tbprvok:	ld	x31, 0(dsp)
+		ld	bcache, 8(x31)
+		ld	bsrcprv, 16(x31)
+		beq	bcache, bsrcprv, tbdatok
+		jal	ra, tb_i_print
+		byte	"   shltest: Blitted word has unexpected value", 13, 10, 0
+
+		align	4
+tbdatok:	addi	dsp, dsp, 8
+		ld	ra, 0(rsp)
+		addi	rsp, rsp, 8
+		jalr	x0, 0(ra)
+
+tbDWord:	addi	rsp, rsp, -8
+		sd	ra, 0(rsp)
+
+		ld	bcache, 0(bsrcadr)
+		addi	bsrcadr, bsrcadr, -8
+		sll	bsrcdat, bcache, bshiftl
+		or	bsrcdat, bsrcdat, bsrcprv
+		srl	bsrcprv, bcache, bshiftr
+		ld	bdstdat, 0(bdstadr)
+		jalr	ra, 0(bropfn)
+		sd	bsrcdat, 0(bdstadr)
+		addi	bdstadr, bdstadr, -8
+
+		ld	ra, 0(rsp)
+		addi	rsp, rsp, 8
+		jalr	x0, 0(ra)
+
+; Test individual raster operations.
 
 tbfF:		jal	x31, tb_i_fntest
 		align	8
@@ -146,15 +245,15 @@ tb_i_fntest:	addi	x31, x31, 7		; Point X31 to inline test descriptor.
 		sd	ra, 0(rsp)
 
 tb4:		auipc	gp, 0			; Load standard arguments for function.
-		ld	x16, tbimm_FF00FF00FF00FF00-tb4(gp)
-		ld	x17, tbimm_00005555AAAAFFFF-tb4(gp)
+		ld	bsrcdat, tbimm_FF00FF00FF00FF00-tb4(gp)
+		ld	bdstdat, tbimm_00005555AAAAFFFF-tb4(gp)
 
 		lh	x30, 8(x31)		; Invoke raster op function.
 		add	x30, x30, x31
 		jalr	ra, 0(x30)
 
-		ld	x17, 0(x31)		; Check for expected result.
-		beq	x16, x17, tbfnok
+		ld	bdstdat, 0(x31)		; Check for expected result.
+		beq	bsrcdat, bdstdat, tbfnok
 
 		lh	x17, 10(x31)		; No match; print diagnostic.
 tb5:		auipc	gp, 0
@@ -181,73 +280,73 @@ tbfnok:		ld	ra, 0(rsp)		; Match; return.
 ;	to remain constant.
 
 ; D = 0
-tbFn0:		addi	x16, x0, 0
+tbFn0:		addi	bsrcdat, x0, 0
 		jalr	x0, 0(ra)
 
 ; D = D & S
-tbFn1:		and	x16, x16, x17
+tbFn1:		and	bsrcdat, bsrcdat, bdstdat
 		jalr	x0, 0(ra)
 
 ; D = ~D & S
-tbFn2:		xori	x17, x17, -1
-		and	x16, x16, x17
+tbFn2:		xori	bdstdat, bdstdat, -1
+		and	bsrcdat, bsrcdat, bdstdat
 		jalr	x0, 0(ra)
 
 ; D = S
 tbFn3:		jalr	x0, 0(ra)
 
 ; D = D & ~S
-tbFn4:		xori	x16, x16, -1
-		and	x16, x16, x17
+tbFn4:		xori	bsrcdat, bsrcdat, -1
+		and	bsrcdat, bsrcdat, bdstdat
 		jalr	x0, 0(ra)
 
 ; D = D
-tbFn5:		addi	x16, x17, 0
+tbFn5:		addi	bsrcdat, bdstdat, 0
 		jalr	x0, 0(ra)
 
 ; D = D XOR S
-tbFn6:		xor	x16, x16, x17
+tbFn6:		xor	bsrcdat, bsrcdat, bdstdat
 		jalr	x0, 0(ra)
 
 ; D = S OR D
-tbFn7:		or	x16, x16, x17
+tbFn7:		or	bsrcdat, bsrcdat, bdstdat
 		jalr	x0, 0(ra)
 
 ; D = S NOR D
-tbFn8:		or	x16, x16, x17
-		xori	x16, x16, -1
+tbFn8:		or	bsrcdat, bsrcdat, bdstdat
+		xori	bsrcdat, bsrcdat, -1
 		jalr	x0, 0(ra)
 
 ; D = S XNOR D
-tbFn9:		xor	x16, x16, x17
-		xori	x16, x16, -1
+tbFn9:		xor	bsrcdat, bsrcdat, bdstdat
+		xori	bsrcdat, bsrcdat, -1
 		jalr	x0, 0(ra)
 
 ; D = NOT D
-tbFnA:		xori	x16, x17, -1
+tbFnA:		xori	bsrcdat, bdstdat, -1
 		jalr	x0, 0(ra)
 
 ; D = S OR (NOT D)
-tbFnB:		xori	x17, x17, -1
-		or	x16, x16, x17
+tbFnB:		xori	bdstdat, bdstdat, -1
+		or	bsrcdat, bsrcdat, bdstdat
 		jalr	x0, 0(ra)
 
 ; D = NOT S
-tbFnC:		xori	x16, x16, -1
+tbFnC:		xori	bsrcdat, bsrcdat, -1
 		jalr	x0, 0(ra)
 
 ; D = D OR (NOT S)
-tbFnD:		xori	x16, x16, -1
-		or	x16, x16, x17
+tbFnD:		xori	bsrcdat, bsrcdat, -1
+		or	bsrcdat, bsrcdat, bdstdat
 		jalr	x0, 0(ra)
 
 ; D = S NAND D
-tbFnE:		and	x16, x16, x17
-		xori	x16, x16, -1
+tbFnE:		and	bsrcdat, bsrcdat, bdstdat
+		xori	bsrcdat, bsrcdat, -1
 		jalr	x0, 0(ra)
 
 ; D = 1
-tbFnF:		addi	x16, x0, -1
+tbFnF:		addi	bsrcdat, x0, -1
 		jalr	x0, 0(ra)
 
 
@@ -260,6 +359,25 @@ tbfail:		auipc	gp, 0
 		jal	ra, tbtype
 		jal	ra, tbcr
 		ld	ra, 0(rsp)
+		addi	rsp, rsp, 8
+		jalr	x0, 0(ra)
+
+tb_i_print:	addi	rsp, rsp, -8
+tb3:		lbu	x16, 0(ra)
+		addi	ra, ra, 1
+		beq	x16, x0, tb6
+
+		sd	ra, 0(rsp)
+		addi	dsp, dsp, -8
+		sd	x16, 0(dsp)
+		jal	ra, tbdata
+		ld	x16, tb_stsBase(x15)
+		jalr	ra, STS_EMIT(x16)
+		ld	ra, 0(rsp)
+		jal	x0, tb3
+
+tb6:		addi	ra, ra, 3
+		andi	ra, ra, -4
 		addi	rsp, rsp, 8
 		jalr	x0, 0(ra)
 
