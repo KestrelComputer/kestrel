@@ -65,6 +65,7 @@ tb0:		auipc	gp, 0
 		jal	ra, tbfF
 
 		jal	ra, tbShiftLeft
+		jal	ra, tbShiftRight
 
 tb1:		auipc	gp, 0
 		addi	x16, gp, tbtok-tb1
@@ -76,7 +77,7 @@ tb1:		auipc	gp, 0
 		addi	rsp, rsp, 8
 		jalr	x0, 0(ra)
 
-; Test shifting logic.
+; Test shifting logic: to the left.
 
 tbShiftLeft:	jal	x31, tb_i_shltest
 		align	8
@@ -99,12 +100,12 @@ tb_i_shltest:	addi	rsp, rsp, -8
 		addi	bshiftl, x0, 3		; shift 3 bits left
 		ld	bropfn, 32(x31)		; compute address of ROP procedure
 		add	bropfn, bropfn, x31
-		jal	ra, tbDWord		; blit a single dword.
+		jal	ra, tbDWordL		; blit a single dword.
 
 		addi	dsp, dsp, -8
 		sd	x31, 0(dsp)
 
-		add	bcache, x31, 0
+		addi	bcache, x31, 0
 		beq	bdstadr, bcache, tbdstok
 		jal	ra, tb_i_print
 		byte	"   shltest: BDSTADR has unexpected value", 13, 10, 0
@@ -137,7 +138,7 @@ tbdatok:	addi	dsp, dsp, 8
 		addi	rsp, rsp, 8
 		jalr	x0, 0(ra)
 
-tbDWord:	addi	rsp, rsp, -8
+tbDWordL:	addi	rsp, rsp, -8
 		sd	ra, 0(rsp)
 
 		ld	bcache, 0(bsrcadr)
@@ -149,6 +150,84 @@ tbDWord:	addi	rsp, rsp, -8
 		jalr	ra, 0(bropfn)
 		sd	bsrcdat, 0(bdstadr)
 		addi	bdstadr, bdstadr, -8
+
+		ld	ra, 0(rsp)
+		addi	rsp, rsp, 8
+		jalr	x0, 0(ra)
+
+; Test shifting logic: to the right.
+
+tbShiftRight:	jal	x31, tb_i_shrtest
+		align	8
+tbsldata:	dword	$AA000000000000FE	; source data
+		dword	$0000000000AAAAAA	; computed destination data
+		dword	$2A80000000AAAA95	; expected destination data
+		dword	$8000000000000000	; expected previous source value
+		dword	tbFn6-tbsldata		; D=D XOR S		
+
+tb_i_shrtest:	addi	rsp, rsp, -8
+		sd	ra, 0(rsp)
+
+		addi	x31, x31, 7		; Ensure X31 points to our control block
+		andi	x31, x31, -8
+
+		addi	bsrcadr, x31, 0		; BSRCADR -> source "bitmap" dword
+		addi	bdstadr, x31, 8		; BDSTADR -> destination "bitmap" dword
+		addi	bsrcprv, x0, 0		; Always initialize to 0.
+		addi	bshiftr, x0, 2		; shift 2 bits left
+		addi	bshiftl, x0, 62		; shift 2 bits left; 64-2 = 62
+		ld	bropfn, 32(x31)		; compute address of ROP procedure
+		add	bropfn, bropfn, x31
+		jal	ra, tbDWordR		; blit a single dword.
+
+		addi	dsp, dsp, -8
+		sd	x31, 0(dsp)
+
+		addi	bcache, x31, 16
+		beq	bdstadr, bcache, tbdstok2
+		jal	ra, tb_i_print
+		byte	"   shrtest: BDSTADR has unexpected value", 13, 10, 0
+
+		align	4
+tbdstok2:	ld	x31, 0(dsp)
+		addi	bcache, x31, 8
+		beq	bsrcadr, bcache, tbsrcok2
+		jal	ra, tb_i_print
+		byte	"   shrtest: BSRCADR has unexpected value", 13, 10, 0
+
+		align	4
+tbsrcok2:	ld	x31, 0(dsp)
+		ld	bcache, 24(x31)
+		beq	bsrcprv, bcache, tbprvok2
+		jal	ra, tb_i_print
+		byte	"   shrtest: BSRCPRV has unexpected value", 13, 10, 0
+
+		align	4
+tbprvok2:	ld	x31, 0(dsp)
+		ld	bcache, 8(x31)
+		ld	bsrcprv, 16(x31)
+		beq	bcache, bsrcprv, tbdatok2
+		jal	ra, tb_i_print
+		byte	"   shrtest: Blitted word has unexpected value", 13, 10, 0
+
+		align	4
+tbdatok2:	addi	dsp, dsp, 8
+		ld	ra, 0(rsp)
+		addi	rsp, rsp, 8
+		jalr	x0, 0(ra)
+
+tbDWordR:	addi	rsp, rsp, -8
+		sd	ra, 0(rsp)
+
+		ld	bcache, 0(bsrcadr)
+		addi	bsrcadr, bsrcadr, 8
+		srl	bsrcdat, bcache, bshiftr
+		or	bsrcdat, bsrcdat, bsrcprv
+		sll	bsrcprv, bcache, bshiftl
+		ld	bdstdat, 0(bdstadr)
+		jalr	ra, 0(bropfn)
+		sd	bsrcdat, 0(bdstadr)
+		addi	bdstadr, bdstadr, 8
 
 		ld	ra, 0(rsp)
 		addi	rsp, rsp, 8
