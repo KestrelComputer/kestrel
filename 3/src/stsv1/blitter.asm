@@ -19,6 +19,7 @@ bshiftr	= x21	; distance to shift right (0 <= bshiftl <= 64)
 bcache	= x22	; work register
 bsrcadr	= x23	; pointer to next source dword
 bdstadr	= x24	; pointer to next destination dword
+bmask	= x25	; destination writeback mask
 
 
 ;== DATA ==
@@ -83,9 +84,10 @@ tbShiftLeft:	jal	x31, tb_i_shltest
 		align	8
 tbsldata:	dword	$AA000000000000FC	; source data
 		dword	$0000000000AAAAAA	; computed destination data
-		dword	$5000000000AAAFEA	; expected destination data
+		dword	$0000000000AAAFEA	; expected destination data
 		dword	$0000000000000005	; expected previous source value
 		dword	tbFn7-tbsldata		; D=D OR S		
+		dword	$0000000000FFFFFF	; writeback mask
 
 tb_i_shltest:	addi	rsp, rsp, -8
 		sd	ra, 0(rsp)
@@ -100,6 +102,7 @@ tb_i_shltest:	addi	rsp, rsp, -8
 		addi	bshiftl, x0, 3		; shift 3 bits left
 		ld	bropfn, 32(x31)		; compute address of ROP procedure
 		add	bropfn, bropfn, x31
+		ld	bmask, 40(x31)		; get writeback mask.
 		jal	ra, tbDWordL		; blit a single dword.
 
 		addi	dsp, dsp, -8
@@ -147,7 +150,11 @@ tbDWordL:	addi	rsp, rsp, -8
 		or	bsrcdat, bsrcdat, bsrcprv
 		srl	bsrcprv, bcache, bshiftr
 		ld	bdstdat, 0(bdstadr)
+		xori	bcache, bmask, -1
+		and	bcache, bcache, bdstdat
 		jalr	ra, 0(bropfn)
+		and	bsrcdat, bsrcdat, bmask
+		or	bsrcdat, bsrcdat, bcache
 		sd	bsrcdat, 0(bdstadr)
 		addi	bdstadr, bdstadr, -8
 
@@ -159,11 +166,12 @@ tbDWordL:	addi	rsp, rsp, -8
 
 tbShiftRight:	jal	x31, tb_i_shrtest
 		align	8
-tbsldata:	dword	$AA000000000000FE	; source data
-		dword	$0000000000AAAAAA	; computed destination data
-		dword	$2A80000000AAAA95	; expected destination data
+tbsldata:	dword	$00000000000000FE	; source data
+		dword	$AA00000000AAAAAA	; computed destination data
+		dword	$AA00000000AAAA95	; expected destination data
 		dword	$8000000000000000	; expected previous source value
 		dword	tbFn6-tbsldata		; D=D XOR S		
+		dword	$000000000000003F	; writeback mask
 
 tb_i_shrtest:	addi	rsp, rsp, -8
 		sd	ra, 0(rsp)
@@ -178,7 +186,8 @@ tb_i_shrtest:	addi	rsp, rsp, -8
 		addi	bshiftl, x0, 62		; shift 2 bits right; 64-2 = 62
 		ld	bropfn, 32(x31)		; compute address of ROP procedure
 		add	bropfn, bropfn, x31
-		jal	ra, tbDWordR		; blit a single dword.
+		ld	bmask, 40(x31)		; get writeback mask
+		jal	ra, tbDwordR		; blit a single dword.
 
 		addi	dsp, dsp, -8
 		sd	x31, 0(dsp)
@@ -216,7 +225,7 @@ tbdatok2:	addi	dsp, dsp, 8
 		addi	rsp, rsp, 8
 		jalr	x0, 0(ra)
 
-tbDWordR:	addi	rsp, rsp, -8
+tbDwordR:	addi	rsp, rsp, -8
 		sd	ra, 0(rsp)
 
 		ld	bcache, 0(bsrcadr)
@@ -225,7 +234,11 @@ tbDWordR:	addi	rsp, rsp, -8
 		or	bsrcdat, bsrcdat, bsrcprv
 		sll	bsrcprv, bcache, bshiftl
 		ld	bdstdat, 0(bdstadr)
+		xori	bcache, bmask, -1
+		and	bcache, bcache, bdstdat
 		jalr	ra, 0(bropfn)
+		and	bsrcdat, bsrcdat, bmask
+		or	bsrcdat, bsrcdat, bcache
 		sd	bsrcdat, 0(bdstadr)
 		addi	bdstadr, bdstadr, 8
 
