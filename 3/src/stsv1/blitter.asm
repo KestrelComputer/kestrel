@@ -77,7 +77,7 @@ tb1:		auipc	gp, 0
 		addi	rsp, rsp, 8
 		jalr	x0, 0(ra)
 
-; Test shifting logic: to the left.
+; == SHIFT LEFT LOGIC ==
 
 tbShiftLeft:	jal	x31, tb_i_shltest
 		align	8
@@ -155,7 +155,7 @@ tbDWordL:	addi	rsp, rsp, -8
 		addi	rsp, rsp, 8
 		jalr	x0, 0(ra)
 
-; Test shifting logic: to the right.
+; == SHIFT RIGHT LOGIC ==
 
 tbShiftRight:	jal	x31, tb_i_shrtest
 		align	8
@@ -174,8 +174,8 @@ tb_i_shrtest:	addi	rsp, rsp, -8
 		addi	bsrcadr, x31, 0		; BSRCADR -> source "bitmap" dword
 		addi	bdstadr, x31, 8		; BDSTADR -> destination "bitmap" dword
 		addi	bsrcprv, x0, 0		; Always initialize to 0.
-		addi	bshiftr, x0, 2		; shift 2 bits left
-		addi	bshiftl, x0, 62		; shift 2 bits left; 64-2 = 62
+		addi	bshiftr, x0, 2		; shift 2 bits right
+		addi	bshiftl, x0, 62		; shift 2 bits right; 64-2 = 62
 		ld	bropfn, 32(x31)		; compute address of ROP procedure
 		add	bropfn, bropfn, x31
 		jal	ra, tbDWordR		; blit a single dword.
@@ -233,7 +233,7 @@ tbDWordR:	addi	rsp, rsp, -8
 		addi	rsp, rsp, 8
 		jalr	x0, 0(ra)
 
-; Test individual raster operations.
+; == RASTER OPS ==
 
 tbfF:		jal	x31, tb_i_fntest
 		align	8
