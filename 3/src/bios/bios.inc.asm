@@ -182,6 +182,11 @@ TRAP_FROM_S             = $40
 TRAP_FROM_H             = $80
 TRAP_FROM_M             = $C0
 
+; If the CPU supports non-maskable interrupts, the CPU will jump unconditionally
+; to TRAP_NMI.  Note that NMIs are always handled in machine mode.
+
+TRAP_NMI		= $FC
+
 ; The Polaris CPU always starts execution at this address after hard reset.
 ; The MTVEC CSR will be set to DEFAULT_TRAP_BASE by default.  RISC-V CPUs
 ; which boot from low memory are incompatible with this BIOS unless a
