@@ -22,24 +22,6 @@
 ; Memory higher than this is typically reserved for I/O
 ; or other expansion peripherals.
 
-; BIOS Data Area.
-
-bd_tag		= 0			; D BIOS Data Format tag
-bd_bitplane	= bd_tag + 8		; D Pointer to MGIA framebuffer.
-bd_planesz	= bd_bitplane + 8	; D Size of said framebuffer, bytes.
-
-bd_cx		= bd_planesz + 8	; H Cursor X position
-bd_cy		= bd_cx + 2		; H Cursor Y position
-bd_maxcol	= bd_cy + 2		; H Maximum number of columns (typ. 80)
-bd_maxrow	= bd_maxcol+2		; H Maximum number of rows (typ. 60)
-
-bd_planebw	= bd_maxrow+2		; H Width of bitmap in bytes
-bd_planeh	= bd_planebw+2		; H Height of bitmap in pixels
-bd_padding0	= bd_planeh+2		; H reserved.
-bd_padding1	= bd_padding0+2		; H reserved.
-
-bd_fontform	= bd_padding1+4		; D Pointer to system font image.
-
 ; Main entry point for the BIOS.  The CPU is in machine mode, memory mapping
 ; hardware is disabled, and we have full, unadulterated access to literally
 ; everything the hardware has to offer.  Since we arrive here after a power-on
@@ -59,27 +41,19 @@ bios_cold:	addi	sp, x0, 1	; SP = $1000
 		addi	a1, x0, 13	; Carriage Return.
 		jal	ra, mgia_chrout
 
-bc99:		addi	s0, x0, 32	; Start print from the space
+		addi	s0, x0, 32	; Start print from the space
 bc100:		add	a1, s0, x0
 		jal	ra, mgia_chrout	; Print character,
-
-		addi	a0, s0, 0
-		andi	a0, a0, 31
-		bne	a0, x0, bc101
-		addi	a1, x0, 13
-		jal	ra, mgia_chrout
-		addi	a1, x0, 10
-		jal	ra, mgia_chrout
-
-bc101:		addi	s0, s0, 1	; increment,
-		andi	t0, s0, 3
-		bne	t0, x0, bc102
-		addi	a1, x0, 9
-		jal	ra, mgia_chrout
-
-bc102:		addi	a2, x0, 256
+		addi	s0, s0, 1
+		addi	a2, x0, 256
 		blt	s0, a2, bc100	; and repeat until done.
-		jal	x0, bc99
+
+		addi	a0, x0, 1	; Output BIOS banner to the screen.
+		jal	ra, bios_i_strout
+		byte	13, 10, 10
+		byte	"Kestrel-3 BIOS V1.15.51"
+		byte	13, 10, 10, 0
+		align	4
 
 _bc900:		addi	a0, x0, 255
 		slli	a0, a0, 16
@@ -95,16 +69,106 @@ wtf:		addi	a5, x0, 255
 		sd	a1, 1104(a5)
 		jal	x0, *
 
-		adv	RESET_BASE-BIOS_BASE, $CC
-		jal	x0, bios_cold
+; SYNOPSIS
+; actual = bios_strout(dev, buffer)
+; a0                   a0   a1
+;
+; FUNCTION
+; Sends a NULL-terminated string to the indicated character-oriented
+; device.  The NULL byte is not sent.
+;
+; If the device cannot accept new characters at any time during the
+; output procedure, bios_strout will simply return early.
+;
+; RETURNS
+; The actual number of bytes sent.
 
-; Initialize the BIOS Data Area at least to boot the remainder of BIOS.
+bios_strout:	addi	sp, sp, -24
+		sd	ra, 0(sp)
+		sd	s0, 8(sp)
+		sd	s1, 16(sp)
+
+		addi	s0, a0, 0	; preserve device ID
+		addi	s1, a1, 0	; get string address
+
+_so110:		addi	a0, s0, 0
+		lb	a1, 0(s1)
+		beq	a1, x0, _so100
+		jal	ra, mgia_chrout
+		addi	s1, s1, 1
+		jal	x0, _so110
+
+_so100:		ld	ra, 0(sp)
+		ld	s0, 8(sp)
+		ld	s1, 16(sp)
+		addi	sp, sp, 24
+		jalr	x0, 0(ra)
+
+
+; SYNOPSIS
+; addi	a0, x0, deviceID
+; jal	ra, bios_i_strout
+; byte	"Hello world.",13,10,0
+; align	4
+;
+; INPUTS
+; A0		Device ID (see bios_chrout).
+; Inline	NULL-terminated string to print.
+;
+; FUNCTION
+; A convenience procedure for bios_strout, letting assembly programmers
+; print an inline string to the desired output device.  Most typically,
+; this device will be the screen.
+;
+; If the output device buffer cannot accept new characters for any reason
+; while the output is in progress, this function will not block; it will
+; simply return early.  If you need an accurate assessment of how much data
+; was successfully sent, you should use bios_strout instead.
+;
+; It's strongly recommended that this procedure be used only with devices
+; that can comfortably accept the length of string you intend on printing.
+; The screen device is guaranteed to accept as many characters as can fit
+; in memory.
+;
+; RETURNS
+; Presently nothing.
+
+bios_i_strout:	addi	a1, ra, 0
+
+_so210:		lb	a2, 0(ra)
+		beq	a2, x0, _so200
+		addi	ra, ra, 1
+		jal	x0, _so210
+
+_so200:		addi	ra, ra, 3
+		andi	ra, ra, -4
+		jal	x0, bios_strout
+
+; SYNOPSIS
+; bios_init()
+;
+; FUNCTION
+; Initializes the BIOS Data Area to power-on default values.
 
 bios_init:	addi	sp, sp, -8
 		sd	ra, 0(sp)
+
+_bi100:		auipc	gp, 0
+		ld	a0, _ih_B105-_bi100(gp)
+		sd	a0, bd_tag(x0)
 
 		jal	ra, mgia_init
 
 		ld	ra, 0(sp)
 		addi	sp, sp, 8
 		jalr	x0, 0(ra)
+
+		align	8
+_ih_B105:	dword	$B105
+
+; CPU reset vector.  The Polaris CPU boots here after the reset signal has
+; been asserted.
+
+		adv	RESET_BASE-BIOS_BASE, $CC
+		jal	x0, bios_cold
+
