@@ -138,8 +138,8 @@ _mg901:		hword	_mg_nop - _mg901	; 00
 		hword	_mg_nop - _mg901	; 05
 		hword	_mg_nop - _mg901	; 06
 		hword	_mg_nop - _mg901	; 07	Bell
-		hword	_mg_nop - _mg901	; 08	Backspace
-		hword	_mg_nop - _mg901	; 09	Tab
+		hword	_mg_bs  - _mg901	; 08	Backspace
+		hword	_mg_tab - _mg901	; 09	Tab
 		hword	mgia_down - _mg901	; 0A	Line Feed
 		hword	mgia_down - _mg901	; 0B	Vertical Tab
 		hword	_mg_cls - _mg901	; 0C	Form Feed
@@ -162,6 +162,42 @@ _mg901:		hword	_mg_nop - _mg901	; 00
 		hword	_mg_nop - _mg901	; 1D
 		hword	_mg_nop - _mg901	; 1E
 		hword	_mg_nop - _mg901	; 1F
+
+; Backspace just moves the cursor to the previous position.
+; If the cursor is already on the left edge of the screen,
+; it wraps to the right-hand side, and moves up one line.
+; If the cursor is already in the upper left-hand corner,
+; the cursor will stay there.
+
+_mg_bs:		lh	a5, bd_cx(x0)
+		beq	a5, x0, _mg800
+		addi	a5, a5, -1
+		sh	a5, bd_cx(x0)
+_mg810:		jalr	x0, 0(ra)
+
+_mg800:		lh	a4, bd_cy(x0)
+		beq	a4, x0, _mg810
+		lh	a5, bd_maxcol(x0)
+		addi	a5, a5, -1
+		sh	a5, bd_cx(x0)
+		addi	a4, a4, -1
+		sh	a4, bd_cy(x0)
+		jalr	x0, 0(ra)
+
+
+; Tab moves the cursor to the next tab stop.
+
+_mg_tab:	addi	sp, sp, -8
+		sd	ra, 0(sp)
+
+_mg820:		jal	ra, mgia_right
+		lh	a5, bd_cx(x0)
+		andi	a5, a5, 7
+		bne	a5, x0, _mg820
+
+		ld	ra, 0(sp)
+		addi	sp, sp, 8
+		jalr	x0, 0(ra)
 
 ; Per https://www.cs.tut.fi/~jkorpela/chars/c0.html, the form-feed
 ; function is ...

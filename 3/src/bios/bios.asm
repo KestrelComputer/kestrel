@@ -72,7 +72,12 @@ bc100:		add	a1, s0, x0
 		jal	ra, mgia_chrout
 
 bc101:		addi	s0, s0, 1	; increment,
-		addi	a2, x0, 256
+		andi	t0, s0, 3
+		bne	t0, x0, bc102
+		addi	a1, x0, 9
+		jal	ra, mgia_chrout
+
+bc102:		addi	a2, x0, 256
 		blt	s0, a2, bc100	; and repeat until done.
 		jal	x0, bc99
 
