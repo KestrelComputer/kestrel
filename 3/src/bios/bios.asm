@@ -63,7 +63,15 @@ bc99:		addi	s0, x0, 32	; Start print from the space
 bc100:		add	a1, s0, x0
 		jal	ra, mgia_chrout	; Print character,
 
-		addi	s0, s0, 1	; increment,
+		addi	a0, s0, 0
+		andi	a0, a0, 31
+		bne	a0, x0, bc101
+		addi	a1, x0, 13
+		jal	ra, mgia_chrout
+		addi	a1, x0, 10
+		jal	ra, mgia_chrout
+
+bc101:		addi	s0, s0, 1	; increment,
 		addi	a2, x0, 256
 		blt	s0, a2, bc100	; and repeat until done.
 		jal	x0, bc99

@@ -140,8 +140,8 @@ _mg901:		hword	_mg_nop - _mg901	; 00
 		hword	_mg_nop - _mg901	; 07	Bell
 		hword	_mg_nop - _mg901	; 08	Backspace
 		hword	_mg_nop - _mg901	; 09	Tab
-		hword	_mg_nop - _mg901	; 0A	Line Feed
-		hword	_mg_nop - _mg901	; 0B	Vertical Tab
+		hword	mgia_down - _mg901	; 0A	Line Feed
+		hword	mgia_down - _mg901	; 0B	Vertical Tab
 		hword	_mg_cls - _mg901	; 0C	Form Feed
 		hword	_mg_cr  - _mg901	; 0D	Carriage Return
 		hword	_mg_nop - _mg901	; 0E
@@ -199,6 +199,29 @@ _mg_cr:		sh	x0, bd_cx(x0)		; Home column.
 
 
 ; SYNOPSIS
+; mgia_down()
+;
+; Moves the cursor down one line.
+
+mgia_down:	addi	sp, sp, -8
+		sd	ra, 0(sp)
+
+		lh	a0, bd_cy(x0)
+		addi	a0, a0, 1
+		sh	a0, bd_cy(x0)
+
+		lh	a1, bd_maxrow(x0)
+		blt	a0, a1, _mg700
+		addi	a1, a1, -1
+		sh	a1, bd_cy(x0)
+		jal	ra, mgia_scrup
+		jal	ra, mgia_blankb
+_mg700:		ld	ra, 0(sp)
+		addi	sp, sp, 8
+		jalr	x0, 0(ra)
+
+
+; SYNOPSIS
 ; mgia_right()
 ;
 ; FUNCTION
@@ -215,16 +238,7 @@ mgia_right:	addi	sp, sp, -8
 		blt	a0, a1, _mg400
 
 		sh	x0, bd_cx(x0)
-		lh	a0, bd_cy(x0)
-		addi	a0, a0, 1
-		sh	a0, bd_cy(x0)
-
-		lh	a1, bd_maxrow(x0)
-		blt	a0, a1, _mg400
-		addi	a1, a1, -1
-		sh	a1, bd_cy(x0)
-		jal	ra, mgia_scrup
-		jal	ra, mgia_blankb
+		jal	ra, mgia_down
 
 _mg400:		ld	ra, 0(sp)
 		addi	sp, sp, 8
