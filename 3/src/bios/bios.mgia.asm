@@ -94,7 +94,7 @@ _ih_9600:	word	$9600
 ;		stops exist every 8 characters.
 ; $0A		New Line; moves the cursor down one line, scrolling if needed.
 ; $0B		Vertical tab; currently the same behavior as $0A.
-; $0C		Form Feed; clears the MGIA screen and vertically homes the'
+; $0C		Form Feed; clears the MGIA screen and vertically homes the
 ;		cursor.  Follow with $0D to home the cursor horizontally.
 ; $0D		Moves the cursor to the left side of the screen.
 ;
@@ -204,7 +204,10 @@ _mg_cr:		sh	x0, bd_cx(x0)		; Home column.
 ; FUNCTION
 ; Moves the cursor to the right one character position.
 
-mgia_right:	lh	a0, bd_cx(x0)
+mgia_right:	addi	sp, sp, -8
+		sd	ra, 0(sp)
+
+		lh	a0, bd_cx(x0)
 		addi	a0, a0, 1
 		sh	a0, bd_cx(x0)
 
@@ -220,8 +223,85 @@ mgia_right:	lh	a0, bd_cx(x0)
 		blt	a0, a1, _mg400
 		addi	a1, a1, -1
 		sh	a1, bd_cy(x0)
+		jal	ra, mgia_scrup
+		jal	ra, mgia_blankb
 
-_mg400:		jalr	x0, 0(ra)
+_mg400:		ld	ra, 0(sp)
+		addi	sp, sp, 8
+		jalr	x0, 0(ra)
+
+
+; SYNOPSIS
+; mgia_blankb()
+;
+; FUNCTION
+; Clears the bottom-most line in the display window.
+
+mgia_blankb:	addi	sp, sp, -8
+		sd	ra, 0(sp)
+
+		; Assumes an 8-pixel high font on a 640x480 bitplane.
+		; Further assumes maxcol=80, maxrow=60.
+
+		addi	a0, x0, 0
+		addi	a1, x0, 472
+		jal	ra, mgia_addr
+		addi	a1, x0, 640
+
+_mg600:		sd	x0, 0(a0)
+		addi	a0, a0, 8
+		addi	a1, a1, -8
+		bne	a1, x0, _mg600
+
+		ld	ra, 0(sp)
+		addi	sp, sp, 8
+		jalr	x0, 0(ra)
+
+
+; SYNOPSIS
+; mgia_scrup()
+;
+; FUNCTION
+; Scroll a rectangular region defined by the left, top, right, and bottom
+; margins (currently, hardwired to 0, 0, 80, and 60, respectively) up one
+; line.
+
+mgia_scrup:	addi	sp, sp, -16
+		sd	ra, 0(sp)
+		sd	s0, 8(sp)
+
+		; First, we copy the data in the frame buffer up one line.
+		; The following code assumes an 8-pixel tall font on a
+		; 640x480 screen.  We also assume maxcol, maxrow = 80, 60.
+		; We'll need a more general purpose blitter to support
+		; subwindows.
+
+		addi	a0, x0, 0
+		addi	a1, x0, 0
+		jal	ra, mgia_addr
+		addi	s0, a0, 0
+
+		addi	a0, x0, 0
+		addi	a1, x0, 8
+		jal	ra, mgia_addr
+
+		ld	a1, bd_planesz(x0)
+		addi	a1, a1, -640		; Assuming 8px tall font
+
+_mg500:		ld	a2, 0(a0)
+		sd	a2, 0(s0)
+		addi	s0, s0, 8
+		addi	a0, a0, 8
+		addi	a1, a1, -8
+		bne	a1, x0, _mg500
+
+		; Next, we have to blank the bottom line, preparing it for
+		; the next line of text to be displayed.
+
+		ld	ra, 0(sp)
+		ld	s0, 8(sp)
+		addi	sp, sp, 16
+		jalr	x0, 0(ra)
 
 
 ; SYNOPSIS
@@ -241,17 +321,12 @@ mgia_tilechr:	addi	sp, sp, -16
 		sd	s0, 8(sp)
 
 		; Calculate the frame buffer address.
-		; A = FB+cx+cy*8*planebw
 
 		addi	s0, a1, 0
-		lh	a0, bd_cy(x0)
-		lh	a1, bd_planebw(x0)
+		lh	a0, bd_cx(x0)
+		lh	a1, bd_cy(x0)
 		slli	a1, a1, 3
-		jal	ra, mathMultiply
-		lh	a1, bd_cx(x0)
-		add	a0, a0, a1
-		ld	a1, bd_bitplane(x0)
-		add	a0, a0, a1	; A0 = FB+X+Y*W
+		jal	ra, mgia_addr
 
 		ld	a1, bd_fontform(x0)
 		add	a1, a1, s0	; A1 -> tile
@@ -273,3 +348,42 @@ _mg300:		lb	a2, 0(a1)
 		ld	s0, 8(sp)
 		addi	sp, sp, 16
 		jalr	x0, 0(ra)
+
+
+; SYNOPSIS
+; a = mgia_addr(x,   y)
+; a0            a0.h a1.h
+;
+; INPUTS
+; x	Horizontal column coordinate, expressed in characters.
+;	(0 <= x < bd_planebw)
+; y	Vertical row coordinate, expressed in pixels.
+;	(0 <= y < bd_planeh)
+;
+; FUNCTION
+; Computes the byte address of any pixel addressible by the MGIA.  The
+; horizontal coordinate is expressed in octets (groups of 8 pixels).
+; For example, to find the address of pixel (12, 16), you'll need to
+; set x = floor(12/8) = 1, y = 16.
+;
+; RETURNS
+; A byte address.
+
+mgia_addr:	addi	sp, sp, -16
+		sd	ra, 0(sp)
+		sd	s0, 8(sp)
+
+		; Compute form+X+Y*80
+
+		addi	s0, a0, 0
+		lh	a0, bd_planebw(x0)
+		jal	ra, mathMultiply
+		add	a0, a0, s0
+		ld	a1, bd_bitplane(x0)
+		add	a0, a0, a1
+
+		ld	ra, 0(sp)
+		ld	s0, 8(sp)
+		addi	sp, sp, 16
+		jalr	x0, 0(ra)
+

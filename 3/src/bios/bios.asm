@@ -59,13 +59,14 @@ bios_cold:	addi	sp, x0, 1	; SP = $1000
 		addi	a1, x0, 13	; Carriage Return.
 		jal	ra, mgia_chrout
 
-		addi	s0, x0, 32	; Start print from the space
+bc99:		addi	s0, x0, 32	; Start print from the space
 bc100:		add	a1, s0, x0
 		jal	ra, mgia_chrout	; Print character,
 
 		addi	s0, s0, 1	; increment,
 		addi	a2, x0, 256
 		blt	s0, a2, bc100	; and repeat until done.
+		jal	x0, bc99
 
 _bc900:		addi	a0, x0, 255
 		slli	a0, a0, 16
