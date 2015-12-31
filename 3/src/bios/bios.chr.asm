@@ -9,6 +9,122 @@
 ; functions, along with some handy utilities suitable for these devices.
 
 
+MAX_CHRDEV	= 1
+
+chrdev_canout	= 0
+chrdev_chrout	= 4
+chrdev_caninp	= 8
+chrdev_chrinp	= 12
+
+
+bios_false:	addi	a0, x0, 0
+		jalr	x0, 0(ra)
+
+
+; SYNOPSIS
+; 
+; yn = bios_caninp(dev)
+; a0               a0
+;
+; INPUTS
+;    dev	Unused.
+;
+; FUNCTION
+; Return true (non-zero) if the device is capable of delivering at least
+; one more byte for input; false (zero) otherwise.
+;
+; RETURNS
+; Non-zero or zero, depending on whether the driver can deliver another
+; byte of input data.
+
+bios_caninp:	addi	a2, x0, MAX_CHRDEV
+		bgeu	a0, a2, _co120
+		slli	a0, a0, 4
+		jal	a2, _bios_chrtab
+		add	a0, a0, a3
+		jalr	x0, chrdev_caninp(a0)
+_co120:		jalr	x0, 0(ra)
+
+; SYNOPSIS
+; chr = bios_chrinp(dev)
+; a0                a0  
+;
+; FUNCTION
+; If the indicated device is ready to deliver another character, this
+; procedure will receive and return the next byte available to the caller.
+;
+; If no byte is available, $00 is returned.  However, many devices treat
+; $00 as valid data; therefore, you should always use bios_caninp to determine
+; data availability.
+;
+; RETURNS
+; The next available byte, if any; $00 if none.
+
+bios_chrinp:	addi	a2, x0, MAX_CHRDEV
+		bgeu	a0, a2, _co130
+		slli	a0, a0, 4
+		jal	a2, _bios_chrtab
+		add	a0, a0, a3
+		jalr	x0, chrdev_chrinp(a0)
+_co130:		jalr	x0, 0(ra)
+
+; SYNOPSIS
+; 
+; yn = bios_canout(dev)
+; a0               a0
+;
+; INPUTS
+;    dev	Unused.
+;
+; FUNCTION
+; Return true (non-zero) if the device is capable of accepting more input;
+; false (zero) otherwise.
+;
+; RETURNS
+; Non-zero or zero, depending on whether the driver can accept or no longer
+; accept incoming data, respectively.
+
+bios_canout:	addi	a2, x0, MAX_CHRDEV
+		bgeu	a0, a2, _co110
+		slli	a0, a0, 4
+		jal	a2, _bios_chrtab
+		add	a0, a0, a3
+		jalr	x0, chrdev_canout(a0)
+_co110:		jalr	x0, 0(ra)
+
+; SYNOPSIS
+; bios_chrout(dev, chr)
+;             a0   a1.b
+;
+; FUNCTION
+; If the indicated device is ready to accept another character, this
+; procedure will hand of the byte to that device.
+;
+; Not all devices are physical; screen output is an emulation of a printer,
+; but is not a real printer.
+;
+; If the device is not ready to accept a character, then nothing will
+; happen.  Use bios_canout to determine if the device is ready.
+
+bios_chrout:	addi	a2, x0, MAX_CHRDEV
+		bgeu	a0, a2, _co100
+		slli	a0, a0, 4
+		jal	a2, _bios_chrtab
+		add	a0, a0, a3
+		jalr	x0, chrdev_chrout(a0)
+_co100:		jalr	x0, 0(ra)
+
+; Character Device Driver table
+
+_bios_chrtab:	jalr	a3, 0(a2)
+		jal	x0, mgia_canout		; Device 0: Screen output
+		jal	x0, mgia_chrout
+		jal	x0, bios_false
+		jal	x0, bios_false
+
+
+;
+; 
 ; SYNOPSIS
 ; actual = bios_strout(dev, buffer)
 ; a0                   a0   a1

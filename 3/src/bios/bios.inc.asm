@@ -194,3 +194,15 @@ TRAP_NMI		= $FC
 
 RESET_BASE              = $FFFFFFFFFFFFFF00
 
+; BIOS stores a pointer to its jump table at physical address 8.
+
+BIOS_JUMPTAB		= 8
+
+; BIOS call offsets to the jump table.
+
+BIOS_CANOUT		= 0
+BIOS_CHROUT		= 4
+BIOS_STROUT		= 8
+BIOS_I_STROUT		= 12
+BIOS_CANINP		= 16
+BIOS_CHRINP		= 20

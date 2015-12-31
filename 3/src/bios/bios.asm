@@ -7,11 +7,10 @@
 
 		include	"bios.inc.asm"
 		include "bios.data.asm"
-
-		include "math.asm"
 		include "bios.mgia.asm"
 		include	"bios.jump.asm"
 		include	"bios.chr.asm"
+		include "math.asm"
 
 ; BIOS low memory map
 ;
@@ -37,24 +36,30 @@ bios_cold:	addi	sp, x0, 1	; SP = $1000
 		; Start our built-in self-test with dumping all ASCII
 		; characters onto the screen.
 
-		ld	s7, bd_jumptab(x0)	; Get BIOS jump table in S7
+		ld	s7, BIOS_JUMPTAB(x0)	; Get BIOS jump table in S7
+
+		addi	a0, x0, 0	; Screen device never allows input
+		jalr	ra, BIOS_CANINP(s7)
+		bne	a0, x0, wtf
 
 		addi	a0, x0, 0	; Device 0 is screen
-		addi	a1, x0, 12	; Form Feed.
-		jalr	ra, 4(s7)	; Clear the screen
+		addi	a1, x0, 12	; Use Form Feed to clear screen.
+		jalr	ra, BIOS_CHROUT(s7)
 
+		addi	a0, x0, 0	; Device 0
 		addi	a1, x0, 13	; Carriage Return.
-		jalr	ra, 4(s7)
+		jalr	ra, BIOS_CHROUT(s7)
 
 		addi	s0, x0, 32	; Start print from the space
 bc100:		add	a1, s0, x0
-		jalr	ra, 4(s7)	; Print character,
+		addi	a0, x0, 0
+		jalr	ra, BIOS_CHROUT(s7)	; Print character,
 		addi	s0, s0, 1
 		addi	a2, x0, 256
 		blt	s0, a2, bc100	; and repeat until done.
 
 		addi	a0, x0, 0	; Output BIOS banner to the screen.
-		jalr	ra, 12(s7)
+		jalr	ra, BIOS_I_STROUT(s7)
 		byte	13, 10, 10
 		byte	"Kestrel-3 BIOS V1.15.51"
 		byte	13, 10, 10, 0
@@ -79,6 +84,9 @@ wtf:		addi	a5, x0, 255
 ;
 ; FUNCTION
 ; Initializes the BIOS Data Area to power-on default values.
+;
+; This gets the video display up and running first and foremost, so that
+; diagnostics can be printed if errors occur during BIST.
 
 bios_init:	addi	sp, sp, -8
 		sd	ra, 0(sp)

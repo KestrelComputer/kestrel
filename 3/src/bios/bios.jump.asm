@@ -8,7 +8,9 @@
 ; This implements the BIOS Jump Table.
 
 bios_jumptab:	jalr	a0, 0(ra)
-		jal	x0, mgia_canout		; bios_canout
-		jal	x0, mgia_chrout		; bios_chrout
+		jal	x0, bios_canout
+		jal	x0, bios_chrout
 		jal	x0, bios_strout
 		jal	x0, bios_i_strout
+		jal	x0, bios_caninp
+		jal	x0, bios_chrinp
