@@ -1,7 +1,8 @@
 ; BIOS Data Area.
 
 bd_tag		= 0			; D BIOS Data Format tag ($B105)
-bd_bitplane	= bd_tag + 8		; D Pointer to MGIA framebuffer.
+bd_jumptab	= bd_tag + 8		; D Pointer to BIOS jump table
+bd_bitplane	= bd_jumptab + 8	; D Pointer to MGIA framebuffer.
 bd_planesz	= bd_bitplane + 8	; D Size of said framebuffer, bytes.
 
 bd_cx		= bd_planesz + 8	; H Cursor X position

@@ -196,6 +196,29 @@ _sc100:		ld	ra, 0(sp)
 
 ; SYNOPSIS
 ;
+; yn = mgia_canout(dev)
+; a0               a0
+;
+; INPUTS
+;    dev	Unused.
+;
+; FUNCTION
+; Return true (non-zero) if the MGIA screen driver is capable of accepting
+; more input for display; false (zero) otherwise.
+;
+; As of this version of BIOS, the MGIA driver is always capable of accepting
+; new data.
+;
+; RETURNS
+; Non-zero or zero, depending on whether the driver can accept or no longer
+; accept incoming data, respectively.
+
+mgia_canout:	addi	a0, x0, -1
+		jalr	x0, 0(ra)
+
+
+; SYNOPSIS
+;
 ; mgia_chrout(dev, ch)
 ;             a0   a1.b
 ;

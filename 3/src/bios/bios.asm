@@ -10,6 +10,7 @@
 
 		include "math.asm"
 		include "bios.mgia.asm"
+		include	"bios.jump.asm"
 
 ; BIOS low memory map
 ;
@@ -35,21 +36,24 @@ bios_cold:	addi	sp, x0, 1	; SP = $1000
 		; Start our built-in self-test with dumping all ASCII
 		; characters onto the screen.
 
-		addi	a0, x0, 1	; Device 1 is screen
+		ld	s7, bd_jumptab(x0)	; Get BIOS jump table in S7
+
+		addi	a0, x0, 0	; Device 0 is screen
 		addi	a1, x0, 12	; Form Feed.
-		jal	ra, mgia_chrout	; Clear the screen
+		jalr	ra, 4(s7)	; Clear the screen
+
 		addi	a1, x0, 13	; Carriage Return.
-		jal	ra, mgia_chrout
+		jalr	ra, 4(s7)
 
 		addi	s0, x0, 32	; Start print from the space
 bc100:		add	a1, s0, x0
-		jal	ra, mgia_chrout	; Print character,
+		jalr	ra, 4(s7)	; Print character,
 		addi	s0, s0, 1
 		addi	a2, x0, 256
 		blt	s0, a2, bc100	; and repeat until done.
 
-		addi	a0, x0, 1	; Output BIOS banner to the screen.
-		jal	ra, bios_i_strout
+		addi	a0, x0, 0	; Output BIOS banner to the screen.
+		jalr	ra, 12(s7)
 		byte	13, 10, 10
 		byte	"Kestrel-3 BIOS V1.15.51"
 		byte	13, 10, 10, 0
@@ -156,6 +160,9 @@ bios_init:	addi	sp, sp, -8
 _bi100:		auipc	gp, 0
 		ld	a0, _ih_B105-_bi100(gp)
 		sd	a0, bd_tag(x0)
+
+		jal	ra, bios_jumptab
+		sd	a0, bd_jumptab(x0)
 
 		jal	ra, mgia_init
 
