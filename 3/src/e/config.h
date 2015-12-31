@@ -21,9 +21,11 @@
 #define r_MSTATUS	0x300
 #define r_MTVEC		0x301
 #define r_MDELEG	0x302
+#define r_MIE		0x304
 #define r_MEPC		0x341
 #define r_MBADADDR	0x343
 #define r_MCAUSE	0x342
+#define r_MIP		0x344
 #define r_MTOHOST	0x780
 #define r_MFROMHOST	0x781
 
@@ -39,4 +41,6 @@
 #define i_MCAUSE	8
 #define i_MTOHOST	9
 #define i_MFROMHOST	10
-#define i_MAXCSR	11
+#define i_MIE		11
+#define i_MIP		12
+#define i_MAXCSR	13
