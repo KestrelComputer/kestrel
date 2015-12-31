@@ -26,6 +26,42 @@ no_reader(AddressSpace *as, UDWORD addr, int sz) {
 }
 
 
+static UHWORD kia_queue[16];
+static int kia_head = 0, kia_tail = 0;
+
+static UDWORD
+ekia_reader(AddressSpace *as, UDWORD addr, int sz) {
+	DWORD byte;
+
+	if(addr & 1) {
+		byte = kia_queue[kia_head] & 0x00FF;
+	} else {
+		byte = (kia_queue[kia_head] & 0xC000) >> 8;
+		if(kia_head == kia_tail)  byte |= 0x01;			/* Queue empty */
+		if(((kia_tail + 1) & 15) == kia_head)  byte |= 0x02;	/* Queue full */
+	}
+
+	byte |= -(byte & 0x80);
+	return (UDWORD)byte;
+}
+
+static void
+ekia_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
+	if(addr & 1) {
+		if(kia_head != kia_tail)  kia_head = (kia_head + 1) & 15;
+	} else {
+		// no behavior is defined.
+	}
+}
+
+void
+ekia_post(UHWORD code) {
+	if(((kia_tail + 1) & 15) == kia_head)  return;
+	kia_queue[kia_tail] = code;
+	kia_tail = (kia_tail + 1) & 15;
+}
+
+
 static void
 do_spi_interface(AddressSpace *as) {
 	int spi_next_clk = as->gpia_out & GPIA_OUT_SD_CLK;
@@ -296,6 +332,8 @@ make(Options *opts) {
 	as->readers[0] = ram_reader;
 	as->writers[1] = gpia_writer;
 	as->readers[1] = gpia_reader;
+	as->writers[2] = ekia_writer;
+	as->readers[2] = ekia_reader;
 	as->writers[14] = uart_writer;
 	as->readers[14] = uart_reader;
 

@@ -9,7 +9,7 @@
 ; functions, along with some handy utilities suitable for these devices.
 
 
-MAX_CHRDEV	= 1
+MAX_CHRDEV	= 2
 
 chrdev_canout	= 0
 chrdev_chrout	= 4
@@ -122,6 +122,11 @@ _bios_chrtab:	jalr	a3, 0(a2)
 		jal	x0, bios_false
 		jal	x0, bios_false
 
+		jal	x0, bios_false		; Device 1: Raw Keyboard Input
+		jal	x0, bios_false
+		jal	x0, kia2_caninp
+		jal	x0, kia2_chrinp
+
 
 ;
 ; 
@@ -196,7 +201,7 @@ _so210:		lb	a2, 0(ra)
 		addi	ra, ra, 1
 		jal	x0, _so210
 
-_so200:		addi	ra, ra, 3
+_so200:		addi	ra, ra, 4
 		andi	ra, ra, -4
 		jal	x0, bios_strout
 
