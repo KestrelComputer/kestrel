@@ -124,6 +124,7 @@ _bi100:		auipc	gp, 0
 		sd	a0, bd_jumptab(x0)
 
 		jal	ra, mgia_init
+		jal	ra, kia2_init
 
 		ld	ra, 0(sp)
 		addi	sp, sp, 8
