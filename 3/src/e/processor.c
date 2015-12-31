@@ -102,9 +102,12 @@ trap(Processor *p, int cause) {
 	int offset;
 
 	// What mode are we coming from?  Calculate MVTEC offset from that.
-	offset = (privStack & 0x6) << 5;
+	offset = (privStack & 0x30) << 2;
 
-	// Assume the role of machiine-mode.
+	// Assume the role of machine-mode.  We load EPC with PC-4 because
+	// the PC has already been incremented by the emulator by the time
+	// this code runs.  The negative bias records the instruction which
+	// trapped/faulted.
 	p->csr[i_MCAUSE] = (UDWORD)cause;
 	p->csr[i_MEPC] = p->csr[i_MBADADDR] = p->pc - 4;
 	p->csr[i_MSTATUS] = ((p->csr[i_MSTATUS] & -0x1000) | privStack) & ~0x10000;
