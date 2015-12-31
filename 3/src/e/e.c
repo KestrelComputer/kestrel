@@ -153,6 +153,7 @@ int run(int argc, char *argv[]) {
 	char version[32];
 	int rc = 1;
 	AddressSpace *cpuAS = NULL;
+	SDL_Keycode k;
 
 	SDL_Init(SDL_INIT_VIDEO);
 
@@ -188,6 +189,16 @@ int run(int argc, char *argv[]) {
 			switch(sdlEvent.type) {
 			case SDL_QUIT:
 				running = 0;
+				break;
+			case SDL_KEYDOWN:
+				k = sdlEvent.key.keysym.sym;
+				k |= (k & 0x40000000) >> 16;
+				ekia_post((UHWORD)k);
+				break;
+			case SDL_KEYUP:
+				k = sdlEvent.key.keysym.sym;
+				k |= (k & 0x40000000) >> 16;
+				ekia_post((UHWORD)k | 0x8000);
 				break;
 			}
 		}

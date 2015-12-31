@@ -8,6 +8,7 @@
 		include	"bios.inc.asm"
 		include "bios.data.asm"
 		include "bios.mgia.asm"
+		include	"bios.kia2.asm"
 		include	"bios.jump.asm"
 		include	"bios.chr.asm"
 		include "math.asm"
@@ -65,6 +66,30 @@ bc100:		add	a1, s0, x0
 		byte	13, 10, 10, 0
 		align	4
 
+	addi a0, x0, $77
+	slli a0, a0, 8
+	ori a0, a0, $77
+	addi a1, x0, $FF
+	slli a1, a1, 16
+	sh a0, 1024(a1)
+
+_bc801:	addi a0, x0, 1
+	jalr ra, BIOS_CANINP(s7)
+	beq a0, x0, _bc801
+
+	addi a0, x0, 1
+	jalr ra, BIOS_CHRINP(s7)
+	addi a1, x0, $FF
+	slli a1, a1, 16
+	sh a0, 1104(a1)
+	srli a1, a0, 8
+	andi a1, a1, $80
+	bne a1, x0, _bc801
+	addi a1, a0, 0
+	addi a0, x0, 0
+	jalr ra, BIOS_CHROUT(s7)
+	jal x0, _bc801
+
 _bc900:		addi	a0, x0, 255
 		slli	a0, a0, 16
 _bc901:		ld	a1, 1024(a0)
@@ -99,6 +124,7 @@ _bi100:		auipc	gp, 0
 		sd	a0, bd_jumptab(x0)
 
 		jal	ra, mgia_init
+		jal	ra, kia2_init
 
 		ld	ra, 0(sp)
 		addi	sp, sp, 8
