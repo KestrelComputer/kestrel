@@ -16,6 +16,10 @@ static const struct interface_AddressSpace *as = &module_AddressSpace;
 extern const struct interface_Timeline module_Timeline;
 static const struct interface_Timeline *tt = &module_Timeline;
 
+// External interrupt pending register, so that peripherals can set bits.
+extern UDWORD ipr;
+
+
 static void
 do_hostif(Processor *p) {
 	DWORD cmdptr;
@@ -49,6 +53,8 @@ getCSR(Processor *p, int csr) {
 	case r_MCAUSE:		return p->csr[i_MCAUSE];
 	case r_MTOHOST:		return p->csr[i_MTOHOST];
 	case r_MFROMHOST:	return p->csr[i_MFROMHOST];
+	case r_MIE:		return p->csr[i_MIE];
+	case r_MIP:		return ipr;	/* See address-space.c */
 	default:
 		fprintf(stderr, "Warning: At $%016llX, attempt to read unsupported CSR %d\n", p->pc-4, csr);
 		return 0xCCCCCCCCCCCCCCCC;
@@ -78,6 +84,20 @@ setCSR(Processor *p, int csr, DWORD v) {
 		p->csr[i_MTOHOST] = v;
 		do_hostif(p);
 		break;
+	case r_MIE:
+		// Only machine-mode interrupts are supported, so
+		// we hardwire hypervisor, supervisor, and user-mode
+		// enables to zero.
+		p->csr[i_MIE] = v & 0x8888888888888888;
+		break;
+	case r_MIP:
+		// Only low 3 bits are changeable, per RV64S V1.7 spec.
+		// Only machine-mode is supported by Polaris however;
+		// so only bit 3 is writable in my implementation.
+		ipr &= -16;
+		ipr |= (v & 8);
+		break;
+
 	default:
 		fprintf(stderr, "Warning: At $%016llX, attempt to write $%016llX to unsupported CSR %d\n", p->pc-4, v, csr);
 	}
@@ -97,7 +117,7 @@ andCSR(Processor *p, int csr, DWORD v) {
 
 
 static void
-trap(Processor *p, int cause) {
+trap(Processor *p, UDWORD cause) {
 	UDWORD privStack = ((p->csr[i_MSTATUS] & 0x1FF) << 3) | 6;
 	int offset;
 
@@ -108,7 +128,7 @@ trap(Processor *p, int cause) {
 	// the PC has already been incremented by the emulator by the time
 	// this code runs.  The negative bias records the instruction which
 	// trapped/faulted.
-	p->csr[i_MCAUSE] = (UDWORD)cause;
+	p->csr[i_MCAUSE] = cause;
 	p->csr[i_MEPC] = p->csr[i_MBADADDR] = p->pc - 4;
 	p->csr[i_MSTATUS] = ((p->csr[i_MSTATUS] & -0x1000) | privStack) & ~0x10000;
 	p->pc = p->csr[i_MTVEC] + offset;
@@ -147,6 +167,7 @@ make(AddressSpace *as) {
 		p->csr[i_MTVEC] = -0x200;
 		p->csr[i_MTOHOST] = 0;
 		p->csr[i_MFROMHOST] = 0;
+		p->csr[i_MIE] = 0;
 	}
 	return p;
 }
@@ -157,15 +178,39 @@ step(Processor *p, Timeline *t) {
 	WORD ir;
 	int opc, rd, fn3, rs1, rs2, imm12, imm12s, disp12;
 	DWORD imm20, disp20, ia;
+	UDWORD mask, cause;
 
 	if(!p->running) return;
+
+	// Isolate the highest priority pending interrupt, and dispatch if needed.
+	mask = (p->csr[i_MSTATUS] & 1) ?
+		ipr & p->csr[i_MIE] & 0x8888888888888888 : 0;
+	cause = 0;
+	while(mask) {
+		if(mask & 8) {
+			// trap() assumes we've already fetched an instruction.
+			// So, I fake it here by incrementing PC.
+			// This lets the mepc register receive the address
+			// of the insn we were about to execute before
+			// the interrupt was recognized.
+
+			p->pc = p->pc + 4;
+			trap(p, cause | 0x8000000000000000);
+
+			// At this point, PC points to the IRQ handler,
+			// so no need to reverse the bias.
+			break;
+		}
+		mask >>= 4;
+		cause++;
+	}
 
 	ia = p->pc;
 	ir = as->fetch_word(p->as, ia);
 	p->pc = ia + 4;
 	tt->step(t, 2);		// 32-bit fetches take 2 cycles over 16-bit bus.
 
-	/* This takes a bunch of time.  But it's still faster than live FPGA hardware.  ;) */
+	/* This takes a bunch of time. */
 	opc = ir & 0x7F;
 	rd = (ir >> 7) & 0x1F;
 	fn3 = (ir >> 12) & 0x07;

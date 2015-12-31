@@ -13,6 +13,10 @@
 #include "address_space.h"
 
 
+// "Motherboard"-wide interrupt pending register.
+// The processor uses these bits in the MIP register.
+UDWORD ipr;
+
 static void
 no_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
 	fprintf(stderr, "Error: Writing $%016llX to address $%016llX\n", b, addr);
@@ -27,7 +31,24 @@ no_reader(AddressSpace *as, UDWORD addr, int sz) {
 
 
 static UHWORD kia_queue[16];
-static int kia_head = 0, kia_tail = 0;
+static int kia_head, kia_tail;
+
+static UDWORD
+ekia_status(void) {
+	UDWORD byte = (kia_queue[kia_head] & 0xC000) >> 8;
+
+	if(kia_head == kia_tail)  byte |= 0x01;			/* Queue empty */
+	if(((kia_tail + 1) & 15) == kia_head)  byte |= 0x02;	/* Queue full */
+
+	return byte;
+}
+
+static void
+ekia_irq() {
+	ipr &= ~(0x800);
+	ipr |= (1 ^ (ekia_status() & 0x01)) << 11;
+}
+
 
 static UDWORD
 ekia_reader(AddressSpace *as, UDWORD addr, int sz) {
@@ -36,9 +57,7 @@ ekia_reader(AddressSpace *as, UDWORD addr, int sz) {
 	if(addr & 1) {
 		byte = kia_queue[kia_head] & 0x00FF;
 	} else {
-		byte = (kia_queue[kia_head] & 0xC000) >> 8;
-		if(kia_head == kia_tail)  byte |= 0x01;			/* Queue empty */
-		if(((kia_tail + 1) & 15) == kia_head)  byte |= 0x02;	/* Queue full */
+		byte = ekia_status();
 	}
 
 	byte |= -(byte & 0x80);
@@ -49,6 +68,7 @@ static void
 ekia_writer(AddressSpace *as, UDWORD addr, UDWORD b, int sz) {
 	if(addr & 1) {
 		if(kia_head != kia_tail)  kia_head = (kia_head + 1) & 15;
+		ekia_irq();
 	} else {
 		// no behavior is defined.
 	}
@@ -59,6 +79,7 @@ ekia_post(UHWORD code) {
 	if(((kia_tail + 1) & 15) == kia_head)  return;
 	kia_queue[kia_tail] = code;
 	kia_tail = (kia_tail + 1) & 15;
+	ekia_irq();
 }
 
 
@@ -346,6 +367,13 @@ make(Options *opts) {
 
 	as->sdc = sdcard_new();
 	assert(as->sdc);
+
+	kia_head = kia_tail = 0;
+
+	/* initialize default, power-on IPR setting. */
+	ipr = 0;
+	ekia_irq();
+
 	return as;
 }
 
