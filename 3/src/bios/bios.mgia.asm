@@ -64,12 +64,135 @@ _mi100:		auipc	gp, 0			; Framebuffer is $9600 bytes.
 		jal	ra, mgia_sysfntadr	; Get font address
 		sd	a0, bd_fontform(x0)
 
+		sh	x0, bd_chidecnt(x0)	; Zero hide count.
+		sb	x0, bd_cblink(x0)	; Cursor blink not visible.
+		jal	ra, mgia_blinkon	; By default, show the cursor.
+
 		ld	ra, 0(sp)
 		addi	sp, sp, 8
 		jalr	x0, 0(ra)
 
 _ih_9600:	word	$9600
 
+
+; SYNOPSIS
+; mgia_blinkon
+;
+; FUNCTION
+; If the cursor is not visible, make it visible on the screen.  Otherwise,
+; take no action.
+
+mgia_blinkon:	addi	sp, sp, -8
+		sd	ra, 0(sp)
+
+		; If the user has a visible cursor, but happens
+		; to be in the "blink on" state, then our job is
+		; already done; just exit.
+		lb	a0, bd_cblink(x0)
+		bne	a0, x0, _bo100
+
+		; otherwise, we need to make it visible.
+		addi	a0, x0, 1
+		sb	a0, bd_cblink(x0)
+		jal	ra, mgia_xorcursor
+
+_bo100:		ld	ra, 0(sp)
+		addi	sp, sp, 8
+		jalr	x0, 0(ra)
+
+; SYNOPSIS
+; mgia_blinkoff
+;
+; FUNCTION
+; If the cursor is visible, make it invisible on the screen.  Otherwise,
+; take no action.
+
+mgia_blinkoff:	addi	sp, sp, -8
+		sd	ra, 0(sp)
+
+		; If the user has a visible cursor, but happens
+		; to be in the "blink off" state, then our job is
+		; already done; just exit.
+		lb	a0, bd_cblink(x0)
+		beq	a0, x0, _bo110
+
+		; otherwise, we need to make it invisible.
+		addi	a0, x0, 0
+		sb	a0, bd_cblink(x0)
+		jal	ra, mgia_xorcursor
+
+_bo110:		ld	ra, 0(sp)
+		addi	sp, sp, 8
+		jalr	x0, 0(ra)
+
+
+; SYNOPSIS
+; mgia_xorcursor()
+;
+; FUNCTION
+; Reverses the video of the tile addressed by the current cursor location.
+; NOTE: This procedure disregards the current hide setting.
+
+mgia_xorcursor:	addi	sp, sp, -8
+		sd	ra, 0(sp)
+
+		lh	a0, bd_cx(x0)
+		lh	a1, bd_cy(x0)
+		slli	a1, a1, 3
+		jal	ra, mgia_addr
+
+		addi	a2, x0, 8
+		lh	a3, bd_planebw(x0)
+_xc100:		lb	a1, 0(a0)
+		xori	a1, a1, 255
+		sb	a1, 0(a0)
+		add	a0, a0, a3
+		addi	a2, a2, -1
+		bne	a2, x0, _xc100
+
+		ld	ra, 0(sp)
+		addi	sp, sp, 8
+		jalr	x0, 0(ra)
+
+
+; SYNOPSIS
+; mgia_hidecur()
+;
+; FUNCTION
+; Disables the display of a cursor on the screen.  You must have one
+; mgia_showcur() call for each mgia_hidecur() call for the cursor to
+; become visible again.
+
+mgia_hidecur:	addi	sp, sp, -8
+		sd	ra, 0(sp)
+		lh	a0, bd_chidecnt(x0)	; sign extension is deliberate
+		addi	a0, a0, 1		; Check for $FFFF to avoid wrapping.
+		beq	a0, x0, _hc100
+		sh	a0, bd_chidecnt(x0)
+		jal	ra, mgia_blinkoff
+_hc100:		ld	ra, 0(sp)
+		addi	sp, sp, 8
+		jalr	x0, 0(ra)
+
+
+; SYNOPSIS
+; mgia_showcur()
+;
+; FUNCTION
+; Enables the display of a cursor on the screen.  You must have one
+; mgia_showcur() call for each mgia_hidecur() call for this to happen.
+
+mgia_showcur:	addi	sp, sp, -8
+		sd	ra, 0(sp)
+		lh	a0, bd_chidecnt(x0)
+		beq	a0, x0, _sc100
+		addi	a0, a0, -1
+		sh	a0, bd_chidecnt(x0)
+		bne	a0, x0, _sc100
+		jal	ra, mgia_blinkon
+_sc100:		ld	ra, 0(sp)
+		addi	sp, sp, 8
+		jalr	x0, 0(ra)
 
 ; SYNOPSIS
 ;
@@ -100,33 +223,39 @@ _ih_9600:	word	$9600
 ;
 ; No other control codes have any effect, and none produce any output.
 
-mgia_chrout:	addi	sp, sp, -8
+mgia_chrout:	addi	sp, sp, -16
 		sd	ra, 0(sp)
+		sd	s0, 8(sp)
+		addi	s0, a1, 0
+		jal	ra, mgia_hidecur
 
 		; If a character is printable, then dispatch to the
 		; typesetter.  Otherwise, perform the appropriate ASCII
 		; control function.
 
-		andi	a1, a1, 255		; Ignore bits 8..XLEN-1
+		andi	s0, s0, 255		; Ignore bits 8..XLEN-1
 		addi	a5, x0, 32
-		bgeu	a1, a5, _mg100
+		bgeu	s0, a5, _mg100
 
-		slli	a1, a1, 1
+		slli	s0, s0, 1
 		jal	ra, _mg900		; A5 -> dispatch table
-		add	a1, a1, a5		; A1 -> hword displacement
-		lh	a1, 0(a1)		; A1 = displacement
-		add	a1, a1, a5		; A1 = addr of procedure
-		jalr	ra, 0(a1)		; Do it!
+		add	s0, s0, a5		; S0 -> hword displacement
+		lh	s0, 0(s0)		; S0 = displacement
+		add	s0, s0, a5		; S0 = addr of procedure
+		jalr	ra, 0(s0)		; Do it!
 		jal	x0, _mg899
 
 		; Plot the character by locating the character's tile in
 		; the system font, computing the framebuffer address for
 		; the character's final location, then copying the tile.
-_mg100:		jal	ra, mgia_tilechr
+_mg100:		addi	a1, s0, 0
+		jal	ra, mgia_tilechr
 		jal	ra, mgia_right
 
-_mg899:		ld	ra, 0(sp)
-		addi	sp, sp, 8
+_mg899:		jal	ra, mgia_showcur
+		ld	ra, 0(sp)
+		ld	s0, 8(sp)
+		addi	sp, sp, 16
 _mg_nop:	jalr	x0, 0(ra)
 
 _mg900:		jalr	a5, 0(ra)

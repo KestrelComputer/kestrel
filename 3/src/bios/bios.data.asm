@@ -11,7 +11,9 @@ bd_maxrow	= bd_maxcol+2		; H Maximum number of rows (typ. 60)
 
 bd_planebw	= bd_maxrow+2		; H Width of bitmap in bytes
 bd_planeh	= bd_planebw+2		; H Height of bitmap in pixels
-bd_padding0	= bd_planeh+2		; H reserved.
-bd_padding1	= bd_padding0+2		; H reserved.
+bd_chidecnt	= bd_planeh+2		; H Cursor hide counter.
+bd_cblink	= bd_chidecnt+2		; B 0 if cursor invisible.
+bd_padding1	= bd_cblink+1		; B reserved.
 
-bd_fontform	= bd_padding1+4		; D Pointer to system font image.
+bd_fontform	= bd_padding1+1		; D Pointer to system font image.
+
