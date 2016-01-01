@@ -55,6 +55,15 @@ bios_cold:	addi	sp, x0, 1	; SP = $1000
 
 _bc800: addi a0, x0, 0
 	jalr ra, BIOS_I_STROUT(s7)
+	byte "  SHIFTS=$",0
+	align 4
+
+	addi a0, x0, 0
+	lb a1, bd_shifts(x0)
+	jal ra, bios_hex8out
+
+	addi a0, x0, 0
+	jalr ra, BIOS_I_STROUT(s7)
 	byte 13, 10, 0
 	align 4
 
