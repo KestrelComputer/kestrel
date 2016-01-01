@@ -41,6 +41,9 @@ _ki100:		addi	a2, a2, -1
 		or	a0, a0, a1
 		csrrw	x0, a0, mie
 
+		; Set our keyboard shift state to defaults.
+		sb	x0, bd_shifts(x0)
+
 		jal	x0, 0(ra)
 
 		; If we're here, the KIA-II is either not present, or
@@ -79,7 +82,7 @@ kia2_irq:	addi	sp, sp, -32
 		slli	a0, a0, 48
 		lbu	a1, 0(a0)
 		andi	a2, a1, $01
-		bne	a2, x0, _ki100
+		bne	a2, x0, _kirq100
 
 		; Read in the 16-bit raw keycode.
 
@@ -98,7 +101,7 @@ kia2_irq:	addi	sp, sp, -32
 		lbu	a0, bd_rawhd(x0)
 		addi	a0, a0, -2
 		andi	a0, a0, $1E
-		beq	a0, a2, _ki100
+		beq	a0, a2, _kirq100
 
 		; Enqueue the keycode.
 
@@ -114,7 +117,62 @@ kia2_irq:	addi	sp, sp, -32
 		; Then, we should attempt to isolate an ASCII representable
 		; character, and if so, enqueue that character here.
 
-_ki100:		ld	ra, 0(sp)
+		; If bit 14 isn't set, then it cannot be a shift key event.
+		; It might be an ASCII representable character though.
+
+		addi	a0, x0, $40 
+		slli	a0, a0, 8
+		and	a0, a0, a1
+		beq	a0, x0, _kirq100
+
+		; At this point, we know A1 holds a non-ASCII character.
+		; We recognize the following codes as shift key events:
+		;
+		;	E0	Left CTRL
+		;	E1	Left SHIFT
+		;	E2	Left ALT
+		;	E3	Left CMD
+		;	E4	Right CTRL
+		;	E5	Right SHIFT
+		;	E6	Right ALT
+		;	E7	Right CMD
+		;
+		; For the purposes of ASCII translation, we don't much care
+		; about either of the command keys.  We only care about the
+		; ALT, SHIFT, and CTRL keys.
+		;
+		; First, check to make sure we have a real shift event.
+		; If not, abort the rest of the process.
+
+		andi	a0, a1, $F8
+		xori	a0, a0, $E0
+		bne	a0, x0, _kirq100
+
+		; Compute which bit to set or clear.
+
+		addi	a2, x0, 1
+		andi	a0, a1, 7
+		sll	a2, a2, a0
+
+		; If the high bit of the keycode is set, release the shift
+		; state.  Otherwise, assert it.
+
+		srli	a0, a1, 8
+		andi	a0, a0, $80
+		beq	a0, x0, _kirq110
+
+		lbu	a0, bd_shifts(x0)
+		or	a0, a0, a2
+		xor	a0, a0, a2
+		sb	a0, bd_shifts(x0)
+		jal	x0, _kirq100
+
+_kirq110:	lbu	a0, bd_shifts(x0)
+		or	a0, a0, a2
+		sb	a0, bd_shifts(x0)
+		jal	x0, _kirq100
+
+_kirq100:	ld	ra, 0(sp)
 		ld	a0, 8(sp)
 		ld	a1, 16(sp)
 		ld	a2, 24(sp)

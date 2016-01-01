@@ -44,30 +44,28 @@ bios_cold:	addi	sp, x0, 1	; SP = $1000
 		jalr	ra, BIOS_CANINP(s7)
 		bne	a0, x0, wtf
 
-		addi	a0, x0, 0	; Device 0 is screen
-		addi	a1, x0, 12	; Use Form Feed to clear screen.
-		jalr	ra, BIOS_CHROUT(s7)
-
-		addi	a0, x0, 0	; Device 0
-		addi	a1, x0, 13	; Carriage Return.
-		jalr	ra, BIOS_CHROUT(s7)
-
-		addi	s0, x0, 32	; Start print from the space
-bc100:		add	a1, s0, x0
-		addi	a0, x0, 0
-		jalr	ra, BIOS_CHROUT(s7)	; Print character,
-		addi	s0, s0, 1
-		addi	a2, x0, 256
-		blt	s0, a2, bc100	; and repeat until done.
-
 		addi	a0, x0, 0	; Output BIOS banner to the screen.
 		jalr	ra, BIOS_I_STROUT(s7)
-		byte	13, 10, 10
+		byte	12, 13, 10, 10
 		byte	"Kestrel-3 BIOS V1.15.51"
 		byte	13, 10, 10, 0
 		align	4
 
-	csrrsi x0, 1, mstatus
+		csrrsi x0, 1, mstatus	; Enable all interrupts!
+
+_bc800: addi a0, x0, 0
+	jalr ra, BIOS_I_STROUT(s7)
+	byte "  SHIFTS=$",0
+	align 4
+
+	addi a0, x0, 0
+	lb a1, bd_shifts(x0)
+	jal ra, bios_hex8out
+
+	addi a0, x0, 0
+	jalr ra, BIOS_I_STROUT(s7)
+	byte 13, 10, 0
+	align 4
 
 _bc801:	addi a0, x0, 1
 	jalr ra, BIOS_CANINP(s7)
@@ -75,14 +73,25 @@ _bc801:	addi a0, x0, 1
 
 	addi a0, x0, 1
 	jalr ra, BIOS_CHRINP(s7)
-	srli a1, a0, 8
-	andi a1, a1, $80
-	bne a1, x0, _bc801
+	addi s0, a0, 0
+	
+	addi a1, s0, 0
+	addi a0, x0, 0
+	jal ra, bios_hex16out
 
-	addi a1, a0, 0
+	srli a1, s0, 8
+	andi a1, a1, $80
+	bne a1, x0, _bc800
+
+	addi a1, x0, 32
 	addi a0, x0, 0
 	jalr ra, BIOS_CHROUT(s7)
-	jal x0, _bc801
+
+	addi a1, s0, 0
+	addi a0, x0, 0
+	jalr ra, BIOS_CHROUT(s7)
+
+	jal x0, _bc800
 
 _bc900:		addi	a0, x0, 255
 		slli	a0, a0, 16
