@@ -6,12 +6,13 @@
 ; file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 		include	"bios.inc.asm"
-		include "bios.data.asm"
-		include "bios.mgia.asm"
-		include	"bios.kia2.asm"
-		include	"bios.jump.asm"
+		include "bios.asc.asm"
 		include	"bios.chr.asm"
+		include "bios.data.asm"
 		include	"bios.irq.asm"
+		include	"bios.jump.asm"
+		include	"bios.kia2.asm"
+		include "bios.mgia.asm"
 		include "math.asm"
 
 ; BIOS low memory map
@@ -79,15 +80,18 @@ _bc801:	addi a0, x0, 1
 	addi a0, x0, 0
 	jal ra, bios_hex16out
 
-	srli a1, s0, 8
-	andi a1, a1, $80
-	bne a1, x0, _bc800
+	addi a0, x0, 2
+	jalr ra, BIOS_CANINP(s7)
+	beq a0, x0, _bc800
 
 	addi a1, x0, 32
 	addi a0, x0, 0
 	jalr ra, BIOS_CHROUT(s7)
 
-	addi a1, s0, 0
+	addi a0, x0, 2
+	jalr ra, BIOS_CHRINP(s7)
+
+	addi a1, a0, 0
 	addi a0, x0, 0
 	jalr ra, BIOS_CHROUT(s7)
 
@@ -136,6 +140,7 @@ _bi110:		sd	a2, 0(a0)
 
 		jal	ra, mgia_init
 		jal	ra, kia2_init
+		jal	ra, ascii_init
 
 		ld	ra, 0(sp)
 		addi	sp, sp, 8
