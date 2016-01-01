@@ -44,7 +44,7 @@ _ki100:		addi	a2, a2, -1
 		; Set our keyboard shift state to defaults.
 		sb	x0, bd_shifts(x0)
 
-		jal	x0, 0(ra)
+		jalr	x0, 0(ra)
 
 		; If we're here, the KIA-II is either not present, or
 		; it is malfunctioning.
