@@ -37,10 +37,10 @@ struct interface_AddressSpace {
 	void (*store_hword)(AddressSpace *as, DWORD address, UHWORD datum);
 	void (*store_word)(AddressSpace *as, DWORD address, UWORD datum);
 	void (*store_dword)(AddressSpace *as, DWORD address, UDWORD datum);
-	BYTE (*fetch_byte)(AddressSpace *as, DWORD address);
-	HWORD (*fetch_hword)(AddressSpace *as, DWORD address);
-	WORD (*fetch_word)(AddressSpace *as, DWORD address);
-	DWORD (*fetch_dword)(AddressSpace *as, DWORD address);
+	UBYTE (*fetch_byte)(AddressSpace *as, DWORD address);
+	UHWORD (*fetch_hword)(AddressSpace *as, DWORD address);
+	UWORD (*fetch_word)(AddressSpace *as, DWORD address);
+	UDWORD (*fetch_dword)(AddressSpace *as, DWORD address);
 };
 
 extern const struct interface_AddressSpace module_AddressSpace;

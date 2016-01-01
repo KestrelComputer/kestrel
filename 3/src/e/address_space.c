@@ -437,7 +437,7 @@ store_dword(AddressSpace *as, DWORD address, UDWORD datum) {
 }
 
 
-static BYTE
+static UBYTE
 fetch_byte(AddressSpace *as, DWORD address) {
 	int dev = (address & DEV_MASK) >> 56;
 	if(!valid_card(address)) {
@@ -450,7 +450,7 @@ fetch_byte(AddressSpace *as, DWORD address) {
 }
 
 
-static HWORD
+static UHWORD
 fetch_hword(AddressSpace *as, DWORD address) {
 	int dev = (address & DEV_MASK) >> 56;
 	if(!valid_card(address)) {
@@ -463,7 +463,7 @@ fetch_hword(AddressSpace *as, DWORD address) {
 }
 
 
-static WORD
+static UWORD
 fetch_word(AddressSpace *as, DWORD address) {
 	int dev = (address & DEV_MASK) >> 56;
 	if(!valid_card(address)) {
@@ -476,7 +476,7 @@ fetch_word(AddressSpace *as, DWORD address) {
 }
 
 
-static DWORD
+static UDWORD
 fetch_dword(AddressSpace *as, DWORD address) {
 	int dev = (address & DEV_MASK) >> 56;
 	if(!valid_card(address)) {
