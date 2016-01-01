@@ -205,3 +205,166 @@ _so200:		addi	ra, ra, 4
 		andi	ra, ra, -4
 		jal	x0, bios_strout
 
+
+; SYNOPSIS
+; bios_hex64out(dev, udword)
+;               a0     a1
+;
+; INPUTS
+;    dev	unused
+;    udword	The 64-bit word to print the value of.
+;
+; FUNCTION
+; Prints the value of udword to the selected output device,
+; in hexadecimal form.
+
+bios_hex64out:	addi	sp, sp, -24
+		sd	ra, 0(sp)
+		sd	s0, 8(sp)
+		sd	s1, 16(sp)
+
+		addi	s0, a0, 0
+		addi	s1, a1, 0
+
+		srli	a1, a1, 32
+		jal	ra, bios_hex32out
+
+		addi	a0, s0, 0
+		addi	a1, s1, 0
+		jal	ra, bios_hex32out
+
+		ld	ra, 0(sp)
+		ld	s0, 8(sp)
+		ld	s1, 16(sp)
+		addi	sp, sp, 24
+		jalr	x0, 0(ra)
+
+; SYNOPSIS
+; bios_hex32out(dev, udword)
+;               a0     a1
+;
+; INPUTS
+;    dev	unused
+;    udword	The 32-bit word to print the value of.
+;
+; FUNCTION
+; Prints the value of udword to the selected output device,
+; in hexadecimal form.
+
+bios_hex32out:	addi	sp, sp, -24
+		sd	ra, 0(sp)
+		sd	s0, 8(sp)
+		sd	s1, 16(sp)
+
+		addi	s0, a0, 0
+		addi	s1, a1, 0
+
+		srli	a1, a1, 16
+		jal	ra, bios_hex16out
+
+		addi	a0, s0, 0
+		addi	a1, s1, 0
+		jal	ra, bios_hex16out
+
+		ld	ra, 0(sp)
+		ld	s0, 8(sp)
+		ld	s1, 16(sp)
+		addi	sp, sp, 24
+		jalr	x0, 0(ra)
+
+; SYNOPSIS
+; bios_hex16out(dev, udword)
+;               a0     a1
+;
+; INPUTS
+;    dev	unused
+;    udword	The 16-bit word to print the value of.
+;
+; FUNCTION
+; Prints the value of udword to the selected output device,
+; in hexadecimal form.
+
+bios_hex16out:	addi	sp, sp, -24
+		sd	ra, 0(sp)
+		sd	s0, 8(sp)
+		sd	s1, 16(sp)
+
+		addi	s0, a0, 0
+		addi	s1, a1, 0
+
+		srli	a1, a1, 8
+		jal	ra, bios_hex8out
+
+		addi	a0, s0, 0
+		addi	a1, s1, 0
+		jal	ra, bios_hex8out
+
+		ld	ra, 0(sp)
+		ld	s0, 8(sp)
+		ld	s1, 16(sp)
+		addi	sp, sp, 24
+		jalr	x0, 0(ra)
+
+; SYNOPSIS
+; bios_hex8out(dev, udword)
+;               a0     a1
+;
+; INPUTS
+;    dev	unused
+;    udword	The 8-bit word to print the value of.
+;
+; FUNCTION
+; Prints the value of udword to the selected output device,
+; in hexadecimal form.
+
+bios_hex8out:	addi	sp, sp, -24
+		sd	ra, 0(sp)
+		sd	s0, 8(sp)
+		sd	s1, 16(sp)
+
+		addi	s0, a0, 0
+		addi	s1, a1, 0
+
+		srli	a1, a1, 4
+		jal	ra, bios_hex4out
+
+		addi	a0, s0, 0
+		addi	a1, s1, 0
+		jal	ra, bios_hex4out
+
+		ld	ra, 0(sp)
+		ld	s0, 8(sp)
+		ld	s1, 16(sp)
+		addi	sp, sp, 24
+		jalr	x0, 0(ra)
+
+
+; SYNOPSIS
+; bios_hex4out(dev, udword)
+;               a0     a1
+;
+; INPUTS
+;    dev	unused
+;    udword	The 4-bit word to print the value of.
+;
+; FUNCTION
+; Prints the value of udword to the selected output device,
+; in hexadecimal form.
+
+bios_hex4out:	addi	sp, sp, -8
+		sd	ra, 0(sp)
+
+		andi	a1, a1, 15
+		jal	ra, bios_hextab
+		add	a1, a1, a2
+		lbu	a1, 0(a1)
+		jal	ra, bios_chrout
+
+		ld	ra, 0(sp)
+		addi	sp, sp, 8
+		jalr	x0, 0(ra)
+
+bios_hextab:	jalr	a2, 0(ra)
+		byte	"0123456789ABCDEF"
+		align	4
+

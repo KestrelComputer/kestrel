@@ -11,6 +11,7 @@
 		include	"bios.kia2.asm"
 		include	"bios.jump.asm"
 		include	"bios.chr.asm"
+		include	"bios.irq.asm"
 		include "math.asm"
 
 ; BIOS low memory map
@@ -66,12 +67,7 @@ bc100:		add	a1, s0, x0
 		byte	13, 10, 10, 0
 		align	4
 
-	addi a0, x0, $77
-	slli a0, a0, 8
-	ori a0, a0, $77
-	addi a1, x0, $FF
-	slli a1, a1, 16
-	sh a0, 1024(a1)
+	csrrsi x0, 1, mstatus
 
 _bc801:	addi a0, x0, 1
 	jalr ra, BIOS_CANINP(s7)
@@ -79,12 +75,10 @@ _bc801:	addi a0, x0, 1
 
 	addi a0, x0, 1
 	jalr ra, BIOS_CHRINP(s7)
-	addi a1, x0, $FF
-	slli a1, a1, 16
-	sh a0, 1104(a1)
 	srli a1, a0, 8
 	andi a1, a1, $80
 	bne a1, x0, _bc801
+
 	addi a1, a0, 0
 	addi a0, x0, 0
 	jalr ra, BIOS_CHROUT(s7)
@@ -123,6 +117,14 @@ _bi100:		auipc	gp, 0
 		jal	ra, bios_jumptab
 		sd	a0, bd_jumptab(x0)
 
+		; initialize IRQ and trap vectors
+		addi	a0, x0, bd_irqvecs
+		addi	a1, x0, bd_irq15+8
+		jal	ra, irq_spur_a2
+_bi110:		sd	a2, 0(a0)
+		addi	a0, a0, 8
+		bltu	a0, a1, _bi110
+
 		jal	ra, mgia_init
 		jal	ra, kia2_init
 
@@ -132,6 +134,35 @@ _bi100:		auipc	gp, 0
 
 		align	8
 _ih_B105:	dword	$B105
+
+		adv	DEFAULT_TRAP_BASE + TRAP_FROM_U - BIOS_BASE, $cc
+		jal	x0, irq_spurtrap
+
+		adv	DEFAULT_TRAP_BASE + TRAP_FROM_S - BIOS_BASE, $cc
+		jal	x0, irq_spurtrap
+
+		adv	DEFAULT_TRAP_BASE + TRAP_FROM_H - BIOS_BASE, $cc
+		jal	x0, irq_spurtrap
+
+		adv	DEFAULT_TRAP_BASE + TRAP_FROM_M - BIOS_BASE, $cc
+		addi	sp, sp, -24
+		sd	ra, 0(sp)
+		sd	s0, 8(sp)
+		sd	s1, 16(sp)
+
+		csrrc	s0, x0, mcause
+		srli	s1, s0, 59
+		or	s0, s0, s1
+		slli	s0, s0, 3
+		addi	s0, s0, bd_irqvecs
+		ld	s0, 0(s0)
+		jalr	ra, 0(s0)
+
+		ld	ra, 0(sp)
+		ld	s0, 8(sp)
+		ld	s1, 16(sp)
+		addi	sp, sp, 24
+		eret
 
 ; CPU reset vector.  The Polaris CPU boots here after the reset signal has
 ; been asserted.
