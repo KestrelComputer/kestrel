@@ -90,6 +90,7 @@ _bc801:	addi a0, x0, 1
 
 	addi a0, x0, 2
 	jalr ra, BIOS_CHRINP(s7)
+
 	addi a1, a0, 0
 	addi a0, x0, 0
 	jalr ra, BIOS_CHROUT(s7)
@@ -139,6 +140,7 @@ _bi110:		sd	a2, 0(a0)
 
 		jal	ra, mgia_init
 		jal	ra, kia2_init
+		jal	ra, ascii_init
 
 		ld	ra, 0(sp)
 		addi	sp, sp, 8

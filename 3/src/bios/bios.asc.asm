@@ -69,6 +69,7 @@ ascii_chrinp:	addi	sp, sp, -8
 
 		lbu	a2, bd_asctl(x0)
 		beq	a1, a2, _asc100
+
 		addi	a1, a1, 1
 		andi	a1, a1, $0F
 		sb	a1, bd_aschd(x0)
