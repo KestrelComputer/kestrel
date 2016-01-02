@@ -20,40 +20,40 @@ variable strlitctr
 strlitctr0
 
 : .align	."  align 8" cr ;
-: _noop		."  addi  x0, x0, 0" cr ;
-: _lit		."  ld    x" r1 . ." , (" cur @ name type ." -LGP" lgplab ? ." )" offset . ." (gp)" cr ;
-: .add		r1 . ." , x" r2 . ." , x" r3 . cr ;
-: _add		."  add   x" .add ;
-: _sub		."  sub   x" .add ;
-: _and		."  and   x" .add ;
-: _or		."  or    x" .add ;
-: _xor		."  xor   x" .add ;
+: _noop		."  addi  zero, zero, 0" cr ;
+: _lit		."  ld    dr" r1 . ." , (" cur @ name type ." -LGP" lgplab ? ." )" offset . ." (gp)" cr ;
+: .add		r1 . ." , dr" r2 . ." , dr" r3 . cr ;
+: _add		."  add   dr" .add ;
+: _sub		."  sub   dr" .add ;
+: _and		."  and   dr" .add ;
+: _or		."  or    dr" .add ;
+: _xor		."  xor   dr" .add ;
 : _label	." L" insn 8 rshift . ." :" cr ;
-: _@8		."  lb    x" r1 . ." , 0(x" r1 . ." )" cr ;
-: _@16		."  lh    x" r1 . ." , 0(x" r1 . ." )" cr ;
-: _@32		."  lw    x" r1 . ." , 0(x" r1 . ." )" cr ;
-: _@64		."  ld    x" r1 . ." , 0(x" r1 . ." )" cr ;
-: _!8		."  sb    x" r2 . ." , 0(x" r1 . ." )" cr ;
-: _!16		."  sh    x" r2 . ." , 0(x" r1 . ." )" cr ;
-: _!32		."  sw    x" r2 . ." , 0(x" r1 . ." )" cr ;
-: _!64		."  sd    x" r2 . ." , 0(x" r1 . ." )" cr ;
-: _j		."  jal   x0, L" insn 256/ . cr ;
-: .jz		r1 . ." , x0, L" param . cr ;
-: _jz		."  beq   x" .jz ;
+: _@8		."  lb    dr" r1 . ." , 0(dr" r1 . ." )" cr ;
+: _@16		."  lh    dr" r1 . ." , 0(dr" r1 . ." )" cr ;
+: _@32		."  lw    dr" r1 . ." , 0(dr" r1 . ." )" cr ;
+: _@64		."  ld    dr" r1 . ." , 0(dr" r1 . ." )" cr ;
+: _!8		."  sb    dr" r2 . ." , 0(dr" r1 . ." )" cr ;
+: _!16		."  sh    dr" r2 . ." , 0(dr" r1 . ." )" cr ;
+: _!32		."  sw    dr" r2 . ." , 0(dr" r1 . ." )" cr ;
+: _!64		."  sd    dr" r2 . ." , 0(dr" r1 . ." )" cr ;
+: _j		."  jal   zero, L" insn 256/ . cr ;
+: .jz		r1 . ." , zero, L" param . cr ;
+: _jz		."  beq   dr" .jz ;
 : _call		."  jal   ra, " insn 256/ name type cr ;
-: _rfs		."  jalr  x0, 0(ra)" cr ;
+: _rfs		."  jalr  zero, 0(ra)" cr ;
 : drsp		."  addi  rsp, rsp, -8" cr ;
 : irsp		."  addi  rsp, rsp, 8" cr ;
-: _>r		drsp ."  sd    x" r1 . ." , 0(rsp)" cr ;
-: _r>		."  ld    x" r1 . ." , 0(rsp)" cr irsp ;
-: _r@		."  ld    x" r1 . ." , " offset . ." (rsp)" cr ;
-: _r!		."  sd    x" r1 . ." , " offset . ." (rsp)" cr ;
+: _>r		drsp ."  sd    dr" r1 . ." , 0(rsp)" cr ;
+: _r>		."  ld    dr" r1 . ." , 0(rsp)" cr irsp ;
+: _r@		."  ld    dr" r1 . ." , " offset . ." (rsp)" cr ;
+: _r!		."  sd    dr" r1 . ." , " offset . ." (rsp)" cr ;
 : ddsp		."  addi  dsp, dsp, -8" cr ;
 : idsp		."  addi  dsp, dsp, 8" cr ;
-: _>d		ddsp ."  sd    x" r1 . ." , 0(dsp)" cr ;
-: _d>		."  ld    x" r1 . ." , 0(dsp)" cr idsp ;
-: _d@		."  ld    x" r1 . ." , " offset . ." (dsp)" cr ;
-: _d!		."  sd    x" r1 . ." , " offset . ." (dsp)" cr ;
+: _>d		ddsp ."  sd    dr" r1 . ." , 0(dsp)" cr ;
+: _d>		."  ld    dr" r1 . ." , 0(dsp)" cr idsp ;
+: _d@		."  ld    dr" r1 . ." , " offset . ." (dsp)" cr ;
+: _d!		."  sd    dr" r1 . ." , " offset . ." (dsp)" cr ;
 : _dup		( handled internally by the compiler ) ;
 : _over		( handled internally by the compiler ) ;
 : _drop		( handled internally by the compiler ) ;
@@ -63,19 +63,19 @@ strlitctr0
 : _lgp		1 lgplab +! ." LGP" lgplab ? ." :" cr ."  auipc gp, 0" cr ;
 : _prolog	drsp ."  sd    ra, 0(rsp)" cr ;
 : _epilog	."  ld    ra, 0(rsp)" cr irsp ;
-: _jnz		."  bne   x" .jz ;
-: .2*		r1 . ." , x" r1 . ." , 1" cr ;
-: _2*		."  slli  x" .2* ;
-: _u2/		."  srli  x" .2* ;
-: _2/		."  srai  x" .2* ;
-: _jge		."  bge   x" .jz ;
-: _gvpea	."  addi  x" r1 . ." , gvp, " param . cr ;
-: _strlit	."  jal   x" r2 . ." , STRLIT" strlitctr ? cr
+: _jnz		."  bne   dr" .jz ;
+: .2*		r1 . ." , dr" r1 . ." , 1" cr ;
+: _2*		."  slli  dr" .2* ;
+: _u2/		."  srli  dr" .2* ;
+: _2/		."  srai  dr" .2* ;
+: _jge		."  bge   dr" .jz ;
+: _gvpea	."  addi  dr" r1 . ." , gvp, " param . cr ;
+: _strlit	."  jal   dr" r2 . ." , STRLIT" strlitctr ? cr
 		."  byte  " '" emit param name type '" emit cr
 		."  align 4" cr
 		." STRLIT" strlitctr ? ." :" cr  strlitctr inc
-		."  addi  x" r1 . ." , x0, " param name . drop cr ;
-: _jlt		."  blt   x" .jz ;
+		."  addi  dr" r1 . ." , zero, " param name . drop cr ;
+: _jlt		."  blt   dr" .jz ;
 
 create procedures
 ' _noop ,

@@ -9,8 +9,10 @@ extern bye
 extern call
 
 \ Sends the character to the user's console.
-: emit ( ch - )
-	d> d# $0E00000000000000 c! ;
+\ : emit ( ch - )
+\	0 d@ >d bemit  d> d# $0E00000000000000 c! ;
+
+extern emit
 
 \ Takes the tail of a string.
 : nextch ( addr len - addr+1 len-1 )
@@ -260,7 +262,7 @@ dword: mplsiz	\ Memory Pool Size
 : fre2		h# 2830 >d fremem ;
 : fre3		h# 2C40 >d fremem ;
 
-: memtest
+: memtest   exit ( need to relocate addresses in test )
 	S" memtest:" >d >d type cr
 	get0 get1 get2 fre1 get3 fre1 fre0 get4 get5 fre0 fre3 fre2 get6
 	S" OK" >d >d type cr ;
@@ -1282,7 +1284,7 @@ jump-entries: libTopen libTclose libTexpunge libTzero libTcustom ;
 \
 \ polkey ( -- flag )
 
-: polkey	h# 0E00000000000000 c@ >d ;
+\ : polkey	h# 0E00000000000000 c@ >d ;
 
 \ Blocks until a valid ASCII character has been received from the
 \ user's keyboard.  This procedure bypasses the file I/O interface,
@@ -1291,8 +1293,10 @@ jump-entries: libTopen libTclose libTexpunge libTzero libTcustom ;
 \
 \ getkey ( -- ch )
 
-: getkey	begin d# $0E00000000000000 c@ if d# $0E00000000000001 c@ >d exit then again ;
-		( Use emulator debugger port for now. )
+extern caninp	( replaces polkey; named after BIOS function it calls )
+extern chrinp
+
+: getkey	begin caninp d> if chrinp exit then again ;
 
 \ Prints an arbitrary string to the user's console, then blocks forever.
 \
@@ -1390,7 +1394,7 @@ jump-entries: getmem fremem movmem setmem zermem ; ( memory management )
 jump-entries: open close filsiz read _write seek ; ( file I/O )
 jump-entries: loadseg unloadseg ; ( executable I/O )
 jump-entries: strEql strDup strSplitSlash ; ( basic string library )
-jump-entries: emit type cr space _64 polkey getkey ; ( console I/O )
+jump-entries: emit type cr space _64 caninp getkey ; ( console I/O )
 jump-entries: fndlib addlib rmvlib getlib rellib ; ( libraries )
 
 : romshell
@@ -1414,7 +1418,7 @@ jump-entries: fndlib addlib rmvlib getlib rellib ; ( libraries )
 \ return.
 
 : banner	S" Booting STS V1.5" >d >d type cr ;
-: mem0		h# 2000 >d  d# 16777216 h# 12000 - >d fmtmem ;
+: mem0		h# 8000 >d  d# 16777216 h# 18000 - >d fmtmem ;
 		( Nexys2 has 16MB of on-board RAM, less 8K for low RAM, and 64K for MGIA framebuffer. )
 
 extern prg_hello_start
@@ -1428,6 +1432,9 @@ extern prg_m2slides_len
 
 extern prg_fbtest_start
 extern prg_fbtest_len
+
+extern prg_lbutest_start
+extern prg_lbutest_len
 
 extern prg_testblit_start
 extern prg_testblit_len
@@ -1488,6 +1495,14 @@ extern prg_testblit_len
 	prg_testblit_start prg_testblit_len 2 d@ >d romFileSetContents
 	objEntNew d> 0=if S" ent /rom/prg.testblit failed" >d >d panic then
 	S" prg.testblit" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/prg.testblit failed" >d >d panic then
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d 4 d@ >d objDirAddHead
+	d> d>
+
+	romFileNew d> 0=if S" fil /rom/prg.lbutest failed" >d >d panic then
+	prg_lbutest_start prg_lbutest_len 2 d@ >d romFileSetContents
+	objEntNew d> 0=if S" ent /rom/prg.lbutest failed" >d >d panic then
+	S" prg.lbutest" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/prg.lbutest failed" >d >d panic then
 	1 d@ >d 1 d@ >d objEntSetObject
 	0 d@ >d 4 d@ >d objDirAddHead
 	d> d>

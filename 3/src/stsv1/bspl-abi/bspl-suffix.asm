@@ -35,10 +35,16 @@ call:		ld	x16, 0(dsp)
 ; Configures the CPU to run BSPL code.  We need to reset the stack pointers
 ; and the global variable vector pointer.
 
-__cold__:       addi    dsp, x0, $0400	; DSP -> $0400 ($0000..$03FF)
-                add     rsp, dsp, dsp	; RSP -> $0800 ($0400..$07FF)
-                add     gvp, rsp, rsp	; GVP -> $1000 ($0800..$17FF)
+__cold__:       addi    dsp, x0, $10	; DSP -> $1000 ($0C00..$0FFF)
+		slli	dsp, dsp, 8
+                add     rsp, dsp, dsp	; RSP -> $2000 ($1000..$1FFF)
+                add     gvp, rsp, rsp	; GVP -> $4000 ($3800..$47FF)
                 jal     x0, _
 
-                adv     $FFF00, $CC
-                jal     x0, __cold__
+; Normally, we would have the CPU reset vector declaration here.
+; However, since we're porting to run underneath the Kestrel-3 BIOS,
+; I'm going to comment this out for now.  BIOS is expected to dispatch
+; to __cold__ after it resets and bootstraps itself.
+
+;                adv     $FFF00, $CC
+;                jal     x0, __cold__
