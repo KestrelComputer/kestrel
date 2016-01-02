@@ -1284,7 +1284,7 @@ jump-entries: libTopen libTclose libTexpunge libTzero libTcustom ;
 \
 \ polkey ( -- flag )
 
-: polkey	h# 0E00000000000000 c@ >d ;
+\ : polkey	h# 0E00000000000000 c@ >d ;
 
 \ Blocks until a valid ASCII character has been received from the
 \ user's keyboard.  This procedure bypasses the file I/O interface,
@@ -1293,8 +1293,10 @@ jump-entries: libTopen libTclose libTexpunge libTzero libTcustom ;
 \
 \ getkey ( -- ch )
 
-: getkey	begin d# $0E00000000000000 c@ if d# $0E00000000000001 c@ >d exit then again ;
-		( Use emulator debugger port for now. )
+extern caninp	( replaces polkey; named after BIOS function it calls )
+extern chrinp
+
+: getkey	begin caninp d> if chrinp exit then again ;
 
 \ Prints an arbitrary string to the user's console, then blocks forever.
 \
@@ -1392,7 +1394,7 @@ jump-entries: getmem fremem movmem setmem zermem ; ( memory management )
 jump-entries: open close filsiz read _write seek ; ( file I/O )
 jump-entries: loadseg unloadseg ; ( executable I/O )
 jump-entries: strEql strDup strSplitSlash ; ( basic string library )
-jump-entries: emit type cr space _64 polkey getkey ; ( console I/O )
+jump-entries: emit type cr space _64 caninp getkey ; ( console I/O )
 jump-entries: fndlib addlib rmvlib getlib rellib ; ( libraries )
 
 : romshell
