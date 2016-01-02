@@ -1,9 +1,20 @@
-x0	= 0
+zero	= 0
 ra	= 1
-dsp	= 2
-rsp	= 3
-gp	= 4
-gvp	= 5
+dsp     = 2    ; Data stack pointer.
+rsp     = 3    ; Return stack pointer.
+gvp     = 4    ; Global variables pointer.
+gp	= 13
+
+dr16	= 5
+dr17	= 6
+dr18	= 7
+dr19	= 8
+dr20	= 9
+dr21	= 10
+dr22	= 11
+dr23	= 12
+
+x0	= 0
 x16	= 16
 x17	= 17
 x18	= 18
