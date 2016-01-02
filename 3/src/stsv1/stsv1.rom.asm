@@ -5,8 +5,7 @@
 ; BSPL cannot produce direct-to-ROM-image binaries, so we need to wrap
 ; its output in something that can.
 
-		include	"bspl-abi/csrs.i"
-		include "bspl-abi/regs.i"
+		include "bios.inc.asm"
 		include	"bspl-abi/bspl-regs.i"
 
 ; The following extra register definitions are required for the non-BSPL
@@ -14,13 +13,6 @@
 
 rt		= ra	; Alias return stack for BSPL and non-BSPL code
 rp		= rsp
-
-a0		= x7	; Registers used by CompareNames.
-a1		= x8
-a2		= x9
-a3		= x10
-t1		= x11
-t2		= x12
 
 		include	"romtag.asm"
 		include	"stsv1.asm"
@@ -30,6 +22,7 @@ t2		= x12
 		include "fbtest.asm"
 		include "blitter.asm"
 		include "lbutest.asm"
+		include "stsv1.bios.asm"
 
 ; The following string-compare software comes from a ROM-resident Forth
 ; interpreter.  It's been unit-tested and shown to work in that project.
@@ -50,6 +43,8 @@ asmstrcmp:	addi	rsp, rsp, -8
 		addi	rsp, rsp, 8
 		jalr	x0, 0(rt)
 
-; This must always be the last thing to appear in any BSPL program.
+; This must always be the last thing to appear in any BSPL program intended
+; to run under the Kestrel-3 BIOS.
 
 		include	"bspl-abi/bspl-suffix.asm"
+		include "bios.asm"

@@ -9,8 +9,10 @@ extern bye
 extern call
 
 \ Sends the character to the user's console.
-: emit ( ch - )
-	d> d# $0E00000000000000 c! ;
+\ : emit ( ch - )
+\	0 d@ >d bemit  d> d# $0E00000000000000 c! ;
+
+extern emit
 
 \ Takes the tail of a string.
 : nextch ( addr len - addr+1 len-1 )
