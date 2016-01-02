@@ -3,23 +3,13 @@
 ; Since this code is sharing space with other ROM-resident firmware,
 ; all symbols defined for Milestone-2 are prefixed with 'm2'.  Sorry.
 ; I think my next assembler will have actual namespace support.
+;
+; Revised to depend (somewhat) on the new Kestrel-3 BIOS.
 
 
 rombase = $FFFFFFFFFFF00000
 
 	include	"stsapi.inc"
-
-; Foreign code requires we dedicate some registers for its use.
-
-t1	= x7
-t2	= x8
-t3	= x9
-t4	= x10
-a0	= x11
-a1	= x12
-a2	= x13
-a3	= x14
-sp	= dsp
 
 ; Data offsets.  Call m2data to get pointer to this structure in X15.
 
@@ -50,39 +40,39 @@ run_m2: addi	rsp, rsp, -8
 	; regardless of our data and return stack state.
 
 	jal	ra, m2data
-	sd	rsp, m2rstack(x15)
-	sd	dsp, m2dstack(x15)
-	sd	gvp, m2gvp(x15)
-	ld	x16, 0(dsp)
-	sd	x16, m2stsBase(x15)
-	ld	x16, 16(dsp)
-	sd	x16, m2segptr(x15)
+	sd	rsp, m2rstack(dr23)
+	sd	dsp, m2dstack(dr23)
+	sd	gvp, m2gvp(dr23)
+	ld	dr16, 0(dsp)
+	sd	dr16, m2stsBase(dr23)
+	ld	dr16, 16(dsp)
+	sd	dr16, m2segptr(dr23)
 
 	; We want to open the file specified on the command tail.  However,
 	; before we attempt this, we want to strip spaces first.
 
-	ld	x16, 40(dsp)	; length
-	ld	x17, 48(dsp)	; pointer
-m2L110:	beq	x16, x0, m2L100	; Stop scanning if no more text
-	lbu	x18, 0(x17)
-	addi	x19, x0, 32
-	bne	x18, x19, m2L100 ; Stop scanning if non-space
-	addi	x17, x17, 1
-	addi	x16, x16, -1
+	ld	dr16, 40(dsp)	; length
+	ld	dr17, 48(dsp)	; pointer
+m2L110:	beq	dr16, x0, m2L100	; Stop scanning if no more text
+	lbu	dr18, 0(dr17)
+	addi	dr19, x0, 32
+	bne	dr18, dr19, m2L100 ; Stop scanning if non-space
+	addi	dr17, dr17, 1
+	addi	dr16, dr16, -1
 	jal	x0, m2L110
-m2L100:	sd	x17, m2tailptr(x15)
-	sd	x16, m2taillen(x15)
+m2L100:	sd	dr17, m2tailptr(dr23)
+	sd	dr16, m2taillen(dr23)
 
 	; m2tailptr/len refers to a filename that we can open and process.
 	; Let's attempt to open the file.  STS doesn't track resources, so
 	; with luck, we won't crash while the file is open.
 
 	addi	dsp, dsp, -16
-	sd	x17, 8(dsp)
-	sd	x16, 0(dsp)
+	sd	dr17, 8(dsp)
+	sd	dr16, 0(dsp)
 	jal	ra, m2open
-	ld	x16, 0(dsp)
-	bne	x16, x0, m2L120
+	ld	dr16, 0(dsp)
+	bne	dr16, x0, m2L120
 
 	; Bytes 0-1 of the file contains a count of the number of slides
 	; to display.  Bytes 2-1023 contain *byte* offsets to the slide
@@ -91,26 +81,26 @@ m2L100:	sd	x17, m2tailptr(x15)
 	; Attempt to discover how many slides exist.
 
 	addi	dsp, dsp, -24
-	ld	x16, 32(dsp)
-	sd	x16, 0(dsp)	; Read using SCB
-	addi	x16, x0, 2	; of length 2 bytes
-	sd	x16, 8(dsp)
+	ld	dr16, 32(dsp)
+	sd	dr16, 0(dsp)	; Read using SCB
+	addi	dr16, x0, 2	; of length 2 bytes
+	sd	dr16, 8(dsp)
 	jal	ra, m2data	; into m2nslides
-	addi	x16, x15, m2nslides
-	sd	x16, 16(dsp)
+	addi	dr16, dr23, m2nslides
+	sd	dr16, 16(dsp)
 	jal	ra, m2read
-	ld	x16, 0(dsp)	; error during read?
-	bne	x16, x0, m2L130
-	ld	x16, 8(dsp)
-	addi	x17, x0, 2
-	bne	x16, x17, m2L130
+	ld	dr16, 0(dsp)	; error during read?
+	bne	dr16, x0, m2L130
+	ld	dr16, 8(dsp)
+	addi	dr17, x0, 2
+	bne	dr16, dr17, m2L130
 	addi	dsp, dsp, 16
 
 	; Always start out with the first slide.
 
 	jal	ra, m2data
-	addi	x16, x0, 1
-	sh	x16, m2cslide(x15)
+	addi	dr16, x0, 1
+	sh	dr16, m2cslide(dr23)
 	jal	ra, m2repaint
 	jal	ra, m2eventloop
 
@@ -125,15 +115,15 @@ m2L130:	jal	ra, m2nslidesfailedmsg
 	; If we're here, that means the attempt to open the slides file
 	; failed.  Print an error message and return to the OS.
 m2L120:	jal	ra, m2openfailedmsg
-	sd	x16, 0(dsp)
-	sd	x17, 8(dsp)
+	sd	dr16, 0(dsp)
+	sd	dr17, 8(dsp)
 	jal	ra, m2type
 	jal	ra, m2cr
 
 m2exit: jal	ra, m2data
-	ld	gvp, m2gvp(x15)
-	ld	dsp, m2dstack(x15)
-	ld	rsp, m2rstack(x15)
+	ld	gvp, m2gvp(dr23)
+	ld	dsp, m2dstack(dr23)
+	ld	rsp, m2rstack(dr23)
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
 	jalr	x0, 0(ra)
@@ -150,45 +140,45 @@ m2eventloop:
 
 m2L600:	jal	ra, m2repaint
 	jal	ra, m2getkey
-	lbu	x16, 0(dsp)
+	lbu	dr16, 0(dsp)
 	addi	dsp, dsp, 8
-	addi	x16, x16, -48
-	blt	x16, x0, m2L600	; < 0? Ignore.
-	addi	x17, x0, 5
-	bge	x16, x17, m2L600 ; >= 5? Ignore too.
+	addi	dr16, dr16, -48
+	blt	dr16, x0, m2L600	; < 0? Ignore.
+	addi	dr17, x0, 5
+	bge	dr16, dr17, m2L600 ; >= 5? Ignore too.
 
-	; 0 <= x16 < 5; index into a jump table.
-	slli	x16, x16, 2
+	; 0 <= dr16 < 5; index into a jump table.
+	slli	dr16, dr16, 2
 m2L620:	auipc	gp, 0
-	add	x16, x16, gp
-	addi	x16, x16, m2_jumptab-m2L620
-	jalr	x0, 0(x16)
+	add	dr16, dr16, gp
+	addi	dr16, dr16, m2_jumptab-m2L620
+	jalr	x0, 0(dr16)
 
 m2first:
-	addi	x16, x0, 1
+	addi	dr16, x0, 1
 	jal	ra, m2data
-	sh	x16, m2cslide(x15)
+	sh	dr16, m2cslide(dr23)
 	jal	x0, m2L600
 
 m2last:
 	jal	ra, m2data
-	lh	x16, m2nslides(x15)
-	sh	x16, m2cslide(x15)
+	lh	dr16, m2nslides(dr23)
+	sh	dr16, m2cslide(dr23)
 	jal	x0, m2L600
 
 m2prev: jal	ra, m2data
-	lh	x16, m2cslide(x15)
-	addi	x16, x16, -1
-	beq	x16, x0, m2L600
-	sh	x16, m2cslide(x15)
+	lh	dr16, m2cslide(dr23)
+	addi	dr16, dr16, -1
+	beq	dr16, x0, m2L600
+	sh	dr16, m2cslide(dr23)
 	jal	x0, m2L600
 
 m2next:	jal	ra, m2data
-	lh	x16, m2cslide(x15)
-	lh	x17, m2nslides(x15)
-	beq	x16, x17, m2L600
-	addi	x16, x16, 1
-	sh	x16, m2cslide(x15)
+	lh	dr16, m2cslide(dr23)
+	lh	dr17, m2nslides(dr23)
+	beq	dr16, dr17, m2L600
+	addi	dr16, dr16, 1
+	sh	dr16, m2cslide(dr23)
 	jal	x0, m2L600
 
 m2L610:	ld	ra, 0(rsp)
@@ -208,51 +198,52 @@ m2repaint:
 	; seek to 0.
 
 	addi	dsp, dsp, -16
-	ld	x16, 24(dsp)
-	sd	x16, 0(dsp)
+	ld	dr16, 24(dsp)
+	sd	dr16, 0(dsp)
 	sd	x0, 8(dsp)
 	jal	ra, m2seek
 
 	; read in slide index.
 
 	addi	dsp, dsp, -8
-	ld	x16, 32(dsp)
-	sd	x16, 0(dsp)
-	addi	x16, x0, 1024
-	sd	x16, 8(dsp)
+	ld	dr16, 32(dsp)
+	sd	dr16, 0(dsp)
+	addi	dr16, x0, 1024
+	sd	dr16, 8(dsp)
 	jal	ra, m2blockbuf
-	sd	x16, 16(dsp)
+	sd	dr16, 16(dsp)
 	jal	ra, m2read
 
 	; seek to appropriate slide offset.
 
 	jal	ra, m2data
-	lh	x17, m2cslide(x15)
-	slli	x17, x17, 1
+	lh	dr17, m2cslide(dr23)
+	slli	dr17, dr17, 1
 	jal	ra, m2blockbuf
-	add	x16, x16, x17
-	lh	x16, 0(x16)
-	sd	x16, 8(dsp)
-	ld	x16, 24(dsp)
-	sd	x16, 0(dsp)
+	add	dr16, dr16, dr17
+	lh	dr16, 0(dr16)
+	sd	dr16, 8(dsp)
+	ld	dr16, 24(dsp)
+	sd	dr16, 0(dsp)
 	jal	ra, m2seek
 
 	; read in slide data.
 
 	addi	dsp, dsp, -8
-	ld	x16, 32(dsp)
-	sd	x16, 0(dsp)
-	addi	x16, x0, 1024
-	sd	x16, 8(dsp)
+	ld	dr16, 32(dsp)
+	sd	dr16, 0(dsp)
+	addi	dr16, x0, 1024
+	sd	dr16, 8(dsp)
 	jal	ra, m2blockbuf
-	sd	x16, 16(dsp)
+	sd	dr16, 16(dsp)
 	jal	ra, m2read
 	addi	dsp, dsp, 16	; don't care about status or actual length read.
 
 	; interpret data.
+
 	jal	ra, m2blockbuf
 	jal	ra, m2data
-	sd	x16, m2ip(x15)
+	sd	dr16, m2ip(dr23)
 	jal	ra, m2cls
 	jal	ra, m2draw
 
@@ -262,43 +253,44 @@ m2repaint:
 	
 	; interprets a graphics string located at m2ip.
 	; The string MUST end with an END opcode ($01).
+
 m2draw: addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 
 m2L500: jal	ra, m2data
-	ld	x16, m2ip(x15)
-	lbu	x17, 0(x16)
+	ld	dr16, m2ip(dr23)
+	lbu	dr17, 0(dr16)
 
-	addi	x18, x0, $00		; NOP?
-	beq	x17, x18, m2nop
+	addi	dr18, x0, $00		; NOP?
+	beq	dr17, dr18, m2nop
 
-	addi	x18, x0, $01		; END?
-	beq	x17, x18, m2L510
+	addi	dr18, x0, $01		; END?
+	beq	dr17, dr18, m2L510
 
-	addi	x18, x0, $10		; TEXT?
-	beq	x17, x18, m2text
+	addi	dr18, x0, $10		; TEXT?
+	beq	dr17, dr18, m2text
 
-m2nop:	addi	x16, x16, 2
-	sd	x16, m2ip(x15)
+m2nop:	addi	dr16, dr16, 2
+	sd	dr16, m2ip(dr23)
 	jal	x0, m2L500
 	
-m2text:	lbu	x17, 1(x16)
+m2text:	lbu	dr17, 1(dr16)
 	jal	ra, m2data
-	sh	x17, m2cy(x15)
-	lbu	x17, 2(x16)
-	sh	x17, m2cx(x15)
-	lbu	x17, 3(x16)
-	addi	x16, x16, 4
+	sh	dr17, m2cy(dr23)
+	lbu	dr17, 2(dr16)
+	sh	dr17, m2cx(dr23)
+	lbu	dr17, 3(dr16)
+	addi	dr16, dr16, 4
 	jal	ra, m2write
 
 	jal	ra, m2data
-	ld	x16, m2ip(x15)
-	lbu	x17, 3(x16)
-	addi	x17, x17, 1
-	andi	x17, x17, -2
-	addi	x17, x17, 4
-	add	x16, x16, x17
-	sd	x16, m2ip(x15)
+	ld	dr16, m2ip(dr23)
+	lbu	dr17, 3(dr16)
+	addi	dr17, dr17, 1
+	andi	dr17, dr17, -2
+	addi	dr17, dr17, 4
+	add	dr16, dr16, dr17
+	sd	dr16, m2ip(dr23)
 	jal	x0, m2L500
 
 m2L510: ld	ra, 0(rsp)
@@ -308,16 +300,16 @@ m2L510: ld	ra, 0(rsp)
 
 	align	8
 m2openfailedmsg:
-	addi	x16, x0, m2__openfailedlen
-	jalr	x17, 0(ra)
+	addi	dr16, x0, m2__openfailedlen
+	jalr	dr17, 0(ra)
 m2__openfailedmsg:
 	byte	"File open failed."
 m2__openfailedlen = *-m2__openfailedmsg
 
 	align	8
 m2nslidesfailedmsg:
-	addi	x16, x0, m2__nslidesfailedlen
-	jalr	x17, 0(ra)
+	addi	dr16, x0, m2__nslidesfailedlen
+	jalr	dr17, 0(ra)
 m2__nslidesfailedmsg:
 	byte	"Cannot read number of slides."
 m2__nslidesfailedlen = *-m2__nslidesfailedmsg
@@ -326,68 +318,68 @@ m2__nslidesfailedlen = *-m2__nslidesfailedmsg
 m2_64:	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 	jal	ra, m2data
-	ld	x16, m2stsBase(x15)
+	ld	dr16, m2stsBase(dr23)
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
-	jalr	x0, STS_HEX64(x16)
+	jalr	x0, STS_HEX64(dr16)
 
 m2type:	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 	jal	ra, m2data
-	ld	x16, m2stsBase(x15)
+	ld	dr16, m2stsBase(dr23)
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
-	jalr	x0, STS_TYPE(x16)
+	jalr	x0, STS_TYPE(dr16)
 
 m2cr:	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 	jal	ra, m2data
-	ld	x16, m2stsBase(x15)
+	ld	dr16, m2stsBase(dr23)
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
-	jalr	x0, STS_CR(x16)
+	jalr	x0, STS_CR(dr16)
 
 m2open:	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 	jal	ra, m2data
-	ld	x16, m2stsBase(x15)
+	ld	dr16, m2stsBase(dr23)
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
-	jalr	x0, STS_OPEN(x16)
+	jalr	x0, STS_OPEN(dr16)
 
 m2seek:	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 	jal	ra, m2data
-	ld	x16, m2stsBase(x15)
+	ld	dr16, m2stsBase(dr23)
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
-	jalr	x0, STS_SEEK(x16)
+	jalr	x0, STS_SEEK(dr16)
 
 m2read:	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 	jal	ra, m2data
-	ld	x16, m2stsBase(x15)
+	ld	dr16, m2stsBase(dr23)
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
-	jalr	x0, STS_READ(x16)
+	jalr	x0, STS_READ(dr16)
 
 m2close:
 	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 	jal	ra, m2data
-	ld	x16, m2stsBase(x15)
+	ld	dr16, m2stsBase(dr23)
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
-	jalr	x0, STS_CLOSE(x16)
+	jalr	x0, STS_CLOSE(dr16)
 
 m2getkey:
 	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 	jal	ra, m2data
-	ld	x16, m2stsBase(x15)
+	ld	dr16, m2stsBase(dr23)
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
-	jalr	x0, STS_GETKEY(x16)
+	jalr	x0, STS_GETKEY(dr16)
 
 ; Positions the text cursor.  Only bits 15-0 are significant for each
 ; coordinate.  At present, for an 8x8 font, (0, 0) <= (x, y) < (80, 60).
@@ -399,8 +391,8 @@ m2getkey:
 m2at:	addi	rsp, rsp, -8
 	sd	ra, 0(rsp)
 	jal	ra, m2data
-	sh	x16, m2cx(x15)
-	sh	x17, m2cy(x15)
+	sh	dr16, m2cx(dr23)
+	sh	dr17, m2cy(dr23)
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
 	jalr	x0, 0(ra)
@@ -408,18 +400,29 @@ m2at:	addi	rsp, rsp, -8
 ; Clears the screen.
 
 	align	8
-m2cls_fb:
-	dword	$FF0000
-m2cls_fbsz:
-	dword	$9600	; 640x480 monochrome bitmap
 
-m2cls:	auipc	gp, 0
-	ld	x16, m2cls_fb-m2cls(gp)
-	ld	x17, m2cls_fbsz-m2cls(gp)
-m2L300:	sd	x0, 0(x16)
-	addi	x16, x16, 8
-	addi	x17, x17, -8
-	bne	x17, x0, m2L300
+; m2cls_fb:
+; 	dword	$FF0000
+; m2cls_fbsz:
+; 	dword	$9600	; 640x480 monochrome bitmap
+; 
+; m2cls:	auipc	gp, 0
+; 	ld	dr16, m2cls_fb-m2cls(gp)
+; 	ld	dr17, m2cls_fbsz-m2cls(gp)
+; m2L300:	sd	x0, 0(dr16)
+; 	addi	dr16, dr16, 8
+; 	addi	dr17, dr17, -8
+; 	bne	dr17, x0, m2L300
+; 	jalr	x0, 0(ra)
+
+m2cls:	addi	sp, sp, -8
+	sd	ra, 0(sp)
+	ld	dr16,bd_jumptab(x0)
+	jalr	ra, BIOS_I_STROUT(dr16)
+	byte	12, 13, 0
+	align	4
+	ld	ra, 0(sp)
+	addi	sp, sp, 8
 	jalr	x0, 0(ra)
 
 ; m2write writes a string to the screen, starting at the current cursor
@@ -432,29 +435,29 @@ m2L300:	sd	x0, 0(x16)
 m2write:
 	addi	rsp, rsp, -24
 	sd	ra, 0(rsp)
-	sd	x16, 8(rsp)
-	sd	x17, 16(rsp)
+	sd	dr16, 8(rsp)
+	sd	dr17, 16(rsp)
 	
-m2L400:	ld	x16, 16(rsp)
-	beq	x16, x0, m2L410
-	ld	x16, 8(rsp)
-	lb	x16, 0(x16)
+m2L400:	ld	dr16, 16(rsp)
+	beq	dr16, x0, m2L410
+	ld	dr16, 8(rsp)
+	lb	dr16, 0(dr16)
 	jal	ra, m2plotch
 	jal	ra, m2data
-	lh	x16, m2cx(x15)
-	addi	x16, x16, 1
-	sh	x16, m2cx(x15)
-	ld	x16, 8(rsp)
-	addi	x16, x16, 1
-	sd	x16, 8(rsp)
-	ld	x16, 16(rsp)
-	addi	x16, x16, -1
-	sd	x16, 16(rsp)
+	lh	dr16, m2cx(dr23)
+	addi	dr16, dr16, 1
+	sh	dr16, m2cx(dr23)
+	ld	dr16, 8(rsp)
+	addi	dr16, dr16, 1
+	sd	dr16, 8(rsp)
+	ld	dr16, 16(rsp)
+	addi	dr16, dr16, -1
+	sd	dr16, 16(rsp)
 	jal	x0, m2L400
 
 m2L410:	ld	ra, 0(rsp)
-	ld	x16, 8(rsp)
-	ld	x17, 16(rsp)
+	ld	dr16, 8(rsp)
+	ld	dr17, 16(rsp)
 	addi	rsp, rsp, 24
 	jalr	x0, 0(ra)
 
@@ -468,8 +471,6 @@ m2L410:	ld	ra, 0(rsp)
 ;          X16
 
 	align	8
-m2fb:	dword	$FF0000
-m2font:	dword	__m2_font-start_m2
 m2640:	dword	1760
 m2plotch:
 	auipc	gp, 0
@@ -477,29 +478,30 @@ m2plotch:
 	sd	ra, 0(rsp)
 
 	jal	ra, m2data			; X15 -> global data
-	ld	x17, m2segptr(x15)		; X15 -> base address for our image
-	ld	x18, m2font-m2plotch(gp)	; X17 -> character tile.
-	add	x17, x17, x18
-	andi	x16, x16, 255
-	add	x17, x17, x16
+	ld	dr17, bd_fontform(x0)
+	andi	dr16, dr16, 255
+	add	dr17, dr17, dr16
 
-	lh	a0, m2cy(x15)			; Calculate frame buffer address
+	lh	a0, m2cy(dr23)			; Calculate frame buffer address
 	ld	a1, m2640-m2plotch(gp)
-	jal	ra, mathMultiply		; A0 = BYTES_PER_ROW*y
+	ld	a2, bd_jumptab(x0)		; A0 = BYTES_PER_ROW*y
+	jalr	ra, BIOS_MATH_MUL(a2)
+
 	jal	ra, m2data
-	lh	a1, m2cx(x15)
+	lh	a1, m2cx(dr23)
 	add	a0, a0, a1			; A0 = BYTES_PER_ROW*y + x
-	ld	a1, m2fb-m2plotch(gp)
-	add	x16, a0, a1			; X16 = FBBASE + B_P_R*y + x
+	ld	a1, bd_bitplane(x0)
+	add	dr16, a0, a1			; X16 = FBBASE + B_P_R*y + x
 
-	addi	x18, x0, 8			; Font height, pixels.
+	addi	dr18, x0, 8			; Font height, pixels.
 
-m2L200:	lb	x19, 0(x17)			; Copy the character tile.
-	sb	x19, 0(x16)
-	addi	x16, x16, 160
-	addi	x17, x17, 256
-	addi	x18, x18, -1
-	bne	x18, x0, m2L200
+m2L200:	
+	lb	dr19, 0(dr17)			; Copy the character tile.
+	sb	dr19, 0(dr16)
+	addi	dr16, dr16, 160
+	addi	dr17, dr17, 256
+	addi	dr18, dr18, -1
+	bne	dr18, x0, m2L200
 
 	ld	ra, 0(rsp)
 	addi	rsp, rsp, 8
@@ -509,7 +511,7 @@ m2L200:	lb	x19, 0(x17)			; Copy the character tile.
 
 	align	8
 	addi	x0, x0, 0
-m2data:	jalr	x15, 0(ra)
+m2data:	jalr	dr23, 0(ra)
 	dword	0, 0, 0, 0
 	dword	0, 0, 0, 0
 	dword	0, 0, 0, 0
@@ -525,8 +527,8 @@ i_start_m2:
 prg_m2_start:
 	auipc	gp, 0
 	addi	dsp, dsp, -8
-	ld	x16, i_start_m2-prg_m2_start(gp)
-	sd	x16, 0(dsp)
+	ld	dr16, i_start_m2-prg_m2_start(gp)
+	sd	dr16, 0(dsp)
 	jalr	x0, 0(ra)
 
 	align	8
@@ -535,8 +537,8 @@ i_len_m2:
 prg_m2_len:
 	auipc	gp, 0
 	addi	dsp, dsp, -8
-	ld	x16, i_len_m2-prg_m2_len(gp)
-	sd	x16, 0(dsp)
+	ld	dr16, i_len_m2-prg_m2_len(gp)
+	sd	dr16, 0(dsp)
 	jalr	x0, 0(ra)
 
 ; Block buffer; a 1024-byte I/O scratch pad.
@@ -545,7 +547,7 @@ prg_m2_len:
 	align	8
 m2blockbuf:
 	addi	x0, x0, 0
-	jalr	x16, 0(ra)
+	jalr	dr16, 0(ra)
 	dword	0, 0, 0, 0, 0, 0, 0, 0
 	dword	0, 0, 0, 0, 0, 0, 0, 0
 	dword	0, 0, 0, 0, 0, 0, 0, 0
@@ -562,15 +564,5 @@ m2blockbuf:
 	dword	0, 0, 0, 0, 0, 0, 0, 0
 	dword	0, 0, 0, 0, 0, 0, 0, 0
 	dword	0, 0, 0, 0, 0, 0, 0, 0
-
-; Font bitmap.
-
-	align	8
-__m2_font:
-	include	"m2font.asm"
-
-; Math library.
-
-	include "math.asm"
 
 end_m2:
