@@ -23,6 +23,7 @@ rp		= rsp
 		include "blitter.asm"
 		include "lbutest.asm"
 		include "stsv1.bios.asm"
+		include "m2slidesRiscv3.asm"
 
 ; The following string-compare software comes from a ROM-resident Forth
 ; interpreter.  It's been unit-tested and shown to work in that project.
