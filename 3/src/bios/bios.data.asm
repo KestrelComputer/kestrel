@@ -56,4 +56,4 @@ bd_rawtl	= bd_rawhd+1		; B raw queue tail
 bd_aschd	= bd_rawtl+1		; B ASCII queue head
 bd_asctl	= bd_aschd+1		; B ASCII queue tail
 bd_padding2	= bd_asctl+1		; W reserved.
-
+bd_sizeof	= bd_padding2+2
