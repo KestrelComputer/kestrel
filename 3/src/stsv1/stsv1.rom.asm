@@ -24,6 +24,8 @@ rp		= rsp
 		include "lbutest.asm"
 		include "stsv1.bios.asm"
 		include "m2slidesRiscv3.asm"
+		include "img.kestrel.asm"
+		include "prg.show.asm"
 
 ; The following string-compare software comes from a ROM-resident Forth
 ; interpreter.  It's been unit-tested and shown to work in that project.
