@@ -1433,6 +1433,9 @@ extern prg_m2slides_len
 extern prg_m2slidesRV3_start
 extern prg_m2slidesRV3_len
 
+extern prg_m2slidesR_start
+extern prg_m2slidesR_len
+
 extern prg_fbtest_start
 extern prg_fbtest_len
 
@@ -1505,6 +1508,14 @@ extern prg_show_len
 	prg_m2slidesRV3_start prg_m2slidesRV3_len 2 d@ >d romFileSetContents
 	objEntNew d> 0=if S" ent /rom/m2.slides.riscv.3 failed" >d >d panic then
 	S" m2.slides.riscv.3" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/m2.slides.riscv.3 failed" >d >d panic then
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d 4 d@ >d objDirAddHead
+	d> d>
+
+	romFileNew d> 0=if S" fil /rom/m2.slides.report failed" >d >d panic then
+	prg_m2slidesR_start prg_m2slidesR_len 2 d@ >d romFileSetContents
+	objEntNew d> 0=if S" ent /rom/m2.slides.report failed" >d >d panic then
+	S" m2.slides.report" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/m2.slides.report failed" >d >d panic then
 	1 d@ >d 1 d@ >d objEntSetObject
 	0 d@ >d 4 d@ >d objDirAddHead
 	d> d>

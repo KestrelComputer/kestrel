@@ -16,13 +16,13 @@ slide S" What RISC-V is NOT..." title
 
 slide S" THIS is RISC-V" title
 
-S" _strlen:	addi	t0, a0, 0	; Save our original address" text  1 top +!
-S" _sl2:	lb	t1, 0(a0)	; Find NUL byte in string" text  1 top +!
-S"		beq	t1, x0, _sl1" text  1 top +!
-S"		addi	a0, a0, 1" text  1 top +!
-S"		jal	x0, _sl2" text  1 top +!
-S" _sl1:	sub	a0, a0, t0	; Calculate length" text  1 top +!
-S"		jalr	x0, 0(ra)	; Return to C program" text  1 top +!
+S" _strlen:     addi    t0, a0, 0       ; Save our original address" text  1 top +!
+S" _sl2:        lb      t1, 0(a0)       ; Find NUL byte in string" text  1 top +!
+S"              beq     t1, x0, _sl1" text  1 top +!
+S"              addi    a0, a0, 1" text  1 top +!
+S"              jal     x0, _sl2" text  1 top +!
+S" _sl1:        sub     a0, a0, t0      ; Calculate length" text  1 top +!
+S"              jalr    x0, 0(ra)       ; Return to C program" text  1 top +!
 1 top +!
 S" http://www.riscv.org" bullet
 
@@ -123,10 +123,9 @@ slide S" AXIOM Gamma: RISC-V in a 4K Camera" title
 S" Open-Source Film Camera" bullet
 S" Many Partners: Antmicro, Ltd. writing software" bullet
 S" Many Partners: https://www.apertus.org/en/node/152" bullet
-S" And more." bullet
 S" Mission: Create a platform for open source cinematography" bullet
 S" Built around a backplane" bullet
-S" RISC-V facilitates communication between FPGA pre-processing board and FPGA SoC main board w/ a duial-core Cortex A9 CPU" bullet
+S" Used as I/O coprocessor, adding to ARM-based motherboard" bullet
 
 
 slide S" Emulating Future HPC SoC Architectures with RISC-V" title
@@ -151,18 +150,16 @@ S" http://crd.lbl.gov/assets/pubs_presos/opensocnocarc.pdf" bullet
 
 slide S" GRVI Phalanx" title
 
-S" Intel buys out Altera, OpenPOWER + Xilinx, IBM z13 Mainframe uses Xilinx, etc." bullet
+S" Intel buys out Altera, OpenPOWER+Xilinx, IBM z13 Mainframe uses Xilinx" bullet
 S" FPGA acceleration a big thing." bullet
-S" Massively parallel.  Specialized.  Connected.  High throughput.  Low latency.  Low energy." bullet
+S" Massively parallel, specialized, high throughput, low latency, low energy" bullet
 S" How to convert your C++ code and compile it for FPGA?" bullet
-S" If workload expressible from OpenCL, then good probability it's applicable to FPGA" bullet
-S" Project: Phalanx: An Accelerator ... Accelerator" bullet
-S" Run app on an FPGA" bullet
-S" Connect everything together" bullet
-S" Acceleration requires an efficient CPU core with OSS infrastructure." bullet
-S" Austere RV32I Datapath around 250 LUTs.  Smaller than my S16X4A!" bullet
+S" If workload expressible from OpenCL, then good chance it's FPGA ready" bullet
+S" Project: Phalanx: An Accelerator Accelerator" bullet
+S" Acceleration requires an efficient CPU core with OSS infrastructure" bullet
+S" Austere RV32I Datapath around 250 LUTs." bullet
 S" Expected 375MHz, about 1.5 CPI, 320 LUTs, for 1 MIPS per LUT." bullet
-S" 50 clusters on contemporary FPGA, times 8 CPUs per cluster, or 200 CPUs on a single FPGA" bullet
+S" 50 clusters on largish FPGA, x8 CPUs per cluster, or 200 CPUs" bullet
 S" (Remember each CPU runs around 375MHz)" bullet
 S" Routers: 256 bit @ 400MHz = 100Gbps per link, < 5% area" bullet
 S" Around 30mW per core.  Total power: 11W for approx 350 cores." bullet
@@ -230,7 +227,7 @@ S" OTOH, temperature can be used to fine-tune optical frequencies!" bullet
 
 
 
-slide S" MIT's Riscy Expedition" bullet
+slide S" MIT's Riscy Expedition" title
 
 S" RV64IMAFD instruction set" bullet
 S" Boots Linux" bullet
@@ -243,17 +240,16 @@ S" 6 aspects" bullet
   S" Microarchitecture exploration" bullet
   S" VLSI ASIC implementations w/ push-button synthesis" bullet
 -2 left +!
-S" Philosophy: (same as Kestrel's) Get it working, then make it faster/better." bullet
-S" There is no separation of design and verification --- there's just verified design" bullet
+S" No separate design and verification; there's just verified design" bullet
 S" Tandem Verification gives weak sense of correctness" bullet
 S" Prefer formal verification" bullet
-S" Example: are reference bits in page table entries to be set for speculative execution?" bullet
-S" Example: A single instruction can result in up to 13 hits to memory.  How do they interact?" bullet
-S" ARM, POWER-architecture has very weak memory models; you can't assume anything" bullet
-S" WMM: A new weak consistency model" bullet
+S" Example: are reference bits in PTE set for speculative execution?" bullet
+S" Example: can a single instruction can result in up to 13 hits to memory?" bullet
+S" ARM, POWER-architecture very weak memory models; can't assume anything" bullet
+S" WMM: A new weak consistency model with predictable qualities" bullet
 
 
-slide S" Pydgin: RPython-based Instruction Set Simulation" bullet
+slide S" Pydgin: RPython-based Instruction Set Simulation" title
 S" Interpretive Performance: 1-10MIPS (1-10 days)" bullet
 S" Typical DBT: 100s of MIPS (1-3 hours)" bullet
 S" QEMU DBT: 1000 MIPS (0.5 hours)" bullet
@@ -266,7 +262,7 @@ S" Adding RPython JIT hints, 10 MIPS -> 100+ MIPS" bullet
 
 
 
-slide S" ORCA: FPGA-Optimized RISC-V Soft Processors" bullet
+slide S" ORCA: FPGA-Optimized RISC-V Soft Processors" title
 
 S" Targets iCE40s: 3500 LUT4s, 4 16-bit multipliers, < $5.00 in Qty 1" bullet
 S" RV32IM takes < 2000 LUTs, 22MHz" bullet
@@ -309,15 +305,12 @@ S" BOOM extends Rocket, so as PRs land with Rocket Chip," bullet
 S"   BOOM gets better automatically" text 1 top +!
 S" 50MHz on FPGA, 1.6GHz on ASIC" bullet
 S" BUT, design is optimized for ASIC, not FPGAs." bullet
-S" Loads execute out of order from stores; however, stores forward to earlier pipeline stages" bullet
+S" Loads out of order from stores; however, stores forward" bullet
 S" BOOM is about 2.5 times more power efficient than ARM." bullet
 S"                 Pipeline" text 1 top +!
 S"                 Depth       Issue       CoreMark/MHz    Power    Area" text 1 top +!
 S" ARM V7            8          3+1           3.59          1.9W    2.5mm^2" text 1 top +!
 S" RV64 BOOM         5           2            3.91          0.5W    1.0mm^2" text 1 top +!
-1 top +!
-S" https://github.com/ucb-bar/riscv-boom" bullet
-S" https://github.com/ucb-bar/riscv-rocket" bullet
 
 
 
