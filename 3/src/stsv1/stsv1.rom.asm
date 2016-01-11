@@ -24,6 +24,7 @@ rp		= rsp
 		include "lbutest.asm"
 		include "stsv1.bios.asm"
 		include "m2slidesRiscv3.asm"
+		include "m2slidesReport.asm"
 		include "img.kestrel.asm"
 		include "img.chip.asm"
 		include "img.rocket-chip-site.asm"
