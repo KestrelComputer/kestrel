@@ -1445,6 +1445,12 @@ extern prg_testblit_len
 extern img_kestrel_start
 extern img_kestrel_len
 
+extern img_chip_start
+extern img_chip_len
+
+extern img_rocket_chip_site_start
+extern img_rocket_chip_site_len
+
 extern prg_show_start
 extern prg_show_len
 
@@ -1529,6 +1535,22 @@ extern prg_show_len
 	img_kestrel_start img_kestrel_len 2 d@ >d romFileSetContents
 	objEntNew d> 0=if S" ent /rom/img.kestrel failed" >d >d panic then
 	S" img.kestrel" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/img.kestrel failed" >d >d panic then
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d 4 d@ >d objDirAddHead
+	d> d>
+
+	romFileNew d> 0=if S" fil /rom/img.chip failed" >d >d panic then
+	img_chip_start img_chip_len 2 d@ >d romFileSetContents
+	objEntNew d> 0=if S" ent /rom/img.chip failed" >d >d panic then
+	S" img.chip" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/img.chip failed" >d >d panic then
+	1 d@ >d 1 d@ >d objEntSetObject
+	0 d@ >d 4 d@ >d objDirAddHead
+	d> d>
+
+	romFileNew d> 0=if S" fil /rom/img.rocket-chip-site failed" >d >d panic then
+	img_rocket_chip_site_start img_rocket_chip_site_len 2 d@ >d romFileSetContents
+	objEntNew d> 0=if S" ent /rom/img.rocket-chip-site failed" >d >d panic then
+	S" img.rocket-chip-site" >d >d 2 d@ >d objEntSetName d> 0=if S" nam /rom/img.rocket-chip-site failed" >d >d panic then
 	1 d@ >d 1 d@ >d objEntSetObject
 	0 d@ >d 4 d@ >d objDirAddHead
 	d> d>

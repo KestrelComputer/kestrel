@@ -25,6 +25,8 @@ rp		= rsp
 		include "stsv1.bios.asm"
 		include "m2slidesRiscv3.asm"
 		include "img.kestrel.asm"
+		include "img.chip.asm"
+		include "img.rocket-chip-site.asm"
 		include "prg.show.asm"
 
 ; The following string-compare software comes from a ROM-resident Forth
