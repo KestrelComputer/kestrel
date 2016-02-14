@@ -1,8 +1,0 @@
-INTSTYLE=ise
-INFILE=/home/kc5tja/Projects/kestrel/2/nexys2/kia-test-computer/TOP.ncd
-OUTFILE=/home/kc5tja/Projects/kestrel/2/nexys2/kia-test-computer/TOP.bit
-FAMILY=Spartan3E
-PART=xc3s1200e-4fg320
-WORKINGDIR=/home/kc5tja/Projects/kestrel/2/nexys2/kia-test-computer
-LICENSE=WebPack
-USER_INFO=204658926_0_0_656
