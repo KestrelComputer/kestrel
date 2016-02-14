@@ -178,7 +178,7 @@ step(Processor *p, Timeline *t) {
 	WORD ir;
 	int opc, rd, fn3, rs1, rs2, imm12, imm12s, disp12;
 	DWORD imm20, disp20, ia;
-	UDWORD mask, cause;
+	UDWORD mask, cause, v;
 
 	if(!p->running) return;
 
@@ -415,6 +415,7 @@ step(Processor *p, Timeline *t) {
 		// and other system-type instructions.
 		case 0x73:
 			imm12 = imm12 & 0xFFF;
+			v = p->x[rs1];
 
 			if(fn3 != 0) {
 				p->x[rd] = getCSR(p, imm12);
@@ -448,15 +449,15 @@ step(Processor *p, Timeline *t) {
 			if(rs1) {
 				switch(fn3) {
 				case 1: // CSRRW
-					setCSR(p, imm12, p->x[rs1]);
+					setCSR(p, imm12, v);
 					break;
 
 				case 2: // CSRRS
-					orCSR(p, imm12, p->x[rs1]);
+					orCSR(p, imm12, v);
 					break;
 
 				case 3: // CSRRC
-					andCSR(p, imm12, ~(p->x[rs1]));
+					andCSR(p, imm12, ~v);
 					break;
 
 				case 4: // undefined

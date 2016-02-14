@@ -154,6 +154,7 @@ int run(int argc, char *argv[]) {
 	int rc = 1;
 	AddressSpace *cpuAS = NULL;
 	SDL_Keycode k;
+	void ekia_post(UHWORD);
 
 	SDL_Init(SDL_INIT_VIDEO);
 
