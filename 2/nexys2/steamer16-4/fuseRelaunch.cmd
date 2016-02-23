@@ -1,1 +1,0 @@
--intstyle "ise" -incremental -lib "unisims_ver" -lib "unimacro_ver" -lib "xilinxcorelib_ver" -o "/home/kc5tja/Projects/kestrel/2/nexys2/steamer16-4/TEST_UNIT_S16X4_isim_beh.exe" -prj "/home/kc5tja/Projects/kestrel/2/nexys2/steamer16-4/TEST_UNIT_S16X4_beh.prj" "work.TEST_UNIT_S16X4" "work.glbl" 
