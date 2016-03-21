@@ -155,6 +155,7 @@ int run(int argc, char *argv[]) {
 	AddressSpace *cpuAS = NULL;
 	SDL_Keycode k;
 	void ekia_post(UHWORD);
+	int xx;
 
 	SDL_Init(SDL_INIT_VIDEO);
 
@@ -183,9 +184,13 @@ int run(int argc, char *argv[]) {
 	tt->schedule(t, &do_crt_frame, 525*400, crt);
 
 	while(running) {
-		tt->pending(t);
-		pp->step(p, t);
-		running &= p->running;
+		// Amortize the cost of hitting SDL sufficiently to
+		// make the emulator run at a reasonable speed.
+		for(xx=0; (xx<100000) && running; xx++) {
+			tt->pending(t);
+			pp->step(p, t);
+			running &= p->running;
+		}
 		while(SDL_PollEvent(&sdlEvent)) {
 			switch(sdlEvent.type) {
 			case SDL_QUIT:
