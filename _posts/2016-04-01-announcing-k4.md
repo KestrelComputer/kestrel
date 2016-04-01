@@ -51,6 +51,6 @@ For those who desire the nostalgia of glass teletype screens,
 # Intended Application Portfolio
 
 The Kestrel-4 will target
-financial, insurance, medical, nuclear reclaimation, weather prediction, enterprise file serving, enterprise web cache,
-and Crysis applications.
+financial, insurance, medical, nuclear reclaimation, weather prediction, enterprise file serving, enterprise web cache applications,
+as well as Minecraft and Crysis.
 
