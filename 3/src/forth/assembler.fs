@@ -19,7 +19,6 @@
 : rtype ( fn7 rs2 rs1 fn3 rd opc -- w )
 	common swap chkreg 20 lshift or swap chkfn7 25 lshift or ;
 
-: tw,		hex u. decimal ;
 : alupre	S" @ swap >r -rot >r >r" evaluate ; immediate
 : alupost	S" swap r> r> rot r> $33 rtype" evaluate ; immediate
 : alu1:		create , does> alupre 0 alupost tw, ;

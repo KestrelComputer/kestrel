@@ -2,6 +2,7 @@
 
 1 cells constant /cell
 1 chars constant /char
+4 chars constant /word
 
 /cell negate constant -/cell
 /cell 1- constant CellMask
@@ -49,8 +50,10 @@ RomBase torg			\ Kestrel-3's ROM sits at -1MB.
 : tc! ( n ta - )	t>h c! ;
 : t@ ( ta - n )		t>h @ ;
 : tc@ ( ta - n )	t>h c@ ;
-: t, ( n - )		8 talign  there t!  /cell tallot ;
-: tc, ( n - )		there tc!  /char tallot ;
+: t, ( n - )		/cell talign  there t!  /cell tallot ;
+: (tc) ( n - )		dup there tc!  /char tallot  8 rshift ;
+: tc, ( n - )		(tc) drop ;
+: tw, ( n - )		/word talign (tc) (tc) (tc) (tc) drop ;
 
 \ \ \ \ \ \
 \ Headers
