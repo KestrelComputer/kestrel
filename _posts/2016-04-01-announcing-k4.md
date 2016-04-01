@@ -47,6 +47,7 @@ For those who desire the nostalgia of glass teletype screens,
 * Run trusted applications in a single address space for best performance, or in separate address spaces for maximum security.
 * Now includes graphical configuration interface.
 * Supports interactive and batch jobs.
+* Hardware support for [BLAZEMONGER](http://www.ding.net/blaze/) technology!
 
 # Intended Application Portfolio
 
