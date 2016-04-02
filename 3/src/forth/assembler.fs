@@ -92,5 +92,14 @@
 : lui,		$37 utype tw, ;
 : auipc,	$17 utype tw, ;
 
-\ TODO(sfalvo): Implement UJ format for JAL instruction.
+\ The only UJ-type instruction I'm aware of so far.
+
+: enc21
+	dup $100000 and 1 rshift
+	over $000800 and 3 rshift or
+	over $0007FE and 8 lshift or
+	swap $0FF000 and 12 rshift or
+	12 lshift ;
+
+: jal,		chkreg 7 lshift $6F or swap chkdisp21 enc21 or tw, ;
 
