@@ -103,3 +103,18 @@
 
 : jal,		chkreg 7 lshift $6F or swap chkdisp21 enc21 or tw, ;
 
+\ \ \ \ \ \
+\ Image finalization (for ROMs only!)
+
+: displacement	@ romp @ h>t - ;
+: vec,		t>h romp !  tfind if displacement else 2drop 0 then 0 jal, ;
+: userTrap	S" __USERTRAP__" $FFFFFFFFFFFFFE00 vec, ;
+: superTrap	S" __SUPERTRAP__" $FFFFFFFFFFFFFE40 vec, ;
+: hyperTrap	S" __HYPERTRAP__" $FFFFFFFFFFFFFE80 vec, ;
+: machTrap	S" __MACHTRAP__" $FFFFFFFFFFFFFEC0 vec, ;
+: nmi		S" __NMI__" $FFFFFFFFFFFFFEFC vec, ;
+: reset		S" __RESET__" $FFFFFFFFFFFFFF00 vec, ;
+: linkage	headp @ h>t $FFFFFFFFFFFFFFF8 t>h ! ;
+: traps		userTrap superTrap hyperTrap machTrap nmi reset ;
+: vectors	safety off traps linkage ;
+
