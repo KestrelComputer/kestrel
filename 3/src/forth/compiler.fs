@@ -132,3 +132,25 @@ variable /user
 
 tglobal /USER
 
+\ (dovar) implements the semantics for VARIABLEs.
+\ These differ from globals in that their storage appears
+\ inline in the dictionary with the code, as per more
+\ traditional Forth behaviors.  They are treated just like
+\ GLOBAL variables, except for where their storage is found.
+\ GLOBALs exist because of a circular dependency: we need
+\ variables to store important Forth runtime information
+\ before we have enough machinery in place to handle normal
+\ VARIABLEs.
+\ 
+\ (dovar) is also the default handler for CREATE'd words,
+\ since a variable is just a CREATE-d word with a single-cell
+\ buffer after it.
+tcode (dovar)
+	8 w x9 ld,
+	-8 dsp dsp addi,
+	0 dsp x9 sd,
+	next,
+tend-code
+
+: tcreate	[t'] (dovar) t>h @ 32 word count thead, treveal ;
+

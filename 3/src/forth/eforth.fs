@@ -121,6 +121,7 @@ t: */ ( n n n -- q )	*/MOD SWAP DROP ;
 \ pg 23 words
 
 t: 1+		1 + ;
+t: 1-		-1 + ;
 t: CELL-	-8 + ;
 t: CELL+	8 + ;
 t: CELLS	8 * ;
@@ -146,6 +147,11 @@ t: -TRAILING	FOR AFT BL OVER R@ + C@ < IF R> 1+ EXIT THEN THEN NEXT 0 ;
 t: PACK$
   ALIGNED DUP >R OVER DUP 0 8 UM/MOD DROP - OVER + 0 SWAP !
   2DUP C! 1+ SWAP CMOVE R> ;
+
+\ I/O device drivers.
+S" v-mgia.fs" included	( MGIA video )
+( S" k-sdl.fs" included	( SDL2 keyboard emulation )
+( S" k-ps2.fs" included	( KIA PS/2 keyboard )
 
 \ !io is responsible for initializing all the I/O devices
 \ for Forth to run.  This includes clearing the keyboard

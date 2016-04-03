@@ -10,6 +10,39 @@
 \ Dr. C. H. Ting and Juergen Pintaske, as of 2013-Apr-20.
 \ See http://www.exemark.com/FORTH/eForthOverviewv5.pdf
 
+\ (doloop) increments a loop counter on the return stack.
+\ If the provided limit is not reached, a branch is taken.
+\ Otherwise, the return stack frame is removed, and
+\ control follows through with the next Forth word.
+tcode (doloop)
+	0 rsp x8 ld,
+	1 x8 x8 addi,
+	8 rsp x9 ld,
+	16 x8 x9 blt,
+	16 rsp rsp addi,	( X8 >= X9 )
+	8 ip ip addi,
+	next,
+	0 rsp x8 sd,		( X8 < X9 )
+	0 ip ip ld,
+	next,
+tend-code
+
+\ (do+loop) is as (doloop), but consumes an offset from
+\ the data stack.
+tcode (do+loop)
+	0 rsp x8 ld,
+	0 dsp x9 ld,
+	8 dsp dsp addi,
+	x9 x8 x8 add,
+	8 rsp x9 ld,
+	16 x8 x9 blt,
+	16 rsp rsp addi,	( X8 >= X9 )
+	8 ip ip addi,
+	next,
+	0 rsp x8 sd,		( X8 < X9 )
+	0 ip ip ld,
+	next,
+tend-code
 
 \ ?next decrements the top of return stack.  If it falls
 \ BELOW zero (e.g., goes negative), then the branch back
@@ -352,6 +385,9 @@ tend-code
 : ~AFT		drop ~AHEAD ~BEGIN swap ;
 : ~AGAIN	[t'] branch t, t, ;
 : ~UNTIL	[t'] ?branch t, t, ;
+: ~DO		[t'] SWAP t, [t'] >R dup t, t, there ;
+: ~LOOP		[t'] (doloop) t, t, ;
+: ~+LOOP	[t'] (do+loop) t, t, ;
 
 \ PANIC will stop all program execution until the machine
 \ is physically reset.  This includes interrupt handlers.
