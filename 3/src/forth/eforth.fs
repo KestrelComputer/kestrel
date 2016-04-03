@@ -87,6 +87,7 @@ t: */ ( n n n -- q )	*/MOD SWAP DROP ;
 
 \ pg 23 words
 
+t: 1+		1 + ;
 t: CELL-	-8 + ;
 t: CELL+	8 + ;
 t: CELLS	8 * ;
@@ -95,6 +96,23 @@ t: BL		32 ;
 t: >CHAR	$7F AND DUP 127 BL WITHIN IF DROP 95 THEN ;
 t: DEPTH	SP@ SP0 @ SWAP - 8 / ;
 t: PICK		CELLS CELL+ SP@ + @ ;
+
+\ pg 24 words
+
+t: +!		SWAP OVER @ + SWAP ! ;
+t: 2!		SWAP OVER ! CELL+ ! ;
+t: 2@		DUP CELL+ @ SWAP @ ;
+t: COUNT	DUP 1+ SWAP C@ ;
+t: HERE		CP @ ;
+t: PAD		HERE 80 + ;
+t: TIB		#TIB CELL+ @ ;
+t: @EXECUTE	@ ?DUP IF EXECUTE THEN ;
+t: CMOVE	FOR AFT >R DUP C@ R@ C! 1+ R> 1+ THEN NEXT 2DROP ;
+t: FILL		SWAP FOR SWAP AFT 2DUP C! 1+ THEN NEXT 2DROP ;
+t: -TRAILING	FOR AFT BL OVER R@ + C@ < IF R> 1+ EXIT THEN THEN NEXT 0 ;
+t: PACK$
+  ALIGNED DUP >R OVER DUP 0 8 UM/MOD DROP - OVER + 0 SWAP !
+  2DUP C! 1+ SWAP CMOVE R> ;
 
 \ !io is responsible for initializing all the I/O devices
 \ for Forth to run.  This includes clearing the keyboard
