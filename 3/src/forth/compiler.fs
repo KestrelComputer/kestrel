@@ -60,3 +60,40 @@ tend-code
 : ~(		postpone ( ;
 : ~\		postpone \ ;
 
+\ (doglobal) implements the handler for GLOBAL and CGLOBAL
+\ variables.  The semantics of such variables are to push
+\ the address of the variable on the data stack.  Unlike
+\ USER variables, globals are relative to address 0.
+\ 
+\ The PFA of a GLOBAL variable does not point to the
+\ parameter field of the word.  Instead, it contains
+\ the byte offset from the globals pool (currently 0).
+\ 
+\ The global variable /GLOBALS contains the current
+\ number of bytes allocated to globals.  Since /GLOBALS
+\ is itself a global variable, /GLOBALS must always be
+\ at least one cell in size.  The current version of
+\ Forth permits up to 1024 bytes of global variables.
+\ Remember that a single cell is 8 bytes wide.
+tcode (doglobal)
+	8 w x9 ld,
+	-8 dsp dsp addi,
+	0 dsp x9 sd,
+	next,
+tend-code
+
+variable /globals
+/globals off
+
+: doglob	[t'] (doglobal) t>h @ ;
+: ghead,	doglob 32 word count thead, treveal ;
+: galign	dup 1- /globals @ + swap negate and /globals ! ;
+: g!pfa		/globals @ headp @ cell+ ! ;
+
+: tglobal	ghead, 8 galign g!pfa 8 /globals +! ;
+: twglobal	ghead, 4 galign g!pfa 4 /globals +! ;
+: thglobal	ghead, 2 galign g!pfa 2 /globals +! ;
+: tcglobal	ghead, g!pfa 1 /globals +! ;
+
+tglobal /GLOBALS
+
