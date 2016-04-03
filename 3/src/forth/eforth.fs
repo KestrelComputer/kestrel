@@ -17,6 +17,39 @@
 \ high-level dependencies.  These exceptions are typically
 \ related to IRQ and reset entry points.
 
+\ User variables
+tuser SP0	\ pointer to bottom of data stack
+tuser RP0	\ pointer to bottom of return stack
+tuser '?KEY	\ execution vector of ?KEY
+tuser 'EMIT	\ execution vector of EMIT
+tuser 'EXPECT	\ execution vector of EXPECT
+tuser 'TAP	\ execution vector of TAP
+tuser 'ECHO	\ execution vector of ECHO
+tuser 'PROMPT	\ execution vector of PROMPT
+tuser BASE	\ Numeric base
+tuser tmp	\ temporary used by PARSE and FIND
+tuser SPAN	\ Character count received by EXPECT
+tuser >IN	\ Character offset while parsing input stream
+tuser #TIB	\ Character count of terminal input buffer
+tuser _tib	\ Character pointer of terminal input buffer
+tuser CSP	\ Stack pointer for error checking
+tuser 'EVAL	\ execution vector of EVAL
+tuser 'NUMBER	\ execution vector of NUMBER
+tuser HLD	\ Pointer used while building numeric output strings
+tuser HANDLER	\ Holds return stack for error handling
+tuser CONTEXT	\ Area for vocabulary search order.  This is the first to search.
+tuser _ctx1
+tuser _ctx2
+tuser _ctx3
+tuser _ctx4
+tuser _ctx5
+tuser _ctx6
+tuser _ctx7
+tuser CURRENT	\ Pointer to vocabulary currently being extended
+tuser CP	\ Pointer to next available space for code
+tuser NP	\ Pointer to bottom of name dictionary
+tuser LAST	\ Pointer to last name in the dictionary
+
 \ pg 19
 
 t: NIP		SWAP DROP ;

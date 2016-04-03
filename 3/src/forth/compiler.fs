@@ -97,3 +97,38 @@ variable /globals
 
 tglobal /GLOBALS
 
+\ (douser) implements the handler for USER and CUSER
+\ variables.  The semantics of such variables are to push
+\ the address of the variable on the data stack.  Unlike
+\ GLOBAL variables, user variables are relative to the
+\ current address found in the UP (user-pointer) register.
+\ 
+\ The PFA of a USER variable does not point to the
+\ parameter field of the word.  Instead, it contains
+\ the byte offset from the current value of UP.
+\ 
+\ The global variable /USER contains the current
+\ number of bytes allocated to globals.
+tcode (douser)
+	8 w x9 ld,
+	up x9 x9 add,
+	-8 dsp dsp addi,
+	0 dsp x9 sd,
+	next,
+tend-code
+
+variable /user
+/user off
+
+: douser	[t'] (douser) t>h @ ;
+: uhead,	douser 32 word count thead, treveal ;
+: ualign	dup 1- /user @ + swap negate and /user ! ;
+: u!pfa		/user @ headp @ cell+ ! ;
+
+: tuser		uhead, 8 ualign u!pfa 8 /user +! ;
+: twuser	uhead, 4 ualign u!pfa 4 /user +! ;
+: thuser	uhead, 2 ualign u!pfa 2 /user +! ;
+: tcuser	uhead, u!pfa 1 /user +! ;
+
+tglobal /USER
+
