@@ -48,13 +48,13 @@ create macrobuf 32 allot
 
 : t:		8 talign :head, begin ?refill word, again ;
 
-tcode exit
+tcode EXIT
 	0 rsp ip ld,
 	8 rsp rsp addi,
 	next,
 tend-code
 
-: ~;		[t'] exit t, treveal r> r> 2drop ;
+: ~;		[t'] EXIT t, treveal r> r> 2drop ;
 
 \ Comment support inside of colon definitions.
 : ~(		postpone ( ;
