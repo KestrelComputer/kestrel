@@ -19,6 +19,7 @@
 
 \ pg 19
 
+t: NIP		SWAP DROP ;
 t: ?DUP		DUP IF DUP THEN ;
 t: ROT		>R SWAP R> SWAP ;
 t: 2DROP	DROP DROP ;
@@ -35,11 +36,38 @@ t: ABS		DUP 0< IF NEGATE THEN ;
 \ pg 20
 
 t: =		XOR IF 0 EXIT THEN -1 ;
-t: U<		2DUP XOR 0< IF SWAP DROP 0< EXIT THEN - 0< ;
+t: U<		2DUP XOR 0< IF NIP 0< EXIT THEN - 0< ;
 t: <		2DUP XOR 0< IF DROP 0< EXIT THEN - 0< ;
 t: MAX		2DUP < IF SWAP THEN DROP ;
 t: MIN		2DUP SWAP < IF SWAP THEN DROP ;
 t: WITHIN	OVER - >R - R> U< ;
+
+t: UM/MOD ( ud u -- ur uq )
+  2DUP U< IF
+    NEGATE
+    63 FOR
+      >R DUP UM+ >R >R DUP UM+ R> + DUP R> R@ 
+      SWAP >R UM+  R> OR IF
+        >R DROP 1 + R>
+      ELSE DROP
+      THEN R>
+    NEXT DROP SWAP EXIT
+  THEN DROP 2DROP -1 DUP ;
+
+t: M/MOD ( d n -- r q ) \ floored division
+  DUP 0<  DUP >R IF
+    NEGATE >R DNEGATE R>
+  THEN
+  >R DUP 0< IF
+    R@ +
+  THEN
+  R> UM/MOD R> IF
+    SWAP NEGATE SWAP
+  THEN ;
+
+: /MOD ( n n -- r q ) OVER 0< SWAP M/MOD ;
+: MOD ( n n -- r ) /MOD DROP ;
+: / ( n n -- q ) /MOD NIP ;
 
 \ !io is responsible for initializing all the I/O devices
 \ for Forth to run.  This includes clearing the keyboard
