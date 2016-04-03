@@ -10,6 +10,41 @@ tend-code
 
 : next,		S" (next)" tfind drop @ there - x0 jal, ;
 
+tcode (enter)
+	-8 rsp rsp addi,
+	0 rsp ip sd,
+	8 w ip ld,
+	next,
+tend-code
+
+: nbr  cr cr type -1 abort" ?" ;
+
+: docolon	[t'] (enter) t>h @ ;
+: :head,	docolon 32 word count thead, ;
+: ?refill	>in @ source nip = if refill 0= abort" EOF?" then ;
+
+: word,
+  32 word find if
+    execute
+  else
+    count tfind if
+      h>t t,
+    else
+      nbr
+    then
+  then
+;
+
+: t:		8 talign :head, begin ?refill word, again ;
+
+tcode exit
+	0 rsp ip ld,
+	8 rsp rsp addi,
+	next,
+tend-code
+
+: ;t		[t'] exit t, treveal r> r> 2drop ;
+
 8 talign
 tcode pushFF0000
 	0 x9 auipc,
@@ -42,13 +77,7 @@ tcode sto
 	next,
 tend-code
 
-8 talign
-tcode testIt
-	t' pushAA55 t,
-	t' pushFF0000 t,
-	t' sto t,
-	t' halt t,
-tend-code
+t: testIt pushAA55 pushFF0000 sto halt ;t
 
 8 talign
 tcode __RESET__
@@ -58,7 +87,7 @@ tcode __RESET__
 	1024 up dsp addi,
 	1024 up rsp addi,
 	next,
-	t' testIt t>h @ t,
+	t' testIt t>h cell+ @ t,
 tend-code
 
 vectors

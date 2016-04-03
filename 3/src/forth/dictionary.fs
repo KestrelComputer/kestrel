@@ -108,4 +108,5 @@ rom0
   again ;
 
 : t'	32 word count tfind 0= if type -1 abort" ?" then h>t ;
+: [t']	t' postpone literal ; immediate
 
