@@ -14,7 +14,8 @@ tcode !
 	next,
 tend-code
 
-t: testIt $AAAAAAAA55555555 $FF0010 ! halt ;
+t: setup $AAAAAAAA55555555 $FF0010 ;
+t: testIt setup ! halt ;
 
 8 talign
 tcode __RESET__
@@ -22,7 +23,7 @@ tcode __RESET__
 	24 x9 ip ld,
 	0 x0 up addi,
 	1024 up dsp addi,
-	1024 up rsp addi,
+	1024 dsp rsp addi,
 	next,
 	t' testIt t>h cell+ @ t,
 tend-code
