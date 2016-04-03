@@ -341,19 +341,18 @@ tend-code
 \ BEGIN/WHILE/REPEAT and BEGIN/UNTIL are used to construct
 \ indefinite loops.
 
-\ tested
 : ~IF		[t'] ?branch t, there 0 t, ;
 : ~THEN		there swap t! ;
 : ~ELSE		[t'] branch t, there 0 t, swap ~THEN ;
 : ~BEGIN	there ;
 : ~WHILE	~IF swap ;
 : ~REPEAT	[t'] branch t, t, ~THEN ;
-
-\ TODO test
+: ~FOR		[t'] (dofor) t, ~BEGIN ;
+: ~NEXT		[t'] ?next t, t, ;
+: ~AHEAD	[t'] branch t, there 0 t, ;
+: ~AFT		drop ~AHEAD ~BEGIN swap ;
 : ~AGAIN	[t'] branch t, t, ;
 : ~UNTIL	[t'] ?branch t, t, ;
-: ~FOR		[t'] (dofor) t, there ;
-: ~NEXT		[t'] ?next t, t, ;
 
 \ PANIC will stop all program execution until the machine
 \ is physically reset.  This includes interrupt handlers.
