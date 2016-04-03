@@ -17,8 +17,17 @@ tcode (enter)
 	next,
 tend-code
 
-: nbr  cr cr type -1 abort" ?" ;
+tcode (dolit)
+	0 ip x9 ld,
+	8 ip ip addi,
+	-8 dsp dsp addi,
+	0 dsp x9 sd,
+	next,
+tend-code
 
+: err		cr cr type -1 abort" ?" ;
+: nbr?		[char] $ over = swap [char] ' over = swap $30 $3A within or or ;
+: nbr		over c@ nbr? if evaluate [t'] (dolit) t, t, else err then ;
 : docolon	[t'] (enter) t>h @ ;
 : :head,	docolon 32 word count thead, ;
 : ?refill	>in @ source nip = if refill 0= abort" EOF?" then ;
@@ -27,11 +36,7 @@ tend-code
   32 word find if
     execute
   else
-    count tfind if
-      h>t t,
-    else
-      nbr
-    then
+    count tfind if h>t t, else nbr then
   then
 ;
 
@@ -45,26 +50,6 @@ tend-code
 
 : ;t		[t'] exit t, treveal r> r> 2drop ;
 
-8 talign
-tcode pushFF0000
-	0 x9 auipc,
-	24 x9 x8 ld,
-	-8 dsp dsp addi,
-	0 dsp x8 sd,
-	next,
-	0 0 0 addi,
-	$FF0000 t,
-tend-code
-
-tcode pushAA55
-	-8 dsp dsp addi,
-	$AA x0 x9 addi,
-	8 x9 x9 slli,
-	$55 x9 x9 ori,
-	0 dsp x9 sd,
-	next,
-tend-code
-
 tcode halt
 	0 0 jal,
 tend-code
@@ -77,7 +62,7 @@ tcode sto
 	next,
 tend-code
 
-t: testIt pushAA55 pushFF0000 sto halt ;t
+t: testIt $AAAAAAAA55555555 $FF0010 sto halt ;t
 
 8 talign
 tcode __RESET__
