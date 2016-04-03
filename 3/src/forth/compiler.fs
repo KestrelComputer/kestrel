@@ -48,15 +48,109 @@ create macrobuf 32 allot
 
 : t:		8 talign :head, begin ?refill word, again ;
 
-tcode exit
+tcode EXIT
 	0 rsp ip ld,
 	8 rsp rsp addi,
 	next,
 tend-code
 
-: ~;		[t'] exit t, treveal r> r> 2drop ;
+: ~;		[t'] EXIT t, treveal r> r> 2drop ;
 
 \ Comment support inside of colon definitions.
 : ~(		postpone ( ;
 : ~\		postpone \ ;
+
+\ (doglobal) implements the handler for GLOBAL and CGLOBAL
+\ variables.  The semantics of such variables are to push
+\ the address of the variable on the data stack.  Unlike
+\ USER variables, globals are relative to address 0.
+\ 
+\ The PFA of a GLOBAL variable does not point to the
+\ parameter field of the word.  Instead, it contains
+\ the byte offset from the globals pool (currently 0).
+\ 
+\ The global variable /GLOBALS contains the current
+\ number of bytes allocated to globals.  Since /GLOBALS
+\ is itself a global variable, /GLOBALS must always be
+\ at least one cell in size.  The current version of
+\ Forth permits up to 1024 bytes of global variables.
+\ Remember that a single cell is 8 bytes wide.
+tcode (doglobal)
+	8 w x9 ld,
+	-8 dsp dsp addi,
+	0 dsp x9 sd,
+	next,
+tend-code
+
+variable /globals
+/globals off
+
+: doglob	[t'] (doglobal) t>h @ ;
+: ghead,	doglob 32 word count thead, treveal ;
+: galign	dup 1- /globals @ + swap negate and /globals ! ;
+: g!pfa		/globals @ headp @ cell+ ! ;
+
+: tglobal	ghead, 8 galign g!pfa 8 /globals +! ;
+: twglobal	ghead, 4 galign g!pfa 4 /globals +! ;
+: thglobal	ghead, 2 galign g!pfa 2 /globals +! ;
+: tcglobal	ghead, g!pfa 1 /globals +! ;
+
+tglobal /GLOBALS
+
+\ (douser) implements the handler for USER and CUSER
+\ variables.  The semantics of such variables are to push
+\ the address of the variable on the data stack.  Unlike
+\ GLOBAL variables, user variables are relative to the
+\ current address found in the UP (user-pointer) register.
+\ 
+\ The PFA of a USER variable does not point to the
+\ parameter field of the word.  Instead, it contains
+\ the byte offset from the current value of UP.
+\ 
+\ The global variable /USER contains the current
+\ number of bytes allocated to globals.
+tcode (douser)
+	8 w x9 ld,
+	up x9 x9 add,
+	-8 dsp dsp addi,
+	0 dsp x9 sd,
+	next,
+tend-code
+
+variable /user
+/user off
+
+: douser	[t'] (douser) t>h @ ;
+: uhead,	douser 32 word count thead, treveal ;
+: ualign	dup 1- /user @ + swap negate and /user ! ;
+: u!pfa		/user @ headp @ cell+ ! ;
+
+: tuser		uhead, 8 ualign u!pfa 8 /user +! ;
+: twuser	uhead, 4 ualign u!pfa 4 /user +! ;
+: thuser	uhead, 2 ualign u!pfa 2 /user +! ;
+: tcuser	uhead, u!pfa 1 /user +! ;
+
+tglobal /USER
+
+\ (dovar) implements the semantics for VARIABLEs.
+\ These differ from globals in that their storage appears
+\ inline in the dictionary with the code, as per more
+\ traditional Forth behaviors.  They are treated just like
+\ GLOBAL variables, except for where their storage is found.
+\ GLOBALs exist because of a circular dependency: we need
+\ variables to store important Forth runtime information
+\ before we have enough machinery in place to handle normal
+\ VARIABLEs.
+\ 
+\ (dovar) is also the default handler for CREATE'd words,
+\ since a variable is just a CREATE-d word with a single-cell
+\ buffer after it.
+tcode (dovar)
+	8 w x9 ld,
+	-8 dsp dsp addi,
+	0 dsp x9 sd,
+	next,
+tend-code
+
+: tcreate	[t'] (dovar) t>h @ 32 word count thead, treveal ;
 

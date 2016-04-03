@@ -10,10 +10,51 @@
 \ Dr. C. H. Ting and Juergen Pintaske, as of 2013-Apr-20.
 \ See http://www.exemark.com/FORTH/eForthOverviewv5.pdf
 
+\ (doloop) increments a loop counter on the return stack.
+\ If the provided limit is not reached, a branch is taken.
+\ Otherwise, the return stack frame is removed, and
+\ control follows through with the next Forth word.
+tcode (doloop)
+	0 rsp x8 ld,
+	1 x8 x8 addi,
+	8 rsp x9 ld,
+	16 x8 x9 blt,
+	16 rsp rsp addi,	( X8 >= X9 )
+	8 ip ip addi,
+	next,
+	0 rsp x8 sd,		( X8 < X9 )
+	0 ip ip ld,
+	next,
+tend-code
+
+\ (do+loop) is as (doloop), but consumes an offset from
+\ the data stack.
+tcode (do+loop)
+	0 rsp x8 ld,
+	0 dsp x9 ld,
+	8 dsp dsp addi,
+	x9 x8 x8 add,
+	8 rsp x9 ld,
+	16 x8 x9 blt,
+	16 rsp rsp addi,	( X8 >= X9 )
+	8 ip ip addi,
+	next,
+	0 rsp x8 sd,		( X8 < X9 )
+	0 ip ip ld,
+	next,
+tend-code
 
 \ ?next decrements the top of return stack.  If it falls
 \ BELOW zero (e.g., goes negative), then the branch back
-\ to a corresponding FOR-loop's entry is NOT taken.
+\ to a corresponding FOR-loop's entry is NOT taken.  It
+\ is compiled by NEXT.
+\ 
+\ (dofor) moves a count to the return stack, as-is,
+\ as per the semantics for a FOR-loop.  It is compiled
+\ by FOR.  Because it doesn't pre-decrement the count,
+\ be aware that you should pre-decrement as needed.
+\ E.g., 8 FOR R@ . NEXT will produce the output
+\ 8 7 6 5 4 3 2 1 0, *not* 7 6 5 4 3 2 1 0.
 tcode ?next
 	0 rsp x9 ld,
 	-1 x9 x9 addi,
@@ -23,15 +64,6 @@ tcode ?next
 	next,
 	8 rsp rsp addi,
 	8 ip ip addi,
-	next,
-tend-code
-
-tcode (dofor)
-	0 dsp x9 ld,
-	8 dsp dsp addi,
-	-1 x9 x9 addi,
-	-8 rsp rsp addi,
-	0 rsp x9 sd,
 	next,
 tend-code
 
@@ -190,7 +222,7 @@ tend-code
 \ current top of the return stack.  R@ is also known as I,
 \ for applications working with DO...LOOP constructs.
 
-tcode R>	\ TODO test
+tcode R>
 	0 rsp x8 ld,
 	8 rsp rsp addi,
 	-8 dsp dsp addi,
@@ -198,7 +230,7 @@ tcode R>	\ TODO test
 	next,
 tend-code
 
-tcode >R	\ TODO test
+tcode >R
 	0 dsp x8 ld,
 	8 dsp dsp addi,
 	-8 rsp rsp addi,
@@ -206,7 +238,7 @@ tcode >R	\ TODO test
 	next,
 tend-code
 
-tcode R@	\ TODO test
+tcode R@
 	0 rsp x8 ld,
 	-8 dsp dsp addi,
 	0 dsp x8 sd,
@@ -347,12 +379,15 @@ tend-code
 : ~BEGIN	there ;
 : ~WHILE	~IF swap ;
 : ~REPEAT	[t'] branch t, t, ~THEN ;
-: ~FOR		[t'] (dofor) t, ~BEGIN ;
+: ~FOR		[t'] >R t, ~BEGIN ;
 : ~NEXT		[t'] ?next t, t, ;
 : ~AHEAD	[t'] branch t, there 0 t, ;
 : ~AFT		drop ~AHEAD ~BEGIN swap ;
 : ~AGAIN	[t'] branch t, t, ;
 : ~UNTIL	[t'] ?branch t, t, ;
+: ~DO		[t'] SWAP t, [t'] >R dup t, t, there ;
+: ~LOOP		[t'] (doloop) t, t, ;
+: ~+LOOP	[t'] (do+loop) t, t, ;
 
 \ PANIC will stop all program execution until the machine
 \ is physically reset.  This includes interrupt handlers.
