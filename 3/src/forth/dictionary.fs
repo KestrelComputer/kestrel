@@ -58,7 +58,7 @@ rom0
 \ \ \ \ \ \
 \ Definition constructors
 
-: there ( - a )		romp  @ h>t ;
+: there ( - a )		romp @ h>t ;
 : talign ( n - )	dup 1- romp  @ + swap negate and romp  ! ;
 : tallot ( n - )	romp  +! safe ;
 : t! ( n ta - )		t>h ! ;
@@ -96,7 +96,9 @@ rom0
 : thead, ( cfa a u - )	tname, there th, th, ;
 : treveal		headp @ tcontext ! ;
 
-: skip ( a - a' )	2 cells + dup c@ round + ;
+: skip ( a - a' )	2 cells + dup c@ 1+ round + ;
+			( 1+ accounts for length byte )
+
 : 3dup ( abc - abcabc)	>r 2dup r@ -rot r> ;
 : tfind ( a u - x T | a u F )
   tcontext @ begin
@@ -104,4 +106,6 @@ rom0
     3dup 2 cells + count compare 0= if nip nip -1 exit then
     skip
   again ;
+
+: t'	32 word count tfind 0= if type -1 abort" ?" then h>t ;
 

@@ -53,8 +53,8 @@
 : itypes ( s rs1 fn3 rd op - w ) ( itype for immediate shifts )
 	common swap chkshf 20 lshift or ;
 
-: slli,		1 swap $03 itypes tw, ;
-: (srli)	5 swap $03 itypes ;
+: slli,		1 swap $13 itypes tw, ;
+: (srli)	5 swap $13 itypes ;
 : srli,		(srli) tw, ;
 : srai,		(srli) $40000000 or tw, ;
 
@@ -106,7 +106,7 @@
 \ \ \ \ \ \
 \ Image finalization (for ROMs only!)
 
-: displacement	@ romp @ h>t - ;
+: displacement	@ there - ;
 : vec,		t>h romp !  tfind if displacement else 2drop 0 then 0 jal, ;
 : userTrap	S" __USERTRAP__" $FFFFFFFFFFFFFE00 vec, ;
 : superTrap	S" __SUPERTRAP__" $FFFFFFFFFFFFFE40 vec, ;
@@ -117,4 +117,105 @@
 : linkage	headp @ h>t $FFFFFFFFFFFFFFF8 t>h ! ;
 : traps		userTrap superTrap hyperTrap machTrap nmi reset ;
 : vectors	safety off traps linkage ;
+
+variable romfile
+
+: save
+  r/w create-file throw romfile !
+  rom /rom romfile @ write-file throw
+  romfile @ close-file throw ;
+
+
+\ \ \ \ \ \
+\ Identities for registers.
+0 constant x0
+1 constant x1
+2 constant x2
+3 constant x3
+4 constant x4
+5 constant x5
+6 constant x6
+7 constant x7
+8 constant x8
+9 constant x9
+10 constant x10
+11 constant x11
+12 constant x12
+13 constant x13
+14 constant x14
+15 constant x15
+16 constant x16
+17 constant x17
+18 constant x18
+19 constant x19
+20 constant x20
+21 constant x21
+22 constant x22
+23 constant x23
+24 constant x24
+25 constant x25
+26 constant x26
+27 constant x27
+28 constant x28
+29 constant x29
+30 constant x30
+31 constant x31
+
+\ \ \ \ \ \
+\ Forth Register Assignments
+\ 
+\ Registers chosen deliberately to map to C function parameters.
+\ This should make interoperability with C code and callbacks easier.
+\ A typical C function prototype would be:
+\ 
+\ typedef long long cell;
+\ void Cprocedure(cell w, cell *ip, cell *up, cell* dsp, cell* rsp);
+\ 
+\ NOTE: Unlike Forth primitives, C procedures CANNOT change the values
+\ of the Forth VM registers without resorting to compiler-specific
+\ primitives or directives (e.g., GNU C's asm() syntax).
+\ 
+\ This selection of registers also maps Forth's registers into the
+\ subset supported by the 16-bit RISC-V compressed instruction set.
+
+x10 constant w
+x11 constant ip
+x12 constant up
+x13 constant dsp
+x14 constant rsp
+
+\ \ \ \ \ \
+\ Want to talk to C?  Use these register aliases.
+x0 constant zero
+x1 constant ra
+x2 constant sp
+x3 constant gp
+x4 constant tp
+x5 constant t0
+x6 constant t1
+x7 constant t2
+x8 constant s0	( or... )  x8 constant fp
+x9 constant s1
+x10 constant a0
+x11 constant a1
+x12 constant a2
+x13 constant a3
+x14 constant a4
+x15 constant a5
+x16 constant a6
+x17 constant a7
+x18 constant s2
+x19 constant s3
+x20 constant s4
+x21 constant s5
+x22 constant s6
+x23 constant s7
+x24 constant s8
+x25 constant s9
+x26 constant s10
+x27 constant s11
+x28 constant t3
+x29 constant t4
+x30 constant t5
+x31 constant t6
 
