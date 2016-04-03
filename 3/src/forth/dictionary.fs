@@ -48,7 +48,7 @@ safety on
 
 : check			romp @ headp @ u>= abort" out of header space" ;
 : safe			safety @ if check then ;
-: rom0			rom romp  !  headEnd headp !  headEnd tcontext ! ;
+: rom0			rom /rom $CC fill  rom romp ! headEnd headp ! headEnd tcontext ! ;
 : h>t ( a - ta )	rom - romOrg + ;
 : t>h ( ta - a )	romOrg - rom + ;
 
