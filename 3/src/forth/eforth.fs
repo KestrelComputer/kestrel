@@ -17,6 +17,8 @@
 \ high-level dependencies.  These exceptions are typically
 \ related to IRQ and reset entry points.
 
+\ pg 19
+
 t: ?DUP		DUP IF DUP THEN ;
 t: ROT		>R SWAP R> SWAP ;
 t: 2DROP	DROP DROP ;
@@ -29,6 +31,15 @@ t: DNEGATE	NOT >R NOT 1 UM+ R> + ;
 t: D+		>R SWAP >R UM+ R> R> + + ;
 t: -		NEGATE + ;
 t: ABS		DUP 0< IF NEGATE THEN ;
+
+\ pg 20
+
+t: =		XOR IF 0 EXIT THEN -1 ;
+t: U<		2DUP XOR 0< IF SWAP DROP 0< EXIT THEN - 0< ;
+t: <		2DUP XOR 0< IF DROP 0< EXIT THEN - 0< ;
+t: MAX		2DUP < IF SWAP THEN DROP ;
+t: MIN		2DUP SWAP < IF SWAP THEN DROP ;
+t: WITHIN	OVER - >R - R> U< ;
 
 \ !io is responsible for initializing all the I/O devices
 \ for Forth to run.  This includes clearing the keyboard
