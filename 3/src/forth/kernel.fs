@@ -11,6 +11,30 @@
 \ See http://www.exemark.com/FORTH/eForthOverviewv5.pdf
 
 
+\ ?next decrements the top of return stack.  If it falls
+\ BELOW zero (e.g., goes negative), then the branch back
+\ to a corresponding FOR-loop's entry is NOT taken.
+tcode ?next
+	0 rsp x9 ld,
+	-1 x9 x9 addi,
+	16 x9 x0 blt,
+	0 rsp x9 sd,
+	0 ip ip ld,
+	next,
+	8 rsp rsp addi,
+	8 ip ip addi,
+	next,
+tend-code
+
+tcode (dofor)
+	0 dsp x9 ld,
+	8 dsp dsp addi,
+	-1 x9 x9 addi,
+	-8 rsp rsp addi,
+	0 rsp x9 sd,
+	next,
+tend-code
+
 \ ?branch causes a control flow change if the TOS is zero.
 \ This primitive consumes the stack item.
 tcode ?branch
@@ -188,7 +212,6 @@ tcode R@	\ TODO test
 	0 dsp x8 sd,
 	next,
 tend-code
-t: I	R@ ;
 
 \ SP@ and SP! retrieve and reset the data stack pointer.
 \ BE EXTREMELY CAREFUL WHEN USING SP!, AS THIS CAN LEAD
@@ -329,6 +352,8 @@ tend-code
 \ TODO test
 : ~AGAIN	[t'] branch t, t, ;
 : ~UNTIL	[t'] ?branch t, t, ;
+: ~FOR		[t'] (dofor) t, there ;
+: ~NEXT		[t'] ?next t, t, ;
 
 \ PANIC will stop all program execution until the machine
 \ is physically reset.  This includes interrupt handlers.
