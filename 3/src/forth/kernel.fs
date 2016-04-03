@@ -13,7 +13,12 @@
 
 \ ?next decrements the top of return stack.  If it falls
 \ BELOW zero (e.g., goes negative), then the branch back
-\ to a corresponding FOR-loop's entry is NOT taken.
+\ to a corresponding FOR-loop's entry is NOT taken.  It
+\ is compiled by NEXT.
+\ 
+\ (dofor) moves a count to the return stack, less one,
+\ as per the semantics for a FOR-loop.  It is compiled
+\ by FOR.
 tcode ?next
 	0 rsp x9 ld,
 	-1 x9 x9 addi,
