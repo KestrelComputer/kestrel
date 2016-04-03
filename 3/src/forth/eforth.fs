@@ -85,6 +85,17 @@ t: M* ( n n -- d )	2DUP XOR 0< >R ABS SWAP ABS UM* R> IF DNEGATE THEN ;
 t: */MOD ( n n n -- r q ) >R M* R> M/MOD ;
 t: */ ( n n n -- q )	*/MOD SWAP DROP ;
 
+\ pg 23 words
+
+t: CELL-	-8 + ;
+t: CELL+	8 + ;
+t: CELLS	8 * ;
+t: ALIGNED	DUP 0 8 UM/MOD DROP DUP IF 8 SWAP - THEN + ;
+t: BL		32 ;
+t: >CHAR	$7F AND DUP 127 BL WITHIN IF DROP 95 THEN ;
+t: DEPTH	SP@ SP0 @ SWAP - 8 / ;
+t: PICK		CELLS CELL+ SP@ + @ ;
+
 \ !io is responsible for initializing all the I/O devices
 \ for Forth to run.  This includes clearing the keyboard
 \ queue, initializing the video display hardware, etc.
