@@ -55,3 +55,7 @@ tend-code
 
 : ~;		[t'] exit t, treveal r> r> 2drop ;
 
+\ Comment support inside of colon definitions.
+: ~(		postpone ( ;
+: ~\		postpone \ ;
+
