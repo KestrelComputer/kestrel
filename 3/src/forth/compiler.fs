@@ -25,8 +25,9 @@ tend-code
 : err		cr cr type -1 abort" ?" ;
 : hex?		[char] $ over = swap ;
 : char?		[char] ' over = swap ;
+: negative?	[char] - over = swap ;
 : digit?	$30 $3A within ;
-: nbr?		hex? char? digit? or or ;
+: nbr?		hex? char? negative? digit? or or or ;
 : nbr		over c@ nbr? if evaluate [t'] (dolit) t, t, else err then ;
 : docolon	[t'] (enter) t>h @ ;
 : :head,	docolon 32 word count thead, ;

@@ -2,33 +2,8 @@ S" dictionary.fs" included
 S" assembler.fs" included
 S" compiler.fs" included
 
-tcode halt
-	0 0 jal,
-tend-code
-
-tcode !
-	0 dsp x9 ld,
-	8 dsp x10 ld,
-	0 x9 x10 sd,
-	16 dsp dsp addi,
-	next,
-tend-code
-
-t: setup $AAAAAAAA55555555 $FF0010 ;
-t: testIt setup ! halt ;
-
-8 talign
-tcode __RESET__
-	0 x9 auipc,
-	24 x9 ip ld,
-	0 x0 up addi,
-	1024 up dsp addi,
-	1024 dsp rsp addi,
-	next,
-	t' testIt t>h cell+ @ t,
-tend-code
+S" kernel.fs" included	\ eForth primitives
+S" eforth.fs" included	\ eForth high-level words
 
 vectors
-
-S" test.rom" save
-
+S" forth.rom" save

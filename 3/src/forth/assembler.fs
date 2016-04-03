@@ -70,12 +70,13 @@
 2 store: sw,
 3 store: sd,
 
-: sbtype ( disp12 rs1 rs2 fn3 opc -- w )
-	chkopc
-	swap chkfn3 12 lshift or swap chkreg 20 lshift or
-	swap chkreg 15 lshift or
-	over chkdisp13 dup $1E and swap 11 rshift 1 and or 7 lshift or
-	swap dup $7E0 and 5 rshift swap 6 rshift $40 and or 25 lshift or ;
+: enc13
+  dup 11 rshift 1 and
+  over $7FE and or
+  swap $1000 and 1 rshift or ;
+
+: sbtype ( disp13 rs1 rs2 fn3 opc -- w )
+	>r >r >r >r chkdisp13 enc13 r> r> r> r> stype ;
 
 : branch:	create , does> @ $63 sbtype tw, ;
 
