@@ -16,9 +16,12 @@
 \ to a corresponding FOR-loop's entry is NOT taken.  It
 \ is compiled by NEXT.
 \ 
-\ (dofor) moves a count to the return stack, less one,
+\ (dofor) moves a count to the return stack, as-is,
 \ as per the semantics for a FOR-loop.  It is compiled
-\ by FOR.
+\ by FOR.  Because it doesn't pre-decrement the count,
+\ be aware that you should pre-decrement as needed.
+\ E.g., 8 FOR R@ . NEXT will produce the output
+\ 8 7 6 5 4 3 2 1 0, *not* 7 6 5 4 3 2 1 0.
 tcode ?next
 	0 rsp x9 ld,
 	-1 x9 x9 addi,
@@ -28,15 +31,6 @@ tcode ?next
 	next,
 	8 rsp rsp addi,
 	8 ip ip addi,
-	next,
-tend-code
-
-tcode (dofor)
-	0 dsp x9 ld,
-	8 dsp dsp addi,
-	-1 x9 x9 addi,
-	-8 rsp rsp addi,
-	0 rsp x9 sd,
 	next,
 tend-code
 
@@ -195,7 +189,7 @@ tend-code
 \ current top of the return stack.  R@ is also known as I,
 \ for applications working with DO...LOOP constructs.
 
-tcode R>	\ TODO test
+tcode R>
 	0 rsp x8 ld,
 	8 rsp rsp addi,
 	-8 dsp dsp addi,
@@ -203,7 +197,7 @@ tcode R>	\ TODO test
 	next,
 tend-code
 
-tcode >R	\ TODO test
+tcode >R
 	0 dsp x8 ld,
 	8 dsp dsp addi,
 	-8 rsp rsp addi,
@@ -211,7 +205,7 @@ tcode >R	\ TODO test
 	next,
 tend-code
 
-tcode R@	\ TODO test
+tcode R@
 	0 rsp x8 ld,
 	-8 dsp dsp addi,
 	0 dsp x8 sd,
@@ -352,7 +346,7 @@ tend-code
 : ~BEGIN	there ;
 : ~WHILE	~IF swap ;
 : ~REPEAT	[t'] branch t, t, ~THEN ;
-: ~FOR		[t'] (dofor) t, ~BEGIN ;
+: ~FOR		[t'] >R t, ~BEGIN ;
 : ~NEXT		[t'] ?next t, t, ;
 : ~AHEAD	[t'] branch t, there 0 t, ;
 : ~AFT		drop ~AHEAD ~BEGIN swap ;
