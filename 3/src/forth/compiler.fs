@@ -23,7 +23,10 @@ tcode (dolit)
 tend-code
 
 : err		cr cr type -1 abort" ?" ;
-: nbr?		[char] $ over = swap [char] ' over = swap $30 $3A within or or ;
+: hex?		[char] $ over = swap ;
+: char?		[char] ' over = swap ;
+: digit?	$30 $3A within ;
+: nbr?		hex? char? digit? or or ;
 : nbr		over c@ nbr? if evaluate [t'] (dolit) t, t, else err then ;
 : docolon	[t'] (enter) t>h @ ;
 : :head,	docolon 32 word count thead, ;
