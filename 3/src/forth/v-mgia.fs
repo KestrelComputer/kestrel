@@ -7,6 +7,12 @@
 \ This software is written with the assumption that the MGIA's
 \ 640x480 monochrome bitmap sits at $FF0000 in memory.  It
 \ further assumes that the system font uses 8x8 pixel glyphs.
+\ 
+\ Note that the MGIA does not require any initialization from
+\ power-on status.  It's hardwired to produce a monochrome
+\ 640x480 display.  CGIA will require initialization though,
+\ so remember to update eforth.fs when initialization is
+\ needed.
 
 tglobal cursorX	( Ideally, these ought to be headerless )
 tglobal cursorY
@@ -39,7 +45,7 @@ t: !txraw	255 AND plot bumpx ;
 
 t: noop ;
 t: dobs		cursorX @ 1 - 0 MAX cursorX ! ;
-t: doht		cursorX @ 15 + -8 AND 1- cursorX ! bumpx ;
+t: doht		cursorX @ 8 + -8 AND 1- cursorX ! bumpx ;
 t: dolf		bumpy ;
 t: docr		0 cursorX ! ;
 
