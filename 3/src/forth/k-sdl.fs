@@ -148,3 +148,5 @@ t: lookup	table SWAP 255 AND + C@ -1 ;
 t: ?chr		DUP 0< IF DROP 0 0 EXIT THEN lookup ;
 t: >ascii	DUP 2* 0< IF ?shift ELSE ?chr THEN ;
 
+t: ?rx		?kia IF >ascii ELSE 0 THEN ;
+
