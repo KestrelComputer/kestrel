@@ -94,14 +94,14 @@ $D0 tc, $D1 tc, $D2 tc, $D3 tc, $D4 tc, $D5 tc, $D6 tc, $D7 tc,
 $D8 tc, $D9 tc, $DA tc, $DB tc, $DC tc, $DD tc, $DE tc, $DF tc, 
 
 tcreate lookups
-  t' unshifted t,
-  t' ctrled t,		( ctrl )
-  t' shifted t,		( shift )
-  t' ctrled t,		( ctrl+shift )
-  t' alted t,		( alt )
-  t' ctrled t,		( ctrl+alt )
-  t' shiftalted t,	( shift+alt )
-  t' ctrled t,		( ctrl+alt+shift )
+  t' unshifted t>h cell+ @ t,
+  t' ctrled t>h cell+ @ t,		( ctrl )
+  t' shifted t>h cell+ @ t,		( shift )
+  t' ctrled t>h cell+ @ t,		( ctrl+shift )
+  t' alted t>h cell+ @ t,		( alt )
+  t' ctrled t>h cell+ @ t,		( ctrl+alt )
+  t' shiftalted t>h cell+ @ t,	( shift+alt )
+  t' ctrled t>h cell+ @ t,		( ctrl+alt+shift )
 
 \ The KIA interface consists of the KQSTAT register at
 \ address $0100000000000000, and the KQDATA register at
@@ -122,11 +122,29 @@ tcreate lookups
 \ This is done by writing an arbitrary value back to KQDATA.
 
 t: kia?		$0200000000000000 C@ 1 AND 1 XOR ;
-t: scan		$0200000000000000 C@ $C0 AND 52 LSHIFT
+t: scan		$0200000000000000 C@ $C0 AND 56 LSHIFT
 		$0200000000000001 C@ OR ;
 t: popq		DUP $0200000000000001 C! ;
 
 \ ?kia is intended to have a similar interface as ?rx.
 
 t: ?kia		kia? IF scan -1 popq ELSE 0 0 THEN ;
+
+\ If you have a raw KIA scancode, then you should be
+\ able to filter it through >ascii to compute the
+\ corresponding plain, 7-bit ASCII code for the scan
+\ code, if any exists at all.
+
+tglobal shiftBits
+
+t: clr		shiftBits @ SWAP NOT AND ;
+t: set		shiftBits @ OR ;
+t: !bits	OVER 0< IF clr ELSE set THEN shiftBits ! ;
+t: shift	1 OVER 7 AND LSHIFT !bits ;
+t: ?shift	DUP $F8 AND $E0 = IF shift THEN 0 ;
+t: mirror	DUP 4 RSHIFT OR ;
+t: table	shiftBits @ mirror 7 AND CELLS lookups + @ ;
+t: lookup	table SWAP 255 AND + C@ -1 ;
+t: ?chr		DUP 0< IF DROP 0 0 EXIT THEN lookup ;
+t: >ascii	DUP 2* 0< IF ?shift ELSE ?chr THEN ;
 
