@@ -150,7 +150,7 @@ t: PACK$
 
 \ I/O device drivers.
 S" v-mgia.fs" included	( MGIA video )
-( S" k-sdl.fs" included	( SDL2 keyboard emulation )
+S" k-sdl.fs" included	( SDL2 keyboard emulation )
 ( S" k-ps2.fs" included	( KIA PS/2 keyboard )
 
 \ !io is responsible for initializing all the I/O devices
