@@ -16,20 +16,30 @@
 
 tglobal cursorX	( Ideally, these ought to be headerless )
 tglobal cursorY
-\ tglobal cursorHidden
-\ tglobal cursorVisible
+tglobal cursorHidden
+tglobal cursorVisible
 
 tcreate font
 S" v-font.fs" included
 
-t: AT-XY	cursorY ! cursorX ! ;
-t: AT-XT?	cursorX @ cursorY @ ;
+t: top		$FF0000 cursorX @ + cursorY @ 640 * + ;
+t: reverse	top 7 FOR DUP C@ NOT OVER C! 80 + NEXT DROP ;
+t: toggle	reverse 1 cursorVisible @ - cursorVisible ! ;
+
+t: chide	cursorHidden @ -1 XOR IF 1 cursorHidden +! THEN ;
+t: cshow	cursorHidden @ IF -1 cursorHidden +! THEN ;
+t: coff		cursorVisible @ IF toggle THEN ;
+t: con		cursorVisible @ IF EXIT THEN toggle ;
+t: cursor-	chide coff ;
+t: cursor+	cshow cursorHidden @ IF EXIT THEN con ;
+
+t: AT-XY	cursor- cursorY ! cursorX ! cursor+ ;
+t: AT-XY?	cursorX @ cursorY @ ;
 
 t: CLS		$FF9600 $FF0000 DO 0 R@ ! 8 +LOOP ;
 t: HOME		0 0 AT-XY ;
-t: PAGE		CLS HOME ;
+t: PAGE		cursor- CLS HOME cursor+ ;
 
-t: top		$FF0000 cursorX @ + cursorY @ 640 * + ;
 t: plot		font + top 7 FOR OVER C@ OVER C!
 		80 + SWAP 256 + SWAP NEXT 2DROP ;
 t: feed		$FF0000 $FF9600 $FF0280 DO
@@ -41,7 +51,7 @@ t: bumpy	cursorY @ 59 < IF 1 cursorY +!
 		ELSE scroll THEN ;
 t: bumpx	cursorX @ 79 < IF 1 cursorX +!
 		ELSE 0 cursorX ! bumpy THEN ;
-t: !txraw	255 AND plot bumpx ;
+t: !txraw	cursor- 255 AND plot bumpx cursor+ ;
 
 t: noop ;
 t: dobs		cursorX @ 1 - 0 MAX cursorX ! ;
@@ -85,4 +95,7 @@ tcreate ctrltab
 
 t: ctrl?	0 32 WITHIN ;
 t: doctrl	CELLS ctrltab + @ EXECUTE ;
-t: !tx		255 AND DUP ctrl? IF doctrl ELSE !txraw THEN ;
+t: !tx		cursor- 255 AND DUP ctrl? IF doctrl ELSE !txraw THEN cursor+ ;
+
+t: 0mgia	0 cursorHidden !  0 cursorVisible !  PAGE cursor+ ;
+
