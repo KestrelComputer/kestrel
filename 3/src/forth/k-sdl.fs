@@ -150,3 +150,5 @@ t: >ascii	DUP 2* 0< IF ?shift ELSE ?chr THEN ;
 
 t: ?rx		?kia IF >ascii ELSE 0 THEN ;
 
+t: 0kia		0 shiftBits ! ;
+
