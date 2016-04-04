@@ -160,7 +160,7 @@ S" k-sdl.fs" included	( SDL2 keyboard emulation )
 \ !io is responsible for initializing all the I/O devices
 \ for Forth to run.  This includes clearing the keyboard
 \ queue, initializing the video display hardware, etc.
-t: !io		;
+t: !io		0kia ;
 
 \ __BOOT__ is the Forth half of the cold bootstrap for the
 \ Forth runtime environment.  The __RESET__ word handles
