@@ -154,3 +154,24 @@ tend-code
 
 : tcreate	[t'] (dovar) t>h @ 32 word count thead, treveal ;
 
+\ LSHIFT and RSHIFT are low-level bit manipulators.
+\ Note that RSHIFT is a *logical* right shift, not an
+\ arithmetic right shift.
+tcode LSHIFT
+	0 dsp x8 ld,
+	8 dsp x9 ld,
+	x8 x9 x9 sll,
+	8 dsp x9 sd,
+	8 dsp dsp addi,
+	next,
+tend-code
+
+tcode RSHIFT
+	0 dsp x8 ld,
+	8 dsp x9 ld,
+	x8 x9 x9 srl,
+	8 dsp x9 sd,
+	8 dsp dsp addi,
+	next,
+tend-code
+
