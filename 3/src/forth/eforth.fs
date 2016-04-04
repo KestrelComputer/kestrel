@@ -52,7 +52,6 @@ tuser LAST	\ Pointer to last name in the dictionary
 
 \ pg 19
 
-t: NIP		SWAP DROP ;
 t: ?DUP		DUP IF DUP THEN ;
 t: ROT		>R SWAP R> SWAP ;
 t: 2DROP	DROP DROP ;
@@ -68,6 +67,7 @@ t: ABS		DUP 0< IF NEGATE THEN ;
 
 \ pg 20
 
+t: NIP		SWAP DROP ;
 t: =		XOR IF 0 EXIT THEN -1 ;
 t: U<		2DUP XOR 0< IF NIP 0< EXIT THEN - 0< ;
 t: <		2DUP XOR 0< IF DROP 0< EXIT THEN - 0< ;
@@ -121,7 +121,6 @@ t: */ ( n n n -- q )	*/MOD SWAP DROP ;
 \ pg 23 words
 
 t: 1+		1 + ;
-t: 1-		-1 + ;
 t: CELL-	-8 + ;
 t: CELL+	8 + ;
 t: CELLS	8 * ;
@@ -147,6 +146,11 @@ t: -TRAILING	FOR AFT BL OVER R@ + C@ < IF R> 1+ EXIT THEN THEN NEXT 0 ;
 t: PACK$
   ALIGNED DUP >R OVER DUP 0 8 UM/MOD DROP - OVER + 0 SWAP !
   2DUP C! 1+ SWAP CMOVE R> ;
+
+\ Miscellaneous must-haves.
+
+t: 2*		1 LSHIFT ;
+t: 1-		-1 + ;
 
 \ I/O device drivers.
 S" v-mgia.fs" included	( MGIA video )
