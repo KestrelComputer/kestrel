@@ -147,10 +147,107 @@ t: PACK$
   ALIGNED DUP >R OVER DUP 0 8 UM/MOD DROP - OVER + 0 SWAP !
   2DUP C! 1+ SWAP CMOVE R> ;
 
+\ pg 27 words
+
+t: DIGIT	9 OVER < 7 AND + 48 + ;
+t: EXTRACT	0 SWAP UM/MOD SWAP DIGIT ;
+t: <#		PAD HLD ! ;
+t: HOLD		HLD @ 1 - DUP HLD ! C! ;
+t: #		BASE @ EXTRACT HOLD ;
+t: #S		BEGIN # DUP WHILE REPEAT ;
+t: SIGN		0< IF 45 HOLD THEN ;
+t: #>		DROP HLD @ PAD OVER - ;
+t: str		DUP >R ABS <# #S R> SIGN #> ;
+t: HEX		16 BASE ! ;
+t: DECIMAL	10 BASE ! ;
+
+\ pg 31 words
+
+t: ?KEY		'?KEY @EXECUTE ;
+t: KEY		BEGIN ?KEY UNTIL ;
+t: EMIT		'EMIT @EXECUTE ;
+t: NUF?		?KEY DUP IF 2DROP KEY 13 = THEN ;
+t: PACE		11 EMIT ;
+t: SPACE	BL EMIT ;
+t: CHARS ( ANS Conflict )
+   SWAP 0 MAX FOR AFT DUP EMIT THEN NEXT DROP ;
+t: SPACES	BL CHARS ;
+t: TYPE		FOR AFT DUP C@ EMIT 1 + THEN NEXT DROP ;
+t: CR		13 EMIT 10 EMIT ;
+
+: do$		R> R@ R> COUNT + ALIGNED >R SWAP >R ;
+: $"| ( -- a )	do$ ;
+: ."| ( -- )	do$ COUNT TYPE ;
+
+\ pg 28 words
+
+t: .R		>R str R> OVER - SPACES TYPE ;
+t: U.R		>R <# #S #> R> OVER - SPACES TYPE ;
+t: U.		<# #S #> SPACE TYPE ;
+t: .		BASE @ 10 XOR IF U. EXIT THEN str SPACE TYPE ;
+t: ?		@ . ;
+
+\ pg 29 words
+
+t: DIGIT? ( c base -- u t )
+  >R 48 - 9 OVER <
+  IF 7 - DUP 10 < OR THEN DUP R> U< ;
+
+t: NUMBER? ( a -- n T | a F )
+  BASE @ >R 0 OVER COUNT ( a 0 b n)
+  OVER C@ 36 =
+  IF HEX SWAP 1 + SWAP 1 - THEN ( a 0 b' n')
+  OVER C@ 45 = >R ( a 0 b n)
+  SWAP R@ - SWAP R@ + ( a 0 b" n")
+  ?DUP IF
+    1 - ( a 0 b n)
+    FOR DUP >R C@ BASE @ DIGIT? WHILE
+        SWAP BASE @ * + R> 1 +
+      NEXT
+      DROP R@ ( b ?sign) IF NEGATE THEN SWAP
+    ELSE R> R> ( b index) 2DROP ( digit number) 2DROP 0
+    THEN DUP
+  THEN
+  R> ( n ?sign) 2DROP R> BASE ! ;
+
+\ pg 32 words
+
+t: parse ( b u c -- b u delta ; <string> )
+  tmp ! OVER >R DUP ( b u u )
+  IF   1 - tmp @ BL =
+       IF   ( b u' \ 'skip' )
+            FOR   BL OVER C@ - 0< NOT
+            WHILE 1 +
+            NEXT ( b)
+            R> DROP 0 DUP EXIT \ all delim
+            THEN R>
+       THEN OVER SWAP ( b' b' u' \ 'scan' )
+            FOR  tmp @ OVER C@ - tmp @ BL =
+            IF   0<
+            THEN WHILE 1 +
+            NEXT DUP >R ELSE R> DROP DUP 1 + >R
+            THEN OVER - R> R> - EXIT
+  THEN ( b u) OVER R> - ;
+
+t: PARSE ( c -- b u ; <string> )
+  >R TIB >IN @ + #TIB @ >IN @ - R> parse >IN +! ;
+
+t: .(		41 PARSE TYPE ;
+t: (		41 PARSE 2DROP ;
+t: \		#TIB @ >IN ! ;
+
+t: CHAR		BL PARSE DROP C@ ;
+t: TOKEN ( -- a ; <string> )
+  BL PARSE 31 MIN NP @ OVER - CELL- PACK$ ;
+t: WORD ( c -- a ; <string> ) PARSE HERE PACK$ ;
+
+
 \ Miscellaneous must-haves.
 
 t: 2*		1 LSHIFT ;
 t: 1-		-1 + ;
+t: OCTAL	8 BASE ! ;
+t: BINARY	2 BASE ! ;
 
 \ I/O device drivers.
 S" v-mgia.fs" included	( MGIA video )
