@@ -96,6 +96,8 @@ tcreate ctrltab
 t: ctrl?	0 32 WITHIN ;
 t: doctrl	CELLS ctrltab + @EXECUTE ;
 t: !tx		cursor- 255 AND DUP ctrl? IF doctrl ELSE !txraw THEN cursor+ ;
+t: mgia-type	cursor- (TYPE) cursor+ ;
 
-t: 0mgia	0 cursorHidden !  0 cursorVisible !  PAGE cursor+ ;
+t: 0mgia	0 cursorHidden ! 0 cursorVisible ! doLIT mgia-type 'TYPE !
+		doLIT !tx DUP 'EMIT ! 'ECHO ! PAGE cursor+ ;
 

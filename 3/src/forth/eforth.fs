@@ -49,6 +49,9 @@ tuser CURRENT	\ Pointer to vocabulary currently being extended
 tuser CP	\ Pointer to next available space for code
 tuser NP	\ Pointer to bottom of name dictionary
 tuser LAST	\ Pointer to last name in the dictionary
+tuser TIBB	\ The actual terminal input buffer.
+80 /user +!
+tuser 'TYPE	\ execution vector of TYPE
 
 \ pg 19
 
@@ -130,6 +133,14 @@ t: >CHAR	$7F AND DUP 127 BL WITHIN IF DROP 95 THEN ;
 t: DEPTH	SP@ SP0 @ SWAP - 8 / ;
 t: PICK		CELLS CELL+ SP@ + @ ;
 
+\ Miscellaneous must-haves.
+
+t: 2*		1 LSHIFT ;
+t: 1-		-1 + ;
+t: OCTAL	8 BASE ! ;
+t: BINARY	2 BASE ! ;
+
+
 \ pg 24 words
 
 t: +!		SWAP OVER @ + SWAP ! ;
@@ -172,7 +183,8 @@ t: SPACE	BL EMIT ;
 t: CHARS ( ANS Conflict )
    SWAP 0 MAX FOR AFT DUP EMIT THEN NEXT DROP ;
 t: SPACES	BL CHARS ;
-t: TYPE		FOR AFT DUP C@ EMIT 1 + THEN NEXT DROP ;
+t: (TYPE)	FOR AFT DUP C@ EMIT 1 + THEN NEXT DROP ;
+t: TYPE		'TYPE @EXECUTE ;
 t: CR		13 EMIT 10 EMIT ;
 
 : do$		R> R@ R> COUNT + ALIGNED >R SWAP >R ;
@@ -276,25 +288,20 @@ t: TAP ( bot eot cur c -- bot eot cur )
   DUP echo OVER C! 1 + ;
 t: kTAP ( bot eot cur c -- bot eot cur )
   DUP 13 XOR IF 8 XOR IF BL TAP ELSE ^H THEN EXIT
-  THEN SWAP DROP DUP ;
+  THEN DROP NIP DUP ;
 t: accept ( b u -- b u )
   OVER + OVER
   BEGIN 2DUP XOR
   WHILE KEY DUP BL 127 WITHIN 
   IF TAP ELSE 'TAP @EXECUTE THEN
-  REPEAT DROP OVER - ;
+  REPEAT NIP OVER - ;
 t: EXPECT ( b u -- ) 'EXPECT @EXECUTE SPAN ! DROP ;
 t: QUERY ( -- )
   TIB 80 'EXPECT @EXECUTE #TIB ! DROP 0 >IN ! ;
 
-\ Miscellaneous must-haves.
-
-t: 2*		1 LSHIFT ;
-t: 1-		-1 + ;
-t: OCTAL	8 BASE ! ;
-t: BINARY	2 BASE ! ;
 
 \ I/O device drivers.
+
 S" v-mgia.fs" included	( MGIA video )
 S" k-sdl.fs" included	( SDL2 keyboard emulation )
 ( S" k-ps2.fs" included	( KIA PS/2 keyboard )
@@ -302,17 +309,15 @@ S" k-sdl.fs" included	( SDL2 keyboard emulation )
 \ !io is responsible for initializing all the I/O devices
 \ for Forth to run.  This includes clearing the keyboard
 \ queue, initializing the video display hardware, etc.
-t: init		doLIT !tx 'EMIT !
-		doLIT !tx 'ECHO !
-		doLIT ?rx '?KEY !
-		doLIT accept 'EXPECT !
+
+t: init		doLIT accept 'EXPECT !
 		doLIT kTAP 'TAP !
 		SP@ SP0 !
-		$FF1000 0 #TIB 2!
+		TIBB 80 #TIB 2!
 ;
 
 t: !io		0kia 0mgia init
-		BEGIN QUERY CR $FF1000 40 TYPE CR AGAIN
+		BEGIN QUERY CR #TIB 2@ TYPE CR AGAIN
 		;
 
 \ __BOOT__ is the Forth half of the cold bootstrap for the
