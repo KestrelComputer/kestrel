@@ -126,8 +126,7 @@ variable /user
 : u!pfa		/user @ headp @ cell+ ! ;
 
 : tn		headp @ CELL+ CELL+ CELL+ count type ;
-: tt		/user @ hex u. decimal space space tn ;
-: tuser		uhead, 8 ualign tt cr u!pfa 8 /user +! ;
+: tuser		uhead, 8 ualign u!pfa 8 /user +! ;
 : twuser	uhead, 4 ualign u!pfa 4 /user +! ;
 : thuser	uhead, 2 ualign u!pfa 2 /user +! ;
 : tcuser	uhead, u!pfa 1 /user +! ;
