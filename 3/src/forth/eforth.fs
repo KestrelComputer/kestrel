@@ -177,7 +177,7 @@ t: CR		13 EMIT 10 EMIT ;
 
 : do$		R> R@ R> COUNT + ALIGNED >R SWAP >R ;
 : $"| ( -- a )	do$ ;
-: ."| ( -- )	do$ COUNT TYPE ;
+: ."| ( -- )	do$ COUNT TYPE ; tcompile-only
 
 \ pg 28 words
 
@@ -232,14 +232,39 @@ t: parse ( b u c -- b u delta ; <string> )
 t: PARSE ( c -- b u ; <string> )
   >R TIB >IN @ + #TIB @ >IN @ - R> parse >IN +! ;
 
-t: .(		41 PARSE TYPE ;
-t: (		41 PARSE 2DROP ;
-t: \		#TIB @ >IN ! ;
+t: .(		41 PARSE TYPE ; timmediate
+t: (		41 PARSE 2DROP ; timmediate
+t: \		#TIB @ >IN ! ; timmediate
 
 t: CHAR		BL PARSE DROP C@ ;
 t: TOKEN ( -- a ; <string> )
   BL PARSE 31 MIN NP @ OVER - CELL- PACK$ ;
 t: WORD ( c -- a ; <string> ) PARSE HERE PACK$ ;
+
+\ pg 33-34 words
+
+t: NAME> ( a -- xt ) CELL- CELL- CELL- ;
+t: >NAME ( xt -- a ) CELL+ CELL+ CELL+ ;
+
+
+t: SAME? ( a a u -- a a f \ -0+ )
+  FOR AFT
+    OVER C@ OVER C@ - ?DUP IF R> DROP EXIT THEN
+    1+ SWAP 1+ SWAP
+  THEN NEXT 0 ;
+
+t: find ( a va -- xt na | a F )
+  BEGIN DUP WHILE
+    OVER 1+ OVER >NAME COUNT SAME? 0 = IF
+      2DROP NIP DUP >NAME EXIT
+    THEN
+    2DROP CELL+ CELL+ @ -8 AND
+  REPEAT ;
+
+t: NAME? ( a -- xt na | a F )
+  CONTEXT DUP 2@ XOR IF CELL- THEN >R \ context<>also
+  BEGIN R> CELL+ DUP >R @ ?DUP WHILE
+  find ?DUP UNTIL R> DROP EXIT THEN R> DROP 0 ;
 
 
 \ Miscellaneous must-haves.
@@ -274,7 +299,7 @@ t: __BOOT__	!io PANIC ;
 tcode __RESET__
 	0 x9 auipc,
 	24 x9 ip ld,
-	0 x0 up addi,
+	1024 x0 up addi,
 	1024 up dsp addi,
 	1024 dsp rsp addi,
 	next,
