@@ -266,6 +266,26 @@ t: NAME? ( a -- xt na | a F )
   BEGIN R> CELL+ DUP >R @ ?DUP WHILE
   find ?DUP UNTIL R> DROP EXIT THEN R> DROP 0 ;
 
+\ pg 35 words
+
+t: echo  'ECHO @EXECUTE ;
+t: ^H ( b b b -- b b b ) \ backspace
+  >R OVER R> SWAP OVER XOR IF
+  8 echo 32 echo 8 echo 1- THEN ;
+t: TAP ( bot eot cur c -- bot eot cur )
+  DUP echo OVER C! 1 + ;
+t: kTAP ( bot eot cur c -- bot eot cur )
+  DUP 13 XOR IF 8 XOR IF BL TAP ELSE ^H THEN EXIT
+  THEN SWAP DROP DUP ;
+t: accept ( b u -- b u )
+  OVER + OVER
+  BEGIN 2DUP XOR
+  WHILE KEY DUP BL 127 WITHIN 
+  IF TAP ELSE 'TAP @EXECUTE THEN
+  REPEAT DROP OVER - ;
+t: EXPECT ( b u -- ) 'EXPECT @EXECUTE SPAN ! DROP ;
+t: QUERY ( -- )
+  TIB 80 'EXPECT @EXECUTE #TIB ! DROP 0 >IN ! ;
 
 \ Miscellaneous must-haves.
 
@@ -282,7 +302,18 @@ S" k-sdl.fs" included	( SDL2 keyboard emulation )
 \ !io is responsible for initializing all the I/O devices
 \ for Forth to run.  This includes clearing the keyboard
 \ queue, initializing the video display hardware, etc.
-t: !io		0kia 0mgia ;
+t: init		doLIT !tx 'EMIT !
+		doLIT !tx 'ECHO !
+		doLIT ?rx '?KEY !
+		doLIT accept 'EXPECT !
+		doLIT kTAP 'TAP !
+		SP@ SP0 !
+		$FF1000 0 #TIB 2!
+;
+
+t: !io		0kia 0mgia init
+		BEGIN QUERY CR $FF1000 40 TYPE CR AGAIN
+		;
 
 \ __BOOT__ is the Forth half of the cold bootstrap for the
 \ Forth runtime environment.  The __RESET__ word handles
