@@ -17,6 +17,8 @@
 \ high-level dependencies.  These exceptions are typically
 \ related to IRQ and reset entry points.
 
+t: VER		$0101 ;
+
 \ User variables
 tuser SP0	\ pointer to bottom of data stack
 tuser RP0	\ pointer to bottom of return stack
@@ -38,13 +40,7 @@ tuser 'NUMBER	\ execution vector of NUMBER
 tuser HLD	\ Pointer used while building numeric output strings
 tuser HANDLER	\ Holds return stack for error handling
 tuser CONTEXT	\ Area for vocabulary search order.  This is the first to search.
-tuser _ctx1
-tuser _ctx2
-tuser _ctx3
-tuser _ctx4
-tuser _ctx5
-tuser _ctx6
-tuser _ctx7
+7 CELLS /user +! \ reserve space for 7 more search contexts
 tuser CURRENT	\ Pointer to vocabulary currently being extended
 tuser CP	\ Pointer to next available space for code
 tuser NP	\ Pointer to bottom of name dictionary
@@ -52,6 +48,9 @@ tuser LAST	\ Pointer to last name in the dictionary
 tuser TIBB	\ The actual terminal input buffer.
 80 /user +!
 tuser 'TYPE	\ execution vector of TYPE
+tuser forthVoc	\ Forth vocabulary record
+1 CELLS /user +!
+
 
 \ pg 19
 
@@ -207,6 +206,16 @@ t: .		BASE @ 10 XOR IF U. EXIT THEN str SPACE TYPE ;
 t: ?		@ . ;
 
 \ pg 29 words
+
+t: abort" ( f --) DROP ;
+( " to restore syntax highlighting )
+: tplace	dup tc, begin dup while over c@ tc, 1 /string repeat 2drop ;
+: ",		[char] " word count tplace /cell talign ;
+: ~ABORT"	[t'] abort" t, ", ;
+: ~."		[t'] ."| t, ", ;
+
+t: .S ( --) CR DEPTH DUP . ': EMIT SPACE FOR AFT R@ PICK . THEN NEXT ."  <sp" ;
+
 
 t: DIGIT? ( c base -- u t )
   >R 48 - 9 OVER <
@@ -366,38 +375,54 @@ S" k-sdl.fs" included	( SDL2 keyboard emulation )
 \ !io is responsible for initializing all the I/O devices
 \ for Forth to run.  This includes clearing the keyboard
 \ queue, initializing the video display hardware, etc.
+t: !io		0kia 0mgia ;
+t: FORTH	forthVoc CONTEXT ! ;
+t: PRESET	( SP0 SP! ) TIBB 80 #TIB 2! ;
 
-t: init		doLIT accept 'EXPECT !
+\ Shell
+
+tcode RP0!  ( MUST TRACK __reset__ BELOW! )
+	1024 x0 x9 addi, ( user pointer )
+	1024 x9 x9 addi, ( data stack )
+	1024 x9 rsp addi, ( return stack )
+	next,
+tend-code
+
+t: QUIT
+  ( RP0 RP! ) BEGIN
+    BEGIN QUERY .S doLIT EVAL CATCH ?DUP UNTIL
+    'PROMPT @ SWAP NULL$ OVER XOR IF
+      CR #TIB 2@ TYPE CR >IN @ 94 CHARS CR COUNT TYPE ."  ?" CR
+    THEN doLIT .OK XOR IF
+      $1B EMIT  ( ?? )
+    THEN PRESET
+  AGAIN ;
+
+t: U0		SP@ SP0 !
+		doLIT ?rx '?KEY !
+		doLIT EMIT 'EMIT !
+		doLIT accept 'EXPECT !
 		doLIT kTAP 'TAP !
-		DECIMAL
-		doLIT NUMBER? 'NUMBER !
-		0 -8 @ CONTEXT 2!
-		SP@ SP0 !
-		TIBB 80 #TIB 2!
-		65536 CP !
-		$FF9600 NP !
-		doLIT $INTERPRET 'EVAL !
+		doLIT EMIT 'ECHO !
 		doLIT .OK 'PROMPT !
+		DECIMAL
+		doLIT $INTERPRET 'EVAL !
+		doLIT NUMBER? 'NUMBER !
+		65536 CP !
+		$FF0000 NP !
+		doLIT mgia-type 'TYPE !
+		-8 @ DUP forthVoc 2!
+		0 CONTEXT !  0 CONTEXT CELL+ !
 ;
 
-tcreate testinp
-  16 tc,
-  '6 tc, '5 tc, '5 tc, '3 tc, '6 tc, 32 tc, '. tc, 32 tc, 32 tc, 32 tc, 32 tc, 32 tc, 32 tc, 32 tc, 32 tc, 32 tc,
-  '6 tc, '5 tc, '5 tc, '3 tc, '6 tc, 32 tc, 'T tc, 'H tc, 'R tc, 'O tc, 'W tc, 32 tc, 32 tc, 32 tc, 32 tc, 32 tc,
+t: hi
+  !io BASE @ HEX CR ." Kestrel Forth V"
+  VER <# # # '. HOLD # #> TYPE CR ;
 
-t: !io		0kia 0mgia init
-		CR testinp COUNT TYPE CR CR
-		testinp COUNT #TIB 2! 0 >IN !
-		doLIT EVAL CATCH ?DUP IF COUNT .S CR TYPE '? EMIT CR THEN ." DONE" CR
-		SP0 SP! TIBB 80 #TIB 2!
-		BEGIN QUERY CR #TIB 2@ TYPE CR AGAIN
-		;
+\ COLD is the Forth half of the cold bootstrap for the
+\ Forth runtime environment.
 
-\ __BOOT__ is the Forth half of the cold bootstrap for the
-\ Forth runtime environment.  The __RESET__ word handles
-\ setting up the basic Forth virtual machine registers;
-\ __BOOT__ handles everything else.
-t: __BOOT__	!io PANIC ;
+t: COLD		BEGIN U0 DEPTH tmp ! PRESET hi tmp @ $FF4050 ! FORTH QUIT AGAIN ;
 
 \ __RESET__ is the RISC-V half of the cold bootstrap for
 \ the Forth runtime environment.  It's responsible for
@@ -412,7 +437,7 @@ tcode __RESET__
 	1024 up dsp addi,
 	1024 dsp rsp addi,
 	next,
-	t' __BOOT__ t>h cell+ @ t,
+	t' COLD t>h cell+ @ t,
 tend-code
 
 \ BYE terminates the current Forth session, and returns
