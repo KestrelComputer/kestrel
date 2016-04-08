@@ -41,14 +41,14 @@ tuser HLD	\ Pointer used while building numeric output strings
 tuser HANDLER	\ Holds return stack for error handling
 tuser CONTEXT	\ Area for vocabulary search order.  This is the first to search.
 7 CELLS /user +! \ reserve space for 7 more search contexts
-tuser CURRENT	\ Pointer to vocabulary currently being extended
+tuser CURRENT	\ Pointer to descriptor of vocabulary currently being extended
 tuser CP	\ Pointer to next available space for code
 tuser NP	\ Pointer to bottom of name dictionary
 tuser LAST	\ Pointer to last name in the dictionary
 tuser TIBB	\ The actual terminal input buffer.
 80 /user +!
 tuser 'TYPE	\ execution vector of TYPE
-tuser forthVoc	\ Forth vocabulary record
+tuser forthVoc	\ Forth vocabulary descriptor
 1 CELLS /user +!
 
 
@@ -339,7 +339,7 @@ t: $INTERPRET ( a --)
   THROW ;
 
 t: [ ( --) doLIT $INTERPRET 'EVAL ! ; timmediate
-t: .OK ( --) doLIT $INTERPRET 'EVAL @ = IF ."  ok" THEN CR ;
+t: .OK ( --) doLIT $INTERPRET 'EVAL @ = IF ."  ok" ELSE ." >>" THEN CR ;
 t: ?STACK ( --) DEPTH 0< ABORT" underflow" ;
 t: EVAL ( --)
   BEGIN TOKEN DUP C@ WHILE
@@ -367,6 +367,7 @@ S" k-sdl.fs" included	( SDL2 keyboard emulation )
 \ queue, initializing the video display hardware, etc.
 t: !io		0kia 0mgia ;
 t: FORTH	forthVoc CONTEXT ! ;
+t: DEFINITIONS	CONTEXT @ CURRENT ! ;
 t: PRESET	( SP0 SP! ) TIBB 80 #TIB 2! ;
 
 \ Shell
@@ -419,7 +420,80 @@ t: hi
 \ COLD is the Forth half of the cold bootstrap for the
 \ Forth runtime environment.
 
-t: COLD		BEGIN U0 PRESET hi FORTH QUIT AGAIN ;
+t: COLD		BEGIN U0 PRESET hi FORTH DEFINITIONS QUIT AGAIN ;
+
+\ pg 40 words
+
+t: '		TOKEN NAME? IF EXIT THEN THROW ;
+t: ALLOT	CP +! ;
+t: ,		HERE !  1 CELLS ALLOT ;
+t: C,		HERE C!  1 ALLOT ;
+t: [COMPILE]	' , ; timmediate
+t: COMPILE	R> DUP @ , CELL+ >R ;
+t: LITERAL	COMPILE doLIT , ; timmediate
+t: $,"		34 WORD COUNT ALIGNED ALLOT DROP ;
+t: RECURSE	LAST @ , ;
+
+: ~[COMPILE]	t' t, ;
+
+\ pg 42-43 words
+
+t: <MARK	HERE ;
+t: <RESOLVE	, ;
+t: >MARK	HERE 0 , ;
+t: >RESOLVE	<MARK SWAP ! ;
+
+t: FOR		COMPILE >R <MARK ; timmediate tcompile-only
+t: BEGIN	<MARK ; timmediate tcompile-only
+t: NEXT		COMPILE ?next <RESOLVE ; timmediate tcompile-only
+t: UNTIL	COMPILE ?branch <RESOLVE ; timmediate tcompile-only
+t: AGAIN	COMPILE branch <RESOLVE ; timmediate tcompile-only
+t: IF		COMPILE ?branch >MARK ; timmediate tcompile-only
+t: AHEAD	COMPILE branch >MARK ; timmediate tcompile-only
+t: REPEAT	[COMPILE] AGAIN >RESOLVE ; timmediate tcompile-only
+t: THEN		>RESOLVE ; timmediate tcompile-only
+t: AFT		DROP [COMPILE] AHEAD [COMPILE] BEGIN SWAP ; timmediate tcompile-only
+t: ELSE		[COMPILE] AHEAD SWAP [COMPILE] THEN ; timmediate tcompile-only
+t: WHEN		[COMPILE] IF OVER ; timmediate tcompile-only
+t: WHILE	[COMPILE] IF SWAP ; timmediate tcompile-only
+t: DO		COMPILE SWAP COMPILE >R COMPILE >R <MARK ; timmediate tcompile-only
+t: LOOP		COMPILE (doloop) <RESOLVE ; timmediate tcompile-only
+t: +LOOP	COMPILE (do+loop) <RESOLVE ; timmediate tcompile-only
+
+t: ABORT"	COMPILE abort" $," ; timmediate tcompile-only
+
+t: $"		COMPILE $"| $," ; timmediate
+t: ."		COMPILE ."| $," ; timmediate
+
+: ~$"		[t'] $"| t, 34 word count dup tc, romp @ over tallot swap move /cell talign ;
+
+\ pg 44-45 words
+
+t: ?UNIQUE	DUP NAME? IF ."  redef " OVER COUNT TYPE THEN DROP ;
+t: $,n
+  DUP C@ IF
+    ?UNIQUE DUP LAST ! HERE ALIGNED SWAP CELL- CURRENT @ @ OVER !
+    CELL- DUP NP ! ! EXIT
+  THEN $" name" THROW ;
+t: imm?		CELL+ CELL+ @ 1 AND ;
+t: $COMPILE	NAME? IF DUP imm? IF EXECUTE ELSE , THEN EXIT THEN
+		'NUMBER @EXECUTE IF [COMPILE] LITERAL EXIT THEN
+		THROW ;
+t: ]		doLIT $COMPILE 'EVAL ! ; timmediate
+t: OVERT	LAST @ CURRENT @ ! ;
+t: ;		COMPILE EXIT [COMPILE] [ OVERT ; timmediate
+t: ?safe	CP @ NP @ U< 0 = ABORT" out of space" ;
+t: n,		-8 NP +!  ?safe  NP @ ! ;
+t: dec		DUP 1+ ALIGNED NEGATE NP +! ;
+t: padded	NP @ OVER 8 + -8 AND 0 FILL ;
+t: nplace	padded DUP NP @ C! NP @ 1+ SWAP CMOVE ;
+t: nname,	dec ?safe nplace ;
+t: nhead,	nname, CURRENT @ @ n, HERE n, n, NP @ LAST ! ;
+t: :		doLIT (enter) @ BL PARSE nhead, [COMPILE] ] ;
+t: or-nfa	LAST @ CELL+ CELL+ @ OR LAST @ CELL+ CELL+ ! ;
+t: IMMEDIATE	1 or-nfa ;
+t: COMPILE-ONLY	2 or-nfa ;
+
 
 \ __RESET__ is the RISC-V half of the cold bootstrap for
 \ the Forth runtime environment.  It's responsible for
