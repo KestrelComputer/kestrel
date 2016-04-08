@@ -264,7 +264,6 @@ t: WORD ( c -- a ; <string> ) PARSE HERE PACK$ ;
 t: NAME> ( a -- xt ) CELL- CELL- CELL- ;
 t: >NAME ( xt -- a ) CELL+ CELL+ CELL+ ;
 
-
 t: SAME? ( a a u -- a a f \ -0+ )
   FOR AFT
     OVER C@ OVER C@ - ?DUP IF R> DROP EXIT THEN
@@ -282,9 +281,10 @@ t: find ( a va -- xt na | a F )
   REPEAT ;
 
 t: NAME? ( a -- xt na | a F )
-  CONTEXT DUP 2@ XOR IF CELL- THEN >R \ context<>also
+  CONTEXT @ DUP 2@ XOR IF CELL- THEN >R \ context<>also
   BEGIN R> CELL+ DUP >R @ ?DUP WHILE
   find ?DUP UNTIL R> DROP EXIT THEN R> DROP 0 ;
+
 
 \ pg 35 words
 
@@ -331,12 +331,12 @@ t: .S ( --) CR DEPTH DUP . ': EMIT SPACE FOR AFT R@ PICK . THEN NEXT ."  <sp" ;
 \ pg 38 words
 
 t: $INTERPRET ( a --)
-  .S NAME? IF
+  NAME? IF
     DUP CELL+ CELL+ @ 2 AND ABORT" Compile-only"
     EXECUTE EXIT
   THEN
-  .S 'NUMBER @EXECUTE IF EXIT THEN
-  .S THROW ;
+  'NUMBER @EXECUTE IF EXIT THEN
+  THROW ;
 
 t: [ ( --) doLIT $INTERPRET 'EVAL ! ; timmediate
 t: .OK ( --) doLIT $INTERPRET 'EVAL @ = IF ."  ok" THEN CR ;
@@ -380,7 +380,7 @@ tend-code
 
 t: QUIT
   RP0! BEGIN
-    BEGIN QUERY .S doLIT EVAL CATCH ?DUP UNTIL
+    BEGIN QUERY doLIT EVAL CATCH ?DUP UNTIL
     'PROMPT @ SWAP NULL$ OVER XOR IF
       CR #TIB 2@ TYPE CR >IN @ 94 CHARS CR COUNT TYPE ."  ?" CR
     THEN doLIT .OK XOR IF
@@ -405,9 +405,16 @@ t: U0		SP@ SP0 !
 		0 CONTEXT !  0 CONTEXT CELL+ !
 ;
 
+t: .VER		BASE @ HEX VER <# # # '. HOLD # #> TYPE BASE ! ;
+t: UNUSED	CP 2@ - ;
+t: .FREE	UNUSED <# #S #> TYPE ."  bytes free." ;
+
 t: hi
-  !io BASE @ HEX CR ." Kestrel Forth V"
-  VER <# # # '. HOLD # #> TYPE CR ;
+  !io
+  ."                         **** Kestrel-3 Forth V" .VER ."  ****" CR CR
+  ."                 Based on eForth V1.01 by Bill Muench, C. H. Ting" CR CR
+  ."                      " .FREE ."   Licensed MPLv2." CR CR
+  .OK ;
 
 \ COLD is the Forth half of the cold bootstrap for the
 \ Forth runtime environment.
