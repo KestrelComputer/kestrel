@@ -128,7 +128,7 @@ t: popq		DUP $0200000000000001 C! ;
 
 \ ?kia is intended to have a similar interface as ?rx.
 
-t: ?kia		kia? IF scan -1 popq ELSE 0 0 THEN ;
+t: ?kia		kia? IF scan -1 popq ELSE 0 THEN ;
 
 \ If you have a raw KIA scancode, then you should be
 \ able to filter it through >ascii to compute the
@@ -139,16 +139,16 @@ tglobal shiftBits
 
 t: clr		shiftBits @ SWAP NOT AND ;
 t: set		shiftBits @ OR ;
-t: !bits	OVER 0< IF clr ELSE set THEN shiftBits ! ;
+t: !bits	OVER 0< IF clr ELSE set THEN shiftBits ! DROP ;
 t: shift	1 OVER 7 AND LSHIFT !bits ;
-t: ?shift	DUP $F8 AND $E0 = IF shift THEN 0 ;
+t: ?shift	DUP $F8 AND $E0 = IF shift THEN DEPTH $FF2000 ! 0 ;
 t: mirror	DUP 4 RSHIFT OR ;
 t: table	shiftBits @ mirror 7 AND CELLS lookups + @ ;
 t: lookup	table SWAP 255 AND + C@ -1 ;
-t: ?chr		DUP 0< IF DROP 0 0 EXIT THEN lookup ;
+t: ?chr		DUP 0< IF DROP 0 EXIT THEN lookup ;
 t: >ascii	DUP 2* 0< IF ?shift ELSE ?chr THEN ;
 
 t: ?rx		?kia IF >ascii ELSE 0 THEN ;
 
-t: 0kia		0 shiftBits ! ;
+t: 0kia		0 shiftBits ! doLIT ?rx '?KEY ! ;
 

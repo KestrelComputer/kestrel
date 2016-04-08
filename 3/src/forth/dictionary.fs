@@ -48,7 +48,7 @@ safety on
 
 : check			romp @ headp @ u>= abort" out of header space" ;
 : safe			safety @ if check then ;
-: rom0			rom /rom $CC fill  rom romp ! headEnd headp ! headEnd tcontext ! ;
+: rom0			rom /rom $CC fill  rom romp ! headEnd headp ! 0 tcontext ! ;
 : h>t ( a - ta )	rom - romOrg + ;
 : t>h ( ta - a )	romOrg - rom + ;
 
@@ -75,37 +75,78 @@ rom0
 \ 
 \ Headers take on the following structure:
 \ 
-\ +0	Code field address
-\ +8	Parameter field address
-\ +16	Name length
-\ +17.. Name
+\       +--------------------------+
+\ +0	| Code field address       |
+\       +--------------------------+
+\ +8	| Parameter field address  |
+\       +--------------------------+
+\ +16	| Link address | 0 | C | I |
+\       +--------------------------+
+\ +24   | Len | Name               |
+\ ...   \                          \
+\ ...	| ...name | opt. padding   |
+\       +--------------------------+
+\
+\ The code field address points to the executor or handler
+\ for the word; this must be a chunk of RISC-V machine code.
+\ It's what provides the run-time semantics for the word.
+\ 
+\ The parameter field address really depends on the nature
+\ of the handler for the word.  For USER and GLOBAL variables,
+\ the parameter field address is really a byte offset from some
+\ base address or register.  For most other words, it points
+\ into the dictionary space, usually at either a buffer of some
+\ kind, or a list of other header references ("execution
+\ tokens").
+\ 
+\ The link address points to the next most recently defined
+\ word in the current vocabulary.  Since headers are always
+\ aligned to 8 bytes, the lower three bits are re-used as flags.
+\ 
+\ The C bit is set for a word which is to be used only when
+\ compiling.  It's typically asserted by the COMPILE-ONLY word.
+\ The I bit is set for a word which is to be invoked, rather
+\ than compiled, during compilation.  The word IMMEDIATE sets
+\ this flag.
+\ 
+\ The Name field consists of a single byte containing the
+\ length of the name that follows, then following that,
+\ the actual bytes of the name.  Up to 255 characters are
+\ supported in this version of Forth.  Note that names are
+\ padded with NULs to make the total name field an even
+\ multiple of eight in length.
 \ 
 \ To construct a header, you typically invoke
 \ tname, to place the name in memory first, followed by
-\ two calls to th, to construct the CFA and PFA.  After
-\ doing that, headp will point to the new header.
+\ three calls to th, to construct the CFA, PFA, and link.
+\ After doing that, headp will point to the new header.
 \ The new word will be "smudged" though, since the
 \ search context will not have been updated yet.
 
 
 : round			CellMask + -/cell and ;
 : dec ( a u - a u )	dup 1+ round negate headp +! ;
-: place ( a u - )	dup headp @ c!	headp @ 1+ swap move ;
+: padded		headp @ over 8 + -8 and 0 fill ;
+			( 8 + instead of 7 + to acct. for length byte )
+: place ( a u - )	padded dup headp @ c! headp @ 1+ swap move ;
 : tname, ( a u - )	dec safe place ;
 : th, ( n - )		-/cell headp +!  safe  headp @ ! ;
-: thead, ( cfa a u - )	tname, there th, th, ;
-: treveal		headp @ tcontext ! ;
+: thead, ( cfa a u - )	tname, tcontext @ th, there th, th, ;
+: treveal		headp @ h>t tcontext ! ;
 
-: skip ( a - a' )	2 cells + dup c@ 1+ round + ;
-			( 1+ accounts for length byte )
+: lfa			tcontext @ t>h 2 cells + ;
+: timmediate		lfa dup @ 1 or swap ! ;
+: tcompile-only		lfa dup @ 2 or swap ! ;
+
+: skip ( a - a' )	2 cells + @ -8 and ;
 
 : 3dup ( abc - abcabc)	>r 2dup r@ -rot r> ;
 : tfind ( a u - x T | a u F )
-  tcontext @ begin
-    dup headEnd u>= if drop 0 exit then
-    3dup 2 cells + count compare 0= if nip nip -1 exit then
+  tcontext @
+  begin dup while
+    t>h 3dup 3 cells + count compare 0= if nip nip -1 exit then
     skip
-  again ;
+  repeat ;
 
 : t'	32 word count tfind 0= if type -1 abort" ?" then h>t ;
 : [t']	t' postpone literal ; immediate

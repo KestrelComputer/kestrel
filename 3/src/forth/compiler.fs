@@ -14,7 +14,7 @@ tcode (enter)
 	next,
 tend-code
 
-tcode (dolit)
+tcode doLIT
 	0 ip x9 ld,
 	8 ip ip addi,
 	-8 dsp dsp addi,
@@ -28,7 +28,7 @@ tend-code
 : negative?	[char] - over = swap ;
 : digit?	$30 $3A within ;
 : nbr?		hex? char? negative? digit? or or or ;
-: nbr		over c@ nbr? if evaluate [t'] (dolit) t, t, else err then ;
+: nbr		over c@ nbr? if evaluate [t'] doLIT t, t, else err then ;
 : docolon	[t'] (enter) t>h @ ;
 : :head,	docolon 32 word count thead, ;
 : ?refill	>in @ source nip = if refill 0= abort" EOF?" then ;
@@ -125,6 +125,7 @@ variable /user
 : ualign	dup 1- /user @ + swap negate and /user ! ;
 : u!pfa		/user @ headp @ cell+ ! ;
 
+: tn		headp @ CELL+ CELL+ CELL+ count type ;
 : tuser		uhead, 8 ualign u!pfa 8 /user +! ;
 : twuser	uhead, 4 ualign u!pfa 4 /user +! ;
 : thuser	uhead, 2 ualign u!pfa 2 /user +! ;
