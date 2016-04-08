@@ -187,9 +187,9 @@ t: (TYPE)	FOR AFT DUP C@ EMIT 1 + THEN NEXT DROP ;
 t: TYPE		'TYPE @EXECUTE ;
 t: CR		13 EMIT 10 EMIT ;
 
-: do$		R> R@ R> COUNT + ALIGNED >R SWAP >R ;
-: $"| ( -- a )	do$ ;
-: ."| ( -- )	do$ COUNT TYPE ; tcompile-only
+t: do$		R> R@ R> COUNT + ALIGNED >R SWAP >R ;
+t: $"| ( -- a )	do$ ;
+t: ."| ( -- )	do$ COUNT TYPE ; tcompile-only
 
 \ pg 28 words
 
@@ -266,8 +266,11 @@ t: SAME? ( a a u -- a a f \ -0+ )
   THEN NEXT 0 ;
 
 t: find ( a va -- xt na | a F )
+  ( TODO Find a better way to scan the dictionary. )
   BEGIN DUP WHILE
-    OVER 1+ OVER >NAME COUNT SAME? 0 = IF
+    OVER COUNT ( a va a' l )
+    >R OVER >NAME 1+ R> ( a va a' va+1 l )
+    SAME? 0 = IF
       2DROP NIP DUP >NAME EXIT
     THEN
     2DROP CELL+ CELL+ @ -8 AND
@@ -299,6 +302,44 @@ t: EXPECT ( b u -- ) 'EXPECT @EXECUTE SPAN ! DROP ;
 t: QUERY ( -- )
   TIB 80 'EXPECT @EXECUTE #TIB ! DROP 0 >IN ! ;
 
+\ pg 36-37 words
+
+t: CATCH ( xt -- 0 | err# )
+  SP@ >R  HANDLER @ >R  RP@ HANDLER ! EXECUTE R> HANDLER !  R> DROP  0 ;
+
+t: THROW ( err# -- err# )
+  HANDLER @ RP!  R> HANDLER !  R> SWAP >R SP! DROP R> ;
+
+tcreate NULL$ 0 t,
+
+t: ABORT ( --) NULL$ THROW ;
+
+t: abort" ( f --) IF do$ THROW THEN do$ DROP ;
+( " to restore syntax highlighting )
+
+: tplace	dup tc, begin dup while over c@ tc, 1 /string repeat 2drop ;
+: ",		[char] " word count tplace /cell talign ;
+: ~ABORT"	[t'] abort" t, ", ;
+: ~."		[t'] ."| t, ", ;
+
+\ pg 38 words
+
+t: .S ( --) CR DEPTH FOR AFT R@ PICK . THEN NEXT ."  <sp" ;
+t: $INTERPRET ( a --)
+  NAME? IF DUP COUNT TYPE CR
+    DUP CELL+ CELL+ @ 2 AND IF ABORT" Compile-only" THEN .S CR
+    EXECUTE .S CR EXIT
+  THEN
+  'NUMBER @EXECUTE IF EXIT THEN
+  THROW ;
+
+t: [ ( --) doLIT $INTERPRET 'EVAL ! ; timmediate
+t: .OK ( --) doLIT $INTERPRET 'EVAL @ = IF ."  ok" THEN CR ;
+t: ?STACK ( --) DEPTH 0< ABORT" underflow" ;
+t: EVAL ( --)
+  BEGIN TOKEN DUP C@ WHILE
+    'EVAL @EXECUTE ?STACK
+  REPEAT DROP 'PROMPT @EXECUTE ;
 
 \ I/O device drivers.
 
@@ -312,11 +353,21 @@ S" k-sdl.fs" included	( SDL2 keyboard emulation )
 
 t: init		doLIT accept 'EXPECT !
 		doLIT kTAP 'TAP !
+		DECIMAL
+		doLIT NUMBER? 'NUMBER !
+		0 -8 @ CONTEXT 2!
 		SP@ SP0 !
 		TIBB 80 #TIB 2!
 ;
 
+tcreate testinp
+   2 tc,
+  '- tc, '1 tc, 32 tc, '2 tc, '5 tc, '5 tc, 32 tc, '6 tc, '5 tc, '5 tc, '3 tc, '6 tc, 32 tc, '* tc, 32 tc, '! tc,
+
 t: !io		0kia 0mgia init
+		CR testinp COUNT TYPE CR CR
+		testinp doLIT $INTERPRET CATCH IF COUNT TYPE '? EMIT CR 0 THEN $FF0000 ! $FF0008 !
+		SP0 SP!
 		BEGIN QUERY CR #TIB 2@ TYPE CR AGAIN
 		;
 
