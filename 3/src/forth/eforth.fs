@@ -68,6 +68,8 @@ t: D+		>R SWAP >R UM+ R> R> + + ;
 t: -		NEGATE + ;
 t: ABS		DUP 0< IF NEGATE THEN ;
 
+t: -ROT		ROT ROT ;
+
 \ pg 20
 
 t: NIP		SWAP DROP ;
@@ -154,8 +156,13 @@ t: @EXECUTE	@ ?DUP IF EXECUTE THEN ;
 t: CMOVE	FOR AFT >R DUP C@ R@ C! 1+ R> 1+ THEN NEXT 2DROP ;
 t: FILL		SWAP FOR SWAP AFT 2DUP C! 1+ THEN NEXT 2DROP ;
 t: -TRAILING	FOR AFT BL OVER R@ + C@ < IF R> 1+ EXIT THEN THEN NEXT 0 ;
-t: PACK$
-  ALIGNED DUP >R OVER DUP 0 8 UM/MOD DROP - OVER + 0 SWAP !
+t: PACK$ ( b u a -- a )
+  ALIGNED DUP >R
+    2DUP C!
+    1+ SWAP CMOVE
+  R> ;
+
+t: oldPACK$  ALIGNED DUP >R OVER DUP 0 8 UM/MOD DROP - OVER + 0 SWAP !
   2DUP C! 1+ SWAP CMOVE R> ;
 
 \ pg 27 words
@@ -268,8 +275,7 @@ t: SAME? ( a a u -- a a f \ -0+ )
 t: find ( a va -- xt na | a F )
   ( TODO Find a better way to scan the dictionary. )
   BEGIN DUP WHILE
-    OVER COUNT ( a va a' l )
-    >R OVER >NAME 1+ R> ( a va a' va+1 l )
+    2DUP >NAME DUP C@ 1+ ( a va a na l)
     SAME? 0 = IF
       2DROP NIP DUP >NAME EXIT
     THEN
@@ -308,7 +314,7 @@ t: CATCH ( xt -- 0 | err# )
   SP@ >R  HANDLER @ >R  RP@ HANDLER ! EXECUTE R> HANDLER !  R> DROP  0 ;
 
 t: THROW ( err# -- err# )
-  HANDLER @ RP!  R> HANDLER !  R> SWAP >R SP! DROP R> ;
+  HANDLER @ RP! R> HANDLER ! R> SWAP >R SP! DROP R> ;
 
 tcreate NULL$ 0 t,
 
@@ -316,19 +322,19 @@ t: ABORT ( --) NULL$ THROW ;
 
 t: abort" ( f --) IF do$ THROW THEN do$ DROP ;
 ( " to restore syntax highlighting )
-
 : tplace	dup tc, begin dup while over c@ tc, 1 /string repeat 2drop ;
 : ",		[char] " word count tplace /cell talign ;
 : ~ABORT"	[t'] abort" t, ", ;
 : ~."		[t'] ."| t, ", ;
 
+t: .S ( --) CR DEPTH DUP . ': EMIT SPACE FOR AFT R@ PICK . THEN NEXT ."  <sp" ;
+
 \ pg 38 words
 
-t: .S ( --) CR DEPTH FOR AFT R@ PICK . THEN NEXT ."  <sp" ;
 t: $INTERPRET ( a --)
-  NAME? IF DUP COUNT TYPE CR
-    DUP CELL+ CELL+ @ 2 AND IF ABORT" Compile-only" THEN .S CR
-    EXECUTE .S CR EXIT
+  NAME? IF
+    DUP CELL+ CELL+ @ 2 AND ABORT" Compile-only"
+    EXECUTE EXIT
   THEN
   'NUMBER @EXECUTE IF EXIT THEN
   THROW ;
@@ -340,6 +346,16 @@ t: EVAL ( --)
   BEGIN TOKEN DUP C@ WHILE
     'EVAL @EXECUTE ?STACK
   REPEAT DROP 'PROMPT @EXECUTE ;
+
+\ pg 47 words
+
+t: _TYPE ( b u --) FOR AFT DUP C@ >CHAR EMIT 1 + THEN NEXT DROP ;
+t: dm+ ( b u -- b ) OVER 4 U.R SPACE FOR AFT DUP C@ 3 U.R 1 + THEN NEXT ;
+t: DUMP ( b u --)
+  BASE @ >R 
+  HEX  16 /
+  FOR CR 16 2DUP dm+ ROT ROT 2 SPACES _TYPE NUF? NOT WHILE
+  NEXT ELSE R> DROP THEN DROP  R> BASE ! ;
 
 \ I/O device drivers.
 
@@ -358,16 +374,22 @@ t: init		doLIT accept 'EXPECT !
 		0 -8 @ CONTEXT 2!
 		SP@ SP0 !
 		TIBB 80 #TIB 2!
+		65536 CP !
+		$FF9600 NP !
+		doLIT $INTERPRET 'EVAL !
+		doLIT .OK 'PROMPT !
 ;
 
 tcreate testinp
-   2 tc,
-  '- tc, '1 tc, 32 tc, '2 tc, '5 tc, '5 tc, 32 tc, '6 tc, '5 tc, '5 tc, '3 tc, '6 tc, 32 tc, '* tc, 32 tc, '! tc,
+  16 tc,
+  '6 tc, '5 tc, '5 tc, '3 tc, '6 tc, 32 tc, '. tc, 32 tc, 32 tc, 32 tc, 32 tc, 32 tc, 32 tc, 32 tc, 32 tc, 32 tc,
+  '6 tc, '5 tc, '5 tc, '3 tc, '6 tc, 32 tc, 'T tc, 'H tc, 'R tc, 'O tc, 'W tc, 32 tc, 32 tc, 32 tc, 32 tc, 32 tc,
 
 t: !io		0kia 0mgia init
 		CR testinp COUNT TYPE CR CR
-		testinp doLIT $INTERPRET CATCH IF COUNT TYPE '? EMIT CR 0 THEN $FF0000 ! $FF0008 !
-		SP0 SP!
+		testinp COUNT #TIB 2! 0 >IN !
+		doLIT EVAL CATCH ?DUP IF COUNT .S CR TYPE '? EMIT CR THEN ." DONE" CR
+		SP0 SP! TIBB 80 #TIB 2!
 		BEGIN QUERY CR #TIB 2@ TYPE CR AGAIN
 		;
 
