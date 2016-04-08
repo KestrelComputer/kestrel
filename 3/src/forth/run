@@ -1,0 +1,4 @@
+#!/bin/bash
+gforth forth.fs -e bye
+e romfile forth.rom
+
