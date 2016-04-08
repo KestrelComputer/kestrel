@@ -207,16 +207,6 @@ t: ?		@ . ;
 
 \ pg 29 words
 
-t: abort" ( f --) DROP ;
-( " to restore syntax highlighting )
-: tplace	dup tc, begin dup while over c@ tc, 1 /string repeat 2drop ;
-: ",		[char] " word count tplace /cell talign ;
-: ~ABORT"	[t'] abort" t, ", ;
-: ~."		[t'] ."| t, ", ;
-
-t: .S ( --) CR DEPTH DUP . ': EMIT SPACE FOR AFT R@ PICK . THEN NEXT ."  <sp" ;
-
-
 t: DIGIT? ( c base -- u t )
   >R 48 - 9 OVER <
   IF 7 - DUP 10 < OR THEN DUP R> U< ;
@@ -341,12 +331,12 @@ t: .S ( --) CR DEPTH DUP . ': EMIT SPACE FOR AFT R@ PICK . THEN NEXT ."  <sp" ;
 \ pg 38 words
 
 t: $INTERPRET ( a --)
-  NAME? IF
+  .S NAME? IF
     DUP CELL+ CELL+ @ 2 AND ABORT" Compile-only"
     EXECUTE EXIT
   THEN
-  'NUMBER @EXECUTE IF EXIT THEN
-  THROW ;
+  .S 'NUMBER @EXECUTE IF EXIT THEN
+  .S THROW ;
 
 t: [ ( --) doLIT $INTERPRET 'EVAL ! ; timmediate
 t: .OK ( --) doLIT $INTERPRET 'EVAL @ = IF ."  ok" THEN CR ;
@@ -389,7 +379,7 @@ tcode RP0!  ( MUST TRACK __reset__ BELOW! )
 tend-code
 
 t: QUIT
-  ( RP0 RP! ) BEGIN
+  RP0! BEGIN
     BEGIN QUERY .S doLIT EVAL CATCH ?DUP UNTIL
     'PROMPT @ SWAP NULL$ OVER XOR IF
       CR #TIB 2@ TYPE CR >IN @ 94 CHARS CR COUNT TYPE ."  ?" CR
@@ -422,7 +412,7 @@ t: hi
 \ COLD is the Forth half of the cold bootstrap for the
 \ Forth runtime environment.
 
-t: COLD		BEGIN U0 DEPTH tmp ! PRESET hi tmp @ $FF4050 ! FORTH QUIT AGAIN ;
+t: COLD		BEGIN U0 PRESET hi FORTH QUIT AGAIN ;
 
 \ __RESET__ is the RISC-V half of the cold bootstrap for
 \ the Forth runtime environment.  It's responsible for
