@@ -413,9 +413,14 @@ t: .FREE	UNUSED <# #S #> TYPE ."  bytes free." ;
 t: hi
   !io
   ."                         **** Kestrel-3 Forth V" .VER ."  ****" CR CR
-  ."                 Based on eForth V1.01 by Bill Muench, C. H. Ting" CR CR
   ."                      " .FREE ."   Licensed MPLv2." CR CR
   .OK ;
+
+t: .CREDITS	CR ." Copyright 2016 Samuel A. Falvo II.  This software is provided" CR
+		." under the Mozilla Public License V2.0.  If you have not received" CR
+		." a copy of the license, you may find a copy online at:" CR CR
+		." https://www.mozilla.org/en-US/MPL/2.0/" CR CR
+		." Based on eForth V1.01 by Bill Muench, C. H. Ting" CR ;
 
 \ COLD is the Forth half of the cold bootstrap for the
 \ Forth runtime environment.
