@@ -176,3 +176,13 @@ tcode RSHIFT
 	next,
 tend-code
 
+\ Update the assembler's linkage recorder, since the assembler is
+\ loaded before we have full knowledge of the compiler's state.
+
+variable prev-linkage
+: asm-linkage	/globals @ $FFFFFFFFFFFFFFF0 t>h !
+		/user @ $FFFFFFFFFFFFFFE8 t>h !
+		prev-linkage @ EXECUTE ;
+linkage @ prev-linkage !
+' asm-linkage linkage !
+

@@ -368,7 +368,7 @@ S" k-sdl.fs" included	( SDL2 keyboard emulation )
 t: !io		0kia 0mgia ;
 t: FORTH	forthVoc CONTEXT ! ;
 t: DEFINITIONS	CONTEXT @ CURRENT ! ;
-t: PRESET	( SP0 SP! ) TIBB 80 #TIB 2! ;
+t: PRESET	TIBB 80 #TIB 2!  -16 @ /GLOBALS ! -24 @ /USER ! ;
 
 \ Shell
 
@@ -499,6 +499,17 @@ t: or-nfa	LAST @ CELL+ CELL+ @ OR LAST @ CELL+ CELL+ ! ;
 t: IMMEDIATE	1 or-nfa ;
 t: COMPILE-ONLY	2 or-nfa ;
 
+t: !pfa		LAST @ CELL+ ! ;
+t: !user	/USER @ ALIGNED DUP !pfa 8 + /USER ! ;
+t: !cuser	/USER @ DUP !pfa 1+ /USER ! ;
+
+t: CREATE	doLIT (dovar) @ BL PARSE nhead, OVERT ;
+t: VARIABLE	CREATE 0 , ;
+t: CONSTANT	doLIT (doglobal) @ BL PARSE nhead, OVERT !pfa ;
+t: GLOBAL	/GLOBALS @ ALIGNED DUP CONSTANT  8 + /GLOBALS ! ;
+t: CGLOBAL	/GLOBALS @ DUP CONSTANT 1+ /GLOBALS ! ;
+t: USER		doLIT (douser) @ BL PARSE nhead, OVERT !user ;
+t: CUSER	doLIT (douser) @ BL PARSE nhead, OVERT !cuser ;
 
 \ __RESET__ is the RISC-V half of the cold bootstrap for
 \ the Forth runtime environment.  It's responsible for

@@ -115,9 +115,12 @@
 : machTrap	S" __MACHTRAP__" $FFFFFFFFFFFFFEC0 vec, ;
 : nmi		S" __NMI__" $FFFFFFFFFFFFFEFC vec, ;
 : reset		S" __RESET__" $FFFFFFFFFFFFFF00 vec, ;
-: linkage	headp @ h>t $FFFFFFFFFFFFFFF8 t>h ! ;
+variable linkage
 : traps		userTrap superTrap hyperTrap machTrap nmi reset ;
-: vectors	safety off traps linkage ;
+: vectors	safety off traps linkage @ EXECUTE ;
+
+: (linkage)	headp @ h>t $FFFFFFFFFFFFFFF8 t>h ! ;
+' (linkage) linkage !
 
 variable romfile
 
