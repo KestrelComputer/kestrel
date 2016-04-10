@@ -313,7 +313,7 @@ t: CATCH ( xt -- 0 | err# )
   SP@ >R  HANDLER @ >R  RP@ HANDLER ! EXECUTE R> HANDLER !  R> DROP  0 ;
 
 t: THROW ( err# -- err# )
-  HANDLER @ RP! R> HANDLER ! R> SWAP >R SP! DROP R> ;
+  ?DUP IF HANDLER @ RP! R> HANDLER ! R> SWAP >R SP! DROP R> THEN ;
 
 tcreate NULL$ 0 t,
 
