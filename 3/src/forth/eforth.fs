@@ -435,7 +435,7 @@ t: C,		HERE C!  1 ALLOT ;
 t: [COMPILE]	' , ; timmediate
 t: COMPILE	R> DUP @ , CELL+ >R ;
 t: LITERAL	COMPILE doLIT , ; timmediate
-t: $,"		34 WORD COUNT ALIGNED ALLOT DROP ;
+t: $,"		34 WORD COUNT 1+ ALIGNED ALLOT DROP ;
 t: RECURSE	LAST @ , ;
 
 : ~[COMPILE]	t' t, ;
