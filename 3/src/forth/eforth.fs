@@ -407,13 +407,12 @@ t: U0		SP@ SP0 !
 ;
 
 t: .VER		BASE @ HEX VER <# # # '. HOLD # #> TYPE BASE ! ;
-t: UNUSED	CP 2@ - ;
-t: .FREE	UNUSED <# #S #> TYPE ."  bytes free." ;
+t: .FREE	CP 2@ - U. ;
 
 t: hi
   !io
   ."                         **** Kestrel-3 Forth V" .VER ."  ****" CR CR
-  ."                      " .FREE ."   Licensed MPLv2." CR CR
+  ."                     " .FREE ."  bytes free.   Licensed MPLv2." CR CR
   .OK ;
 
 t: .CREDITS	CR ." Copyright 2016 Samuel A. Falvo II.  This software is provided" CR
@@ -510,6 +509,18 @@ t: GLOBAL	/GLOBALS @ ALIGNED DUP CONSTANT  8 + /GLOBALS ! ;
 t: CGLOBAL	/GLOBALS @ DUP CONSTANT 1+ /GLOBALS ! ;
 t: USER		doLIT (douser) @ BL PARSE nhead, OVERT !user ;
 t: CUSER	doLIT (douser) @ BL PARSE nhead, OVERT !cuser ;
+
+t: .BASE	BASE @ DECIMAL DUP . BASE ! ;
+t: !CSP		SP@ CSP ! ;
+t: ?CSP		SP@ CSP @ XOR ABORT" stack imbalance" ;
+
+t: .ID		?DUP IF >NAME COUNT _TYPE EXIT THEN ." {no name}" ;
+t: WORDS
+  CR CONTEXT @ @
+  BEGIN ?DUP
+  WHILE DUP SPACE .ID
+	CELL+ CELL+ @ -8 AND NUF?
+  UNTIL DROP THEN ;
 
 \ __RESET__ is the RISC-V half of the cold bootstrap for
 \ the Forth runtime environment.  It's responsible for
