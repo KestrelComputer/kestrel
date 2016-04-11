@@ -47,7 +47,7 @@ tuser mode	  \ Change to bitmap later.
 tuser wordname	  \ Temporary buffer for dynamic name lookup
 
 t: 0editor	1 scr ! 0 x ! 0 y ! 'c mode !
-		$242435 wordname ! ;
+		$242405 wordname ! ;
 
 ( Editor Display )
 
@@ -92,13 +92,13 @@ t: up -1 y +! bounds ;
 t: down 1 y +! bounds ;
 t: beep 7 EMIT ;
 t: nextline y @ 15 < IF flushLeft down THEN ;
-t: next x @ 63 = IF nextline EXIT THEN right ;
+t: nextchar x @ 63 = IF nextline EXIT THEN right ;
 
 ( Editor Insert/Replace Text )
 
 t: curln 0 y @ where ;
 t: eol 63 y @ where ;
-t: place wh C! UPDATE next ;
+t: place wh C! UPDATE nextchar ;
 t: -eol? x @ 63 < ;
 t: openr wh DUP 1+ 63 x @ - MOVE ;
 t: openRight -eol? IF openr THEN ;
@@ -190,7 +190,7 @@ t: h! DUP $F0 AND 4 RSHIFT >hex wordname 4 + C! ;
 t: l! $0F AND >hex wordname 5 + C! ;
 t: name! mode! h! l! ;
 t: nomapping m1( DROP doLIT beep cmd? AND doLIT chr ins? AND OR )m1 ;
-t: handlerword name! wordname PAGE .S DUP COUNT TYPE CR PANIC .S find .S IF ELSE m1( nomapping )m1 THEN ;
+t: handlerword name! wordname NAME? IF ELSE m1( nomapping )m1 THEN ;
 t: handler DUP handlerword EXECUTE ;
 t: editor BEGIN keyboard handler screen AGAIN ;
 t: ed PAGE screen editor ;
