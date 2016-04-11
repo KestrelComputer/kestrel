@@ -26,14 +26,18 @@ $FFFFFFFFFFF00000 constant romOrg
 \ Note that this space does not include data or return stacks.
 \ Linkage information is stored in last 256 bytes of ROM, like so:
 \ 
-\	+----------------------+
-\ +0	| JAL to bootstrap     | (cold-boot entry point)
-\	+----------------------+
-\ +8	| unused	       |
-\ ...	:		       :
-\	+----------------------+
-\ +248	| addr of first header | (value of "headp @ h>t" after assembly )
-\	+----------------------+
+\	+--------------------------+
+\ +0	| JAL to bootstrap         | (cold-boot entry point)
+\	+--------------------------+
+\ +8	| unused	           |
+\ ...	:		           :
+\	+--------------------------+
+\ +232	| size of user variables   | (in bytes)
+\	+--------------------------+
+\ +240	| size of system variables | (in bytes)
+\	+--------------------------+
+\ +248	| addr of first header     | (value of "headp @ h>t" after assembly )
+\	+--------------------------+
 
 1048576 constant /rom		\ space to store compiled code and headers
 create rom

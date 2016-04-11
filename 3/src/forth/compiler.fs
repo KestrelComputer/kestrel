@@ -88,12 +88,15 @@ variable /globals
 : doglob	[t'] (doglobal) t>h @ ;
 : ghead,	doglob 32 word count thead, treveal ;
 : galign	dup 1- /globals @ + swap negate and /globals ! ;
-: g!pfa		/globals @ headp @ cell+ ! ;
+: gu!pfa	headp @ cell+ ! ;
+: g!pfa		/globals @ gu!pfa ;
 
 : tglobal	ghead, 8 galign g!pfa 8 /globals +! ;
 : twglobal	ghead, 4 galign g!pfa 4 /globals +! ;
 : thglobal	ghead, 2 galign g!pfa 2 /globals +! ;
 : tcglobal	ghead, g!pfa 1 /globals +! ;
+
+: tconstant	ghead, gu!pfa ;
 
 tglobal /GLOBALS
 
@@ -123,7 +126,7 @@ variable /user
 : douser	[t'] (douser) t>h @ ;
 : uhead,	douser 32 word count thead, treveal ;
 : ualign	dup 1- /user @ + swap negate and /user ! ;
-: u!pfa		/user @ headp @ cell+ ! ;
+: u!pfa		/user @ gu!pfa ;
 
 : tn		headp @ CELL+ CELL+ CELL+ count type ;
 : tuser		uhead, 8 ualign u!pfa 8 /user +! ;
@@ -175,4 +178,14 @@ tcode RSHIFT
 	8 dsp dsp addi,
 	next,
 tend-code
+
+\ Update the assembler's linkage recorder, since the assembler is
+\ loaded before we have full knowledge of the compiler's state.
+
+variable prev-linkage
+: asm-linkage	/globals @ $FFFFFFFFFFFFFFF0 t>h !
+		/user @ $FFFFFFFFFFFFFFE8 t>h !
+		prev-linkage @ EXECUTE ;
+linkage @ prev-linkage !
+' asm-linkage linkage !
 

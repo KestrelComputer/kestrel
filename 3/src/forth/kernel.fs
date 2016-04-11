@@ -342,10 +342,10 @@ tend-code
 \ BIC will clear bits.  For each '1' bit in the top of stack,
 \ the corresponding bit in the 2nd top of stack is guaranteed to
 \ be cleared.  Only the final result will remain.
-tcode BIC	\ TODO test
+tcode BIC
 	0 dsp x8 ld,
 	8 dsp x9 ld,
-	-1 x9 x9 xori,
+	-1 x8 x8 xori,
 	x8 x9 x8 and,
 	8 dsp x8 sd,
 	8 dsp dsp addi,

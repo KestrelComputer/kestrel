@@ -41,15 +41,16 @@ tuser HLD	\ Pointer used while building numeric output strings
 tuser HANDLER	\ Holds return stack for error handling
 tuser CONTEXT	\ Area for vocabulary search order.  This is the first to search.
 7 CELLS /user +! \ reserve space for 7 more search contexts
-tuser CURRENT	\ Pointer to vocabulary currently being extended
+tuser CURRENT	\ Pointer to descriptor of vocabulary currently being extended
 tuser CP	\ Pointer to next available space for code
 tuser NP	\ Pointer to bottom of name dictionary
 tuser LAST	\ Pointer to last name in the dictionary
 tuser TIBB	\ The actual terminal input buffer.
 80 /user +!
 tuser 'TYPE	\ execution vector of TYPE
-tuser forthVoc	\ Forth vocabulary record
+tuser forthVoc	\ Forth vocabulary descriptor
 1 CELLS /user +!
+tuser 'PARSE	\ execution vector for PARSE
 
 
 \ pg 19
@@ -75,8 +76,11 @@ t: NIP		SWAP DROP ;
 t: =		XOR IF 0 EXIT THEN -1 ;
 t: U<		2DUP XOR 0< IF NIP 0< EXIT THEN - 0< ;
 t: <		2DUP XOR 0< IF DROP 0< EXIT THEN - 0< ;
+t: >		SWAP < ;
 t: MAX		2DUP < IF SWAP THEN DROP ;
 t: MIN		2DUP SWAP < IF SWAP THEN DROP ;
+t: UMAX		2DUP U< IF SWAP THEN DROP ;
+t: UMIN		2DUP SWAP U< IF SWAP THEN DROP ;
 t: WITHIN	OVER - >R - R> U< ;
 
 \ pg 21
@@ -153,6 +157,8 @@ t: PAD		HERE 80 + ;
 t: TIB		#TIB CELL+ @ ;
 t: @EXECUTE	@ ?DUP IF EXECUTE THEN ;
 t: CMOVE	FOR AFT >R DUP C@ R@ C! 1+ R> 1+ THEN NEXT 2DROP ;
+t: CMOVE>	1- DUP >R + SWAP R@ + SWAP R> FOR >R DUP C@ R@ C! 1- R> 1- NEXT 2DROP ;
+t: MOVE		>R 2DUP U< R> SWAP IF CMOVE> ELSE CMOVE THEN ;
 t: FILL		SWAP FOR SWAP AFT 2DUP C! 1+ THEN NEXT 2DROP ;
 t: -TRAILING	FOR AFT BL OVER R@ + C@ < IF R> 1+ EXIT THEN THEN NEXT 0 ;
 t: PACK$ ( b u a -- a )
@@ -247,14 +253,16 @@ t: parse ( b u c -- b u delta ; <string> )
             THEN OVER - R> R> - EXIT
   THEN ( b u) OVER R> - ;
 
-t: PARSE ( c -- b u ; <string> )
+t: _PARSE ( c -- b u ; <string> )
   >R TIB >IN @ + #TIB @ >IN @ - R> parse >IN +! ;
 
-t: .(		41 PARSE TYPE ; timmediate
-t: (		41 PARSE 2DROP ; timmediate
-t: \		#TIB @ >IN ! ; timmediate
+t: PARSE	'PARSE @EXECUTE ;
 
-t: CHAR		BL PARSE DROP C@ ;
+t: .(          41 PARSE TYPE ; timmediate
+t: (           41 PARSE 2DROP ; timmediate
+t: \           #TIB @ >IN ! ; timmediate
+
+t: CHAR                BL PARSE DROP C@ ;
 t: TOKEN ( -- a ; <string> )
   BL PARSE 31 MIN NP @ OVER - CELL- PACK$ ;
 t: WORD ( c -- a ; <string> ) PARSE HERE PACK$ ;
@@ -277,7 +285,7 @@ t: find ( a va -- xt na | a F )
     SAME? 0 = IF
       2DROP NIP DUP >NAME EXIT
     THEN
-    2DROP CELL+ CELL+ @ -8 AND
+    2DROP CELL+ CELL+ @ ( TODO instrument this @ to find dictionary linkage bug ) -8 AND
   REPEAT ;
 
 t: NAME? ( a -- xt na | a F )
@@ -313,7 +321,7 @@ t: CATCH ( xt -- 0 | err# )
   SP@ >R  HANDLER @ >R  RP@ HANDLER ! EXECUTE R> HANDLER !  R> DROP  0 ;
 
 t: THROW ( err# -- err# )
-  HANDLER @ RP! R> HANDLER ! R> SWAP >R SP! DROP R> ;
+  ?DUP IF HANDLER @ RP! R> HANDLER ! R> SWAP >R SP! DROP R> THEN ;
 
 tcreate NULL$ 0 t,
 
@@ -339,7 +347,7 @@ t: $INTERPRET ( a --)
   THROW ;
 
 t: [ ( --) doLIT $INTERPRET 'EVAL ! ; timmediate
-t: .OK ( --) doLIT $INTERPRET 'EVAL @ = IF ."  ok" THEN CR ;
+t: .OK ( --) doLIT $INTERPRET 'EVAL @ = IF ."  ok" ELSE ." >>" THEN CR ;
 t: ?STACK ( --) DEPTH 0< ABORT" underflow" ;
 t: EVAL ( --)
   BEGIN TOKEN DUP C@ WHILE
@@ -367,7 +375,9 @@ S" k-sdl.fs" included	( SDL2 keyboard emulation )
 \ queue, initializing the video display hardware, etc.
 t: !io		0kia 0mgia ;
 t: FORTH	forthVoc CONTEXT ! ;
-t: PRESET	( SP0 SP! ) TIBB 80 #TIB 2! ;
+t: DEFINITIONS	CONTEXT @ CURRENT ! ;
+t: PRESET	TIBB 80 #TIB 2! doLIT _PARSE 'PARSE !
+		-16 @ /GLOBALS ! -24 @ /USER ! ;
 
 \ Shell
 
@@ -406,20 +416,120 @@ t: U0		SP@ SP0 !
 ;
 
 t: .VER		BASE @ HEX VER <# # # '. HOLD # #> TYPE BASE ! ;
-t: UNUSED	CP 2@ - ;
-t: .FREE	UNUSED <# #S #> TYPE ."  bytes free." ;
+t: .FREE	CP 2@ - U. ;
 
 t: hi
   !io
   ."                         **** Kestrel-3 Forth V" .VER ."  ****" CR CR
-  ."                 Based on eForth V1.01 by Bill Muench, C. H. Ting" CR CR
-  ."                      " .FREE ."   Licensed MPLv2." CR CR
+  ."                     " .FREE ."  bytes free.   Licensed MPLv2." CR CR
   .OK ;
+
+t: .CREDITS	CR ." Copyright 2016 Samuel A. Falvo II.  This software is provided" CR
+		." under the Mozilla Public License V2.0.  If you have not received" CR
+		." a copy of the license, you may find a copy online at:" CR CR
+		." https://www.mozilla.org/en-US/MPL/2.0/" CR CR
+		." Based on eForth V1.01 by Bill Muench, C. H. Ting" CR ;
 
 \ COLD is the Forth half of the cold bootstrap for the
 \ Forth runtime environment.
 
-t: COLD		BEGIN U0 PRESET hi FORTH QUIT AGAIN ;
+t: COLD		BEGIN U0 PRESET hi FORTH DEFINITIONS QUIT AGAIN ;
+
+\ pg 40 words
+
+t: '		TOKEN NAME? IF EXIT THEN THROW ;
+t: ALLOT	CP +! ;
+t: ,		HERE !  1 CELLS ALLOT ;
+t: C,		HERE C!  1 ALLOT ;
+t: [COMPILE]	' , ; timmediate
+t: COMPILE	R> DUP @ , CELL+ >R ;
+t: LITERAL	COMPILE doLIT , ; timmediate
+t: $,"		34 WORD COUNT 1+ ALIGNED ALLOT DROP ;
+t: RECURSE	LAST @ , ;
+
+: ~[COMPILE]	t' t, ;
+
+\ pg 42-43 words
+
+t: <MARK	HERE ;
+t: <RESOLVE	, ;
+t: >MARK	HERE 0 , ;
+t: >RESOLVE	<MARK SWAP ! ;
+
+t: FOR		COMPILE >R <MARK ; timmediate tcompile-only
+t: BEGIN	<MARK ; timmediate tcompile-only
+t: NEXT		COMPILE ?next <RESOLVE ; timmediate tcompile-only
+t: UNTIL	COMPILE ?branch <RESOLVE ; timmediate tcompile-only
+t: AGAIN	COMPILE branch <RESOLVE ; timmediate tcompile-only
+t: IF		COMPILE ?branch >MARK ; timmediate tcompile-only
+t: AHEAD	COMPILE branch >MARK ; timmediate tcompile-only
+t: REPEAT	[COMPILE] AGAIN >RESOLVE ; timmediate tcompile-only
+t: THEN		>RESOLVE ; timmediate tcompile-only
+t: AFT		DROP [COMPILE] AHEAD [COMPILE] BEGIN SWAP ; timmediate tcompile-only
+t: ELSE		[COMPILE] AHEAD SWAP [COMPILE] THEN ; timmediate tcompile-only
+t: WHEN		[COMPILE] IF OVER ; timmediate tcompile-only
+t: WHILE	[COMPILE] IF SWAP ; timmediate tcompile-only
+t: DO		COMPILE SWAP COMPILE >R COMPILE >R <MARK ; timmediate tcompile-only
+t: LOOP		COMPILE (doloop) <RESOLVE ; timmediate tcompile-only
+t: +LOOP	COMPILE (do+loop) <RESOLVE ; timmediate tcompile-only
+
+t: ABORT"	COMPILE abort" $," ; timmediate tcompile-only
+
+t: $"		COMPILE $"| $," ; timmediate
+t: ."		COMPILE ."| $," ; timmediate
+
+: ~$"		[t'] $"| t, 34 word count dup tc, romp @ over tallot swap move /cell talign ;
+
+\ pg 44-45 words
+
+t: ?UNIQUE	DUP NAME? IF ."  redef " OVER COUNT TYPE THEN DROP ;
+t: $,n
+  DUP C@ IF
+    ?UNIQUE DUP LAST ! HERE ALIGNED SWAP CELL- CURRENT @ @ OVER !
+    CELL- DUP NP ! ! EXIT
+  THEN $" name" THROW ;
+t: imm?		CELL+ CELL+ @ 1 AND ;
+t: $COMPILE	NAME? IF DUP imm? IF EXECUTE ELSE , THEN EXIT THEN
+		'NUMBER @EXECUTE IF [COMPILE] LITERAL EXIT THEN
+		THROW ;
+t: ]		doLIT $COMPILE 'EVAL ! ; timmediate
+t: OVERT	LAST @ CURRENT @ ! ;
+t: ;		COMPILE EXIT [COMPILE] [ OVERT ; timmediate
+t: ?safe	CP @ NP @ U< 0 = ABORT" out of space" ;
+t: n,		-8 NP +!  ?safe  NP @ ! ;
+t: dec		DUP 1+ ALIGNED NEGATE NP +! ;
+t: padded	NP @ OVER 8 + -8 AND 0 FILL ;
+t: nplace	padded DUP NP @ C! NP @ 1+ SWAP CMOVE ;
+t: nname,	dec ?safe nplace ;
+t: nhead,	nname, CURRENT @ @ n, HERE n, n, NP @ LAST ! ;
+t: :		doLIT (enter) @ BL PARSE nhead, [COMPILE] ] ;
+t: or-nfa	LAST @ CELL+ CELL+ @ OR LAST @ CELL+ CELL+ ! ;
+t: IMMEDIATE	1 or-nfa ;
+t: COMPILE-ONLY	2 or-nfa ;
+
+t: !pfa		LAST @ CELL+ ! ;
+t: !user	/USER @ ALIGNED DUP !pfa 8 + /USER ! ;
+t: !cuser	/USER @ DUP !pfa 1+ /USER ! ;
+
+t: CREATE	doLIT (dovar) @ BL PARSE nhead, OVERT ;
+t: VARIABLE	CREATE 0 , ;
+t: CONSTANT	doLIT (doglobal) @ BL PARSE nhead, OVERT !pfa ;
+t: GLOBAL	/GLOBALS @ ALIGNED DUP CONSTANT  8 + /GLOBALS ! ;
+t: CGLOBAL	/GLOBALS @ DUP CONSTANT 1+ /GLOBALS ! ;
+t: USER		doLIT (douser) @ BL PARSE nhead, OVERT !user ;
+t: CUSER	doLIT (douser) @ BL PARSE nhead, OVERT !cuser ;
+
+t: .BASE	BASE @ DECIMAL DUP . BASE ! ;
+t: !CSP		SP@ CSP ! ;
+t: ?CSP		SP@ CSP @ XOR ABORT" stack imbalance" ;
+
+t: .ID		?DUP IF >NAME COUNT _TYPE EXIT THEN ." {no name}" ;
+t: WORDS
+  CR CONTEXT @ @
+  BEGIN ?DUP
+  WHILE DUP SPACE .ID
+	CELL+ CELL+ @ -8 AND NUF?
+  UNTIL DROP THEN ;
 
 \ __RESET__ is the RISC-V half of the cold bootstrap for
 \ the Forth runtime environment.  It's responsible for
