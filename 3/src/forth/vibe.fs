@@ -21,19 +21,22 @@
 \        key handlers.
 \
     
+t: m1( $1FF0000 @ DROP ;
+t: )m1 $1FF0001 @ DROP ;
+
 ( Editor Constants )
 
 \ I don't like this technique; should have used a bitmap.  Will fix later.
-CHAR i tcreate 'i   \ Insert mode
-CHAR r tcreate 'r   \ Replace mode
-CHAR c tcreate 'c   \ Command mode
+CHAR i tconstant 'i   \ Insert mode
+CHAR r tconstant 'r   \ Replace mode
+CHAR c tconstant 'c   \ Command mode
 
-CHAR y tcreate 'y
-CHAR n tcreate 'n
+CHAR y tconstant 'y
+CHAR n tconstant 'n
 
-CHAR A tcreate 'A
-CHAR Z tcreate 'Z
-CHAR $ tcreate '$
+CHAR A tconstant 'A
+CHAR Z tconstant 'Z
+CHAR $ tconstant '$
 
 ( Editor State )
 
@@ -78,7 +81,7 @@ t: where scr @ BLOCK SWAP 64* + SWAP + ;
 t: wh x @ y @ where ;
 t: -space? 33 U< NOT ;
 t: flushLeft 0 x ! ;
-t: seekLeft BEGIN x @ 0= IF EXIT THEN wh C@ -space? IF EXIT THEN -1 x +! AGAIN ;
+t: seekLeft BEGIN x @ 0 = IF EXIT THEN wh C@ -space? IF EXIT THEN -1 x +! AGAIN ;
 t: flushRight 63 x ! seekLeft ;
 t: boundX x @ 0 MAX 63 MIN x ! ;
 t: boundY y @ 0 MAX 15 MIN y ! ;
@@ -183,11 +186,11 @@ t: cmd? mode @ 'c = ;
 t: ins? mode @ 'i = mode @ 'r = OR ;
 t: mode! ins? 'i AND cmd? 'c AND OR wordname 3 + C! ;
 t: >hex DUP 9 > IF 7 + THEN '0 + ;
-t: h! DUP $F0 AND 2/ 2/ 2/ 2/ >hex wordname 4 + C! ;
+t: h! DUP $F0 AND 4 RSHIFT >hex wordname 4 + C! ;
 t: l! $0F AND >hex wordname 5 + C! ;
 t: name! mode! h! l! ;
-t: nomapping DROP doLIT beep cmd? AND doLIT chr ins? AND OR ;
-t: handlerword name! wordname find IF ELSE nomapping THEN ;
+t: nomapping m1( DROP doLIT beep cmd? AND doLIT chr ins? AND OR )m1 ;
+t: handlerword name! wordname PAGE .S DUP COUNT TYPE CR PANIC .S find .S IF ELSE m1( nomapping )m1 THEN ;
 t: handler DUP handlerword EXECUTE ;
 t: editor BEGIN keyboard handler screen AGAIN ;
 t: ed PAGE screen editor ;
