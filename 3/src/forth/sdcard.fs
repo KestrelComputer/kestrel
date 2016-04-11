@@ -149,7 +149,9 @@ t: write	33 LSHIFT $5800000000000000 OR cmd r1
 t: token	$FE byte -1 XOR IF DROP protocol THEN ;
 t: sector	511 FOR DUP C@ byte -1 XOR IF DROP protocol THEN
 		1+ NEXT DROP ;
-t: data		token sector gap gap ;
+t: busy		BEGIN miso 1 XOR WHILE edge edge REPEAT ;
+t: dr		r1 $1F AND 5 XOR IF protocol THEN busy ;
+t: data		token sector dr gap gap ;
 t: put		sd1 write data ;
 t: PUT		doLIT put CATCH ;
 

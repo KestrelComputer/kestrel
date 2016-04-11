@@ -4,7 +4,8 @@ S" compiler.fs" included
 
 S" kernel.fs" included	\ eForth primitives
 S" eforth.fs" included	\ eForth high-level words
-S" blockIO.fs" included	\ block storage to SD card
+S" sdcard.fs" included	\ SD card I/O driver
+S" blockIO.fs" included	\ BLOCK, BUFFER, et. al.
 
 vectors
 S" forth.rom" save

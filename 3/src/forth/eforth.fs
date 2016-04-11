@@ -50,6 +50,7 @@ tuser TIBB	\ The actual terminal input buffer.
 tuser 'TYPE	\ execution vector of TYPE
 tuser forthVoc	\ Forth vocabulary descriptor
 1 CELLS /user +!
+tuser 'PARSE	\ execution vector for PARSE
 
 
 \ pg 19
@@ -77,6 +78,8 @@ t: U<		2DUP XOR 0< IF NIP 0< EXIT THEN - 0< ;
 t: <		2DUP XOR 0< IF DROP 0< EXIT THEN - 0< ;
 t: MAX		2DUP < IF SWAP THEN DROP ;
 t: MIN		2DUP SWAP < IF SWAP THEN DROP ;
+t: UMAX		2DUP U< IF SWAP THEN DROP ;
+t: UMIN		2DUP SWAP U< IF SWAP THEN DROP ;
 t: WITHIN	OVER - >R - R> U< ;
 
 \ pg 21
@@ -247,14 +250,16 @@ t: parse ( b u c -- b u delta ; <string> )
             THEN OVER - R> R> - EXIT
   THEN ( b u) OVER R> - ;
 
-t: PARSE ( c -- b u ; <string> )
+t: _PARSE ( c -- b u ; <string> )
   >R TIB >IN @ + #TIB @ >IN @ - R> parse >IN +! ;
 
-t: .(		41 PARSE TYPE ; timmediate
-t: (		41 PARSE 2DROP ; timmediate
-t: \		#TIB @ >IN ! ; timmediate
+t: PARSE	'PARSE @EXECUTE ;
 
-t: CHAR		BL PARSE DROP C@ ;
+t: .(          41 PARSE TYPE ; timmediate
+t: (           41 PARSE 2DROP ; timmediate
+t: \           #TIB @ >IN ! ; timmediate
+
+t: CHAR                BL PARSE DROP C@ ;
 t: TOKEN ( -- a ; <string> )
   BL PARSE 31 MIN NP @ OVER - CELL- PACK$ ;
 t: WORD ( c -- a ; <string> ) PARSE HERE PACK$ ;
@@ -277,7 +282,7 @@ t: find ( a va -- xt na | a F )
     SAME? 0 = IF
       2DROP NIP DUP >NAME EXIT
     THEN
-    2DROP CELL+ CELL+ @ -8 AND
+    2DROP CELL+ CELL+ @ ( TODO instrument this @ to find dictionary linkage bug ) -8 AND
   REPEAT ;
 
 t: NAME? ( a -- xt na | a F )
@@ -368,7 +373,8 @@ S" k-sdl.fs" included	( SDL2 keyboard emulation )
 t: !io		0kia 0mgia ;
 t: FORTH	forthVoc CONTEXT ! ;
 t: DEFINITIONS	CONTEXT @ CURRENT ! ;
-t: PRESET	TIBB 80 #TIB 2!  -16 @ /GLOBALS ! -24 @ /USER ! ;
+t: PRESET	TIBB 80 #TIB 2! doLIT _PARSE 'PARSE !
+		-16 @ /GLOBALS ! -24 @ /USER ! ;
 
 \ Shell
 
