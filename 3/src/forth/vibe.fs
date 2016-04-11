@@ -21,9 +21,6 @@
 \        key handlers.
 \
     
-t: m1( $1FF0000 @ DROP ;
-t: )m1 $1FF0001 @ DROP ;
-
 ( Editor Constants )
 
 \ I don't like this technique; should have used a bitmap.  Will fix later.
@@ -189,8 +186,8 @@ t: >hex DUP 9 > IF 7 + THEN '0 + ;
 t: h! DUP $F0 AND 4 RSHIFT >hex wordname 4 + C! ;
 t: l! $0F AND >hex wordname 5 + C! ;
 t: name! mode! h! l! ;
-t: nomapping m1( DROP doLIT beep cmd? AND doLIT chr ins? AND OR )m1 ;
-t: handlerword name! wordname NAME? IF ELSE m1( nomapping )m1 THEN ;
+t: nomapping DROP doLIT beep cmd? AND doLIT chr ins? AND OR ;
+t: handlerword name! wordname NAME? IF ELSE nomapping THEN ;
 t: handler DUP handlerword EXECUTE ;
 t: editor BEGIN keyboard handler screen AGAIN ;
 t: ed PAGE screen editor ;
