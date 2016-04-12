@@ -155,8 +155,8 @@ t: BLOCK ( b - a )
 \ as Forth program source, as though you had directly typed
 \ it at the command-line interface.
 
-t: blkParse ( see PARSE for stack effect )
-  $1FF0000 @ DROP >R BLK @ BLOCK >IN @ + 1024 >IN @ - R> parse >IN +! $1FF0001 @ DROP ;
+t: blkParse ( c -- a u // see PARSE for stack effect )
+  >R BLK @ BLOCK >IN @ + 1024 >IN @ - R> parse >IN +! ;
 
 t: LOAD ( n -- )
   BLK @ >R BLK !
