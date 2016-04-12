@@ -40,7 +40,7 @@ tuser 'NUMBER	\ execution vector of NUMBER
 tuser HLD	\ Pointer used while building numeric output strings
 tuser HANDLER	\ Holds return stack for error handling
 tuser CONTEXT	\ Area for vocabulary search order.  This is the first to search.
-7 CELLS /user +! \ reserve space for 7 more search contexts
+8 CELLS /user +! \ reserve space for 7 more search contexts, plus NIL.
 tuser CURRENT	\ Pointer to descriptor of vocabulary currently being extended
 tuser CP	\ Pointer to next available space for code
 tuser NP	\ Pointer to bottom of name dictionary
@@ -289,8 +289,8 @@ t: find ( a va -- xt na | a F )
   REPEAT ;
 
 t: NAME? ( a -- xt na | a F )
-  CONTEXT @ DUP 2@ XOR IF CELL- THEN >R \ context<>also
-  BEGIN R> CELL+ DUP >R @ ?DUP WHILE
+  CONTEXT   DUP 2@ XOR IF CELL- THEN  >R \ context<>also
+  BEGIN R> CELL+ DUP >R @ @ ?DUP WHILE
   find ?DUP UNTIL R> DROP EXIT THEN R> DROP 0 ;
 
 
@@ -412,7 +412,7 @@ t: U0		SP@ SP0 !
 		$FF0000 NP !
 		doLIT mgia-type 'TYPE !
 		-8 @ DUP forthVoc 2!
-		0 CONTEXT !  0 CONTEXT CELL+ !
+		CONTEXT 9 CELLS 0 FILL
 ;
 
 t: .VER		BASE @ HEX VER <# # # '. HOLD # #> TYPE BASE ! ;
