@@ -1,6 +1,3 @@
-\ t: PUTS		." PUTS " . . . CR 0 ;
-\ t: GETS		." GETS " . . . CR 0 ;
-
 \ clocks points to an array of counters, each corresponding to
 \ a local block buffer.  Whenever a buffer is referenced, the
 \ corresponding clock field is updated with the current
@@ -58,6 +55,14 @@ t: dirty?	laundry @ + C@ ;
 \ provided cache row index.
 t: >buf		1024 * buffers @ + ;
 
+\ >blk ( r -- a ) calculates the block cache address for the
+\ provided cache row index.
+t: >blk		CELLS blocks @ + ;
+
+\ >clk ( r -- a ) calculates the clock cache address for the
+\ provided cache row index.
+t: >clk		CELLS clocks @ + ;
+
 \ wrb ( r -- ) writes back the indicated block buffer.
 t: wrb ( r -- )	DUP >R R@ >buf R@ CELLS
 		blocks @ + @ 1 LSHIFT 2 PUTS THROW R> clean ;
@@ -88,16 +93,13 @@ t: UPDATE ( -- )
 
 \ clk! ( r -- ) updates the clock for the corresponding
 \ cache line.
-t: clk!		bclk @ DUP 1+ bclk ! SWAP CELLS clocks @ + ! ;
+t: clk!		bclk @ DUP 1+ bclk ! SWAP >clk ! ;
 
 \ assign ( b r -- a ) assigns a specified cache row to the
 \ provided block.  It answers with the corresponding block
 \ buffer for the cache row specified.
 t: assign ( b r -- a )
-  >R R@ clk!
-  R@ CELLS blocks @ + !
-  0 R@ laundry @ + C!
-  R> 1024 * buffers @ + ;
+  >R R@ clk!  R@ >blk !  R@ clean R> >buf ;
 
 \ ?wrb ( r -- ) cleans the specified cache row.  If it's
 \ dirty, it'll flush the cache contents to backing store.
@@ -109,12 +111,12 @@ t: ?wrb ( r - )	DUP dirty? IF wrb EXIT THEN DROP ;
 \ block cache row and returns it.
 t: lru ( b -- b r )
   -1 0 BEGIN DUP 64 < WHILE
-    DUP CELLS clocks @ + @ 0 = IF NIP EXIT THEN
-    SWAP OVER CELLS clocks @ + @ UMIN SWAP
+    DUP >clk @ 0 = IF NIP EXIT THEN
+    SWAP OVER >clk @ UMIN SWAP
     1+
   REPEAT DROP
   0 BEGIN DUP 64 < WHILE
-    2DUP CELLS clocks @ + @ = IF NIP EXIT THEN
+    2DUP >clk @ = IF NIP EXIT THEN
     1+
   REPEAT
   .S ABORT" LRU fault" ;
@@ -155,8 +157,8 @@ t: BLOCK ( b - a )
 \ as Forth program source, as though you had directly typed
 \ it at the command-line interface.
 
-t: blkParse ( see PARSE for stack effect )
-  $1FF0000 @ DROP >R BLK @ BLOCK >IN @ + 1024 >IN @ - R> parse >IN +! $1FF0001 @ DROP ;
+t: blkParse ( c -- a u // see PARSE for stack effect )
+  >R BLK @ BLOCK >IN @ + 1024 >IN @ - R> parse >IN +! ;
 
 t: LOAD ( n -- )
   BLK @ >R BLK !

@@ -141,7 +141,7 @@ t: clr		shiftBits @ SWAP NOT AND ;
 t: set		shiftBits @ OR ;
 t: !bits	OVER 0< IF clr ELSE set THEN shiftBits ! DROP ;
 t: shift	1 OVER 7 AND LSHIFT !bits ;
-t: ?shift	DUP $F8 AND $E0 = IF shift THEN DEPTH $FF2000 ! 0 ;
+t: ?shift	DUP $F8 AND $E0 = IF shift ELSE DROP THEN 0 ;
 t: mirror	DUP 4 RSHIFT OR ;
 t: table	shiftBits @ mirror 7 AND CELLS lookups + @ ;
 t: lookup	table SWAP 255 AND + C@ -1 ;

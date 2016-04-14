@@ -1,5 +1,5 @@
 # Allows building ROMs even if bin isn't in path.
-export PATH=$PATH:$(pwd)/bin
+export PATH="$PATH:$(pwd)/bin"
 
 redo-ifchange bin/e
 
