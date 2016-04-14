@@ -417,6 +417,13 @@ tcode RP0!  ( MUST TRACK __reset__ BELOW! )
 	next,
 tend-code
 
+t: U0		-24 @ /USER !
+		-16 @ /GLOBALS !
+		SP0 /USER @ 0 FILL
+		65536 CP !
+		$FF0000 NP !
+;
+
 t: PRESET	SP@ SP0 !
 		doLIT ?rx '?KEY !
 		doLIT EMIT 'EMIT !
@@ -427,15 +434,10 @@ t: PRESET	SP@ SP0 !
 		DECIMAL
 		doLIT $INTERPRET 'EVAL !
 		doLIT NUMBER? 'NUMBER !
-		65536 CP !
-		$FF0000 NP !
 		doLIT mgia-type 'TYPE !
 		-8 @ DUP forthVoc 2!
-		CONTEXT 9 CELLS 0 FILL
 		TIBB 80 #TIB 2!
 		doLIT _PARSE 'PARSE !
-		-16 @ /GLOBALS !
-		-24 @ /USER !
 ;
 
 t: QUIT
@@ -466,7 +468,7 @@ t: .CREDITS	CR ." Copyright 2016 Samuel A. Falvo II.  This software is provided"
 \ COLD is the Forth half of the cold bootstrap for the
 \ Forth runtime environment.
 
-t: COLD		BEGIN PRESET hi FORTH DEFINITIONS QUIT AGAIN ;
+t: COLD		BEGIN U0 PRESET hi FORTH DEFINITIONS QUIT AGAIN ;
 
 \ pg 40 words
 
