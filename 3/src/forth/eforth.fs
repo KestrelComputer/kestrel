@@ -468,8 +468,6 @@ t: .CREDITS	CR ." Copyright 2016 Samuel A. Falvo II.  This software is provided"
 \ COLD is the Forth half of the cold bootstrap for the
 \ Forth runtime environment.
 
-t: COLD		BEGIN U0 PRESET hi FORTH DEFINITIONS QUIT AGAIN ;
-
 \ pg 40 words
 
 t: '		TOKEN NAME? IF EXIT THEN THROW ;
@@ -566,26 +564,4 @@ t: WORDS
   WHILE DUP SPACE .ID
 	CELL+ CELL+ @ -8 AND NUF?
   UNTIL DROP THEN ;
-
-\ __RESET__ is the RISC-V half of the cold bootstrap for
-\ the Forth runtime environment.  It's responsible for
-\ initializing the Forth virtual machine registers.  Once
-\ initialized, it defers to __BOOT__ for higher-level
-\ initialization tasks.
-8 talign
-tcode __RESET__
-	0 x9 auipc,
-	24 x9 ip ld,
-	1024 x0 up addi,
-	1024 up dsp addi,
-	1024 dsp rsp addi,
-	next,
-	t' COLD t>h cell+ @ t,
-tend-code
-
-\ BYE terminates the current Forth session, and returns
-\ the user to the host operating system.  However, since
-\ we *are* the host operating system, BYE simply restarts
-\ the environment as if the user had reset the computer.
-t: BYE		__RESET__ ;
 
