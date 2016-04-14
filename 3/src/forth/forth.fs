@@ -8,7 +8,7 @@ S" sdcard.fs" included	\ SD card I/O driver
 S" blockIO.fs" included	\ BLOCK, BUFFER, et. al.
 S" vibe.fs" included	\ Screen editor
 
-t: COLD		BEGIN U0 PRESET hi FORTH DEFINITIONS 0blocks 0editor MOUNT THROW QUIT AGAIN ;
+t: COLD		BEGIN U0 PRESET hi FORTH DEFINITIONS 0blocks 0editor MOUNT DROP QUIT AGAIN ;
 
 \ __RESET__ is the RISC-V half of the cold bootstrap for
 \ the Forth runtime environment.  It's responsible for
