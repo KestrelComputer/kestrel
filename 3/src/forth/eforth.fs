@@ -213,26 +213,58 @@ t: ?		@ . ;
 
 \ pg 29 words
 
-t: DIGIT? ( c base -- u t )
-  >R 48 - 9 OVER <
-  IF 7 - DUP 10 < OR THEN DUP R> U< ;
+\ This is the old, highly suspect code from eForth v1.01.
+\ Note the virtually intractible FOR/WHILE/NEXT/ELSE/THEN
+\ loo...condit....I don't know what the hell it is.  It's
+\ both a loop AND a decision tree at the same time, and it
+\ has defied my ability to logically analyze the code.
+\ Overly clever code leads to bugs, and it's no accident
+\ that my rewrite of this code is related to tracing an
+\ obscure bug encountered after resetting the system.
+\ 
+\ t: DIGIT? ( c base -- u t )
+\   >R 48 - 9 OVER <
+\   IF 7 - DUP 10 < OR THEN DUP R> U< ;
+\ 
+\ t: NUMBER? ( a -- n T | a F )
+\   BASE @ >R 0 OVER COUNT ( a 0 b n)
+\   OVER C@ 36 =
+\   IF HEX SWAP 1 + SWAP 1 - THEN ( a 0 b' n')
+\   OVER C@ 45 = >R ( a 0 b n)
+\   SWAP R@ - SWAP R@ + ( a 0 b" n")
+\   ?DUP IF
+\     1 - ( a 0 b n)
+\     FOR DUP >R C@ BASE @ DIGIT? WHILE
+\         SWAP BASE @ * + R> 1 +
+\       NEXT
+\       DROP R@ ( b ?sign) IF NEGATE THEN SWAP
+\     ELSE R> R> ( b index) 2DROP ( digit number) 2DROP 0
+\     THEN DUP
+\   THEN
+\   R> ( n ?sign) 2DROP R> BASE ! ;
 
-t: NUMBER? ( a -- n T | a F )
-  BASE @ >R 0 OVER COUNT ( a 0 b n)
-  OVER C@ 36 =
-  IF HEX SWAP 1 + SWAP 1 - THEN ( a 0 b' n')
-  OVER C@ 45 = >R ( a 0 b n)
-  SWAP R@ - SWAP R@ + ( a 0 b" n")
-  ?DUP IF
-    1 - ( a 0 b n)
-    FOR DUP >R C@ BASE @ DIGIT? WHILE
-        SWAP BASE @ * + R> 1 +
-      NEXT
-      DROP R@ ( b ?sign) IF NEGATE THEN SWAP
-    ELSE R> R> ( b index) 2DROP ( digit number) 2DROP 0
-    THEN DUP
-  THEN
-  R> ( n ?sign) 2DROP R> BASE ! ;
+t: DIGIT? ( c -- d T / F )
+  DUP $61 DUP 26 + WITHIN $20 AND XOR ( c - uppercase )
+  $30 - DUP 0< IF DROP 0 EXIT THEN ( not a digit )
+  9 OVER < IF 7 - THEN
+  DUP BASE @ < IF -1 EXIT THEN ( valid digit )
+  DROP 0 ;
+  
+t: NUMBER? ( a - n T / a F )
+  COUNT
+  OVER C@ 45 = IF 1 - SWAP 1 + SWAP -1 ELSE 0 THEN >R
+  OVER C@ 36 = IF 1 - SWAP 1 + SWAP 16 ELSE 10 THEN BASE @ >R BASE !
+  0 SWAP FOR AFT
+    OVER C@ DIGIT?
+    IF   SWAP BASE @ * +
+    ELSE R> 2DROP 0  R> BASE ! R> DROP EXIT
+    THEN
+    SWAP 1+ SWAP
+  THEN NEXT
+  NIP R> BASE ! R> IF NEGATE THEN -1 ;
+
+t: NUMBER?  ( preserve word pointer for error reporting )
+  DUP NUMBER? IF NIP -1 ELSE DROP 0 THEN ;
 
 \ pg 32 words
 
@@ -285,14 +317,13 @@ t: find ( a va -- xt na | a F )
     SAME? 0 = IF
       2DROP NIP DUP >NAME EXIT
     THEN
-    2DROP CELL+ CELL+ @ ( TODO instrument this @ to find dictionary linkage bug ) -8 AND
+    2DROP CELL+ CELL+ @ -8 AND
   REPEAT ;
 
 t: NAME? ( a -- xt na | a F )
   CONTEXT   DUP 2@ XOR IF CELL- THEN  >R \ context<>also
-  BEGIN R> CELL+ DUP >R @ @ ?DUP WHILE
-  find ?DUP UNTIL R> DROP EXIT THEN R> DROP 0 ;
-
+  BEGIN R> CELL+ DUP >R @ ?DUP WHILE
+  @ find ?DUP UNTIL R> DROP EXIT THEN R> DROP 0 ;
 
 \ pg 35 words
 
@@ -376,8 +407,6 @@ S" k-sdl.fs" included	( SDL2 keyboard emulation )
 t: !io		0kia 0mgia ;
 t: FORTH	forthVoc CONTEXT ! ;
 t: DEFINITIONS	CONTEXT @ CURRENT ! ;
-t: PRESET	TIBB 80 #TIB 2! doLIT _PARSE 'PARSE !
-		-16 @ /GLOBALS ! -24 @ /USER ! ;
 
 \ Shell
 
@@ -388,17 +417,7 @@ tcode RP0!  ( MUST TRACK __reset__ BELOW! )
 	next,
 tend-code
 
-t: QUIT
-  RP0! BEGIN
-    BEGIN QUERY doLIT EVAL CATCH ?DUP UNTIL
-    'PROMPT @ SWAP NULL$ OVER XOR IF
-      CR #TIB 2@ TYPE CR >IN @ 94 CHARS CR COUNT TYPE ."  ?" CR
-    THEN doLIT .OK XOR IF
-      $1B EMIT  ( ?? )
-    THEN PRESET
-  AGAIN ;
-
-t: U0		SP@ SP0 !
+t: PRESET	SP@ SP0 !
 		doLIT ?rx '?KEY !
 		doLIT EMIT 'EMIT !
 		doLIT accept 'EXPECT !
@@ -413,7 +432,21 @@ t: U0		SP@ SP0 !
 		doLIT mgia-type 'TYPE !
 		-8 @ DUP forthVoc 2!
 		CONTEXT 9 CELLS 0 FILL
+		TIBB 80 #TIB 2!
+		doLIT _PARSE 'PARSE !
+		-16 @ /GLOBALS !
+		-24 @ /USER !
 ;
+
+t: QUIT
+  RP0! BEGIN
+    BEGIN QUERY doLIT EVAL CATCH ?DUP UNTIL
+    'PROMPT @ SWAP NULL$ OVER XOR IF
+      CR #TIB 2@ TYPE CR >IN @ 94 CHARS CR COUNT TYPE ."  ?" CR
+    THEN doLIT .OK XOR IF
+      $1B EMIT  ( ?? )
+    THEN PRESET
+  AGAIN ;
 
 t: .VER		BASE @ HEX VER <# # # '. HOLD # #> TYPE BASE ! ;
 t: .FREE	CP 2@ - U. ;
@@ -433,7 +466,7 @@ t: .CREDITS	CR ." Copyright 2016 Samuel A. Falvo II.  This software is provided"
 \ COLD is the Forth half of the cold bootstrap for the
 \ Forth runtime environment.
 
-t: COLD		BEGIN U0 PRESET hi FORTH DEFINITIONS QUIT AGAIN ;
+t: COLD		BEGIN PRESET hi FORTH DEFINITIONS QUIT AGAIN ;
 
 \ pg 40 words
 
@@ -489,6 +522,7 @@ t: $,n
     CELL- DUP NP ! ! EXIT
   THEN $" name" THROW ;
 t: imm?		CELL+ CELL+ @ 1 AND ;
+
 t: $COMPILE	NAME? IF DUP imm? IF EXECUTE ELSE , THEN EXIT THEN
 		'NUMBER @EXECUTE IF [COMPILE] LITERAL EXIT THEN
 		THROW ;
