@@ -426,7 +426,7 @@ t: U0		-24 @ /USER !
 
 t: PRESET	SP@ SP0 !
 		doLIT ?rx '?KEY !
-		doLIT EMIT 'EMIT !
+		doLIT !tx 'EMIT !
 		doLIT accept 'EXPECT !
 		doLIT kTAP 'TAP !
 		doLIT EMIT 'ECHO !
