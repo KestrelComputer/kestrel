@@ -48,12 +48,11 @@ t: OPEN ( n - )		15 OVER U< ABORT" bad line"
 
 
 t: dell ( n - )		DUP size >R addr DUP 64 + SWAP R> MOVE ;
-t: bottom ( - )		edblk @ BLOCK UPDATE 15 64 * + 64 erase ;
+t: bottom ( - )		edblk @ BLOCK UPDATE 960 + 64 erase ;
 
 \ CLOSE ( n - ) deletes the specified line from the block last
 \ LISTed.
-t: CLOSE ( n - )	15 OVER U< ABORT" bad line"
-			DUP dell bottom ;
+t: CLOSE ( n - )    15 OVER U< ABORT" bad line" dell bottom ;
 
 \ SET ( n "text" - ) copies the rest of the line (up to 64
 \ characters) to the specified line in the block last LISTed.
