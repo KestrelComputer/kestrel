@@ -422,6 +422,7 @@ t: U0		-24 @ /USER !
 		SP0 /USER @ 0 FILL
 		65536 CP !
 		$FF0000 NP !
+		-8 @ 2DUP forthVoc 2!
 ;
 
 t: PRESET	SP@ SP0 !
@@ -435,7 +436,6 @@ t: PRESET	SP@ SP0 !
 		doLIT $INTERPRET 'EVAL !
 		doLIT NUMBER? 'NUMBER !
 		doLIT mgia-type 'TYPE !
-		-8 @ DUP forthVoc 2!
 		TIBB 80 #TIB 2!
 		doLIT _PARSE 'PARSE !
 ;
