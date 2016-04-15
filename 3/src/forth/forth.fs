@@ -6,9 +6,9 @@ S" kernel.fs" included	\ eForth primitives
 S" eforth.fs" included	\ eForth high-level words
 S" sdcard.fs" included	\ SD card I/O driver
 S" blockIO.fs" included	\ BLOCK, BUFFER, et. al.
-S" vibe.fs" included	\ Screen editor
+S" blockEd.fs" included \ Screen editor
 
-t: COLD		BEGIN U0 PRESET hi FORTH DEFINITIONS 0blocks 0editor MOUNT DROP QUIT AGAIN ;
+t: COLD		BEGIN U0 PRESET FORTH DEFINITIONS 0blocks 0editor hi MOUNT DROP QUIT AGAIN ;
 
 \ __RESET__ is the RISC-V half of the cold bootstrap for
 \ the Forth runtime environment.  It's responsible for
