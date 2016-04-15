@@ -545,7 +545,10 @@ t: !pfa		LAST @ CELL+ ! ;
 t: !user	/USER @ ALIGNED DUP !pfa 8 + /USER ! ;
 t: !cuser	/USER @ DUP !pfa 1+ /USER ! ;
 
-t: CREATE	doLIT (dovar) @ BL PARSE nhead, OVERT ;
+t: doCREAT	R> ;
+t: CREATE	: [COMPILE] [ OVERT COMPILE doCREAT ;
+t: does		R> LAST @ CELL+ @ DUP @ doLIT doCREAT XOR IF .S THEN ! ;
+t: DOES>	COMPILE does  doLIT (enter) @ , HERE CELL+ CELL+ CELL+ , 0 , 0 , COMPILE R> ; timmediate
 t: VARIABLE	CREATE 0 , ;
 t: CONSTANT	doLIT (doglobal) @ BL PARSE nhead, OVERT !pfa ;
 t: GLOBAL	/GLOBALS @ ALIGNED DUP CONSTANT  8 + /GLOBALS ! ;
