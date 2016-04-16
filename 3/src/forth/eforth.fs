@@ -422,6 +422,7 @@ t: U0		-24 @ /USER !
 		SP0 /USER @ 0 FILL
 		65536 CP !
 		$FF0000 NP !
+		0 -8 @ forthVoc 2!
 ;
 
 t: PRESET	SP@ SP0 !
@@ -435,7 +436,6 @@ t: PRESET	SP@ SP0 !
 		doLIT $INTERPRET 'EVAL !
 		doLIT NUMBER? 'NUMBER !
 		doLIT mgia-type 'TYPE !
-		-8 @ DUP forthVoc 2!
 		TIBB 80 #TIB 2!
 		doLIT _PARSE 'PARSE !
 ;
@@ -545,7 +545,10 @@ t: !pfa		LAST @ CELL+ ! ;
 t: !user	/USER @ ALIGNED DUP !pfa 8 + /USER ! ;
 t: !cuser	/USER @ DUP !pfa 1+ /USER ! ;
 
-t: CREATE	doLIT (dovar) @ BL PARSE nhead, OVERT ;
+t: doCREAT	R> ;
+t: CREATE	: [COMPILE] [ OVERT COMPILE doCREAT ;
+t: does		R> LAST @ CELL+ @ ! ;
+t: DOES>	COMPILE does  doLIT (enter) @ , HERE CELL+ CELL+ CELL+ , 0 , 0 , COMPILE R> ; timmediate
 t: VARIABLE	CREATE 0 , ;
 t: CONSTANT	doLIT (doglobal) @ BL PARSE nhead, OVERT !pfa ;
 t: GLOBAL	/GLOBALS @ ALIGNED DUP CONSTANT  8 + /GLOBALS ! ;
