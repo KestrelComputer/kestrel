@@ -422,7 +422,7 @@ t: U0		-24 @ /USER !
 		SP0 /USER @ 0 FILL
 		65536 CP !
 		$FF0000 NP !
-		-8 @ 2DUP forthVoc 2!
+		0 -8 @ forthVoc 2!
 ;
 
 t: PRESET	SP@ SP0 !
@@ -547,7 +547,7 @@ t: !cuser	/USER @ DUP !pfa 1+ /USER ! ;
 
 t: doCREAT	R> ;
 t: CREATE	: [COMPILE] [ OVERT COMPILE doCREAT ;
-t: does		R> LAST @ CELL+ @ DUP @ doLIT doCREAT XOR IF .S THEN ! ;
+t: does		R> LAST @ CELL+ @ ! ;
 t: DOES>	COMPILE does  doLIT (enter) @ , HERE CELL+ CELL+ CELL+ , 0 , 0 , COMPILE R> ; timmediate
 t: VARIABLE	CREATE 0 , ;
 t: CONSTANT	doLIT (doglobal) @ BL PARSE nhead, OVERT !pfa ;
