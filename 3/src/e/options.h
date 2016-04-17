@@ -6,6 +6,7 @@ typedef struct Options		Options;
 
 struct Options {
 	char *	romFilename;
+	char *	sdbFilename;
 };
 
 

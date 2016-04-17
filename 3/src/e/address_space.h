@@ -16,6 +16,7 @@ typedef UDWORD (*RDFUNC)(AddressSpace *, UDWORD, int);
 struct AddressSpace {
 	UBYTE	*rom;
 	UBYTE	*ram;
+	UBYTE	*sdb;
 	WRFUNC	writers[MAX_DEVS];
 	RDFUNC	readers[MAX_DEVS];
 

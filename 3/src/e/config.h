@@ -1,8 +1,8 @@
 #define MAX_DEVS	16
 
 #define VERSION_MAJOR	0
-#define VERSION_MINOR	2
-#define VERSION_PATCH	4
+#define VERSION_MINOR	3
+#define VERSION_PATCH	0
 
 #define MB		1048576L
 
@@ -14,6 +14,8 @@
 #define PHYS_RAM_SIZE	(16*MB)
 #define PHYS_RAM_MASK	(PHYS_RAM_SIZE-1)
 #define PHYS_ADDR_SIZE	(32*MB)
+#define SDB_SIZE	(512)
+#define SDB_MASK	(SDB_SIZE-1)
 
 #define r_MCPUID	0xF00
 #define r_MIMPID	0xF01
