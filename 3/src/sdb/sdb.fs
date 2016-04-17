@@ -1,3 +1,5 @@
+WARNINGS OFF
+
 \ This software is used to build SDB ROM images for the e
 \ emulator.  It is based on the SDB V1.1 specifications
 \ available here: http://www.ohwr.org/projects/sdb/wiki

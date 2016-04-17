@@ -1,3 +1,5 @@
+include sdb.fs
+
 \ Wishbone bus-specific flags for various types of devices.
 $8F CONSTANT WB_RAMROM ( little-endian, all widths )
 $88 CONSTANT WB_GPIA2 ( little-endian, 64-bit access only )
@@ -78,3 +80,6 @@ S" e-emulator" name
 	$20160416 date
 	S" boot-rom" name
 )interconnect
+
+save sdb.rom
+bye
