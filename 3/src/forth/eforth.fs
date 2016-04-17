@@ -623,8 +623,8 @@ t: MARKER	HERE 'REMCHAIN @ remember CREATE ,
 
 \ The first and most important rememberer and pruner involves
 \ resetting the CP and NP variables.
-t: rx1		HERE , NP @ , forthVoc 2@ , , ;
-t: px1		@+ CP !  @+ NP ! @+ forthVoc ! @+ forthVoc CELL+ ! ;
+t: rx1		HERE , NP @ , 'REMCHAIN @ , forthVoc 2@ , , ;
+t: px1		@+ CP !  @+ NP ! @+ 'REMCHAIN ! @+ forthVoc ! @+ forthVoc CELL+ ! ;
 
 t: U0		-24 @ /USER !
 		-16 @ /GLOBALS !

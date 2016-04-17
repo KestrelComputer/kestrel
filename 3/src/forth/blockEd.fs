@@ -14,7 +14,7 @@ t: .line ( a n - a' )	15 XOR 2 .R SPACE DUP 64 TYPE CR 64 + ;
 \ LIST ( n -- ) lists the specified block to the screen.
 t: LIST		DUP edblk ! BLOCK CR 15 FOR R@ .line NEXT DROP ;
 
-t: t		."    BLOCK " DUP . CR DUP LIST CR  1+ ;
+t: t		."    SCR #" DUP . CR DUP LIST CR  1+ ;
 
 \ TRI ( n -- ) lists three blocks consecutively, each with
 \ their own title.  TRI.. ( n -- n' ) is like TRI except that
