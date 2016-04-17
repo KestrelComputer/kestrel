@@ -18,6 +18,7 @@ tglobal cursorX	( Ideally, these ought to be headerless )
 tglobal cursorY
 tglobal cursorHidden
 tglobal cursorVisible
+tglobal FONT
 
 tcreate font
 S" v-font.fs" included
@@ -40,7 +41,7 @@ t: CLS		$FF9600 $FF0000 DO 0 R@ ! 8 +LOOP ;
 t: HOME		0 0 AT-XY ;
 t: PAGE		cursor- CLS HOME cursor+ ;
 
-t: plot		font + top 7 FOR OVER C@ OVER C!
+t: plot		FONT @ + top 7 FOR OVER C@ OVER C!
 		80 + SWAP 256 + SWAP NEXT 2DROP ;
 t: feed		$FF0000 $FF9600 $FF0280 DO
 		R@ @ OVER ! 8 + 8 +LOOP DROP ;
@@ -98,6 +99,6 @@ t: doctrl	CELLS ctrltab + @EXECUTE ;
 t: !tx		cursor- 255 AND DUP ctrl? IF doctrl ELSE !txraw THEN cursor+ ;
 t: mgia-type	cursor- (TYPE) cursor+ ;
 
-t: 0mgia	0 cursorHidden ! 0 cursorVisible !
+t: 0mgia	0 cursorHidden ! 0 cursorVisible ! font FONT !
 		doLIT !tx DUP 'EMIT ! 'ECHO ! PAGE cursor+ ;
 
