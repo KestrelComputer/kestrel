@@ -153,7 +153,7 @@ t: busy		BEGIN miso 1 XOR WHILE edge edge REPEAT ;
 t: dr		r1 $1F AND 5 XOR IF protocol THEN busy ;
 t: data		token sector dr gap gap ;
 t: put		sd1 write data ;
-t: PUT		doLIT put CATCH ;
+t: PUT		doLIT put CATCH frend ;
 
 \ PUTS ( buf n m -- erc ) writes 'm' adjacent sectors,
 \ starting at sector 'n', each 512 bytes in size.  You are

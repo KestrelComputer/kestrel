@@ -23,7 +23,10 @@ make(int argc, char *argv[]) {
 	for(;;) {
 		if(i >= (argc - 1)) break;
 
-		if(!strcmp(argv[i], "romfile")) {
+		if(!strcmp(argv[i], "sdbfile")) {
+			opts->sdbFilename = argv[i+1];
+			i = i + 2;
+		} else if(!strcmp(argv[i], "romfile")) {
 			opts->romFilename = argv[i+1];
 			i = i + 2;
 		} else {

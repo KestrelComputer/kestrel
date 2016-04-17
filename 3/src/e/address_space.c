@@ -116,6 +116,10 @@ static void
 do_gpia_out(AddressSpace *as) {
 	int sdcard_selected = !(as->gpia_out & GPIA_OUT_SD_SS);
 
+	fprintf(stderr, "LEDS: -%c-%c-\r",
+		(as->gpia_out & GPIA_OUT_SD_LED)? '*': 'O',
+		(as->gpia_out & GPIA_OUT_SD_SS)? '*': 'O');
+
 	if(sdcard_selected) do_spi_interface(as);
 	else reset_spi_interface(as);
 }
@@ -192,6 +196,38 @@ uart_reader(AddressSpace *as, UDWORD addr, int sz) {
 
 
 #define ROMF(a) (UDWORD)(as->rom[(a) & ROM_MASK])
+#define SDBF(a) (UDWORD)(as->sdb[(a) & SDB_MASK])
+static UDWORD
+sdb_reader(AddressSpace *as, UDWORD addr, int sz) {
+	addr &= SDB_MASK;
+	switch(sz) {
+	case 0:
+		return SDBF(addr);
+
+	case 1:
+		return (SDBF(addr)
+			| (SDBF(addr+1) << 8));
+
+	case 2:
+		return (SDBF(addr)
+			| (SDBF(addr+1) << 8)
+			| (SDBF(addr+2) << 16)
+			| (SDBF(addr+3) << 24));
+
+	case 3:
+		return (SDBF(addr)
+			| (SDBF(addr+1) << 8)
+			| (SDBF(addr+2) << 16)
+			| (SDBF(addr+3) << 24)
+			| (SDBF(addr+4) << 32)
+			| (SDBF(addr+5) << 40)
+			| (SDBF(addr+6) << 48)
+			| (SDBF(addr+7) << 56));
+	}
+	fprintf(stderr, "SDB Read of unknown size at address $%016llX\n", addr);
+	return 0xEEEEEEEEEEEEEEEE;
+}
+
 static UDWORD
 rom_reader(AddressSpace *as, UDWORD addr, int sz) {
 	addr |= DEV_MASK | CARD_MASK;
@@ -223,7 +259,7 @@ rom_reader(AddressSpace *as, UDWORD addr, int sz) {
 			| (ROMF(addr+7) << 56));
 	}
 	fprintf(stderr, "Read of unknown size at address $%016llX\n", addr);
-	return 0xDDDDDDDD;
+	return 0xDDDDDDDDDDDDDDDD;
 }
 
 static void
@@ -315,7 +351,7 @@ AddressSpace *
 make(Options *opts) {
 	AddressSpace *as = _new();
 	FILE *romFile;
-	int n, overflow;
+	int n, overflow, hasSDB = 0;
 
 	assert(opts);
 	assert(opts->romFilename);
@@ -338,6 +374,23 @@ make(Options *opts) {
 	}
 	fclose(romFile);
 
+	as->sdb = (UBYTE *)malloc(SDB_SIZE);
+	memset(as->sdb, 0xFF, SDB_SIZE);
+	romFile = fopen(opts->sdbFilename, "rb");
+	if(romFile) {
+		hasSDB = 1;
+		n = fread(as->sdb, 1, SDB_SIZE, romFile);
+		if(n == SDB_SIZE) {
+			n = fread(&overflow, 1, 1, romFile);
+			if(n == 1) {
+				fprintf(stderr, "SDB file is too big; should be %d bytes.\n", SDB_SIZE);
+				fprintf(stderr, "Ignoring SDB configuration.\n");
+				hasSDB = 0;
+			}
+		}
+		fclose(romFile);
+	}
+
 	as->ram = (UBYTE *)malloc(PHYS_RAM_SIZE);
 	if(!as->ram) {
 		fprintf(stderr, "Cannot allocate physical RAM for emulated computer.\n");
@@ -355,8 +408,11 @@ make(Options *opts) {
 	as->readers[1] = gpia_reader;
 	as->writers[2] = ekia_writer;
 	as->readers[2] = ekia_reader;
+	as->readers[3] = sdb_reader;
 	as->writers[14] = uart_writer;
 	as->readers[14] = uart_reader;
+
+	if(!hasSDB) as->readers[3] = no_reader;
 
 	for(n = 0; n < MAX_DEVS; n++) {
 		assert(as->writers[n]);
