@@ -385,6 +385,20 @@ t: EVAL ( --)
     'EVAL @EXECUTE ?STACK
   REPEAT DROP 'PROMPT @EXECUTE ;
 
+\ pg 40 words
+
+t: '		TOKEN NAME? IF EXIT THEN THROW ;
+t: ALLOT	CP +! ;
+t: ,		HERE !  1 CELLS ALLOT ;
+t: C,		HERE C!  1 ALLOT ;
+t: [COMPILE]	' , ; timmediate
+t: COMPILE	R> DUP @ , CELL+ >R ;
+t: LITERAL	COMPILE doLIT , ; timmediate
+t: $,"		34 WORD COUNT 1+ ALIGNED ALLOT DROP ;
+t: RECURSE	LAST @ , ;
+
+: ~[COMPILE]	t' t, ;
+
 \ pg 47 words
 
 t: _TYPE ( b u --) FOR AFT DUP C@ >CHAR EMIT 1 + THEN NEXT DROP ;
@@ -416,14 +430,6 @@ tcode RP0!  ( MUST TRACK __reset__ BELOW! )
 	1024 x9 rsp addi, ( return stack )
 	next,
 tend-code
-
-t: U0		-24 @ /USER !
-		-16 @ /GLOBALS !
-		SP0 /USER @ 0 FILL
-		65536 CP !
-		$FF0000 NP !
-		0 -8 @ forthVoc 2!
-;
 
 t: PRESET	SP@ SP0 !
 		doLIT ?rx '?KEY !
@@ -467,20 +473,6 @@ t: .CREDITS	CR ." Copyright 2016 Samuel A. Falvo II.  This software is provided"
 
 \ COLD is the Forth half of the cold bootstrap for the
 \ Forth runtime environment.
-
-\ pg 40 words
-
-t: '		TOKEN NAME? IF EXIT THEN THROW ;
-t: ALLOT	CP +! ;
-t: ,		HERE !  1 CELLS ALLOT ;
-t: C,		HERE C!  1 ALLOT ;
-t: [COMPILE]	' , ; timmediate
-t: COMPILE	R> DUP @ , CELL+ >R ;
-t: LITERAL	COMPILE doLIT , ; timmediate
-t: $,"		34 WORD COUNT 1+ ALIGNED ALLOT DROP ;
-t: RECURSE	LAST @ , ;
-
-: ~[COMPILE]	t' t, ;
 
 \ pg 42-43 words
 
@@ -548,7 +540,12 @@ t: !cuser	/USER @ DUP !pfa 1+ /USER ! ;
 t: doCREAT	R> ;
 t: CREATE	: [COMPILE] [ OVERT COMPILE doCREAT ;
 t: does		R> LAST @ CELL+ @ ! ;
-t: DOES>	COMPILE does  doLIT (enter) @ , HERE CELL+ CELL+ CELL+ , 0 , 0 , COMPILE R> ; timmediate
+t: DOES>	COMPILE does  doLIT (enter) @ ,
+		HERE CELL+ CELL+ CELL+ , 0 , 0 ,
+		COMPILE R> ; timmediate
+: ~DOES>	[t'] does t, [t'] (enter) t@ t,
+		THERE CELL+ CELL+ CELL+ t, 0 t, 0 t,
+		[t'] R> t, ;
 t: VARIABLE	CREATE 0 , ;
 t: CONSTANT	doLIT (doglobal) @ BL PARSE nhead, OVERT !pfa ;
 t: GLOBAL	/GLOBALS @ ALIGNED DUP CONSTANT  8 + /GLOBALS ! ;
@@ -567,4 +564,75 @@ t: WORDS
   WHILE DUP SPACE .ID
 	CELL+ CELL+ @ -8 AND NUF?
   UNTIL DROP THEN ;
+
+\ MARKER and its implementation.  Intends to mimic how ANS
+\ MARKER works.  This implementation is inspired by the
+\ technique used in SwiftForth, by Forth, Inc. and is used
+\ with permission.  See CONTRIBUTORS for details.
+
+\ 'REMCHAIN is a singly linked list of colon-compiled
+\ definitions which are responsible for recording the
+\ current state of the Forth environment in the
+\ dictionary.  This state is compiled, for example,
+\ when MARKER runs to create a marker word.
+\ Making this a chain of compiled chunks of code means
+\ that the chain can be extended per normal Forth usage.
+\ 
+\ The structure of the list is:
+\ +0 CELLS	Link to previous extension
+\ +1 CELLS	XT of "rememberer".
+\ +2 CELLS	XT of "pruner".
+
+tglobal 'REMCHAIN
+
+\ REMEMBER, ( px rx -- ) adds a node onto the 'REMCHAIN list.
+\ rx is the execution token for the procedure to remember state,
+\ while px is the execution token for the procedure responsible
+\ for cleaning up said state after MARKER is invoked.
+t: REMEMBER, ( px rx -- ) HERE >R 'REMCHAIN @ , , , R> 'REMCHAIN ! ;
+
+\ remember ( ... l -- ... ) invokes all the remember procedures
+\ on the provided list of 'REMCHAIN handlers.  The handlers
+\ are invoked with the signature ( -- ).  They are expected to
+\ compile the state they're responsible for using , and C,.
+t: remember ( l -- )	BEGIN DUP WHILE DUP CELL+ @ EXECUTE @
+			REPEAT DROP ;
+
+\ prune ( ... a l -- ... a' ) invokes all the pruner procedures
+\ on the provided list of 'REMCHAIN handlers.  Each pruner is
+\ invoked with the signature ( ... a -- a' ), where a' >= a,
+\ as appropriate for each byte laid down by the corresponding
+\ rememberer procedure.  The words "@+" or "C@+" may be of
+\ assistance, as it allows streaming values one after the other,
+\ in the same order as they were recorded with , and C, ,
+\ respectively.
+t: @+ ( a -- a' x )	ALIGNED DUP CELL+ SWAP @ ;
+t: C@+ ( a -- a' c )	DUP 1+ SWAP C@ ;
+t: prune ( a l -- a' )	BEGIN DUP WHILE >R R@ CELL+ CELL+ @ EXECUTE R> @
+			REPEAT DROP ;
+
+\ MARKER ( -- ) creates a new word which contains a snapshot
+\ of some of the Forth runtime state.  When this word is invoked,
+\ the snapshot state is restored.  This is primarily used to
+\ recover dictionary space.  However, it can be extended to
+\ further include dynamic memory allocations, threads or processes,
+\ or other resources which can safely be managed in a stack-
+\ like fashion.
+t: MARKER	HERE 'REMCHAIN @ remember CREATE ,
+		DOES> @ 'REMCHAIN @ prune DROP ;
+
+\ The first and most important rememberer and pruner involves
+\ resetting the CP and NP variables.
+t: rx1		HERE , NP @ , forthVoc 2@ , , ;
+t: px1		@+ CP !  @+ NP ! @+ forthVoc ! @+ forthVoc CELL+ ! ;
+
+t: U0		-24 @ /USER !
+		-16 @ /GLOBALS !
+		SP0 /USER @ 0 FILL
+		65536 CP !
+		$FF0000 NP !
+		0 -8 @ forthVoc 2!
+		0 'REMCHAIN !
+		doLIT px1 doLIT rx1 REMEMBER,
+;
 

@@ -13,6 +13,14 @@ Ford, Scott
     print and promotional material.  Thanks so much!  You can find his online
     presence at http://haliaeetus123.deviantart.com/ .
 
+FORTH, Inc. (esp. Leon Wagner)
+    This excellent company allowed me to rely on the source code to their
+    commercial product, SwiftForth 3.6.2, for inspiration and study when I
+    was having problems implementing the MARKER word in the Forth interpreter.
+    Please extend a hand to Leon Wagner, and support FORTH, Inc. in any way
+    you can.  It's the least that we can do to say thank you for their
+    contribution.  http://www.forth.com
+
 Stevenson, Scot
     Brought his TASM6502 project to my attention, and let me base vasm on his
     efforts.  Also, let me relicense the work to be compatible with the rest
