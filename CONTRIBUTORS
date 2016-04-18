@@ -106,10 +106,40 @@ LibSDL 2.x
     1.2) at first, it's been working pretty well since initial setup.  Find out
     more at https://www.libsdl.org
 
+RapidIO
+    I'm not, at present, using RapidIO in the Kestrel-3.  However, I have
+    future plans to do so, particularly when I get around to building my own
+    motherboard.  This is many years in the future though.  So why is it listed
+    now?  RapidIO has influenced my thinking about how to lay out the memory
+    map for the Kestrel-3 in anticipation for future I/O expansion
+    opportunities.  Also, I've given several presentations on my own personal
+    adaptations of RapidIO that aim to avoid the costly membership fees for the
+    SIG, and instead of slapping me down, RapidIO has supported me every step
+    of the way.  I encourage people to learn more and support them in any way
+    they can by visiting http://www.rapidio.org
+
 Redo
     Redo is a top-down build system intended to replace Make.  I chose this
     tool over Make because it was faster and easier to get things moving with.
     Find out more at https://github.com/apenwarr/redo .
+
+RISC-V Instruction Set Architecture
+    The RISC-V Instruction Set Architecture was graciously opened to the public
+    thanks to many professors and students at the University of California,
+    Berkeley.  It's since become something of a hot topic in the open hardware
+    community, and I'm happy to have found out about it when I did.  Prior to
+    RISC-V, I wanted to widen the S16X4 to 32- or even 64-bits, but doing so
+    would have resulted in a lot of wasted space in memory (lots of unused bits
+    due to frequently occurring small constants), or if I wanted to avoid this,
+    significantly more complicated instruction decoding logic (on par with a
+    CISC).  The RISC-V ISA provides software that is more or less as performant
+    as the S16X4 was with 16-bit code, and which has comparable instruction
+    density for 32-bit and 64-bit code.  A net win all 'round.  Combine that
+    with the opportunity for future expansion, including products like LowRISC
+    CPUs, Cray-style vector processing instruction set extensions, effective
+    16-bit compressed instructions, and more, and the Kestrel is well poised to
+    exploit a growing ecosystem of open hardware processors!  You can learn
+    more about RISC-V at http://risc-v.org
 
 Scribus
     A desktop publishing package for Linux which, despite having annoying user
