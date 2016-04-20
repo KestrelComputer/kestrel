@@ -1,6 +1,6 @@
 \ Screen editor -- simplified
 
-tuser edblk
+tuser SCR
 
 \ ..............................................................
 
@@ -12,7 +12,7 @@ t: 0editor		;
 t: .line ( a n - a' )	15 XOR 2 .R SPACE DUP 64 TYPE CR 64 + ;
 
 \ LIST ( n -- ) lists the specified block to the screen.
-t: LIST		DUP edblk ! BLOCK CR 15 FOR R@ .line NEXT DROP ;
+t: LIST		DUP SCR ! BLOCK CR 15 FOR R@ .line NEXT DROP ;
 
 t: t		."    SCR #" DUP . CR DUP LIST CR  1+ ;
 
@@ -32,23 +32,23 @@ t: TRI ( n -- )		TRI.. DROP ;
 t: INDEX ( a b -- )	1+ SWAP CR DO R@ 5 .R SPACE
 			R@ BLOCK 64 TYPE CR LOOP ;
 
-t: erase ( a u - )	32 FILL ;
+t: erase ( a u - )	32 FILL UPDATE ;
 
-\ CLEAN ( - ) erases the last block LIST'ed to all spaces.
-t: CLEAN ( - )		edblk @ BLOCK UPDATE 1024 erase ;
+\ CLEAN ( n - ) erases the specified block to all spaces.
+t: CLEAN ( n - )	DUP SCR ! BLOCK 1024 erase ;
 
 \ OPEN ( n - ) opens a new blank line at line n.  Line 15 is
 \ lost.
-t: addr ( n - a )	64 * edblk @ BLOCK + ;
+t: addr ( n - a )	64 * SCR @ BLOCK + ;
 t: size ( n - m )	64 * 960 SWAP - ;
 t: open ( n - )	DUP 15 U< IF DUP size >R addr DUP 64 + R> MOVE THEN ;
-t: line ( n - )		addr 64 erase ;
+t: line ( n - )		addr 64 erase UPDATE ;
 t: OPEN ( n - )		15 OVER U< ABORT" bad line"
 			DUP open line ;
 
 
-t: dell ( n - )		DUP size >R addr DUP 64 + SWAP R> MOVE ;
-t: bottom ( - )		edblk @ BLOCK UPDATE 960 + 64 erase ;
+t: dell ( n - )	DUP size >R addr DUP 64 + SWAP R> MOVE UPDATE ;
+t: bottom ( - )		SCR @ BLOCK UPDATE 960 + 64 erase ;
 
 \ CLOSE ( n - ) deletes the specified line from the block last
 \ LISTed.
