@@ -164,7 +164,9 @@ t: LOAD ( n -- )
   BLK @ >R BLK !
   >IN @ >R 0 >IN !
   'PARSE @ >R doLIT blkParse 'PARSE !
+  'PROMPT @ >R 0 'PROMPT !
   EVAL
+  R> 'PROMPT !
   R> 'PARSE !
   R> >IN !
   R> BLK ! ;
