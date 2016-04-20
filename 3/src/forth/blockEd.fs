@@ -58,5 +58,5 @@ t: CLOSE ( n - )    15 OVER U< ABORT" bad line" dell bottom ;
 \ characters) to the specified line in the block last LISTed.
 \ This will overwrite the entire line, filling the rest of
 \ the line with blanks if necessary.
-t: SET ( n - )		>R R@ line 13 PARSE R> addr SWAP MOVE ;
+t: SET ( n - )		>R R@ line 13 PARSE R> addr SWAP MOVE UPDATE ;
 

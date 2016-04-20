@@ -253,7 +253,7 @@ t: DIGIT? ( c -- d T / F )
 t: NUMBER? ( a - n T / a F )
   COUNT
   OVER C@ 45 = IF 1 - SWAP 1 + SWAP -1 ELSE 0 THEN >R
-  OVER C@ 36 = IF 1 - SWAP 1 + SWAP 16 ELSE 10 THEN BASE @ >R BASE !
+  OVER C@ 36 = IF 1 - SWAP 1 + SWAP 16 ELSE BASE @ THEN BASE @ >R BASE !
   0 SWAP FOR AFT
     OVER C@ DIGIT?
     IF   SWAP BASE @ * +
