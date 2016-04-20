@@ -34,8 +34,8 @@ t: INDEX ( a b -- )	1+ SWAP CR DO R@ 5 .R SPACE
 
 t: erase ( a u - )	32 FILL ;
 
-\ CLEAN ( - ) erases the last block LIST'ed to all spaces.
-t: CLEAN ( - )		edblk @ BLOCK UPDATE 1024 erase ;
+\ CLEAN ( n - ) erases the specified block to all spaces.
+t: CLEAN ( n - )	DUP edblk ! BLOCK UPDATE 1024 erase ;
 
 \ OPEN ( n - ) opens a new blank line at line n.  Line 15 is
 \ lost.
