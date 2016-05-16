@@ -6,8 +6,6 @@ date:	2016-05-11 18:22:00
 
 *(This article first appeared on [my Hackaday.io project page.](https://hackaday.io/project/10035-kestrel-computer-project/log/37873-instead-of-cgia-go-with-a-super-vdp-instead)  I've since made some minor edits, and reposted it here.)*
 
-# Instead of CGIA, go with a super-VDP instead?
-
 After stumbling upon a [fairly sizable collection of design notes and interviews](http://spatula-city.org/~im14u2c/vdp-99xx/) from the inventor of the Texas Instruments TMS9918A VDP (video display processor), I began to entertain the possibility that maybe the Kestrel-3 should use a VDP-like video core to replace the MGIA instead of my original CGIA (Configurable Graphics Interface Adapter) idea.
 
 ## Recap: CGIA
