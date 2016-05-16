@@ -1,5 +1,4 @@
 name: Kestrel
-pygments: true
 permalink: /:year/:month/:day/:title
 baseurl: /kestrel
 
