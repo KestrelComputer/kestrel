@@ -87,7 +87,7 @@ The following table illustrates how pixels are packed:
 
 They are packed as follows:
 
-![1, 2, 4, and 8 bits per pixel and how they are laid out in a single 16-bit halfword.](../images/pixels-per-halfword.png)
+![1, 2, 4, and 8 bits per pixel and how they are laid out in a single 16-bit halfword.]({{site.baseurl}}/images/pixels-per-halfword.png)
 
 Each color is pushed out of a *color index bus*,
 sometimes more simply referred to as just the *color bus*.
@@ -111,7 +111,7 @@ Other registers exist allowing the programmer to select different horizontal res
 
 Refer to this (poorly drawn) diagram:
 
-![How bits of the CGIA fit together.](../images/cgia-block-diagram.jpg)
+![How bits of the CGIA fit together.]({{site.baseurl}}/images/cgia-block-diagram.jpg)
 
 If we work our way backwards through the CGIA, we first encounter the CLUT.
 This is a fairly simple device; the `color` bus selects one of 256 color registers,
