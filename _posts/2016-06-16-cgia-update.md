@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "CGIA Update: Video Serialization"
-date:   2016-06-16 22:00:00
+date:   2016-06-16 16:00:00
 ---
 
 The Kestrel-3 requires a bitmapped video display of some kind.
