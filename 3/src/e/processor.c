@@ -43,8 +43,6 @@ do_hostif(Processor *p) {
 static DWORD
 getCSR(Processor *p, int csr) {
 	switch(csr) {
-	case r_MCPUID:		return p->csr[i_MCPUID];
-	case r_MIMPID:		return p->csr[i_MIMPID];
 	case r_MHARTID:		return p->csr[i_MHARTID];
 	case r_MSTATUS:		return p->csr[i_MSTATUS];
 	case r_MTVEC:		return p->csr[i_MTVEC];
@@ -160,8 +158,10 @@ make(AddressSpace *as) {
 
 		// We emulate a 64-bit RISC-V instruction set.  No frills.
 		// We are currently vendor ID $8000.
-		p->csr[i_MCPUID] = 0x8000000000000100;
-		p->csr[i_MIMPID] = 0x0000000000008000;
+		p->csr[i_MISA] = 0x4000000000040100;
+		p->csr[i_MVENDORID] = 0;
+		p->csr[i_MARCHID] = 0;
+		p->csr[i_MIMPID] = 0x0100000000000000;
 		p->csr[i_MHARTID] = 0;
 		p->csr[i_MSTATUS] = 0xDD6;	// Make sure to boot in machine mode!!  :)
 		p->csr[i_MTVEC] = -0x200;
