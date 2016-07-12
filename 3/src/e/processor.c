@@ -116,20 +116,15 @@ andCSR(Processor *p, int csr, DWORD v) {
 
 static void
 trap(Processor *p, UDWORD cause) {
-	UDWORD privStack = ((p->csr[i_MSTATUS] & 0x1FF) << 3) | 6;
-	int offset;
+	// E only supports M-mode, so no need to calculate which mode we're coming from anymore.  Yay!
 
-	// What mode are we coming from?  Calculate MVTEC offset from that.
-	offset = (privStack & 0x30) << 2;
+	UDWORD newstat = p->csr[i_MSTATUS] & 0xFFFFFFFFFFFFE777;
+	newstat |= (p->csr[i_MSTATUS] & 0x8) << 4;
 
-	// Assume the role of machine-mode.  We load EPC with PC-4 because
-	// the PC has already been incremented by the emulator by the time
-	// this code runs.  The negative bias records the instruction which
-	// trapped/faulted.
 	p->csr[i_MCAUSE] = cause;
 	p->csr[i_MEPC] = p->csr[i_MBADADDR] = p->pc - 4;
-	p->csr[i_MSTATUS] = ((p->csr[i_MSTATUS] & -0x1000) | privStack) & ~0x10000;
-	p->pc = p->csr[i_MTVEC] + offset;
+	p->csr[i_MSTATUS] = newstat;
+	p->pc = p->csr[i_MTVEC];
 }
 
 
@@ -163,7 +158,7 @@ make(AddressSpace *as) {
 		p->csr[i_MARCHID] = 0;
 		p->csr[i_MIMPID] = 0x0100000000000000;
 		p->csr[i_MHARTID] = 0;
-		p->csr[i_MSTATUS] = 0xDD6;	// Make sure to boot in machine mode!!  :)
+		p->csr[i_MSTATUS] = 0x1800;
 		p->csr[i_MTVEC] = -0x200;
 		p->csr[i_MTOHOST] = 0;
 		p->csr[i_MFROMHOST] = 0;
