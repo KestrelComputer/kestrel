@@ -110,12 +110,12 @@ csrrsToken = 254
 csrrcToken = 255
 ecallToken = 256
 ebreakToken = 257
-eretToken = 258
-mrtsToken = 259
-mrthToken = 260
-hrtsToken = 261
+uretToken = 258
+sretToken = 259
+hretToken = 260
+mretToken = 261
 wfiToken = 262
-vmfenceToken = 263
+sfencevmToken = 263
 includeToken = 264
 incbinToken = 265
 
@@ -419,13 +419,12 @@ def kindOfIdentifier(s):
         'SRAW': srawToken,
         'ECALL': ecallToken,
         'EBREAK': ebreakToken,
-        'ERET': eretToken,
-        'MRTS': mrtsToken,
-        'MRTH': mrthToken,
-        'HRTS': hrtsToken,
+	'URET': uretToken,
+	'SRET': sretToken,
+	'HRET': hretToken,
+	'MRET': mretToken,
         'WFI': wfiToken,
-        'FENCE_VM': vmfenceToken,
-        'VMFENCE': vmfenceToken,    # alias
+        'SFENCEVM': sfencevmToken,
         'INCLUDE': includeToken,
         'INCBIN': incbinToken,
     }
@@ -653,6 +652,10 @@ def genericUHandler(asm, tok, insn):
     asm.recordU(insn, rd, imm20)
 
 
+def genericI1Handler(asm, tok, insn, imm12):
+    rs = expression(asm, 0)
+    asm.recordI(insn, 0, rs, imm12)
+
 def genericIHandler(asm, tok, insn):
     rd = expectReg(asm)
     rs = expectReg(asm)
@@ -773,12 +776,12 @@ fileScopeHandlers = {
     srawToken: lambda a, t: genericRHandler(a, t, 0x4000503B),
     ecallToken: lambda a, t: placeOpcode(a, 0x00000073),
     ebreakToken: lambda a, t: placeOpcode(a, 0x00100073),
-    eretToken: lambda a, t: placeOpcode(a, 0x10000073),
-    mrtsToken: lambda a, t: placeOpcode(a, 0x30500073),
-    mrthToken: lambda a, t: placeOpcode(a, 0x30600073),
-    hrtsToken: lambda a, t: placeOpcode(a, 0x20500073),
-    wfiToken: lambda a, t: placeOpcode(a, 0x10200073),
-    vmfenceToken: lambda a, t: placeOpcode(a, 0x10100073),
+    uretToken: lambda a, t: placeOpcode(a, 0x00200073),
+    sretToken: lambda a, t: placeOpcode(a, 0x10200073),
+    hretToken: lambda a, t: placeOpcode(a, 0x20200073),
+    mretToken: lambda a, t: placeOpcode(a, 0x30200073),
+    wfiToken: lambda a, t: placeOpcode(a, 0x10500073),
+    sfencevmToken: lambda a, t: genericI1Handler(a, t, 0x00000073, 0x104),
     includeToken: lambda a, t: includeHandler(a, t),
     incbinToken: lambda a, t: incbinHandler(a, t),
 }
