@@ -418,7 +418,7 @@ eatG:
 	ld	x29, zp_userRegs+232(x0)
 	ld	x30, zp_userRegs+240(x0)
 	ld	x31, zp_userRegs+248(x0)
-	eret
+	mret
 
 ; Compute user-mode register address in memory
 

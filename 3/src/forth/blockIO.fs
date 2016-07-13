@@ -151,7 +151,7 @@ t: BUFFER	DUP lastblk ! select DUP ?wrb assign ;
 t: BLOCK ( b - a )
   missing
   IF   DUP >R BUFFER DUP R> 2* 2 GETS THROW
-  ELSE NIP DUP clk! >buf THEN ;
+  ELSE DUP clk! >buf SWAP lastblk ! THEN ;
 
 \ LOAD ( n -- ) loads the block specified and evaluates it
 \ as Forth program source, as though you had directly typed

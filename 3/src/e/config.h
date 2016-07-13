@@ -17,32 +17,43 @@
 #define SDB_SIZE	(512)
 #define SDB_MASK	(SDB_SIZE-1)
 
-#define r_MCPUID	0xF00
-#define r_MIMPID	0xF01
-#define r_MHARTID	0xF10
+#define r_MISA		0xF10
+#define r_MVENDORID	0xF11
+#define r_MARCHID	0xF12
+#define r_MIMPID	0xF13
+#define r_MHARTID	0xF14
+
 #define r_MSTATUS	0x300
-#define r_MTVEC		0x301
-#define r_MDELEG	0x302
+#define r_MEDELEG	0x302
+#define r_MIDELEG	0x303
 #define r_MIE		0x304
+#define r_MTVEC		0x305
+
+#define r_MSCRATCH	0x340
 #define r_MEPC		0x341
-#define r_MBADADDR	0x343
 #define r_MCAUSE	0x342
+#define r_MBADADDR	0x343
 #define r_MIP		0x344
+
 #define r_MTOHOST	0x780
 #define r_MFROMHOST	0x781
 
 
-#define i_MCPUID	0
-#define i_MIMPID	1
-#define i_MHARTID	2
-#define i_MSTATUS	3
-#define i_MTVEC		4
-#define i_MDELEG	5
-#define i_MEPC		6
-#define i_MBADADDR	7
-#define i_MCAUSE	8
-#define i_MTOHOST	9
-#define i_MFROMHOST	10
-#define i_MIE		11
-#define i_MIP		12
-#define i_MAXCSR	13
+#define i_MISA		0
+#define i_MVENDORID	1
+#define i_MARCHID	2
+#define i_MIMPID	3
+#define i_MHARTID	4
+#define i_MSTATUS	5
+#define i_MEDELEG	6
+#define i_MIDELEG	7
+#define i_MIE		8
+#define i_MTVEC		9
+#define i_MSCRATCH	10
+#define i_MEPC		11
+#define i_MCAUSE	12
+#define i_MBADADDR	13
+#define i_MIP		14
+#define i_MTOHOST	15
+#define i_MFROMHOST	16
+#define i_MAXCSR	17
