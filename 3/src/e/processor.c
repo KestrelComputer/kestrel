@@ -40,6 +40,20 @@ do_hostif(Processor *p) {
 	p->csr[i_MFROMHOST] = p->csr[i_MTOHOST];
 }
 
+static void
+trap(Processor *p, UDWORD cause) {
+	// E only supports M-mode, so no need to calculate which mode we're coming from anymore.  Yay!
+
+	UDWORD newstat = p->csr[i_MSTATUS] & 0xFFFFFFFFFFFFE777;
+	newstat |= (p->csr[i_MSTATUS] & 0x8) << 4;
+
+	p->csr[i_MCAUSE] = cause;
+	p->csr[i_MEPC] = p->csr[i_MBADADDR] = p->pc - 4;
+	p->csr[i_MSTATUS] = newstat;
+	p->pc = p->csr[i_MTVEC];
+}
+
+
 static DWORD
 getCSR(Processor *p, int csr) {
 	switch(csr) {
@@ -54,6 +68,7 @@ getCSR(Processor *p, int csr) {
 	case r_MIE:		return p->csr[i_MIE];
 	case r_MIP:		return ipr;	/* See address-space.c */
 	default:
+		trap(p, 2);	// Illegal CSR addresses are now spec'd to trigger illegal instruction traps. (RV64S V1.9)
 		fprintf(stderr, "Warning: At $%016llX, attempt to read unsupported CSR %d\n", p->pc-4, csr);
 		return 0xCCCCCCCCCCCCCCCC;
 	}
@@ -64,10 +79,10 @@ static void
 setCSR(Processor *p, int csr, DWORD v) {
 	switch(csr) {
 	case r_MSTATUS:
-		p->csr[i_MSTATUS] = (v & 0x00000000003FFFF9) | 0x06;	// We only support machine-mode, so hardwire privilege level.
+		p->csr[i_MSTATUS] = (v & 0x0000000000000088) | 0x0000000000001800;	// We only support machine-mode, so hardwire privilege level.
 		break;
 	case r_MTVEC:
-		p->csr[i_MTVEC] = v & -0x200;
+		p->csr[i_MTVEC] = v & -4;
 		break;
 	case r_MEPC:
 		p->csr[i_MEPC] = v;
@@ -86,10 +101,10 @@ setCSR(Processor *p, int csr, DWORD v) {
 		// Only machine-mode interrupts are supported, so
 		// we hardwire hypervisor, supervisor, and user-mode
 		// enables to zero.
-		p->csr[i_MIE] = v & 0x8888888888888888;
+		p->csr[i_MIE] = v & 0x0000000000000888;
 		break;
 	case r_MIP:
-		// Only low 3 bits are changeable, per RV64S V1.7 spec.
+		// Only low 4 bits are changeable, per RV64S V1.7 spec.
 		// Only machine-mode is supported by Polaris however;
 		// so only bit 3 is writable in my implementation.
 		ipr &= -16;
@@ -97,6 +112,7 @@ setCSR(Processor *p, int csr, DWORD v) {
 		break;
 
 	default:
+		trap(p, 2);	// Illegal CSR addresses are now spec'd to trigger illegal instruction traps. (RV64S V1.9)
 		fprintf(stderr, "Warning: At $%016llX, attempt to write $%016llX to unsupported CSR %d\n", p->pc-4, v, csr);
 	}
 }
@@ -115,29 +131,15 @@ andCSR(Processor *p, int csr, DWORD v) {
 
 
 static void
-trap(Processor *p, UDWORD cause) {
-	// E only supports M-mode, so no need to calculate which mode we're coming from anymore.  Yay!
-
-	UDWORD newstat = p->csr[i_MSTATUS] & 0xFFFFFFFFFFFFE777;
-	newstat |= (p->csr[i_MSTATUS] & 0x8) << 4;
-
-	p->csr[i_MCAUSE] = cause;
-	p->csr[i_MEPC] = p->csr[i_MBADADDR] = p->pc - 4;
-	p->csr[i_MSTATUS] = newstat;
-	p->pc = p->csr[i_MTVEC];
-}
-
-
-static void
 ecall(Processor *p) {
-	trap(p, 8 + ((p->csr[i_MSTATUS] & 6) >> 1));
+	trap(p, 11);	// RV64S V1.9 change: mstatus no longer tracks current operating mode.
 }
 
 
 static void
-eret(Processor *p) {
-	UDWORD privStack = ((p->csr[i_MSTATUS] & 0xFF8) >> 3) | 0x206;	// 0x206 vs 0x200 b/c we only support M-mode.
-	p->csr[i_MSTATUS] = (p->csr[i_MSTATUS] & -0x1000) | privStack;
+mret(Processor *p) {
+	UDWORD new_mie = (p->csr[i_MSTATUS] & 0x80) >> 4;
+	p->csr[i_MSTATUS] = (p->csr[i_MSTATUS] & 0xFFFFFFFFFFFE0F77) | new_mie | 0x1880;
 	p->pc = p->csr[i_MEPC];
 }
 
@@ -424,18 +426,23 @@ step(Processor *p, Timeline *t) {
 					trap(p, 3);
 					break;
 
-				case 0x100:		// ERET
-					eret(p);
+				case 0x002:		// URET
+				case 0x102:		// SRET
+				case 0x202:		// HRET
+					trap(p, 2);	// We don't support these modes, so illegal instruction trap.
 					break;
 
-				case 0x102:		// WFI == NOP for now.
+				case 0x302:		// MRET
+					mret(p);
 					break;
 
-				case 0x305:		// MRTS
-				case 0x306:		// MRTH
-				case 0x205:		// HRTS
-				case 0x101:		// VMFENCE (aka FENCE.VM)
-				default:
+				case 0x105:		// WFI == NOP for now.
+					break;
+
+				case 0x104:		// VMFENCE (aka FENCE.VM)
+					break;		// NOP for now.
+
+				default:		// Otherwise, unrecognized instruction.
 					trap(p, 2);
 				};
 				break;
