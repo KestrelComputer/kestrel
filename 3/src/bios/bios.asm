@@ -176,7 +176,7 @@ _ih_B105:	dword	$B105
 		ld	s0, 8(sp)
 		ld	s1, 16(sp)
 		addi	sp, sp, 24
-		eret
+		mret
 
 ; CPU reset vector.  The Polaris CPU boots here after the reset signal has
 ; been asserted.
