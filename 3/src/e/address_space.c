@@ -438,7 +438,9 @@ static int
 valid_card(DWORD address) {
 	int card = (address & CARD_MASK) >> 60;
 	int element = 1 << card;
-	return (element & 0x8003) != 0;		// Cards 0, 1, and 15 are valid.
+
+	// Cards 0, 1, 14, and 15 are valid.
+	return (element & 0xc003) != 0;
 }
 
 static void
