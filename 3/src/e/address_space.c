@@ -174,7 +174,7 @@ debug_port_has_data() {
 	fd_set fds;
 	struct timeval tv = {0,};
 	FD_ZERO(&fds);
-	FD_SET(0, &fds);
+	FD_SET(STDIN_FILENO, &fds);
 	select(1, &fds, NULL, NULL, &tv);
 	return FD_ISSET(0, &fds) != 0;
 }
@@ -188,7 +188,7 @@ uart_reader(AddressSpace *as, UDWORD addr, int sz) {
 	switch(addr & 1) {
 	case 0:		return debug_port_has_data();
 	case 1:
-		for(n = 0; !n; n = read(1, &c, 1));
+		for(n = 0; !n; n = read(STDIN_FILENO, &c, 1));
 		return c;
 	}
 	return 0;
