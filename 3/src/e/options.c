@@ -35,6 +35,10 @@ make(int argc, char *argv[]) {
 		}
 	}
 
+	if (!opts->romFilename) {
+		opts->romFilename = "roms/forth";
+	}
+
 	return opts;
 }
 
