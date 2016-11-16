@@ -1,0 +1,14 @@
+language: c
+compiler: gcc
+dist: trusty    # apparently libsdl2-dev is too old for Ubuntu "precise"
+
+addons:
+  apt:
+    packages:
+      - gforth
+      - libsdl2-dev
+install:
+  - git clone https://github.com/apenwarr/redo
+  - (cd redo && ./redo && sudo ./redo install)
+script:
+  - cd 3 && redo
