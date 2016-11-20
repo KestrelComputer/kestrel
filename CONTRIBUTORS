@@ -1,7 +1,6 @@
 Credits and contributors in alphabetical order, by last name.  If you prefer a
 pseudonym, that's OK too:
 
-
 Brinkhoff, Lars
     Provided .gitattributes for proper Github metrics reporting.
 
@@ -29,6 +28,10 @@ Hintjens, Pieter
     right; making a separate organization was instrumental in gaining exposure
     in the open-source community.  Many thanks to Pieter for his experience and
     guidance in how to engage with the community!
+
+Neuschäfer, Jonathan
+    Provided Travis-CI support and improved usability through changes to
+    the e emulator's command-line interface.  Thanks!!
 
 Stevenson, Scot
     Brought his TASM6502 project to my attention, and let me base vasm on his
