@@ -20,6 +20,10 @@ make(int argc, char *argv[]) {
 	Options *opts = _new();
 	int i = 1;
 
+	/* Defaults */
+	opts->romFilename = "roms/forth";
+
+	/* Parse the command line */
 	for(;;) {
 		if(i >= (argc - 1)) break;
 
@@ -33,10 +37,6 @@ make(int argc, char *argv[]) {
 			fprintf(stderr, "Warning: unknown option %s\n", argv[i]);
 			i++;
 		}
-	}
-
-	if (!opts->romFilename) {
-		opts->romFilename = "roms/forth";
 	}
 
 	return opts;
