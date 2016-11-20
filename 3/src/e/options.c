@@ -22,6 +22,7 @@ make(int argc, char *argv[]) {
 
 	/* Defaults */
 	opts->romFilename = "roms/forth";
+	opts->sdcardFilename = "sdcard.sdc";
 
 	/* Parse the command line */
 	for(;;) {
@@ -32,6 +33,9 @@ make(int argc, char *argv[]) {
 			i = i + 2;
 		} else if(!strcmp(argv[i], "romfile")) {
 			opts->romFilename = argv[i+1];
+			i = i + 2;
+		} else if(!strcmp(argv[i], "sdcardfile")) {
+			opts->sdcardFilename = argv[i+1];
 			i = i + 2;
 		} else {
 			fprintf(stderr, "Warning: unknown option %s\n", argv[i]);

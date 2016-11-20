@@ -35,10 +35,11 @@ struct SDCard {
 	int	acmdPrefix;
 	int	blockLength;
 	WORD	seek_address;
+	char *  filename;
 };
 
 
-SDCard *	sdcard_new(void);
+SDCard *	sdcard_new(char * filename);
 void		sdcard_dispose(SDCard *);
 BYTE		sdcard_byte(SDCard *, BYTE);
 void		sdcard_select(SDCard *);
