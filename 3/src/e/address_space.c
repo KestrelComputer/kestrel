@@ -421,7 +421,8 @@ make(Options *opts) {
 	assert(as->rom);
 	assert(as->ram);
 
-	as->sdc = sdcard_new();
+	assert(opts->sdcardFilename);
+	as->sdc = sdcard_new(opts->sdcardFilename);
 	assert(as->sdc);
 
 	kia_head = kia_tail = 0;

@@ -18,19 +18,24 @@ void
 sdcard_reset(SDCard *sdc) {
 	int prefix = sdc->acmdPrefix;
 	int blockLength = sdc->blockLength;
+	char * filename = sdc->filename;
 
 	memset(sdc, 0, sizeof(SDCard));
 	sdc->cmd_handler = &sdcard_default_handler;
 	sdc->cmd_length = 6;
 	sdc->blockLength = blockLength;
 	sdc->acmdPrefix = prefix;
+	sdc->filename = filename;
 }
 
 
 SDCard *
-sdcard_new(void) {
+sdcard_new(char * filename) {
 	SDCard *sdc = malloc(sizeof(SDCard));
-	if(sdc) sdcard_reset(sdc);
+	if(sdc) {
+		sdc->filename = filename;
+		sdcard_reset(sdc);
+	}
 	return sdc;
 }
 
@@ -159,7 +164,7 @@ sdcard_do_read_block(SDCard *sdc) {
 	sdcard_enqueue_response(sdc, 0x00);
 	sdcard_enqueue_response(sdc, 0xFF);
 
-	h = open("sdcard.sdc", O_RDONLY);
+	h = open(sdc->filename, O_RDONLY);
 	if(h < 0) {
 		sdcard_enqueue_response(sdc, 0x05);
 		return;
@@ -210,7 +215,7 @@ sdcard_do_write_block_2nd(SDCard *sdc) {
 		return;
 	}
 
-	h = open("sdcard.sdc", O_RDWR);
+	h = open(sdc->filename, O_RDWR);
 	if(h < 0) {
 		sdcard_enqueue_response(sdc, 0xED);
 		return;
