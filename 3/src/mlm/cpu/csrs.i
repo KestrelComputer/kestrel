@@ -12,7 +12,7 @@ mhartid		= $F14
 
 mstatus         = $300
 medeleg         = $302
-midelet		= $303
+mideleg		= $303
 mie             = $304
 mtvec           = $305
 
