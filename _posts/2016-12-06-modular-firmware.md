@@ -160,8 +160,8 @@ A typical invokation looks like this:
                     ld      a0, ModulesBase(x0)     ; A0 -> module manager's data
                     ld      a2, 0(a0)               ; A2 -> jump table for module manager
                     jalr    ra, EP_OpenModule(a2)
-                    ld      ra, 0(sp)
 
+                    ld      ra, 0(sp)
                     addi    sp, sp, 8
                     jalr    x0, 0(ra)
 
