@@ -78,7 +78,7 @@ The components listed could have been built with the following commands:
 
     dd if=modules.module of=firmware-image bs=512 seek=1920 count=128
 
-<img src="{{site.baseurl}}/images/modular-firmware-logical-structure.png" alt="Figure showing binary image layout" />
+<img width="100%" src="{{site.baseurl}}/images/modular-firmware-logical-structure.png" alt="Figure showing binary image layout" />
 
 Some discipline is required to successfully write firmware modules;
 however, the extra burden on the developer is fairly small.
@@ -264,5 +264,5 @@ the address of the next module header is calculated by summing the current heade
 and its `DisplacementToNextModule` field.
 This process repeats for as long as headers exist (as long as the `MatchWord` matches expectations).
 
-<img src="{{site.baseurl}}/images/modular-firmware-structure-layout.png" alt="Figure showing relationships between modules, headers, jump tables, BDA, and MDAs." />
+<img src="{{site.baseurl}}/images/modular-firmware-structure-relationships.png" alt="Figure showing relationships between modules, headers, jump tables, BDA, and MDAs." />
 
