@@ -244,5 +244,5 @@ the address of the next module header is calculated by summing the current heade
 and its `DisplacementToNextModule` field.
 This process repeats for as long as headers exist (as long as the `MatchWord` matches expectations).
 
-<img src="{{site.url}}/images/modular-firmware-struct-layout.svg" alt="Figure 1: Relationships between modules, headers, jump tables, BDA, and MDAs." />
+<img src="{{site.baseurl}}/images/modular-firmware-struct-layout.svg" alt="Figure 1: Relationships between modules, headers, jump tables, BDA, and MDAs." />
 
