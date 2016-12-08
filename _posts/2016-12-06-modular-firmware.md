@@ -232,9 +232,17 @@ If so, it then compares the `ModuleName` field against that sought.
 If there is a successful match,
 `OpenModule` will take the following rough steps:
 
-    1.  Determine the size of the module's global data area by reading the ModuleDataSize field.
-    2.  Allocate 8 + ModuleDataSize bytes of memory from the Boot Data Area (BDA).  This will become the Module Data Area (MDA).
-    3.  Compute the absolute address of the module's jump table, and set offset 0 of the MDA to point to it.
-    4.  Invoke the `Init` procedure of the module, passing the MDA in register `a0`.  This procedure is intended to *initialize* the global state of the MDA as given.  Remember that this may involve recursively opening dependent libraries!
-    5.  If the procedure returned with a successful outcome, store the MDA in a list of open modules.
+1.  Determine the module's data requirements by reading the ModuleDataSize field.
+2.  Allocate 8 + ModuleDataSize bytes of memory from the Boot Data Area (BDA).  This will become the Module Data Area (MDA).
+3.  Compute the absolute address of the module's jump table, and set offset 0 of the MDA to point to it.
+4.  Invoke the `Init` procedure of the module, passing the MDA in register `a0`.  This procedure is intended to *initialize* the global state of the MDA as given.  Remember that this may involve recursively opening dependent libraries!
+5.  If the procedure returned with a successful outcome, store the MDA in a list of open modules.
+6.  Open the module per the procedure discussed above.
+
+If the name does not match,
+the address of the next module header is calculated by summing the current header's address
+and its `DisplacementToNextModule` field.
+This process repeats for as long as headers exist (as long as the `MatchWord` matches expectations).
+
+![images/modular-firmware-struct-layout.svg](Figure 1: Relationships between modules, their headers, jump tables, the BDA, and MDA.)
 
