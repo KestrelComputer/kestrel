@@ -43,7 +43,136 @@ This process depends upon the host and/or target environment having
 what's called a *loader* to finally place and, if needed, relocate the binary image.
 However, when working with bare metal, without the support infrastructure of an operating system,
 writing a loader is a significant chunk of work.
-It's complicated, it's error-prone, and it has no way of telling the user of any errors because
-it cannot necessarily depend on charater output drivers.
-A simpler way is needed.
+It's complicated, it's error-prone, it can be quite large in size,
+and it has no way of telling the user of any errors because
+it cannot necessarily depend on character output drivers.
+A smaller, simpler way that is easier to verify for correctness is needed.
+
+I propose a method of systems-level integration
+where the "linking" step is performed by a combination of the Unix commands `cat`, `dd`, and `truncate`,
+and which requires no sophisticated loader to function.
+Some discipline is required to successfully write firmware modules;
+however, the extra burden on the developer is fairly small.
+For such a system to work, the following must hold true:
+
+* All software is written to be position-independent.
+* Every module needs to start with a small header.
+* The firmware contains procedures to dynamically discover and initialize modules as they're needed.
+* The firmware also needs a way to locate and initialize certain modules *before* they're actually needed.
+
+With these requirements met,
+it is possible for even web-based applications hosted on low-powered virtual machines
+to offer customized firmware images for immediate download
+without having dependencies on expensive build environments
+or dependency graph information.
+The images can be synthesized on-demand for the user's device(s) on an as-needed basis,
+given only a selection of components appropriate for the user's needs.
+
+I discuss each of these requirements in greater detail below.
+
+**All software is written to be position-independent.**
+A given set of modules should be able to be combined in any order and still be expected to work.
+Software is written in a modular manner:
+all modules are self-contained, and any linkage required between modules occurs dynamically at run-time
+through jump-tables or data structures referenced by CPU registers.
+To acquire a reference to a module in the first place,
+a well-known procedure is required to resolve the name to a module reference.
+(This will be discussed in the third requirement description, below.)
+The RISC-V instruction set is position-independent by default,
+which makes satisfying both of these requirements unusually easy.
+
+**Every module needs to start with a small header**
+that identifies the module by name, and locates where to find subsequent modules.
+As of this writing, the header looks like this:
+
+    dword   MatchWord
+    byte    "ModuleName      "
+    dword   ModuleFlags
+    dword   DisplacementToJumpTable
+    dword   DisplacementToNextModule
+
+The `MatchWord` field **must** begin on an 8-byte boundary,
+which must also be the very first 64-bit word of the module.
+The value of `MatchWord` currently must equal $05ADC0DEFEEDC0DE.
+This sequence of bytes is statistically improbable to appear in legitimate code,
+and therefore serves as a nice tag indicating the presence of a module.
+
+The `ModuleName` field consists of up to 16 ASCII characters,
+padded by spaces.
+Spaces may *not* appear inside the name.
+Some example module names are below:
+
+    byte    "executive       "
+    byte    "filesystem      "
+    byte    "gpio            "
+    byte    "illglInsnHandler"
+
+The fixed-length text field was selected because
+it requires only two `bne` or `beq` instructions to test for (in)equality,
+saving the firmware implementor the burden of a general-purpose `strcmp()` function.
+Additionally, the 16-byte field width
+provides suitable descriptive power without worrying about name collisions in the general case.
+If collisions becomes a problem,
+the field is perfectly sized for transitioning to a UUID-based identifier
+without breaking previously written software.
+
+The `ModuleFlags` field only has one bit defined in this proposal:
+bit 0 is the `PREOPEN` bit.
+All other bits **must** be written as zero,
+and ignored upon read, to ensure compatibility with future revisions of this protocol.
+The meaning of the `PREOPEN` bit will be discussed later.
+
+The `DisplacementToJumpTable` field contains a *byte displacement relative to the `MatchWord` field*.
+This reference tells the firmware where to find this module's *jump table.*
+Each module is required to implement a minimum of four jump table entry points:
+
+    jal     x0, Init            ; The very first jump table entry
+    jal     x0, Open
+    jal     x0, Close
+    jal     x0, Expunge
+    ; Module-specific entry-points follow.
+
+The `Init` procedure is responsible for performing the one-time, global initialization of the module.
+The `Open` procedure is invoked whenever the module is opened by a client.
+The `Close` procedure is invoked whenever the module is closed by a client.
+The `Expunge` procedure is called when a module should perform global shut-down procedures.
+Note that both `Close` and `Expunge` *cannot be allowed to fail*, while `Init` and `Open` can.
+How these entry points and procedures are used
+will be discussed later.
+
+The `DisplacementToNextModule` field contains a *byte displacement relative to the `MatchWord` field*.
+This allows the firmware looking for modules
+to find the next module in the firmware image, assuming one exists.
+**NOTE:** this field must never equal zero, or the system firmware *may* end up in an infinite loop.
+
+**The firmware contains procedures to dynamically discover and initialize modules as they're needed.**
+The most important procedure is `OpenModule`,
+which is responsible for invoking the `Open` entry point of the named module.
+A typical invokation looks like this:
+
+                    align   8
+    _execName:      byte    "executive       "      ; Remember, pad to 16 places
+    _openExec:      addi    sp, sp, -8
+                    sd      ra, 0(sp)
+
+    _oeReference:   auipc   a1, 0                   ; A1 -> name of module to open
+                    addi    a1, a1, _execName - _oeReference
+                    ld      a0, ModulesBase(x0)     ; A0 -> module manager's data
+                    ld      a2, 0(a0)               ; A2 -> jump table for module manager
+                    jalr    ra, EP_OpenModule(a2)
+                    ld      ra, 0(sp)
+
+                    addi    sp, sp, 8
+                    jalr    x0, 0(ra)
+
+If the call succeeds, the result is register `a0` pointing to the opened module's instance structure in memory,
+which is completely opaque to the caller
+*with the sole exception* that offset zero of that structure refers to the module's jump table.
+This is why the example first loads `a0` with the contents of the pointer at `ModulesBase(x0)`,
+and then obtains the modules facility's jump table by setting `a2` to the contents of `0(a0)`.
+
+If the module failed to open for any reason, `a0` will equal zero.
+
+**The firmware also needs a way to locate and initialize certain modules before they're actually needed**,
+such as illegal instruction handlers intended to emulate support for missing RISC-V instructions.
 
