@@ -60,6 +60,26 @@ A smaller, simpler way that is easier to verify for correctness is needed.
 I propose a method of systems-level integration
 where the "linking" step is performed by a combination of the Unix commands `cat`, `dd`, and `truncate`,
 and which requires no sophisticated loader to function.
+
+For example, the following figure represents one possible layout of components in a 1MB firmware image.
+The components listed could have been built with the following commands:
+
+    # Create image containing desired payload modules.
+
+    cat bios.module eforth.module \
+        video.module keyb.module  \
+        mul.module fpe.module II.module > firmware-image
+
+    # Make sure it fits in a 1MB ROM image.
+
+    truncate --size=1048576 firmware-image
+
+    # Make sure cold-boot vectors and modular firmware image is embedded.
+
+    dd if=modules.module of=firmware-image bs=512 seek=1920 count=128
+
+<img src="{{site.baseurl}}/images/modular-firmware-logical-structure.png" alt="Figure showing binary image layout" />
+
 Some discipline is required to successfully write firmware modules;
 however, the extra burden on the developer is fairly small.
 For such a system to work, the following must hold true:
@@ -244,5 +264,5 @@ the address of the next module header is calculated by summing the current heade
 and its `DisplacementToNextModule` field.
 This process repeats for as long as headers exist (as long as the `MatchWord` matches expectations).
 
-<img src="{{site.baseurl}}/images/modular-firmware-struct-layout.svg" alt="Figure 1: Relationships between modules, headers, jump tables, BDA, and MDAs." />
+<img src="{{site.baseurl}}/images/modular-firmware-structure-layout.png" alt="Figure showing relationships between modules, headers, jump tables, BDA, and MDAs." />
 
