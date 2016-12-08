@@ -4,6 +4,13 @@ title:  "Modular Firmware"
 date:   2016-12-06 16:00:00
 ---
 
+## Abstract
+
+What is the problem?
+Why is it a problem?
+What is my solution?
+Why should you pay attention to my solution?
+
 ## Introduction
 
 The Kestrel-3 requires, like any computer, some "initial program" in order to run.
@@ -46,8 +53,10 @@ writing a loader is a significant chunk of work.
 It's complicated, it's error-prone, it can be quite large in size,
 and it has no way of telling the user of any errors because
 it cannot necessarily depend on character output drivers.
-A smaller, simpler way that is easier to verify for correctness is needed.
 
+## Method
+
+A smaller, simpler way that is easier to verify for correctness is needed.
 I propose a method of systems-level integration
 where the "linking" step is performed by a combination of the Unix commands `cat`, `dd`, and `truncate`,
 and which requires no sophisticated loader to function.
@@ -58,7 +67,7 @@ For such a system to work, the following must hold true:
 * All software is written to be position-independent.
 * Every module needs to start with a small header.
 * The firmware contains procedures to dynamically discover and initialize modules as they're needed.
-* The firmware also needs a way to locate and initialize certain modules *before* they're actually needed.
+* The firmware also needs a way to initialize certain modules *before* they're actually needed.
 
 With these requirements met,
 it is possible for even web-based applications hosted on low-powered virtual machines
@@ -70,11 +79,16 @@ given only a selection of components appropriate for the user's needs.
 
 I discuss each of these requirements in greater detail below.
 
+### Requirements
+
 **All software is written to be position-independent.**
 A given set of modules should be able to be combined in any order and still be expected to work.
 Software is written in a modular manner:
-all modules are self-contained, and any linkage required between modules occurs dynamically at run-time
+all modules are self-contained, statically linked,
+and any linkage required between modules occurs dynamically at run-time
 through jump-tables or data structures referenced by CPU registers.
+This enables software components to be written with the most simplistic of development tools.
+
 To acquire a reference to a module in the first place,
 a well-known procedure is required to resolve the name to a module reference.
 (This will be discussed in the third requirement description, below.)
@@ -87,25 +101,25 @@ As of this writing, the header looks like this:
 
     dword   MatchWord
     byte    "ModuleName      "
-    dword   ModuleFlags
-    dword   DisplacementToJumpTable
-    dword   DisplacementToNextModule
+    hword   ModuleDataSize
+    hword   ModuleFlags
+    hword   DisplacementToJumpTable
+    hword   DisplacementToNextModule	; 22 bytes
 
 The `MatchWord` field **must** begin on an 8-byte boundary,
 which must also be the very first 64-bit word of the module.
 The value of `MatchWord` currently must equal $05ADC0DEFEEDC0DE.
-This sequence of bytes is statistically improbable to appear in legitimate code,
+This sequence of bytes is statistically improbable to appear in legitimate code *or* static data,
 and therefore serves as a nice tag indicating the presence of a module.
 
 The `ModuleName` field consists of up to 16 ASCII characters,
 padded by spaces.
-Spaces may *not* appear inside the name.
 Some example module names are below:
 
     byte    "executive       "
-    byte    "filesystem      "
+    byte    "file system     "
     byte    "gpio            "
-    byte    "illglInsnHandler"
+    byte    "IllegalInstHndlr"
 
 The fixed-length text field was selected because
 it requires only two `bne` or `beq` instructions to test for (in)equality,
@@ -115,6 +129,9 @@ provides suitable descriptive power without worrying about name collisions in th
 If collisions becomes a problem,
 the field is perfectly sized for transitioning to a UUID-based identifier
 without breaking previously written software.
+
+The `ModuleDataSize` field indicates to the firmware how much memory this module needs to maintain its state.
+It will be described in greater detail later.
 
 The `ModuleFlags` field only has one bit defined in this proposal:
 bit 0 is the `PREOPEN` bit.
@@ -143,11 +160,12 @@ will be discussed later.
 The `DisplacementToNextModule` field contains a *byte displacement relative to the `MatchWord` field*.
 This allows the firmware looking for modules
 to find the next module in the firmware image, assuming one exists.
-**NOTE:** this field must never equal zero, or the system firmware *may* end up in an infinite loop.
+**NOTE:** this field must never equal zero, or simplistic system firmware images *may* end up in an infinite loop.
 
 **The firmware contains procedures to dynamically discover and initialize modules as they're needed.**
 The most important procedure is `OpenModule`,
 which is responsible for invoking the `Open` entry point of the named module.
+(I'll discuss the protocol between `OpenModule` and the standard entry points listed above, later.)
 A typical invokation looks like this:
 
                     align   8
@@ -165,14 +183,58 @@ A typical invokation looks like this:
                     addi    sp, sp, 8
                     jalr    x0, 0(ra)
 
-If the call succeeds, the result is register `a0` pointing to the opened module's instance structure in memory,
+If the call succeeds, the `a0` register will point to the opened module's instance structure in memory,
 which is completely opaque to the caller
 *with the sole exception* that offset zero of that structure refers to the module's jump table.
 This is why the example first loads `a0` with the contents of the pointer at `ModulesBase(x0)`,
 and then obtains the modules facility's jump table by setting `a2` to the contents of `0(a0)`.
+As can be seen, the API covering modules is itself a module.
 
-If the module failed to open for any reason, `a0` will equal zero.
+If the named module failed to open for any reason, `a0` will equal zero.
 
 **The firmware also needs a way to locate and initialize certain modules before they're actually needed**,
 such as illegal instruction handlers intended to emulate support for missing RISC-V instructions.
+Normally, `OpenModule` will only open the named module and,
+indirectly via that module's initialization code,
+all dependencies when it is required.
+However, some modules may choose to implement features missing in the target processor.
+For instance, the KCP53000 CPU lacks both floating point and multiply instruction set extensions.
+Yet, it's exceptionally handy to have both of these sets of instructions.
+One or more named modules could implement the trap handlers required to make this happen,
+but they need to be initialized before anything else runs.
+Such modules have their `PREOPEN` flag set,
+and the firmware will open them upon discovery just after the cold-boot start-up code runs.
+
+### Protocol
+
+A module is a self-contained, statically linked binary blob with no outside dependencies requiring fixups to run.
+However, it almost certainly will have outside dependencies to *function* at run-time.
+How does a module reconcile these attributes?
+
+We start with the basic operation of the `OpenModule` procedure,
+and in particular, the case where a module has already been opened once before.
+`OpenModule` starts by looking through a table of already-opened modules.
+If the named module is found, then it invokes that module's `Open` procedure via its entry points.
+This gives the opened module a chance to perform relevant book-keeping.
+Note that the opened module receives a pointer to its global data structure via the `a0` register,
+just like any other module entry point.
+Through this register, the module may access global or local data structures.
+**NOTE:** General purpose dynamic memory management services will not generally exist,
+unless a separate module has implemented such a service.
+Therefore, modules should generally work with fixed-sized data structures where possible.
+
+What happens when the named module has not yet been opened before?
+`OpenModule` will not find its name in the list of open modules,
+and so falls back on performing a scan of the firmware image.
+It starts at the beginning of the firmware at a well-known or calculated address,
+and checks to see if the `MatchWord` field matches.
+If so, it then compares the `ModuleName` field against that sought.
+If there is a successful match,
+`OpenModule` will take the following rough steps:
+
+    1.  Determine the size of the module's global data area by reading the ModuleDataSize field.
+    2.  Allocate 8 + ModuleDataSize bytes of memory from the Boot Data Area (BDA).  This will become the Module Data Area (MDA).
+    3.  Compute the absolute address of the module's jump table, and set offset 0 of the MDA to point to it.
+    4.  Invoke the `Init` procedure of the module, passing the MDA in register `a0`.  This procedure is intended to *initialize* the global state of the MDA as given.  Remember that this may involve recursively opening dependent libraries!
+    5.  If the procedure returned with a successful outcome, store the MDA in a list of open modules.
 
