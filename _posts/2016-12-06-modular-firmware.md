@@ -124,7 +124,7 @@ As of this writing, the header looks like this:
     hword   ModuleDataSize
     hword   ModuleFlags
     hword   DisplacementToJumpTable
-    hword   DisplacementToNextModule	; 22 bytes
+    hword   DisplacementToNextModule	; 32 bytes
 
 The `MatchWord` field **must** begin on an 8-byte boundary,
 which must also be the very first 64-bit word of the module.
@@ -262,7 +262,7 @@ If there is a successful match,
 If the name does not match,
 the address of the next module header is calculated by summing the current header's address
 and its `DisplacementToNextModule` field.
-This process repeats for as long as headers exist (as long as the `MatchWord` matches expectations).
+This process repeats for as long as headers exist (as long as the `MatchWord` is correct).
 
 <img width="100%" src="{{site.baseurl}}/images/modular-firmware-structure-relationships.png" alt="Figure showing relationships between modules, headers, jump tables, BDA, and MDAs." />
 
