@@ -266,3 +266,15 @@ This process repeats for as long as headers exist (as long as the `MatchWord` is
 
 <img width="100%" src="{{site.baseurl}}/images/modular-firmware-structure-relationships.png" alt="Figure showing relationships between modules, headers, jump tables, BDA, and MDAs." />
 
+### Describe structure of BDA
+- include rough low-RAM memory map
+- include detail on open module list.
+
+## Example Module Listing
+
+## Limitations
+
+## Prior Art
+
+## Conclusion
+
