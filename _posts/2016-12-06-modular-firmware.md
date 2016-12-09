@@ -295,23 +295,6 @@ The module-specific functionality will start afterwards.
                     include "dep1.inc"              ; EP_Fn1
                     include "dep2.inc"              ; EP_Fn2
 
-                    align 8
-    MatchWord:      dword   $05ADC0DEFEEDC0DE       ; MatchWord.
-                    byte    "example.module  "      ; Our module's name.
-                    hword   24                      ; Counter value + references to dependencies.
-                    hword   0                       ; No flags of interest.
-                    hword   JumpTab - MatchWord     ; Locate our jump table.
-                    hword   ModuleEnd - MatchWord   ; Locate next module if it existed.
-
-    JumpTable:      jal     x0, Init
-                    jal     x0, Open
-                    jal     x0, Close
-                    jal     x0, Expunge
-                    jal     x0, SetCtr
-                    jal     x0, IncCtr
-                    jal     x0, DepFn1
-                    jal     x0, DepFn2
-
     ; These equations defines our MDA's structure.  Remember that
     ; offset 0 is reserved for the jump table pointer, which we don't
     ; have to worry about.
@@ -319,7 +302,30 @@ The module-specific functionality will start afterwards.
     MDA_Ctr         = 8
     MDA_Dep1Base    = 16
     MDA_Dep2Base    = 24
+    MDA_sizeof      = MDA_Dep2Base
 
+    ; Declare our module header.  The MatchWord *MUST* be the first
+    ; eight bytes of the emitted binary image.
+
+                    align 8
+    MatchWord:      dword   $05ADC0DEFEEDC0DE       ; MatchWord.
+                    byte    "example.module  "      ; Our module's name.
+                    hword   MDA_sizeof              ; Counter value + refs to dependencies.
+                    hword   0                       ; No flags of interest.
+                    hword   JumpTab - MatchWord     ; Locate our jump table.
+                    hword   ModuleEnd - MatchWord   ; Locate next module if it existed.
+
+    ; Our jump table.  These must include the standard boilerplate
+    ; functions.
+
+    JumpTab:        jal     x0, Init
+                    jal     x0, Open
+                    jal     x0, Close
+                    jal     x0, Expunge
+                    jal     x0, SetCtr
+                    jal     x0, IncCtr
+                    jal     x0, DepFn1
+                    jal     x0, DepFn2
 
     ; --- Init
     ;
@@ -336,8 +342,10 @@ The module-specific functionality will start afterwards.
     ;               non-zero if successfully initialized.
 
                     align   8
+
     Dep1Name:       byte    "dep.module.1    "
     Dep2Name:       byte    "dep.module.2    "
+
     Init:           addi    sp, sp, -16
                     sd      ra, 0(sp)
                     sd      s0, 8(sp)
@@ -568,7 +576,7 @@ and *all* are ultimately managed by a single set of functions:
 `OpenLibrary`, `CloseLibrary`, `FindLibrary`, `AddLibrary`, and `RemLibrary`.
 The module system described in this article, however, is not intended to form the basis for a complete operating system.
 
-The uCLinux community also provides an [executable format known as bFLT.](http://www.uclinux.org/bFLT/)
+The uCLinux community provides an [executable format known as bFLT.](http://www.uclinux.org/bFLT/)
 bFLT has a number of attributes in common with the module system described.
 For instance, the bFLT format allows you to concatenate a number of binaries in series,
 and based on the header fields found in any given bFLT component, you can calculate where to find the next.
@@ -577,7 +585,7 @@ For this reason, a calling convention would be needed to more or less convert th
 bFLT images also do not expose a module's name,
 so that too would need to be part of the calling convention of the program.
 bFLT images might lend themselves very well to a COM-object-based system of modularity,
-such as those found in environments based on FluxKit, however.
+such as those found in environments based on [OSKit](https://www.cs.utah.edu/flux/oskit/), however.
 
 ## Conclusion
 
