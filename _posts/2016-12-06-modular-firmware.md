@@ -6,10 +6,10 @@ date:   2016-12-06 16:00:00
 
 ## Abstract
 
-What is the problem?
-Why is it a problem?
-What is my solution?
-Why should you pay attention to my solution?
+The Kestrel-3 computer design should be portable to a reasonable number of different FPGA development boards.
+However, each board offers different hardware resources, interfaces, RAM sizes, and other attributes that directly affects compatbility.
+Instead of building system firmware images for specific configurations of specific FPGA boards, producing a combinatorial explosion of firmware images which must be maintained and tested, it would be far simpler if we can break things into individual, more easily managed components.
+This allows for simpler maintenance, but also allows the user to build firmware images *without* complex or heavy-weight software development tooling.
 
 ## Introduction
 
