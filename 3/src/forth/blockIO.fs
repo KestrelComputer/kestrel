@@ -1,5 +1,5 @@
-64 CONSTANT #buffers
-64 tconstant #buffers
+16 CONSTANT #buffers
+16 tconstant #buffers
 
 \ clocks points to an array of counters, each corresponding to
 \ a local block buffer.  Whenever a buffer is referenced, the
