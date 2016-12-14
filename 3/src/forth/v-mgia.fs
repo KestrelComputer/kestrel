@@ -5,7 +5,7 @@
 \ OS, the video driver must be written for/in EForth itself.
 \ 
 \ This software is written with the assumption that the MGIA's
-\ 640x480 monochrome bitmap sits at $FF0000 in memory.  It
+\ 640x480 monochrome bitmap sits at $010000 in memory.  It
 \ further assumes that the system font uses 8x8 pixel glyphs.
 \ 
 \ Note that the MGIA does not require any initialization from
@@ -23,7 +23,7 @@ tglobal FONT
 tcreate font
 S" v-font.fs" included
 
-t: top		$FF0000 cursorX @ + cursorY @ 640 * + ;
+t: top		$010000 cursorX @ + cursorY @ 640 * + ;
 t: reverse	top 7 FOR DUP C@ NOT OVER C! 80 + NEXT DROP ;
 t: toggle	reverse 1 cursorVisible @ - cursorVisible ! ;
 
@@ -37,15 +37,15 @@ t: cursor+	cshow cursorHidden @ IF EXIT THEN con ;
 t: AT-XY	cursor- cursorY ! cursorX ! cursor+ ;
 t: AT-XY?	cursorX @ cursorY @ ;
 
-t: CLS		$FF9600 $FF0000 DO 0 R@ ! 8 +LOOP ;
+t: CLS		$019600 $010000 DO 0 R@ ! 8 +LOOP ;
 t: HOME		0 0 AT-XY ;
 t: PAGE		cursor- CLS HOME cursor+ ;
 
 t: plot		FONT @ + top 7 FOR OVER C@ OVER C!
 		80 + SWAP 256 + SWAP NEXT 2DROP ;
-t: feed		$FF0000 $FF9600 $FF0280 DO
+t: feed		$010000 $019600 $010280 DO
 		R@ @ OVER ! 8 + 8 +LOOP DROP ;
-t: blank	$FF9380 79 FOR 0 OVER ! 8 + NEXT DROP ;
+t: blank	$019380 79 FOR 0 OVER ! 8 + NEXT DROP ;
 		( line 59 byte address )
 t: scroll	feed blank ;
 t: bumpy	cursorY @ 59 < IF 1 cursorY +!
