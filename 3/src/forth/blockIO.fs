@@ -1,3 +1,6 @@
+64 CONSTANT #buffers
+64 tconstant #buffers
+
 \ clocks points to an array of counters, each corresponding to
 \ a local block buffer.  Whenever a buffer is referenced, the
 \ corresponding clock field is updated with the current
@@ -39,9 +42,9 @@ tuser BLK
 t: EMPTY-BUFFERS ( -- )
   0 lastblk !
   1 bclk !
-  laundry @ 64 0 FILL
-  blocks @ 64 CELLS 0 FILL
-  clocks @ 64 CELLS 0 FILL ;
+  laundry @ #buffers 0 FILL
+  blocks @ #buffers CELLS 0 FILL
+  clocks @ #buffers CELLS 0 FILL ;
 
 \ clean ( r -- ) marks the indicated block buffer cache as
 \ "clean".
@@ -70,7 +73,7 @@ t: wrb ( r -- )	DUP >R R@ >buf R@ CELLS
 \ FLUSH ( -- ) empties all local buffers.  Before doing so,
 \ any buffers marked for update will be written back.
 t: FLUSH ( -- )
-  0 BEGIN DUP 64 < WHILE
+  0 BEGIN DUP #buffers < WHILE
     DUP dirty? IF DUP wrb THEN
     1+
   REPEAT DROP ;
@@ -79,7 +82,7 @@ t: FLUSH ( -- )
 \ internal cache.  If it's missing from the cache, return TRUE.
 \ Otherwise, return the cache row and FALSE.
 t: missing ( b -- b -1 / b r 0 )
-  0 BEGIN DUP 64 < WHILE
+  0 BEGIN DUP #buffers < WHILE
     2DUP CELLS blocks @ + @ = IF 0 EXIT THEN
     1+
   REPEAT DROP -1 ;
@@ -110,12 +113,12 @@ t: ?wrb ( r - )	DUP dirty? IF wrb EXIT THEN DROP ;
 \ lru ( b -- b r ) selects the least frequently referenced
 \ block cache row and returns it.
 t: lru ( b -- b r )
-  -1 0 BEGIN DUP 64 < WHILE
+  -1 0 BEGIN DUP #buffers < WHILE
     DUP >clk @ 0 = IF NIP EXIT THEN
     SWAP OVER >clk @ UMIN SWAP
     1+
   REPEAT DROP
-  0 BEGIN DUP 64 < WHILE
+  0 BEGIN DUP #buffers < WHILE
     2DUP >clk @ = IF NIP EXIT THEN
     1+
   REPEAT
@@ -177,9 +180,9 @@ t: LOAD ( n -- )
 \ side effect of allowing the competent user to reallocate
 \ the buffers to suit the needs of her application.
 t: 0blocks ( -- )
-  HERE clocks ! 64 CELLS ALLOT
-  HERE blocks ! 64 CELLS ALLOT
-  HERE laundry ! 64 ALLOT
-  HERE buffers ! 64 1024 * ALLOT
+  HERE clocks ! #buffers CELLS ALLOT
+  HERE blocks ! #buffers CELLS ALLOT
+  HERE laundry ! #buffers ALLOT
+  HERE buffers ! #buffers 1024 * ALLOT
   EMPTY-BUFFERS
   ;
