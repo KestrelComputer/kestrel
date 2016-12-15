@@ -164,6 +164,7 @@ module computer(
 	);
 
 	// 64-bit to 16-bit bridge
+
 	bottleneck kcp53003(
 		.m_adr_i(arb_adr_o),
 		.m_cyc_i(arb_cyc_o),
@@ -209,6 +210,9 @@ module computer(
 	);
 
 	assign wb_adr_o = s_adr_o[63:1];
+	assign wb_cyc_o = s_cyc_o;
+	assign wb_stb_o = s_stb_o;
+	assign wb_we_o = s_we_o;
 
 	assign s_dat_i = f_dat_o[15:0];
 
