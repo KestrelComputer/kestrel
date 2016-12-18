@@ -629,8 +629,8 @@ t: px1		@+ CP !  @+ NP ! @+ 'REMCHAIN ! @+ forthVoc ! @+ forthVoc CELL+ ! ;
 t: U0		-24 @ /USER !
 		-16 @ /GLOBALS !
 		SP0 /USER @ 0 FILL
-		65536 CP !
-		$FF0000 NP !
+		$020000 CP !
+		$040000 NP !
 		0 -8 @ forthVoc 2!
 		0 'REMCHAIN !
 		doLIT px1 doLIT rx1 REMEMBER,

@@ -111,7 +111,7 @@ out:	destroyMGIA(m);
 
 void do_crt_frame(Timeline *t, void *pcrt) {
 	struct MGIA *crt = (struct MGIA *)pcrt;
-	DWORD fbaddr = 0xFF0000;
+	DWORD fbaddr = 0x010000;
 	PIXEL *pixadr, *p;
 	int pitch;
 	HWORD h, i, j;
