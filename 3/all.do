@@ -2,6 +2,7 @@
 export PATH="$PATH:$(pwd)/bin"
 
 redo-ifchange bin/e
+redo-ifchange bin/bin2v
 
 redo-ifchange roms/mlm
 redo-ifchange roms/ngaro
