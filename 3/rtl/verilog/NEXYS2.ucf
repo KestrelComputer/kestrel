@@ -1,0 +1,32 @@
+NET "clk_i"	LOC = B8;
+NET "reset_i"	LOC = G18;
+NET "ld0_o"	LOC = J14;
+NET "ps2clk_i"	LOC = R12;
+NET "ps2dat_i"	LOC = P11;
+NET "hsync_o"	LOC = T4;
+NET "vsync_o"	LOC = U3;
+NET "red_o<2>"	LOC = R8;
+NET "red_o<1>"	LOC = T8;
+NET "red_o<0>"	LOC = R9;
+NET "grn_o<2>"	LOC = P6;
+NET "grn_o<1>"	LOC = P8;
+NET "grn_o<0>"	LOC = N8;
+NET "blu_o<2>"	LOC = U4;
+NET "blu_o<1>"	LOC = U5;
+
+NET "a0n_o"	LOC = F17;
+NET "a1n_o"	LOC = H17;
+NET "a2n_o"	LOC = C18;
+NET "a3n_o"	LOC = F15;
+NET "k0n_o"	LOC = L18;
+NET "k1n_o"	LOC = F18;
+NET "k2n_o"	LOC = D17;
+NET "k3n_o"	LOC = D16;
+NET "k4n_o"	LOC = G14;
+NET "k5n_o"	LOC = J17;
+NET "k6n_o"	LOC = H14;
+NET "k7n_o"	LOC = C17;
+
+NET "clk_i"	TNM_NET = "tnm_50MHZ_I";
+
+TIMESPEC "TS_50MHZ_I" = PERIOD "tnm_50MHZ_I" 20ns HIGH 50 %;
