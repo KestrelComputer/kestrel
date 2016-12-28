@@ -295,7 +295,7 @@ Avoiding the need for device tree descriptions of memory is as simple as "don't 
 
 ## Conclusions
 
-I've detailed an algorith that,
+I've detailed an algorithm that,
 in its most basic form,
 can identify the size of the address decode window closest to the CPU.
 I've discussed limitations with the algorithm,
