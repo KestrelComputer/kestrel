@@ -234,7 +234,7 @@ This allows the user to see the results without needing specialized terminals.
       Halt.
 
 The assembly listing for this program can be found
-[on Github.]()
+[on Github.](https://github.com/sam-falvo/kestrel/blob/master/3/src/captest/captest.asm)
 
 ## Limitations
 
