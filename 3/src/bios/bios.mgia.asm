@@ -40,7 +40,7 @@ mgia_sysfntadr:	jalr	a0, 0(ra)
 mgia_init:	addi	sp, sp, -8
 		sd	ra, 0(sp)
 
-		addi	a0, x0, 255		; Framebuffer at $FF0000.
+		addi	a0, x0, 1		; Framebuffer at $FF0000.
 		slli	a0, a0, 16
 		sd	a0, bd_bitplane(x0)
 
