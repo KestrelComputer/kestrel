@@ -19,9 +19,9 @@
 ;
 ; $000000-$0007FF	BIOS Data Area
 ; $000800-$000FFF	Stack
-; $001000-$FEFFFF	Available
-; $FF0000-$FFFFFF	MGIA Frame Buffer (if MGIA present)
-;			Available (otherwise)
+; $001000-$00FFFF	Available
+; $010000-$01FFFF	MGIA Frame Buffer
+; $020000-$FFFFFF	Available (as RAM availability permits)
 ;
 ; Memory higher than this is typically reserved for I/O
 ; or other expansion peripherals.
@@ -48,7 +48,7 @@ bios_cold:	addi	sp, x0, 1	; SP = $1000
 		addi	a0, x0, 0	; Output BIOS banner to the screen.
 		jalr	ra, BIOS_I_STROUT(s7)
 		byte	12, 13, 10, 10
-		byte	"Kestrel-3 BIOS V1.15.51"
+		byte	"Kestrel-3 BIOS V1.16.51"
 		byte	13, 10, 10, 0
 		align	4
 
@@ -97,14 +97,14 @@ _bc801:	addi a0, x0, 1
 
 	jal x0, _bc800
 
-_bc900:		addi	a0, x0, 255
+_bc900:		addi	a0, x0, 1
 		slli	a0, a0, 16
 _bc901:		ld	a1, 1024(a0)
 		addi	a1, a1, 1
 		sd	a1, 1024(a0)
 		jal	x0, _bc901
 
-wtf:		addi	a5, x0, 255
+wtf:		addi	a5, x0, 1
 		slli	a5, a5, 16
 		sh	a0, 1024(a5)
 		addi	a1, x0, $777
