@@ -186,7 +186,7 @@ to find the next module in the firmware image, assuming one exists.
 The most important procedure is `OpenModule`,
 which is responsible for invoking the `Open` entry point of the named module.
 (I'll discuss the protocol between `OpenModule` and the standard entry points listed above, later.)
-A typical invokation looks like this:
+A typical invocation looks like this:
 
                     align   8
     _execName:      byte    "executive       "      ; Remember, pad to 16 places
@@ -536,7 +536,7 @@ Modules are intended to be composed to form more complex functionality;
 large-scale services, such as providing a complete filesystem or network stack, exceeds the intended use-case.
 Another work-around is to simply redefine the header to support larger ModuleDataSize and DisplacementToNextModule fields.
 
-The use of jump tables impedes direct invokation of module services from a higher level language such as C or Oberon.
+The use of jump tables impedes direct invocation of module services from a higher level language such as C or Oberon.
 Neither C nor Oberon provide convenient syntactic support for expressing the concept of
 "this procedure is at offset 16 from this variable."
 The closest you can approximate is to manually perform these calculations yourself via pointers to functions, like so:
