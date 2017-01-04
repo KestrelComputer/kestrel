@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/KestrelComputer/kestrel.svg?branch=master)](https://travis-ci.org/KestrelComputer/kestrel)
+
 # Kestrel
 
 With each passing day, technically capable consumers of computing technology
