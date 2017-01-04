@@ -3,6 +3,16 @@
 module NEXYS2(
 	output		ld0_o,
 
+	output	[23:1]	ram_adr_o,
+	inout	[15:0]	ram_dat_io,
+	output		ram_oe_on,
+	output		ram_we_on,
+	output	[1:0]	ram_sel_on,
+	output		ram_adv_on,
+	output		ram_clk_o,
+	output		ram_ce_on,
+	output		ram_cre_o,
+
 	output		hsync_o,
 	output		vsync_o,
 	output	[2:0]	red_o,
@@ -94,8 +104,11 @@ module NEXYS2(
 	wire	[15:0]	mgia_dat_i;
 	wire		mgia_stb_o;
 
+	wire		ram_ack_o;
+
 	wire	[15:0]	unassigned_dat_o;
 
+	wire		ram_en;
 	wire		rom_en;
 	wire		gpia_en;
 	wire		kia_en;
@@ -240,13 +253,14 @@ module NEXYS2(
 
 	// Address Decoder
 
+	assign ram_en = (wb_adr_o[59:56] == 4'b0000);
 	assign gpia_en = (wb_adr_o[59:56] == 4'b0001);
 	assign kia_en = (wb_adr_o[59:56] == 4'b0010);
 	assign dsm0_en = (wb_adr_o[59:56] == 4'b1101) & ~wb_adr_o[14];
 	assign dsm1_en = (wb_adr_o[59:56] == 4'b1101) & wb_adr_o[14];
 	assign rom_en = (wb_adr_o[59:56] == 4'b1111);
 
-	assign unassigned_en = ~|{gpia_en, kia_en, dsm0_en, dsm1_en, rom_en};
+	assign unassigned_en = ~|{gpia_en, kia_en, dsm0_en, dsm1_en, rom_en, ram_en};
 
 	assign wb_ack_i =
 		(gpia_en & gpia_ack_o) |
@@ -254,6 +268,7 @@ module NEXYS2(
 		(dsm0_en & dsm0_ack_o) |
 		(dsm1_en & dsm1_ack_o) |
 		(rom_en & rom_ack_o) |
+		(ram_en & ram_ack_o) |
 		(unassigned_en & wb_stb_o);
 
 	assign wb_dat_i =
@@ -262,6 +277,7 @@ module NEXYS2(
 		(dsm0_en ? dsm0_dat_o : 0) |
 		(dsm1_en ? dsm1_dat_o : 0) |
 		(rom_en ? rom_dat_o : 0) |
+		(ram_en ? ram_dat_io : 0) |
 		(unassigned_en ? unassigned_dat_o : 0);
 
 	// 1MB ROM
@@ -322,6 +338,30 @@ module NEXYS2(
 		.B_WE_I(1'b0)
 	);
 
+	// External Asynchronous RAM
+	//
+	// The RAM only supports 14 MT/s, so we pass ram_ack_o only
+	// every other cycle.
+
+	assign ram_clk_o = 1'b0;	// Static low for asynchronous mode.
+	assign ram_cre_o = 1'b0;	// Static low for asynchronous mode.
+	assign ram_adr_o = wb_adr_o[23:1];
+	assign ram_dat_io = (~ram_we_on) ? wb_dat_o : 16'hzzzz;
+	assign ram_oe_on = ~(ram_en & wb_cyc_o & wb_stb_o & ~wb_we_o);
+	assign ram_we_on = ~(ram_en & wb_cyc_o & wb_stb_o & wb_we_o);
+	assign ram_sel_on = ~wb_sel_o;
+	assign ram_adv_on = 1'b0;	// Static low for asynchronous mode.
+	assign ram_ce_on = ~ram_en;
+
+	reg ram_ack_stage;
+	wire ram_ack_stage_next;
+
+	assign ram_ack_stage_next = ram_en & wb_cyc_o & wb_stb_o;
+	always @(posedge clk25Mhz) begin
+		ram_ack_stage <= ~reset_i & ram_en & ~ram_ack_stage;
+	end
+	assign ram_ack_o = ram_ack_stage & ram_en;
+
 	// MGIA-1
 
 	MGIA mgia(
@@ -336,7 +376,7 @@ module NEXYS2(
 		.BLU_O(blu_o),
 
 		.MGIA_ADR_O(mgia_adr_o),
-		.MGIA_DAT_I(mgia_dat_i),
+		.MGIA_DAT_I({mgia_dat_i[7:0], mgia_dat_i[15:8]}),
 		.MGIA_CYC_O(mgia_cyc_o),
 		.MGIA_STB_O(mgia_stb_o),
 		.MGIA_ACK_I(mgia_ack_i)
