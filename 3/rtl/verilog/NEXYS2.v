@@ -1,10 +1,78 @@
 `timescale 1ns / 1ps
 
-module NEXYS2(
+`define sg7013 1
+
+module computer_test(
+);
+	reg clk_i, reset_i;
+	wire ld0_o, ld1_o, ld2_o, ld3_o;
+
+	wire [23:1] ram_adr_o;
+	wire [15:0] ram_dq_io;
+	wire ram_oe_on;
+	wire ram_we_on;
+	wire [1:0] ram_sel_on;
+	wire ram_adv_on;
+	wire ram_clk_o;
+	wire ram_ce_on;
+	wire ram_cre_o;
+
+	initial begin
+		clk_i <= 0;
+		reset_i <= 1;
+		#200000 reset_i <= 0;
+	end
+	
+	always begin
+		#20 clk_i <= ~clk_i;
+	end
+	
+	computer c(
+		.ld0_o(ld0_o),
+		.ld1_o(ld1_o),
+		.ld2_o(ld2_o),
+		.ld3_o(ld3_o),
+
+		.ram_adr_o(ram_adr_o),
+		.ram_dq_io(ram_dq_io),
+		.ram_oe_on(ram_oe_on),
+		.ram_we_on(ram_we_on),
+		.ram_sel_on(ram_sel_on),
+		.ram_adv_on(ram_adv_on),
+		.ram_clk_o(ram_clk_o),
+		.ram_ce_on(ram_ce_on),
+		.ram_cre_o(ram_cre_o),
+
+		.ps2clk_i(1'b0),
+		.ps2dat_i(1'b0),
+
+		.clk_i(clk_i),
+		.reset_i(reset_i)
+	);
+	
+	cellram ram(
+	    .clk(ram_clk_o),
+	    .adv_n(ram_adv_on),
+	    .cre(ram_cre_o),
+	    .o_wait(),
+	    .ce_n(ram_ce_on),
+	    .oe_n(ram_oe_on),
+	    .we_n(ram_we_on),
+	    .lb_n(ram_sel_on[0]),
+	    .ub_n(ram_sel_on[1]),
+	    .addr(ram_adr_o),
+	    .dq(ram_dq_io)
+	); 
+endmodule
+
+module computer(
 	output		ld0_o,
+	output		ld1_o,
+	output		ld2_o,
+	output		ld3_o,
 
 	output	[23:1]	ram_adr_o,
-	inout	[15:0]	ram_dat_io,
+	inout	[15:0]	ram_dq_io,
 	output		ram_oe_on,
 	output		ram_we_on,
 	output	[1:0]	ram_sel_on,
@@ -38,6 +106,8 @@ module NEXYS2(
 	input		clk_i,
 	input		reset_i
 );
+	wire		reset;
+
 	wire		cpu_iack_i;
 	wire	[31:0]	cpu_idat_i;
 	wire	[63:0]	cpu_iadr_o;
@@ -51,6 +121,16 @@ module NEXYS2(
 	wire		cpu_dstb_o;
 	wire	[1:0]	cpu_dsiz_o;
 	wire		cpu_dsigned_o;
+
+	wire	[63:0]	arb1_dat_o;
+	wire	[63:0]	arb1_adr_o;
+	wire		arb1_we_o;
+	wire		arb1_cyc_o;
+	wire		arb1_stb_o;
+	wire	[1:0]	arb1_siz_o;
+	wire		arb1_signed_o;
+	wire		arb1_ack_i;
+	wire	[63:0]	arb1_dat_i;
 
 	wire	[63:0]	arb_dat_o;
 	wire	[63:0]	arb_adr_o;
@@ -75,8 +155,8 @@ module NEXYS2(
 	wire	[63:0]	f_dat_o;
 
 	wire	[63:1]	wb_adr_o;
-	wire	[7:0]	wb_sel_o;
-	wire	[63:0]	wb_dat_o;
+	wire	[1:0]	wb_sel_o;
+	wire	[15:0]	wb_dat_o;
 	wire		wb_cyc_o;
 	wire		wb_stb_o;
 	wire		wb_we_o;
@@ -105,6 +185,7 @@ module NEXYS2(
 	wire		mgia_stb_o;
 
 	wire		ram_ack_o;
+	wire	[15:0]	ram_dat_o;
 
 	wire	[15:0]	unassigned_dat_o;
 
@@ -155,12 +236,15 @@ module NEXYS2(
 		.cdat_i(64'd0),
 
 		.clk_i(clk25Mhz),
-		.reset_i(reset_i)
+		.reset_i(reset)
 	);
 
-	// Arbiter
+	// Arbiter #1
+	//
+	// This arbiter's role is to turn the KCP53000's Harvard Architecture
+	// bus arrangement into a Von Neumann arrangement.
 
-	arbiter kcp53001(
+	arbiter kcp53001_1(
 		.idat_i(64'd0),
 		.iadr_i(cpu_iadr_o),
 		.iwe_i(1'b0),
@@ -181,6 +265,51 @@ module NEXYS2(
 		.dack_o(cpu_dack_i),
 		.ddat_o(cpu_ddat_i),
 
+		.xdat_o(arb1_dat_o),
+		.xadr_o(arb1_adr_o),
+		.xwe_o(arb1_we_o),
+		.xcyc_o(arb1_cyc_o),
+		.xstb_o(arb1_stb_o),
+		.xsiz_o(arb1_siz_o),
+		.xsigned_o(arb1_signed_o),
+		.xack_i(arb1_ack_i),
+		.xdat_i(arb1_dat_i),
+
+		.clk_i(clk25Mhz),
+		.reset_i(reset)
+	);
+
+	assign cpu_idat_i = kcp53001_idat_o[31:0];
+
+	// Arbiter #2
+	//
+	// This arbiter's role is to prioritize and multiplex the CPU
+	// and MGIA bus masters so they can share a common view of memory.
+	// The MGIA is configured to have bus priority over the CPU.
+
+	wire [63:16] mgia_unused;
+
+	arbiter kcp53001_2(
+		.ddat_i(64'd0),
+		.dadr_i({48'd1, 2'b00, mgia_adr_o[13:1], 1'b0}),
+		.dwe_i(1'b0),
+		.dcyc_i(mgia_cyc_o),
+		.dstb_i(mgia_stb_o),
+		.dsiz_i(2'b01),
+		.dsigned_i(1'b0),
+		.dack_o(mgia_ack_i),
+		.ddat_o({mgia_unused, mgia_dat_i[7:0], mgia_dat_i[15:8]}),
+
+		.idat_i(arb1_dat_o),
+		.iadr_i(arb1_adr_o),
+		.iwe_i(arb1_we_o),
+		.icyc_i(arb1_cyc_o),
+		.istb_i(arb1_stb_o),
+		.isiz_i(arb1_siz_o),
+		.isigned_i(arb1_signed_o),
+		.iack_o(arb1_ack_i),
+		.idat_o(arb1_dat_i),
+
 		.xdat_o(arb_dat_o),
 		.xadr_o(arb_adr_o),
 		.xwe_o(arb_we_o),
@@ -192,10 +321,8 @@ module NEXYS2(
 		.xdat_i(arb_dat_i),
 
 		.clk_i(clk25Mhz),
-		.reset_i(reset_i)
+		.reset_i(reset)
 	);
-
-	assign cpu_idat_i = kcp53001_idat_o[31:0];
 
 	// 64-bit to 16-bit bridge
 
@@ -222,7 +349,7 @@ module NEXYS2(
 		.s_dat_i(s_dat_i),
 
 		.clk_i(clk25Mhz),
-		.reset_i(reset_i)
+		.reset_i(reset)
 	);
 
 	// Wishbone bridge
@@ -231,6 +358,9 @@ module NEXYS2(
 	// wide buses, with clever signal assignments, it can
 	// also be used for 16-bit buses as well.
 
+	wire [63:16] wb_unused_0;
+	wire [7:2] wb_unused_1;
+
 	bridge wb_bridge(
 		.f_signed_i(s_signed_o),
 		.f_siz_i({1'b0, s_siz_o}),
@@ -238,8 +368,8 @@ module NEXYS2(
 		.f_dat_i({48'd0, s_dat_o}),
 		.f_dat_o(f_dat_o),
 
-		.wb_sel_o(wb_sel_o),
-		.wb_dat_o(wb_dat_o),
+		.wb_sel_o({wb_unused_1, wb_sel_o}),
+		.wb_dat_o({wb_unused_0, wb_dat_o}),
 		.wb_dat_i({48'd0, wb_dat_i})
 	);
 
@@ -277,7 +407,7 @@ module NEXYS2(
 		(dsm0_en ? dsm0_dat_o : 0) |
 		(dsm1_en ? dsm1_dat_o : 0) |
 		(rom_en ? rom_dat_o : 0) |
-		(ram_en ? ram_dat_io : 0) |
+		(ram_en ? ram_dat_o : 0) |
 		(unassigned_en ? unassigned_dat_o : 0);
 
 	// 1MB ROM
@@ -306,13 +436,22 @@ module NEXYS2(
 		.A_STB_I(dsm0_en & wb_stb_o),
 		.A_WE_I(wb_we_o),
 
-		.B_ACK_O(mgia_ack_i),
-		.B_ADR_I(mgia_adr_o),
-		.B_CYC_I(mgia_cyc_o),
-		.B_DAT_O(mgia_dat_i),
+//		.B_ACK_O(mgia_ack_i),
+//		.B_ADR_I(mgia_adr_o),
+//		.B_CYC_I(mgia_cyc_o),
+//		.B_DAT_O(mgia_dat_i),
+//		.B_DAT_I(16'h0000),
+//		.B_SEL_I(2'b11),
+//		.B_STB_I(mgia_stb_o),
+//		.B_WE_I(1'b0)
+
+		.B_ACK_O(),
+		.B_ADR_I(14'h0000),
+		.B_CYC_I(1'b0),
+		.B_DAT_O(),
 		.B_DAT_I(16'h0000),
-		.B_SEL_I(2'b11),
-		.B_STB_I(mgia_stb_o),
+		.B_SEL_I(2'b00),
+		.B_STB_I(1'b0),
 		.B_WE_I(1'b0)
 	);
 
@@ -338,35 +477,41 @@ module NEXYS2(
 		.B_WE_I(1'b0)
 	);
 
-	// External Asynchronous RAM
-	//
-	// The RAM only supports 14 MT/s, so we pass ram_ack_o only
-	// every other cycle.
+//	// External Synchronous RAM
 
-	assign ram_clk_o = 1'b0;	// Static low for asynchronous mode.
-	assign ram_cre_o = 1'b0;	// Static low for asynchronous mode.
-	assign ram_adr_o = wb_adr_o[23:1];
-	assign ram_dat_io = (~ram_we_on) ? wb_dat_o : 16'hzzzz;
-	assign ram_oe_on = ~(ram_en & wb_cyc_o & wb_stb_o & ~wb_we_o);
-	assign ram_we_on = ~(ram_en & wb_cyc_o & wb_stb_o & wb_we_o);
-	assign ram_sel_on = ~wb_sel_o;
-	assign ram_adv_on = 1'b0;	// Static low for asynchronous mode.
-	assign ram_ce_on = ~ram_en;
+	wire ram_en_q = ram_en & wb_cyc_o & wb_stb_o;
 
-	reg ram_ack_stage;
-	wire ram_ack_stage_next;
+	ramcon ram_controller(
+		.reset_i(reset_i),
+		.reset_o(reset),
+		.clk2x_i(clk_i),
+		
+		.ram_adr_o(ram_adr_o),
+		.ram_dq_io(ram_dq_io),
+		.ram_ce_on(ram_ce_on),
+		.ram_adv_on(ram_adv_on),
+		.ram_oe_on(ram_oe_on),
+		.ram_we_on(ram_we_on),
+		.ram_ub_on(ram_sel_on[1]),
+		.ram_lb_on(ram_sel_on[0]),
+		.ram_cre_o(ram_cre_o),
+		.ram_clk_o(ram_clk_o),
 
-	assign ram_ack_stage_next = ram_en & wb_cyc_o & wb_stb_o;
-	always @(posedge clk25Mhz) begin
-		ram_ack_stage <= ~reset_i & ram_en & ~ram_ack_stage;
-	end
-	assign ram_ack_o = ram_ack_stage & ram_en;
+		.wb_ack_o(ram_ack_o),
+		.wb_dat_o(ram_dat_o),
+		.wb_dat_i(wb_dat_o),
+		.wb_adr_i(wb_adr_o[23:1]),
+		.wb_sel_i(wb_sel_o),
+		.wb_stb_i(ram_en_q),
+		.wb_cyc_i(ram_en_q),
+		.wb_we_i(wb_we_o)
+	);
 
 	// MGIA-1
 
 	MGIA mgia(
 		.CLK_I_50MHZ(clk_i),
-		.RST_I(reset_i),
+		.RST_I(reset),
 		.CLK_O_25MHZ(clk25Mhz),
 
 		.HSYNC_O(hsync_o),
@@ -386,7 +531,7 @@ module NEXYS2(
 	
 	KIA kia(
 		.CLK_I(clk25Mhz),
-		.RES_I(reset_i),
+		.RES_I(reset),
 		.ADR_I(wb_adr_o[1]),
 		.WE_I(wb_we_o),
 		.CYC_I(kia_en & wb_cyc_o),
@@ -401,7 +546,7 @@ module NEXYS2(
 	// GPIA
 
 	GPIA gpia(
-		.RST_I(reset_i),
+		.RST_I(reset),
 		.CLK_I(clk25Mhz),
 		.ADR_I(wb_adr_o[1]),
 		.CYC_I(wb_cyc_o),
@@ -415,6 +560,9 @@ module NEXYS2(
 	);
 
 	assign ld0_o = gpia_port_o[0];
+	assign ld1_o = gpia_port_o[1];
+	assign ld2_o = gpia_port_o[2];
+	assign ld3_o = gpia_port_o[3];
 
 	// Unclaimed address handling
 	//
@@ -425,14 +573,14 @@ module NEXYS2(
 
 	assign unassigned_dat_o = {wb_adr_o[63:56], 8'hEE};
 
-assign k0n_o = cpu_iadr_o[1];
-assign k1n_o = cpu_iadr_o[2];
-assign k2n_o = cpu_iadr_o[3];
-assign k3n_o = cpu_iadr_o[4];
-assign k4n_o = cpu_iadr_o[5];
-assign k5n_o = cpu_iadr_o[6];
-assign k6n_o = cpu_iadr_o[7];
-assign k7n_o = cpu_iadr_o[8];
+assign k0n_o = 1'b1;
+assign k1n_o = 1'b1;
+assign k2n_o = 1'b1;
+assign k3n_o = 1'b1;
+assign k4n_o = 1'b1;
+assign k5n_o = 1'b1;
+assign k6n_o = 1'b1;
+assign k7n_o = 1'b1;
 assign a0n_o = 0;
 assign a1n_o = 1;
 assign a2n_o = 1;
