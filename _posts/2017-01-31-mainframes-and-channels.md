@@ -17,7 +17,9 @@ brings the design of the Kestrel-3 closer to that of an older IBM mainframe, a l
 
 ## The Mainframe
 
-The iCE40HX8K FPGA from Lattice contains a little over 7100 look-up tables (LUTs).
+Problems bringing the Kestrel-3 up on the Nexys-2 board forces me to try bringing it up on a new FPGA board instead,
+the [icoBoard Gamma](http://icoboard.org/about-icoboard.html), based around the iCE40HX8K FPGA.
+The Lattice FPGA contains a little over 7100 look-up tables (LUTs).
 The *current* Kestrel-3 design, targeting a Xilinx Spartan-3E device, consumes a little over 5500 LUTs.
 This suggests to me that, all other things being equal,
 the current Kestrel-3 design should similarly synthesize to approximately the same number of LUTs in the Lattice part.
@@ -48,12 +50,14 @@ Thus, the icoBoard gamma will have sufficient resources synthesized to allow it 
 but not much else.
 
 This gives several benefits:
+
 - The evolution of the *processor complex* (to reuse IBM's mainframe terminology) can occur independently of the rest of the system.  I do not expect a lot of performance from the icoBoard Gamma, as indicated above, due to the iCE40HX8K's performance relative to the Spartan-series of FPGAs.  After I get a working system, however, I can reflash the board to support pipelining to improve my instruction throughput in complete isolation of any attached I/O devices.  If that's still not fast enough for my preferences, I could swap the icoBoard Gamma out for a board with a faster FPGA and SDRAM combination.  As long as the new board implements the same I/O channels, my I/O investment is preserved.  Things should "just work."  I hope.
 - It *forces* me to move towards device independent I/O architectures sooner, rather than on an as-needed (and, often, backward incompatible) basis.  For instance, on the Nexys-2 or Altera DE-1 board, I can synthesize the computer with an on-board terminal capable of supporting the video resolutions and color depth of my choice.  Fitting something like a Gameduino to these platforms doesn't make much sense (unless you're interested in dual-head display configurations).  However, for something like a MyStorm BlackIce or icoBoard Gamma, using an Arduino/Gameduino combination, or a Raspberry Pi, or whatever makes *perfect* sense, since you basically have no other choice.  The system software will, somehow, have to be at least minimally compatible with these configurations.
 - It eases documentation efforts.  The Kestrel-3 User's Guide is currently written assuming a home-computer configuration.  If I continue to keep the all-in-one home computer concept, I'd have to document not only how to program the computer and its operating system, but also how to generate graphics, audio, etc. myself.  Migrating to a mainframe approach allows me to document only the computer, its innate [channel I/O](https://en.wikipedia.org/wiki/Channel_I/O) capabilities, and the operating system.  External terminals can then be separately documented, and indeed, I can just re-use *existing* documentation more easily or by reference.
 - If carefully architected, it meshes perfectly with the *everything is a device* I/O model that, e.g., Commodore and Atari 8-bit computers had back in the day, so programming will be more familiar.  Obviously, it will also mesh quite well with the *everything is a file* I/O model that Plan 9 and Unix variants support, which makes these OSes a natural fit for the Kestrel-3 going forward (once the CPU is enhanced to include an MMU and privilege levels).
 
 It also gives some disadvantages:
+
 - It's not what I promised originally, so followers of the project looking for a true home-computer experience will need to wait longer for me to deliver that concept design, or will get impatient and look elsewhere.  However, I value slower progress today than a perfect system tomorrow.
 - Nearly all I/O becomes an exercise in message passing, which requires intelligent peripherals.  This isn't such a bad problem today, as you can get Arduino(-compatible) microcontrollers for cheap these days.  An ESP8266-based microcontroller can be acquired for $3 to $5 as I write this.
 - Message-passing won't often impact aggregate performance with I/O devices; however, where instantaneous response is required, it can be an issue.  It's not suited for real-time I/O at all.
