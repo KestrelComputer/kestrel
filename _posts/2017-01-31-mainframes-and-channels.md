@@ -6,6 +6,15 @@ date:   2017-01-31 16:00:00
 
 # Abstract
 
+Problems bringing the Kestrel-3 up on the Nexys-2 board forces me to try bringing it up on a new FPGA board instead,
+the icoBoard Gamma, based around the iCE40HX8K FPGA.
+However, the limitations of this FPGA seriously constrains the design of the computer, as the CPU just barely fits as it is.
+I've decided to brutally [murder my darlings](http://www.sfwa.org/2009/06/murder-your-darlings/),
+shed all unnecessary I/O features that basically defined the Kestrel-3 as a home computer,
+and focus instead on pure compute and aggregate I/O capability.
+Off-loading non-essential I/O to intelligent peripherals, via I/O channels,
+brings the design of the Kestrel-3 closer to that of an older IBM mainframe, a la System/360 or System/370.
+
 ## The Mainframe
 
 The iCE40HX8K FPGA from Lattice contains a little over 7100 look-up tables (LUTs).
