@@ -79,7 +79,7 @@ My particular reasons for adopting this standard are:
 4.  Implementing a UART would take comparable resources, but offer none of the above advantages.
 5.  It's much easier to bit-bang in a microcontroller due to relaxed timing constraints.
 6.  It's a point-to-point interconnect, but is packet switched, supporting infinite expansion through the use of switches in the I/O fabric.  The wire-level protocol is so simple, a Commodore PET or C64 can handle it effortlessly.
-7.  If/when I decide to support RapidIO, there is already a mapping of [RapidIO over Spacewire](http://2011.spacewire-conference.org/proceedings/Presentations/Networks/Belvin.pdf).
+7.  If/when I decide to support [RapidIO](http://www.rapidio.org/), there is already a mapping of [RapidIO over Spacewire](http://2011.spacewire-conference.org/proceedings/Presentations/Networks/Belvin.pdf).
 8.  Flow control is done right, using a credit system with 8-byte granularity.  Thus, unlike ATM-based solutions, you don't need gobs of RAM to serve as buffers, and transmitters *assume* the receiver is busy until told otherwise.  Flow control is also hop-to-hop, not end-to-end, which makes transmission of data in noisy environments substantially more reliable.
 
 Despite its advantages,
