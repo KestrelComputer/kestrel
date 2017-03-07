@@ -147,7 +147,7 @@ sdcard_default_handler(SDCard *sdc) {
 
 static void
 sdcard_do_read_block(SDCard *sdc) {
-	int i, h;
+	int i, h, _;	// _ is ignored.
 	BYTE buf[2048];
 
 	WORD addr =	(((WORD)sdc->command[1] & 0xFF) << 24) |
@@ -171,7 +171,7 @@ sdcard_do_read_block(SDCard *sdc) {
 	}
 
 	lseek(h, addr, SEEK_SET);
-	read(h, buf, sdc->blockLength);
+	_ = read(h, buf, sdc->blockLength);
 	close(h);
 
 	sdcard_enqueue_response(sdc, 0xFE);
@@ -205,7 +205,7 @@ sdcard_do_write_block(SDCard *sdc) {
 
 static void
 sdcard_do_write_block_2nd(SDCard *sdc) {
-	int h;
+	int h, _;	// _ is ignored
 
 	sdc->cmd_handler = &sdcard_default_handler;
 	sdc->cmd_length = 6;
@@ -221,7 +221,7 @@ sdcard_do_write_block_2nd(SDCard *sdc) {
 		return;
 	}
 	lseek(h, sdc->seek_address, SEEK_SET);
-	write(h, &sdc->command[1], sdc->blockLength);
+	_ = write(h, &sdc->command[1], sdc->blockLength);
 	close(h);
 
 	sdcard_enqueue_response(sdc, 0xE5);
