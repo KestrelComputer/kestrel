@@ -136,7 +136,7 @@ module %s(
             input_xform = ["%02X" % (ord(x)) for x in input_data]
             if byte_swap:
                 input_xform.reverse()
-            output_file.write("\t\tcase %d'd%d: dat_o = %d'h%s;\n" % (address_width, offset, data_width, ''.join(input_xform)))
+            output_file.write("\t\t%d'd%d: dat_o = %d'h%s;\n" % (address_width, offset, data_width, ''.join(input_xform)))
             offset = offset + 1
         output_file.write("""\t\tendcase
 \tend
