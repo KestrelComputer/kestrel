@@ -2,12 +2,12 @@ set_io clk_i		R9
 set_io reset_i		K11
 
 set_io leds[0]		D8
-set_io leds[1]		B9
-set_io leds[2]		B10
-set_io leds[3]		B11
-set_io leds[4]		B8
-set_io leds[5]		A9
-set_io leds[6]		A10
+set_io leds[1]		B8
+set_io leds[2]		B9
+set_io leds[3]		A9
+set_io leds[4]		B10
+set_io leds[5]		A10
+set_io leds[6]		B11
 set_io leds[7]		A11
 
 set_io _sram_ce		M7

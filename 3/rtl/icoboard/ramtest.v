@@ -15,6 +15,7 @@ module ramtest(
 
 	output	[7:0]	leds
 );
+	reg	[26:0]	divider;
 	wire	[15:8]	unused;
 	wire	[7:0]	leds_raw;
 	wire	[15:0]	sram_d_out, sram_d_in;
@@ -28,9 +29,14 @@ module ramtest(
 	always @(posedge clk_i) begin
 		if(reset_i) begin
 			counter <= 0;
+			divider <= 0;
+		end
+		else if(divider == 27'd100000000) begin
+			counter <= counter + |1;
+			divider <= 0;
 		end
 		else begin
-			counter <= counter + |1;
+			divider <= divider + |1;
 		end
 	end
 
