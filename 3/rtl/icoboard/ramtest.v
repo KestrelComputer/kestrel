@@ -23,9 +23,9 @@ module ramtest(
 
 	reg	[20:1]	counter;
 	wire	[19:1]	ramtest_ram_a = {
-		counter[20:5], counter[3:0]
+		counter[20:6], counter[4:1]
 	};
-	wire		ramtest_ram_we = counter[4];
+	wire		ramtest_ram_we = counter[5];
 
 	always @(posedge clk100MHz_i) begin
 		clk_i <= clk_i;
@@ -68,7 +68,7 @@ module ramtest(
 	SB_IO #(
 		.PIN_TYPE(6'b0110_01),
 		.PULLUP(1'b0)
-	) led_drivers [7:0] (
+	) leds_drivers [7:0] (
 		.PACKAGE_PIN(leds),
 		.D_OUT_0(leds_raw[7:0])
 	);
@@ -82,7 +82,7 @@ module ramtest(
 		.we_i(ramtest_ram_we),
 		.sel_i(2'b11),
 		.adr_i(ramtest_ram_a),
-		.dat_i(ramtest_ram_a[15:0]),
+		.dat_i(ramtest_ram_a[16:1]),
 		.ack_o(),
 		.dat_o(leds_raw),
 		.stall_o(),
