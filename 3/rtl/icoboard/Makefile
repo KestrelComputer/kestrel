@@ -32,7 +32,7 @@ ramtest.asc: ramtest.blif icoboard.pcf
 	arachne-pnr -d 8k -p icoboard.pcf -o ramtest.asc ramtest.blif
 
 ramtest.bin: ramtest.asc
-	icetime -d hx8k -c 25 ramtest.asc
+	icetime -d hx8k -c 100 ramtest.asc
 	icepack ramtest.asc ramtest.bin
 
 prog_sram: ramtest.bin

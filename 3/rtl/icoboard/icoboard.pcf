@@ -1,4 +1,4 @@
-set_io clk_i		R9
+set_io clk100MHz_i	R9
 set_io reset_i		K11
 
 set_io leds[0]		D8

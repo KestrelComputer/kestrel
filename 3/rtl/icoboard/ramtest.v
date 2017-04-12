@@ -2,7 +2,7 @@
 `timescale 1ns / 1ps
 
 module ramtest(
-	input		clk_i,
+	input		clk100MHz_i,
 	input		reset_i,
 
 	output		_sram_ce,
@@ -16,8 +16,9 @@ module ramtest(
 	output	[7:0]	leds
 );
 	reg	[26:0]	divider;
+	reg		clk_i;
 	wire	[15:8]	unused;
-	wire	[7:0]	leds_raw;
+	wire	[15:0]	leds_raw;
 	wire	[15:0]	sram_d_out, sram_d_in;
 
 	reg	[20:1]	counter;
@@ -26,17 +27,31 @@ module ramtest(
 	};
 	wire		ramtest_ram_we = counter[4];
 
-	always @(posedge clk_i) begin
+	always @(posedge clk100MHz_i) begin
+		clk_i <= clk_i;
+		divider <= divider;
+
 		if(reset_i) begin
-			counter <= 0;
 			divider <= 0;
+			clk_i <= ~clk_i;
 		end
-		else if(divider == 27'd100000000) begin
-			counter <= counter + |1;
+		else if(divider == 50_000_000) begin
 			divider <= 0;
+			clk_i <= ~clk_i;
 		end
 		else begin
-			divider <= divider + |1;
+			divider <= divider + 1;
+		end
+	end
+
+	always @(posedge clk_i) begin
+		counter <= counter;
+
+		if(reset_i) begin
+			counter <= 0;
+		end
+		else begin
+			counter <= counter + 1;
 		end
 	end
 
@@ -55,7 +70,7 @@ module ramtest(
 		.PULLUP(1'b0)
 	) led_drivers [7:0] (
 		.PACKAGE_PIN(leds),
-		.D_OUT_0(leds_raw)
+		.D_OUT_0(leds_raw[7:0])
 	);
 
 	ramcon rc(
@@ -69,7 +84,7 @@ module ramtest(
 		.adr_i(ramtest_ram_a),
 		.dat_i(ramtest_ram_a[15:0]),
 		.ack_o(),
-		.dat_o({unused, leds_raw}),
+		.dat_o(leds_raw),
 		.stall_o(),
 
 		._sram_ce(_sram_ce),
