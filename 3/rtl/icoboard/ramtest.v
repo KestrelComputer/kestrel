@@ -35,7 +35,7 @@ module ramtest(
 			divider <= 0;
 			clk_i <= ~clk_i;
 		end
-		else if(divider == 50_000_000) begin
+		else if(divider == 50_000_00) begin
 			divider <= 0;
 			clk_i <= ~clk_i;
 		end

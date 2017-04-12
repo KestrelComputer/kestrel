@@ -43,6 +43,8 @@ module ramcon(
 	reg		write;
 	reg	[15:0]	data_in;
 
+	reg	[19:1]	address;
+
 	assign		ack_o = transfer;
 	wire		sram_we = transfer & write & ~clk_i;
 	wire		sram_oe = transfer & ~write & ~clk_i;
@@ -52,7 +54,7 @@ module ramcon(
 	assign		_sram_ub = ~selects[1];
 	assign		_sram_lb = ~selects[0];
 	assign		dat_o = sram_oe ? sram_d_in : 0;
-	assign		sram_a = adr_i;
+	assign		sram_a = address;
 	assign		sram_d_out = data_in;
 	assign		stall_o = 0;
 
@@ -60,6 +62,7 @@ module ramcon(
 		transfer <= cyc_i & stb_i;
 		selects <= sel_i;
 		write <= we_i;
+		address <= adr_i;
 		data_in <= dat_i;
 	end
 endmodule
@@ -99,10 +102,6 @@ module ramcon_tb();
 		#5 clk_i <= ~clk_i;
 	end
 
-	always begin
-		#20 adr_i <= adr_i + 1;
-	end
-
 	initial begin
 		$dumpfile("ramcon.vcd");
 		$dumpvars;
@@ -113,7 +112,9 @@ module ramcon_tb();
 		reset_i <= 1;
 		wait(~clk_i); wait(clk_i);
 
+		adr_i <= 0;
 		reset_i <= 0;
+
 		wait(~clk_i); wait(clk_i);
 		
 		cyc_i <= 1;
@@ -134,6 +135,39 @@ module ramcon_tb();
 		cyc_i <= 0;
 		sel_i <= 0;
 
+		wait(~clk_i); wait(clk_i);
+		wait(~clk_i); wait(clk_i);
+
+		cyc_i <= 1;
+		stb_i <= 1;
+		adr_i <= 20'h00000;
+		we_i <= 0;
+		wait(~clk_i); wait(clk_i);
+
+		adr_i <= 20'h00001;
+		wait(~clk_i); wait(clk_i);
+
+		adr_i <= 20'h00002;
+		wait(~clk_i); wait(clk_i);
+
+		adr_i <= 20'h00003;
+		wait(~clk_i); wait(clk_i);
+
+		adr_i <= 20'h00000;
+		we_i <= 1;
+		wait(~clk_i); wait(clk_i);
+
+		adr_i <= 20'h00001;
+		wait(~clk_i); wait(clk_i);
+
+		adr_i <= 20'h00002;
+		wait(~clk_i); wait(clk_i);
+
+		adr_i <= 20'h00003;
+		wait(~clk_i); wait(clk_i);
+
+		cyc_i <= 0;
+		stb_i <= 0;
 		#100;
 		$stop;
 	end
