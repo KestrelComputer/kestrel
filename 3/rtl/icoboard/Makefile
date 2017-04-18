@@ -7,7 +7,8 @@ endif
 help:
 	@echo
 	@echo "make ramcon.waves      Run gtkwave on results from simulating RAMCON"
-	@echo "make sia.waves         Run gtkwave on results from simulating SIA"
+	@echo "make sia_receiver.waves Run gtkwave on results from simulating SIA components"
+	@echo "make sia_rxq.waves"
 	@echo
 	@echo "make ramtest.blif      run synthesis, generate BLIF netlist"
 	@echo "make ramtest.asc       run place and route, generate IceStorm ASCII file"
@@ -26,8 +27,11 @@ help:
 ramcon.waves:
 	iverilog -s ramcon_tb ramcon.v && vvp -n a.out && gtkwave ramcon.vcd
 
-sia.waves:
-	iverilog -s sia_tb sia.v sia_tb.v && vvp -n a.out && gtkwave sia.vcd
+sia_receiver.waves:
+	iverilog -s sia_receiver_tb *.v && vvp -n a.out && gtkwave sia_receiver.vcd
+
+sia_rxq.waves:
+	iverilog -s sia_rxq_tb *.v && vvp -n a.out && gtkwave sia_rxq.vcd
 
 ramtest.blif: ramtest.v ramcon.v
 	yosys -p 'synth_ice40 -blif ramtest.blif' ramtest.v ramcon.v
@@ -55,7 +59,7 @@ reset_boot:
 	$(SSH_RASPI) 'icoprog -b'
 
 clean:
-	rm ramtest.blif ramtest.asc ramtest.bin
+	rm *.blif *.asc *.bin *.vcd
 
 .PHONY: prog_sram prog_flash reset_halt reset_boot clean
 

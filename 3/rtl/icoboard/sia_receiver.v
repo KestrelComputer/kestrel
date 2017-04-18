@@ -1,8 +1,8 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
-// The SIA core provides a ITU V.4-compatible bit-serial interface.
-// The SIA is broadly broken up into three parts: the Wishbone B4
+// The receiver core provides a ITU V.4-compatible bit-serial interface.
+// The receiver is broadly broken up into three parts: the Wishbone B4
 // slave interface, the transmitter, and the receiver.
 // 
 // This module defines the V.4-compatible receiver.
@@ -20,12 +20,12 @@
 //	Note 1: Only the rising edge of RXC is recognized.
 //	Note 2: Both rising AND falling edges of RXD are recognized.
 
-module receiverV4(
+module sia_receiver(
 	input		clk_i,
 	input		reset_i,
 
 	// These inputs correspond to fields found in the register
-	// set of the SIA.
+	// set of the receiver.  Register set not included.
 
 	input	[5:0]	bits_i,
 	input	[BRW:0]	baud_i,
@@ -39,7 +39,7 @@ module receiverV4(
 
 	// Outputs to receiver FIFO.
 
-	output	[15:0]	dat_o,
+	output	[SRW:0]	dat_o,
 	output		idle_o,
 
 	// Test outputs.
