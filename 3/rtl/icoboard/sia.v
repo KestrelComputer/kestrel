@@ -5,11 +5,20 @@
 // The SIA is broadly broken up into three parts: the Wishbone B4
 // slave interface, the transmitter, and the receiver.
 // 
-// This core exposes a 16-bit data bus width.
+// This module defines the V.4-compatible receiver.
 //
-// NOTE: This module exposes a STALL_O signal.  However, this
-// module currently never stalls the master.  The SIA core will always
-// acknowledge a transfer one cycle after it's registered.
+// Note that if both eedd_i and eedc_i are low, the receiver never
+// sees any edges to transition with, and therefore can be used to
+// disable the receiver.
+//
+//	eedd_i	eedc_i	Results
+//	0	0	Disable receiver.
+//	0	1	Receiver clocks on RXC input only. [1]
+//	1	0	Receiver clocks on RXD input only. [2]
+//	1	1	Receiver clocks on any edge it can find. [1, 2]
+//
+//	Note 1: Only the rising edge of RXC is recognized.
+//	Note 2: Both rising AND falling edges of RXD are recognized.
 
 module receiverV4(
 	input		clk_i,
