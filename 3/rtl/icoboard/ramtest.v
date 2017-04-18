@@ -25,7 +25,7 @@ module ramtest(
 	wire	[19:1]	ramtest_ram_a = {
 		counter[20:6], counter[4:1]
 	};
-	wire		ramtest_ram_we = counter[5];
+	wire		ramtest_ram_we = ~counter[5];
 
 	always @(posedge clk100MHz_i) begin
 		clk_i <= clk_i;
