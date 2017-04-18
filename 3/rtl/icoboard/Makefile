@@ -7,6 +7,7 @@ endif
 help:
 	@echo
 	@echo "make ramcon.waves      Run gtkwave on results from simulating RAMCON"
+	@echo "make sia.waves         Run gtkwave on results from simulating SIA"
 	@echo
 	@echo "make ramtest.blif      run synthesis, generate BLIF netlist"
 	@echo "make ramtest.asc       run place and route, generate IceStorm ASCII file"
@@ -24,6 +25,9 @@ help:
 
 ramcon.waves:
 	iverilog -s ramcon_tb ramcon.v && vvp -n a.out && gtkwave ramcon.vcd
+
+sia.waves:
+	iverilog -s sia_tb sia.v sia_tb.v && vvp -n a.out && gtkwave sia.vcd
 
 ramtest.blif: ramtest.v ramcon.v
 	yosys -p 'synth_ice40 -blif ramtest.blif' ramtest.v ramcon.v
