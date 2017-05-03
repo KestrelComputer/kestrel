@@ -151,7 +151,9 @@ module sia_wb(
 						rxcpol_o <= dat_i[13];
 					end
 				end
-				`SIA_ADR_INTENA: intena_o <= dat_i[3:0];
+				`SIA_ADR_INTENA: begin
+					if(sel_i[0]) intena_o <= dat_i[3:0];
+				end
 				default: stall_o <= 1;	// debugging only
 				endcase
 				ack_o <= 1;
