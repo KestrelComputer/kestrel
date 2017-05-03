@@ -141,11 +141,15 @@ module sia_wb(
 			if(cyc_i & stb_i & we_i) begin
 				case(adr_i)
 				`SIA_ADR_CONFIG: begin
-					bits_o <= dat_i[4:0];
-					eedc_o <= dat_i[8];
-					eedd_o <= dat_i[9];
-					txcmod_o <= dat_i[12:10];
-					rxcpol_o <= dat_i[13];
+					if(sel_i[1]) begin
+						eedc_o <= dat_i[8];
+						eedd_o <= dat_i[9];
+						txcmod_o <= dat_i[12:10];
+						rxcpol_o <= dat_i[13];
+					end
+					if(sel_i[0]) begin
+						bits_o <= dat_i[4:0];
+					end
 				end
 				default: stall_o <= 1;	// debugging only
 				endcase
