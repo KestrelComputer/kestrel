@@ -49,10 +49,9 @@
 //	
 // +6	RCVDAT (R/O)
 // +6	SNDDAT (W/O)
-// +8	RCVDAT (R/O) (bit-reversed)
-// +8	SNDDAT (W/O) (bit-reversed)
 //
-// +10	UNUSED			Unused.
+// +8	UNUSED			Unused; hardwired 0.
+// +10	UNUSED			Unused; hardwired 0.
 //
 // +12	BITRATL			Baud rate generator.
 // +14	BITRATH
@@ -152,6 +151,7 @@ module sia_wb(
 						rxcpol_o <= dat_i[13];
 					end
 				end
+				`SIA_ADR_INTENA: intena_o <= dat_i[3:0];
 				default: stall_o <= 1;	// debugging only
 				endcase
 				ack_o <= 1;
@@ -161,6 +161,7 @@ module sia_wb(
 				case(adr_i)
 				`SIA_ADR_CONFIG: dat_o <= {2'd0, rxcpol_o, txcmod_o, eedd_o, eedc_o, 3'd0, bits_o};
 				`SIA_ADR_STATUS: dat_o <= {|events, 11'd0, events};
+				`SIA_ADR_INTENA: dat_o <= {12'd0, intena_o};
 				default: stall_o <= 1;	// debugging only
 				endcase
 				ack_o <= 1;

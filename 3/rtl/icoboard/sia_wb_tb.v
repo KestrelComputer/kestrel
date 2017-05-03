@@ -122,6 +122,8 @@ module sia_wb_tb();
 		assert_eedd(1);
 		assert_rxcpol(0);
 
+		// Alter core configuration
+
 		wbs_cyc_i <= 1;
 		wbs_stb_i <= 1;
 		wbs_adr_i <= `SIA_ADR_CONFIG;
@@ -148,6 +150,8 @@ module sia_wb_tb();
 
 		wait(~clk_i); wait(clk_i); #1;
 
+		// Read back our configuration
+
 		wbs_cyc_i <= 1;
 		wbs_stb_i <= 1;
 		wbs_we_i <= 0;
@@ -164,6 +168,8 @@ module sia_wb_tb();
 		wait(~clk_i); wait(clk_i); #1;
 
 		wbs_cyc_i <= 0;
+
+		// Check core status
 
 		wait(~clk_i); wait(clk_i); #1;
 
@@ -190,6 +196,50 @@ module sia_wb_tb();
 
 		wait(~clk_i); wait(clk_i); #1;
 
+		wbs_cyc_i <= 0;
+
+		// Alter and verify interrupt enable bits
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		wbs_cyc_i <= 1;
+		wbs_stb_i <= 1;
+		wbs_adr_i <= `SIA_ADR_INTENA;
+		wbs_we_i <= 1;
+		wbs_sel_i <= 2'b01;
+		wbs_dat_i <= 16'h000F;
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		wbs_stb_i <= 0;
+		wbs_adr_i <= 0;
+		wbs_we_i <= 0;
+		wbs_sel_i <= 0;
+		wbs_dat_i <= 0;
+
+		assert_wbs_ack(1);
+		assert_intena(15);
+
+		wait(~clk_i); wait(clk_i); #1;
+		wbs_cyc_i <= 0;
+
+		wait(~clk_i); wait(clk_i); #1;
+		wbs_cyc_i <= 1;
+		wbs_stb_i <= 1;
+		wbs_adr_i <= `SIA_ADR_INTENA;
+		wbs_we_i <= 0;
+		wbs_sel_i <= 2'b01;
+
+		wait(~clk_i); wait(clk_i); #1;
+		wbs_stb_i <= 0;
+		wbs_adr_i <= 0;
+		wbs_sel_i <= 0;
+
+		assert_wbs_ack(1);
+		assert_intena(15);
+		assert_wbs_dat(15);
+
+		wait(~clk_i); wait(clk_i); #1;
 		wbs_cyc_i <= 0;
 
 		#100;
