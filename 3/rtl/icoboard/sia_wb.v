@@ -112,6 +112,7 @@ module sia_wb(
 	reg	[15:0]	txq_dat_o;
 
 	assign irq_o = 0;
+	wire [3:0] events = {txq_not_full_i, txq_empty_i, rxq_full_i, rxq_not_empty_i};
 
 	always @(posedge clk_i) begin
 		dat_o <= 0;
@@ -141,16 +142,25 @@ module sia_wb(
 			if(cyc_i & stb_i & we_i) begin
 				case(adr_i)
 				`SIA_ADR_CONFIG: begin
+					if(sel_i[0]) begin
+						bits_o <= dat_i[4:0];
+					end
 					if(sel_i[1]) begin
 						eedc_o <= dat_i[8];
 						eedd_o <= dat_i[9];
 						txcmod_o <= dat_i[12:10];
 						rxcpol_o <= dat_i[13];
 					end
-					if(sel_i[0]) begin
-						bits_o <= dat_i[4:0];
-					end
 				end
+				default: stall_o <= 1;	// debugging only
+				endcase
+				ack_o <= 1;
+			end
+
+			if(cyc_i & stb_i & ~we_i) begin
+				case(adr_i)
+				`SIA_ADR_CONFIG: dat_o <= {2'd0, rxcpol_o, txcmod_o, eedd_o, eedc_o, 3'd0, bits_o};
+				`SIA_ADR_STATUS: dat_o <= {|events, 11'd0, events};
 				default: stall_o <= 1;	// debugging only
 				endcase
 				ack_o <= 1;

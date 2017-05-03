@@ -146,6 +146,52 @@ module sia_wb_tb();
 
 		wbs_cyc_i <= 0;
 
+		wait(~clk_i); wait(clk_i); #1;
+
+		wbs_cyc_i <= 1;
+		wbs_stb_i <= 1;
+		wbs_we_i <= 0;
+		wbs_adr_i <= `SIA_ADR_CONFIG;
+		wbs_sel_i <= 2'b11;
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		wbs_stb_i <= 0;
+
+		assert_wbs_ack(1);
+		assert_wbs_dat(16'h3F0F);
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		wbs_cyc_i <= 0;
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		wbs_cyc_i <= 1;
+		wbs_stb_i <= 1;
+		wbs_adr_i <= `SIA_ADR_STATUS;
+		wbs_we_i <= 0;
+		wbs_sel_i <= 2'b11;
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		rxq_not_empty_i <= 1;
+		txq_empty_i <= 1;
+
+		#1; assert_wbs_dat(16'h0000);
+		assert_wbs_ack(1);
+
+		wait(~clk_i); wait(clk_i); #1;
+		
+		assert_wbs_dat(16'h8005);
+		assert_wbs_ack(1);
+
+		wbs_stb_i <= 0;
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		wbs_cyc_i <= 0;
+
 		#100;
 		$display("@I Done.");
 		$stop;
