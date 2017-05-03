@@ -1,6 +1,8 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
+`include "sia.vh"
+
 // The sia_wb core provides a Wishbone B.4 pipelined compatible slave
 // port to allow bus masters to talk to the SIA's receiver and transmitter.
 // Additional status bits are exposed beyond those defined by Wishbone,
@@ -94,4 +96,61 @@ module sia_wb(
 	input		txq_not_full_i,
 	input		txq_empty_i
 );
+	reg	[15:0]	dat_o;
+	reg		ack_o;
+	reg		stall_o;
+
+	reg	[4:0]	bits_o;
+	reg		eedc_o, eedd_o;
+	reg	[2:0]	txcmod_o;
+	reg		rxcpol_o;
+	reg	[3:0]	intena_o;
+	reg	[19:0]	bitrat_o;
+	reg		rxq_pop_o;
+	reg		rxq_oe_o;
+	reg		txq_we_o;
+	reg	[15:0]	txq_dat_o;
+
+	assign irq_o = 0;
+
+	always @(posedge clk_i) begin
+		dat_o <= 0;
+		ack_o <= 0;
+		stall_o <= 0;
+		bits_o <= bits_o;
+		eedc_o <= eedc_o;
+		eedd_o <= eedd_o;
+		txcmod_o <= txcmod_o;
+		rxcpol_o <= rxcpol_o;
+		intena_o <= intena_o;
+		bitrat_o <= bitrat_o;
+		rxq_pop_o <= 0;
+		rxq_oe_o <= 0;
+		txq_we_o <= 0;
+		txq_dat_o <= 0;
+
+		if(reset_i) begin
+			bits_o <= 10;			// 8N1
+			{eedc_o, eedd_o} <= 2'b11;	// Synchronize on edge on either data or clock
+			txcmod_o <= 3'b100;		// Data on rising edge of clock
+			rxcpol_o <= 0;			// Data synchronized on rising edge of clock
+			intena_o <= 4'b0000;		// All interrupts disabled.
+			bitrat_o <= 20'd83332;		// 1200bps
+		end
+		else begin
+			if(cyc_i & stb_i & we_i) begin
+				case(adr_i)
+				`SIA_ADR_CONFIG: begin
+					bits_o <= dat_i[4:0];
+					eedc_o <= dat_i[8];
+					eedd_o <= dat_i[9];
+					txcmod_o <= dat_i[12:10];
+					rxcpol_o <= dat_i[13];
+				end
+				default: stall_o <= 1;	// debugging only
+				endcase
+				ack_o <= 1;
+			end
+		end
+	end
 endmodule

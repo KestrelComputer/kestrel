@@ -1,78 +1,28 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
+`include "asserts.vh"
+`include "sia.vh"
+
 // The sia_wb core provides a Wishbone B.4 pipelined compatible slave
 // port to allow bus masters to talk to the SIA's receiver and transmitter.
 // Additional status bits are exposed beyond those defined by Wishbone,
 // providing support for things like interrupts, DMA transfer requests, etc.
 //
 // This Wishbone interface defines a 16-bit serial controller.
-// The following registers are defined.
-//
-// +0	CONFIG (R/W)
-//	...........11111	Specifies character frame length,
-//				including start, stop, and parity bits.
-//	........000.....	Undefined.
-//	.......1........	Enable RXC edge sensitivity.
-//	......1.........	Enable RXD edge sensitivity.
-//	...111..........	TXC mode.
-//		000		Hardwired 0.
-//		001		Hardwired 1.
-//		010		IEEE-1355 Strobe (*)
-//		011		Undefined.
-//		100		Idles low; TXD transitions on rising edge.
-//		101		Idles high; TXD transitions on falling edge.
-//		110		Idles low; TXD transitions on falling edge. (*)
-//		111		Idles high; TXD transitions on rising edge. (*)
-//	..1.............	RXC edge polarity
-//		0		Idles low; sensitive on rising edge.
-//		1		Idles high; sensitive on falling edge.
-//	00..............	Undefined.
-//
-//	* - reserved for this purpose, but might not be implemented.
-//	If unimplemented, setting will yield undefined results.
-//
-// +2	STATUS	(R/O)
-//	...............1	RX FIFO *not* empty.
-//	..............1.	RX FIFO is full.
-//	.............1..	TX FIFO *is* empty.
-//	............1...	TX FIFO is *not* full.
-//	.00000000000....	Undefined.
-//	1...............	One or more other bits set.
-//
-// +4	INTENA	(R/W)
-//	...............1	RX FIFO *not* empty.
-//	..............1.	RX FIFO is full.
-//	.............1..	TX FIFO *is* empty.
-//	............1...	TX FIFO is *not* full.
-//	000000000000....	Undefined.
-//	
-// +6	RCVDAT (R/O)
-// +6	SNDDAT (W/O)
-//
-// +8	UNUSED			Unused.
-// +10	UNUSED			Unused.
-//
-// +12	BITRATL			Baud rate generator.
-// +14	BITRATH
-//	1111111111111111	Lower bits of divisor.
-//	0000000000001111	Upper bits of divisor.
-//
-//				Bit rate = 100Mbps / (divisor+1)
-//				(for icoBoard Gamma platform)
-//
-// Total register space taken is 16 bytes.
+// See sia_wb.v for register definitions.
 
 module sia_wb_tb();
 	reg		clk_i, reset_i;
 	reg	[11:0]	story_to;
+	reg		fault_to;
 
-	reg	[3:1]	adr_i;
-	reg		we_i, cyc_i, stb_i;
-	reg	[15:0]	dat_i;
-	reg	[1:0]	sel_i;
-	wire	[15:0]	dat_o;
-	wire		ack_o, irq_o, stall_o;
+	reg	[3:1]	wbs_adr_i;
+	reg		wbs_we_i, wbs_cyc_i, wbs_stb_i;
+	reg	[15:0]	wbs_dat_i;
+	reg	[1:0]	wbs_sel_i;
+	wire	[15:0]	wbs_dat_o;
+	wire		wbs_ack_o, wbs_irq_o, wbs_stall_o;
 
 	wire	[4:0]	bits_o;
 	wire		eedc_o;
@@ -101,15 +51,16 @@ module sia_wb_tb();
 		.clk_i(clk_i),
 		.reset_i(reset_i),
 
-		.adr_i(adr_i),
-		.we_i(we_i),
-		.cyc_i(cyc_i),
-		.stb_i(stb_i),
-		.dat_i(dat_i),
-		.sel_i(sel_i),
-		.dat_o(dat_o),
-		.ack_o(ack_o),
-		.irq_o(irq_o),
+		.adr_i(wbs_adr_i),
+		.we_i(wbs_we_i),
+		.cyc_i(wbs_cyc_i),
+		.stb_i(wbs_stb_i),
+		.dat_i(wbs_dat_i),
+		.sel_i(wbs_sel_i),
+		.dat_o(wbs_dat_o),
+		.ack_o(wbs_ack_o),
+		.stall_o(wbs_stall_o),
+		.irq_o(wbs_irq_o),
 
 		.bits_o(bits_o),
 		.eedc_o(eedc_o),
@@ -131,17 +82,69 @@ module sia_wb_tb();
 		.txq_empty_i(txq_empty_i)
 	);
 
+	`STANDARD_FAULT
+
+	`DEFASSERT(bits, 4, o)
+	`DEFASSERT(txcmod, 2, o)
+	`DEFASSERT(intena, 3, o)
+	`DEFASSERT(bitrat, 19, o)
+	`DEFASSERT0(eedc, o)
+	`DEFASSERT0(eedd, o)
+	`DEFASSERT0(rxcpol, o)
+
+	`DEFASSERT(wbs_dat, 15, o)
+	`DEFASSERT0(wbs_irq, o)
+	`DEFASSERT0(wbs_ack, o)
+	`DEFASSERT0(wbs_stall, o)
+
 	initial begin
 		$dumpfile("sia_wb.vcd");
 		$dumpvars;
 
-		{adr_i, we_i, cyc_i, stb_i, sel_i, dat_i, clk_i, reset_i, rxq_dat_i, rxq_full_i, rxq_not_empty_i, txq_not_full_i, txq_empty_i} <= 0;
+		{wbs_adr_i, wbs_we_i, wbs_cyc_i, wbs_stb_i, wbs_sel_i, wbs_dat_i, clk_i, reset_i, fault_to, rxq_dat_i, rxq_full_i, rxq_not_empty_i, txq_not_full_i, txq_empty_i} <= 0;
 
 		wait(~clk_i); wait(clk_i); #1;
 		reset_i <= 1;
 		wait(~clk_i); wait(clk_i); #1;
 		reset_i <= 0;
 		wait(~clk_i); wait(clk_i); #1;
+
+		assert_wbs_irq(0);
+		assert_wbs_dat(0);
+		assert_wbs_ack(0);
+		assert_wbs_stall(0);
+
+		assert_bits(10);	// 8N1 framing
+		assert_txcmod(3'b100);
+		assert_intena(0);
+		assert_bitrat(83332);
+		assert_eedc(1);
+		assert_eedd(1);
+		assert_rxcpol(0);
+
+		wbs_cyc_i <= 1;
+		wbs_stb_i <= 1;
+		wbs_adr_i <= `SIA_ADR_CONFIG;
+		wbs_we_i <= 1;
+		wbs_dat_i <= 16'b00_1_111_11_000_01111;
+		wbs_sel_i <= 2'b11;
+		wait(~clk_i); wait(clk_i); #1;
+		wbs_stb_i <= 0;
+		wbs_we_i <= 0;
+		wbs_sel_i <= 0;
+		assert_wbs_ack(1);
+		wait(~clk_i); wait(clk_i); #1;
+		assert_wbs_ack(0);
+
+		assert_bits(15);
+		assert_txcmod(3'b111);
+		assert_intena(0);
+		assert_bitrat(83332);
+		assert_eedc(1);
+		assert_eedd(1);
+		assert_rxcpol(1);
+
+		wbs_cyc_i <= 0;
 
 		#100;
 		$display("@I Done.");
