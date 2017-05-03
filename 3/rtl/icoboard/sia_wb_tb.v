@@ -22,7 +22,7 @@ module sia_wb_tb();
 	reg	[15:0]	wbs_dat_i;
 	reg	[1:0]	wbs_sel_i;
 	wire	[15:0]	wbs_dat_o;
-	wire		wbs_ack_o, wbs_irq_o, wbs_stall_o;
+	wire		wbs_ack_o, wbs_stall_o;
 
 	wire	[4:0]	bits_o;
 	wire		eedc_o;
@@ -60,7 +60,6 @@ module sia_wb_tb();
 		.dat_o(wbs_dat_o),
 		.ack_o(wbs_ack_o),
 		.stall_o(wbs_stall_o),
-		.irq_o(wbs_irq_o),
 
 		.bits_o(bits_o),
 		.eedc_o(eedc_o),
@@ -97,7 +96,6 @@ module sia_wb_tb();
 	`DEFASSERT0(txq_we, o)
 
 	`DEFASSERT(wbs_dat, 15, o)
-	`DEFASSERT0(wbs_irq, o)
 	`DEFASSERT0(wbs_ack, o)
 	`DEFASSERT0(wbs_stall, o)
 
@@ -113,7 +111,6 @@ module sia_wb_tb();
 		reset_i <= 0;
 		wait(~clk_i); wait(clk_i); #1;
 
-		assert_wbs_irq(0);
 		assert_wbs_dat(0);
 		assert_wbs_ack(0);
 		assert_wbs_stall(0);

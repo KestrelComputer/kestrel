@@ -74,7 +74,6 @@ module sia_wb(
 	output	[15:0]	dat_o,
 	output		ack_o,
 	output		stall_o,
-	output		irq_o,
 
 	output	[4:0]	bits_o,
 	output		eedc_o,
@@ -110,7 +109,6 @@ module sia_wb(
 	reg		txq_we_o;
 	reg	[15:0]	txq_dat_o;
 
-	assign irq_o = 0;
 	wire [3:0] events = {txq_not_full_i, txq_empty_i, rxq_full_i, rxq_not_empty_i};
 
 	always @(posedge clk_i) begin
