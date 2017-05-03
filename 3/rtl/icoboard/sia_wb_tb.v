@@ -88,9 +88,13 @@ module sia_wb_tb();
 	`DEFASSERT(txcmod, 2, o)
 	`DEFASSERT(intena, 3, o)
 	`DEFASSERT(bitrat, 19, o)
+	`DEFASSERT(txq_dat, 15, o)
 	`DEFASSERT0(eedc, o)
 	`DEFASSERT0(eedd, o)
 	`DEFASSERT0(rxcpol, o)
+	`DEFASSERT0(rxq_oe, o)
+	`DEFASSERT0(rxq_pop, o)
+	`DEFASSERT0(txq_we, o)
 
 	`DEFASSERT(wbs_dat, 15, o)
 	`DEFASSERT0(wbs_irq, o)
@@ -240,6 +244,61 @@ module sia_wb_tb();
 		assert_wbs_dat(15);
 
 		wait(~clk_i); wait(clk_i); #1;
+		wbs_cyc_i <= 0;
+
+		// Attempt to read from the receive queue.
+
+		rxq_dat_i <= 16'hABCD;
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		wbs_cyc_i <= 1;
+		wbs_stb_i <= 1;
+		wbs_adr_i <= `SIA_ADR_TRXDAT;
+		wbs_we_i <= 0;
+		wbs_sel_i <= 2'b11;
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		assert_wbs_ack(1);
+		assert_rxq_oe(1);
+		assert_rxq_pop(1);
+		assert_wbs_dat(16'hABCD);
+
+		wbs_stb_i <= 0;
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		wbs_cyc_i <= 0;
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		// Attempt to write to transmit queue, 8 bits at a time.
+
+		wbs_cyc_i <= 1;
+		wbs_stb_i <= 1;
+		wbs_adr_i <= `SIA_ADR_TRXDAT;
+		wbs_we_i <= 1;
+		wbs_sel_i <= 2'b01;
+		wbs_dat_i <= 16'hBEEF;
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		assert_wbs_ack(1);
+
+		wbs_sel_i <= 2'b10;
+
+		wait(~clk_i); wait(clk_i); #1;
+
+		assert_wbs_ack(1);
+
+		assert_txq_we(1);
+		assert_txq_dat(16'hBEEF);
+
+		wbs_stb_i <= 0;
+
+		wait(~clk_i); wait(clk_i); #1;
+
 		wbs_cyc_i <= 0;
 
 		#100;

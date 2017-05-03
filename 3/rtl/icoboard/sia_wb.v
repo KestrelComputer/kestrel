@@ -127,7 +127,7 @@ module sia_wb(
 		rxq_pop_o <= 0;
 		rxq_oe_o <= 0;
 		txq_we_o <= 0;
-		txq_dat_o <= 0;
+		txq_dat_o <= txq_dat_o;
 
 		if(reset_i) begin
 			bits_o <= 10;			// 8N1
@@ -154,7 +154,20 @@ module sia_wb(
 				`SIA_ADR_INTENA: begin
 					if(sel_i[0]) intena_o <= dat_i[3:0];
 				end
-				default: stall_o <= 1;	// debugging only
+				`SIA_ADR_TRXDAT: begin
+					if(sel_i[0]) txq_dat_o[7:0] <= dat_i[7:0];
+					if(sel_i[1]) txq_dat_o[15:8] <= dat_i[15:8];
+					txq_we_o <= sel_i[1];
+				end
+				`SIA_ADR_zero0: begin /* do nothing */ end
+				`SIA_ADR_zero1: begin /* do nothing */ end
+				`SIA_ADR_BITRATL: begin
+					if(sel_i[0]) bitrat_o[7:0] <= dat_i[7:0];
+					if(sel_i[1]) bitrat_o[15:8] <= dat_i[15:8];
+				end
+				`SIA_ADR_BITRATH: begin
+					if(sel_i[0]) bitrat_o[19:16] <= dat_i[3:0];
+				end
 				endcase
 				ack_o <= 1;
 			end
@@ -164,7 +177,15 @@ module sia_wb(
 				`SIA_ADR_CONFIG: dat_o <= {2'd0, rxcpol_o, txcmod_o, eedd_o, eedc_o, 3'd0, bits_o};
 				`SIA_ADR_STATUS: dat_o <= {|events, 11'd0, events};
 				`SIA_ADR_INTENA: dat_o <= {12'd0, intena_o};
-				default: stall_o <= 1;	// debugging only
+				`SIA_ADR_TRXDAT: begin
+					dat_o <= rxq_dat_i;
+					rxq_oe_o <= 1;
+					rxq_pop_o <= sel_i[1];	// Concession for 8-bit CPUs
+				end
+				`SIA_ADR_zero0: dat_o <= 0;
+				`SIA_ADR_zero1: dat_o <= 0;
+				`SIA_ADR_BITRATL: dat_o <= bitrat_o[15:0];
+				`SIA_ADR_BITRATH: dat_o <= {12'd0, bitrat_o[19:16]};
 				endcase
 				ack_o <= 1;
 			end
