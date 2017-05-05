@@ -14,12 +14,13 @@ module sia_receiver_tb();
 
 	sia_receiver #(
 		.SHIFT_REG_WIDTH(64),
-		.BAUD_RATE_WIDTH(32)
+		.BAUD_RATE_WIDTH(32),
+		.BITS_WIDTH(5)
 	) x(
 		.clk_i(clk_i),
 		.reset_i(reset_i),
 
-		.bits_i(6'd11),			// 8O1
+		.bits_i(5'd11),			// 8O1
 		.baud_i(32'd49),		// 1Mbps when clocked at 50MHz.
 		.eedd_i(1'b1),
 		.eedc_i(1'b1),

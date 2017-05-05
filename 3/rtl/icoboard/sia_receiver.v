@@ -27,7 +27,7 @@ module sia_receiver(
 	// These inputs correspond to fields found in the register
 	// set of the receiver.  Register set not included.
 
-	input	[5:0]	bits_i,
+	input	[BW:0]	bits_i,
 	input	[BRW:0]	baud_i,
 	input		eedd_i,	// Enable Edge Detect on Data
 	input		eedc_i, // Enable Edge Detect on Clock
@@ -48,13 +48,15 @@ module sia_receiver(
 );
 	parameter	SHIFT_REG_WIDTH = 16;
 	parameter	BAUD_RATE_WIDTH = 32;
+	parameter	BITS_WIDTH = 5;
 
 	parameter	SRW = SHIFT_REG_WIDTH - 1;
 	parameter	BRW = BAUD_RATE_WIDTH - 1;
+	parameter	BW = BITS_WIDTH - 1;
 
 	reg	[SRW:0]	shiftRegister;
 	reg	[BRW:0]	sampleCtr;
-	reg	[5:0]	bitsLeft;
+	reg	[BW:0]	bitsLeft;
 	reg		d0, d1, c0, c1;
 
 	wire edgeDetected = (eedd_i & (d0 ^ d1)) | (eedc_i & (~c1 & c0));
