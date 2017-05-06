@@ -30,7 +30,8 @@
 //	..1.............	RXC edge polarity
 //		0		Idles low; sensitive on rising edge.
 //		1		Idles high; sensitive on falling edge.
-//	00..............	Undefined.
+//	.1..............	Local loopback from TXD to RXD. (Intended for testing.)
+//	1...............	Local loopback from TXC to RXC. (Intended for testing.)
 //
 // +2	STATUS	(R/O)
 //	...............1	RX FIFO *not* empty.
@@ -85,6 +86,8 @@ module sia_wb(
 	output		rxcpol_o,
 	output	[4:0]	intena_o,
 	output	[19:0]	bitrat_o,
+	output		txdlb_o,
+	output		txclb_o,
 
 	output		rxq_pop_o,
 	output		rxq_oe_o,
@@ -112,6 +115,7 @@ module sia_wb(
 	reg		rxq_oe_o;
 	reg		txq_we_o;
 	reg	[15:0]	txq_dat_o;
+	reg		txdlb_o, txclb_o;
 
 	wire [4:0] events = {txq_idle_i, txq_not_full_i, txq_empty_i, rxq_full_i, rxq_not_empty_i};
 	assign irq_o = |(intena_o & events);
@@ -152,6 +156,8 @@ module sia_wb(
 						eedd_o <= dat_i[9];
 						txcmod_o <= dat_i[12:10];
 						rxcpol_o <= dat_i[13];
+						txdlb_o <= dat_i[14];
+						txclb_o <= dat_i[15];
 					end
 				end
 				`SIA_ADR_INTENA: begin
@@ -177,7 +183,7 @@ module sia_wb(
 
 			if(cyc_i & stb_i & ~we_i) begin
 				case(adr_i)
-				`SIA_ADR_CONFIG: dat_o <= {2'd0, rxcpol_o, txcmod_o, eedd_o, eedc_o, 3'd0, bits_o};
+				`SIA_ADR_CONFIG: dat_o <= {txclb_o, txdlb_o, rxcpol_o, txcmod_o, eedd_o, eedc_o, 3'd0, bits_o};
 				`SIA_ADR_STATUS: dat_o <= {|events, 10'd0, events};
 				`SIA_ADR_INTENA: dat_o <= {11'd0, intena_o};
 				`SIA_ADR_TRXDAT: begin
