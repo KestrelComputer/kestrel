@@ -27,7 +27,7 @@ module sia_rxq(
 	// These inputs correspond to fields found in the register
 	// set of the receiver.  Register set not included.
 
-	input	[5:0]	bits_i,
+	input	[BW:0]	bits_i,
 	input	[BRW:0]	baud_i,
 	input		eedd_i,
 	input		eedc_i,
@@ -47,11 +47,13 @@ module sia_rxq(
 );
 	parameter	SHIFT_REG_WIDTH = 16;
 	parameter	BAUD_RATE_WIDTH = 32;
+	parameter	BITS_WIDTH = 5;
 	parameter	DATA_BITS = SHIFT_REG_WIDTH;
 	parameter	DEPTH_BITS = 4;
 
 	parameter	BRW = BAUD_RATE_WIDTH - 1;
 	parameter	SRW = SHIFT_REG_WIDTH - 1;
+	parameter	BW = BITS_WIDTH - 1;
 
 	wire		rx_rq_idle;
 	reg		rx_rq_idle_dly;

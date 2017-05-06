@@ -1,6 +1,19 @@
 `default_nettype none
 `timescale 1ns / 1ps
 
+// The transmitter core provides an ITU V.4-compatible bit-serial interface.
+// This core is based on R&D work performed on the XST (Experimental Serial
+// Transmitter) project, and has been feature-reduced to meet the SIA's
+// needs.
+//
+// NOTE: TXC output is always idle-low, active high.  TXC conditioning for
+// polarity or hardwired 1 or 0 must be done externally to this core.
+// Similarly with any loop-back features.
+//
+// IDLE_O asserts when the transmitter has completed sending a frame.  This
+// can be used to conditionally drive an external FIFO to automatically
+// refill the transmit shift register.
+
 module sia_transmitter(
 	input		clk_i,
 	input		reset_i,
@@ -10,13 +23,13 @@ module sia_transmitter(
 
 	input		txreg_we_i,
 	input		txreg_oe_i,
-	input	[BRG:0]	txbaud_i,
+	input	[BRW:0]	txbaud_i,
 	input	[BW:0]	bits_i,
 
 	output		txd_o,
 	output		txc_o,
 	output		idle_o,
-	output	[BRG:0]	brg_o,
+	output	[BRW:0]	brg_o,
 	output	[BW:0]	bits_o,
 	output	[SRW:0]	dat_o
 );
@@ -29,7 +42,7 @@ module sia_transmitter(
 	parameter	BW = BITS_WIDTH - 1;
 
 	reg	[BW:0]	bits_o;
-	reg	[BRG:0]	brg_o;
+	reg	[BRW:0]	brg_o;
 	reg	[SRW:0]	shift_register;
 	reg		txc_o;
 
@@ -37,7 +50,7 @@ module sia_transmitter(
 	assign		idle_o = ~|bits_o;
 
 	wire		txreg_shift = ~|brg_o;
-	wire	[BRG:1]	halfbit = txbaud_i[BRG:1];
+	wire	[BRW:1]	halfbit = txbaud_i[BRW:1];
 
 	assign		dat_o = (txreg_oe_i ? shift_register : 0);
 
