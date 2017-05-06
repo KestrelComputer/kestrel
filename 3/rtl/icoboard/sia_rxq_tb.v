@@ -23,6 +23,7 @@ module sia_rxq_tb();
 		.baud_i(32'd49),		// 1Mbps when clocked at 50MHz.
 		.eedd_i(1'b1),
 		.eedc_i(1'b1),
+		.rxcpol_i(1'b0),
 
 		.rxd_i(rxd_i),
 		.rxc_i(rxc_i),

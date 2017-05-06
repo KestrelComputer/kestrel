@@ -31,6 +31,7 @@ module sia_rxq(
 	input	[BRW:0]	baud_i,
 	input		eedd_i,
 	input		eedc_i,
+	input		rxcpol_i,
 
 	// Inputs from external hardware
 
@@ -81,7 +82,7 @@ module sia_rxq(
 		.eedd_i(eedd_i),
 		.eedc_i(eedc_i),
 		.rxd_i(rxd_i),
-		.rxc_i(rxc_i),
+		.rxc_i(rxc_i ^ rxcpol_i),
 		.dat_o(rx_rq_dat),
 		.idle_o(rx_rq_idle),
 
