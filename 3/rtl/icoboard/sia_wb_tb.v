@@ -29,7 +29,7 @@ module sia_wb_tb();
 	wire		eedd_o;
 	wire	[2:0]	txcmod_o;
 	wire		rxcpol_o;
-	wire	[3:0]	intena_o;
+	wire	[4:0]	intena_o;
 	wire	[19:0]	bitrat_o;
 
 	wire		rxq_pop_o;
@@ -42,6 +42,7 @@ module sia_wb_tb();
 	wire	[15:0]	txq_dat_o;
 	reg		txq_not_full_i;
 	reg		txq_empty_i;
+	reg		txq_idle_i;
 
 	always begin
 		#5; clk_i <= ~clk_i;
@@ -78,14 +79,15 @@ module sia_wb_tb();
 		.txq_we_o(txq_we_o),
 		.txq_dat_o(txq_dat_o),
 		.txq_not_full_i(txq_not_full_i),
-		.txq_empty_i(txq_empty_i)
+		.txq_empty_i(txq_empty_i),
+		.txq_idle_i(txq_idle_i)
 	);
 
 	`STANDARD_FAULT
 
 	`DEFASSERT(bits, 4, o)
 	`DEFASSERT(txcmod, 2, o)
-	`DEFASSERT(intena, 3, o)
+	`DEFASSERT(intena, 4, o)
 	`DEFASSERT(bitrat, 19, o)
 	`DEFASSERT(txq_dat, 15, o)
 	`DEFASSERT0(eedc, o)
@@ -103,7 +105,7 @@ module sia_wb_tb();
 		$dumpfile("sia_wb.vcd");
 		$dumpvars;
 
-		{wbs_adr_i, wbs_we_i, wbs_cyc_i, wbs_stb_i, wbs_sel_i, wbs_dat_i, clk_i, reset_i, fault_to, rxq_dat_i, rxq_full_i, rxq_not_empty_i, txq_not_full_i, txq_empty_i} <= 0;
+		{txq_idle_i, wbs_adr_i, wbs_we_i, wbs_cyc_i, wbs_stb_i, wbs_sel_i, wbs_dat_i, clk_i, reset_i, fault_to, rxq_dat_i, rxq_full_i, rxq_not_empty_i, txq_not_full_i, txq_empty_i} <= 0;
 
 		wait(~clk_i); wait(clk_i); #1;
 		reset_i <= 1;

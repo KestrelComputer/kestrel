@@ -37,7 +37,8 @@
 //	..............1.	RX FIFO is full.
 //	.............1..	TX FIFO *is* empty.
 //	............1...	TX FIFO is *not* full.
-//	.00000000000....	Undefined.
+//	...........1....	TX engine is idle.
+//	.0000000000.....	Undefined.
 //	1...............	One or more other bits set.
 //
 // +4	INTENA	(R/W)
@@ -45,7 +46,8 @@
 //	..............1.	RX FIFO is full.
 //	.............1..	TX FIFO *is* empty.
 //	............1...	TX FIFO is *not* full.
-//	000000000000....	Undefined.
+//	...........1....	TX engine is idle.
+//	00000000000.....	Undefined.
 //	
 // +6	RCVDAT (R/O)
 // +6	SNDDAT (W/O)
@@ -74,13 +76,14 @@ module sia_wb(
 	output	[15:0]	dat_o,
 	output		ack_o,
 	output		stall_o,
+	output		irq_o,
 
 	output	[4:0]	bits_o,
 	output		eedc_o,
 	output		eedd_o,
 	output	[2:0]	txcmod_o,
 	output		rxcpol_o,
-	output	[3:0]	intena_o,
+	output	[4:0]	intena_o,
 	output	[19:0]	bitrat_o,
 
 	output		rxq_pop_o,
@@ -92,7 +95,8 @@ module sia_wb(
 	output		txq_we_o,
 	output	[15:0]	txq_dat_o,
 	input		txq_not_full_i,
-	input		txq_empty_i
+	input		txq_empty_i,
+	input		txq_idle_i
 );
 	reg	[15:0]	dat_o;
 	reg		ack_o;
@@ -102,14 +106,15 @@ module sia_wb(
 	reg		eedc_o, eedd_o;
 	reg	[2:0]	txcmod_o;
 	reg		rxcpol_o;
-	reg	[3:0]	intena_o;
+	reg	[4:0]	intena_o;
 	reg	[19:0]	bitrat_o;
 	reg		rxq_pop_o;
 	reg		rxq_oe_o;
 	reg		txq_we_o;
 	reg	[15:0]	txq_dat_o;
 
-	wire [3:0] events = {txq_not_full_i, txq_empty_i, rxq_full_i, rxq_not_empty_i};
+	wire [4:0] events = {txq_idle_i, txq_not_full_i, txq_empty_i, rxq_full_i, rxq_not_empty_i};
+	assign irq_o = |(intena_o & events);
 
 	always @(posedge clk_i) begin
 		dat_o <= 0;
@@ -132,7 +137,7 @@ module sia_wb(
 			{eedc_o, eedd_o} <= 2'b11;	// Synchronize on edge on either data or clock
 			txcmod_o <= 3'b100;		// Data on rising edge of clock
 			rxcpol_o <= 0;			// Data synchronized on rising edge of clock
-			intena_o <= 4'b0000;		// All interrupts disabled.
+			intena_o <= 5'b00000;		// All interrupts disabled.
 			bitrat_o <= 20'd83332;		// 1200bps
 		end
 		else begin
@@ -150,7 +155,7 @@ module sia_wb(
 					end
 				end
 				`SIA_ADR_INTENA: begin
-					if(sel_i[0]) intena_o <= dat_i[3:0];
+					if(sel_i[0]) intena_o <= dat_i[4:0];
 				end
 				`SIA_ADR_TRXDAT: begin
 					if(sel_i[0]) txq_dat_o[7:0] <= dat_i[7:0];
@@ -173,8 +178,8 @@ module sia_wb(
 			if(cyc_i & stb_i & ~we_i) begin
 				case(adr_i)
 				`SIA_ADR_CONFIG: dat_o <= {2'd0, rxcpol_o, txcmod_o, eedd_o, eedc_o, 3'd0, bits_o};
-				`SIA_ADR_STATUS: dat_o <= {|events, 11'd0, events};
-				`SIA_ADR_INTENA: dat_o <= {12'd0, intena_o};
+				`SIA_ADR_STATUS: dat_o <= {|events, 10'd0, events};
+				`SIA_ADR_INTENA: dat_o <= {11'd0, intena_o};
 				`SIA_ADR_TRXDAT: begin
 					dat_o <= rxq_dat_i;
 					rxq_oe_o <= 1;

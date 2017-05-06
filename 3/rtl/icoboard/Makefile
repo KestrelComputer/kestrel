@@ -9,6 +9,7 @@ help:
 	@echo "make ramcon.waves      Run gtkwave on results from simulating RAMCON"
 	@echo "make sia_receiver.waves Run gtkwave on results from simulating SIA components"
 	@echo "make sia_rxq.waves"
+	@echo "make sia_txq.waves"
 	@echo "make sia_wb.waves"
 	@echo
 	@echo "make ramtest.blif      run synthesis, generate BLIF netlist"
@@ -36,6 +37,9 @@ sia_rxq.waves:
 
 sia_wb.waves:
 	iverilog -s sia_wb_tb *.v && vvp -n a.out && gtkwave sia_wb.vcd
+
+sia_txq.waves:
+	iverilog -s sia_txq_tb *.v && vvp -n a.out && gtkwave sia_txq.vcd
 
 ramtest.blif: ramtest.v ramcon.v
 	yosys -p 'synth_ice40 -blif ramtest.blif' ramtest.v ramcon.v
