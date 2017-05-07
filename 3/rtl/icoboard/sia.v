@@ -19,10 +19,10 @@ module sia(
 	input		rxd_i,
 	input		rxc_i,
 	output		txd_o,
-	output		txc_o
+	output		txc_o,
 
-	output		rx_not_empty_o;
-	output		tx_not_full_o;
+	output		rx_not_empty_o,
+	output		tx_not_full_o
 );
 	parameter	BAUD_RATE_WIDTH = 20;
 	parameter	SHIFT_REG_WIDTH = 16;
