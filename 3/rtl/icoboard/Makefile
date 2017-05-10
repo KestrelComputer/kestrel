@@ -5,13 +5,6 @@ SSH_RASPI ?= sh -c
 endif
 
 help:
-	@echo
-	@echo "make ramcon.waves      Run gtkwave on results from simulating RAMCON"
-	@echo "make sia_receiver.waves Run gtkwave on results from simulating SIA components"
-	@echo "make sia_rxq.waves"
-	@echo "make sia_txq.waves"
-	@echo "make sia_wb.waves"
-	@echo
 	@echo "make ramtest.blif      run synthesis, generate BLIF netlist"
 	@echo "make ramtest.asc       run place and route, generate IceStorm ASCII file"
 	@echo "make ramtest.bin       run timing analysis, generate iCE40 BIN file"
@@ -28,18 +21,6 @@ help:
 
 ramcon.waves:
 	iverilog -s ramcon_tb ramcon.v && vvp -n a.out && gtkwave ramcon.vcd
-
-sia_receiver.waves:
-	iverilog -s sia_receiver_tb *.v && vvp -n a.out && gtkwave sia_receiver.vcd
-
-sia_rxq.waves:
-	iverilog -s sia_rxq_tb *.v && vvp -n a.out && gtkwave sia_rxq.vcd
-
-sia_wb.waves:
-	iverilog -s sia_wb_tb *.v && vvp -n a.out && gtkwave sia_wb.vcd
-
-sia_txq.waves:
-	iverilog -s sia_txq_tb *.v && vvp -n a.out && gtkwave sia_txq.vcd
 
 ramtest.blif: ramtest.v ramcon.v
 	yosys -p 'synth_ice40 -blif ramtest.blif' ramtest.v ramcon.v
