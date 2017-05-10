@@ -1,0 +1,284 @@
+[
+ [module Sequencer
+  &input  [rst
+           ft0 iack_i dack_i
+           [ir "[31:0]"]
+           xt0
+           xt1
+           xt2
+           xt3
+           xt4
+           [ccr "[7:0]"]
+           trap
+           csrok_i
+           take_irq
+          ]
+  &output [ft0_o
+           pc_mbvec
+           iadr_pc
+           istb_o
+           pc_pcPlus4
+           ir_idat
+           xt0_o
+           xt1_o
+           xt2_o
+           ra_ir1
+           ra_ir2
+           ra_ird
+           rdat_alu
+           rdat_pc
+           rwe_o
+           alua_rdat
+           alua_0
+           alua_ia
+           alub_rdat
+           alub_imm12i
+           alub_imm12s
+           alub_imm20u
+           alub_imm20uj
+           sum_en
+           lsh_en
+           cflag_i
+           invB_en
+           lts_en
+           ltu_en
+           xor_en
+           rsh_en
+           and_en
+           xt3_o
+           pc_alu
+           sx32_en
+           ia_pc
+           dadr_alu
+           dcyc_1
+           dstb_1
+           dsiz_fn3
+           rdat_ddat
+           ddat_rdat
+           dwe_o
+           ccr_alu
+           alub_imm12sb
+           xt4_o
+           fence_o
+           trap_o
+           mepc_ia
+           pc_mtvec
+           mpie_mie
+           mie_0
+           mcause_11
+           mcause_3
+           mcause_2
+           pc_mepc
+           mie_mpie
+           mpie_1
+           rdat_cdat
+           coe_o
+           cdat_rdat
+           cwe_o
+           cdat_imm5
+           cdat_alu
+           alua_cdat
+           alub_imm5
+           mepc_pc
+           mcause_irq_o
+          ]
+  &wire   [isOpI
+           isOpR
+           isJalr
+           fn3_is_000 fn3_is_001 fn3_is_010 fn3_is_011 fn3_is_100 fn3_is_101 fn3_is_110 fn3_is_111
+           useAlu useAlu2
+           isLuiAuipc
+           isLoad
+           isStore
+           isJal
+           isBr
+           isFence
+           isECall
+           isEBreak
+           isMRet
+           isCsrRw
+           isCsrRwI
+           isCsrRs
+           isCsrRsI
+           isCsrRc
+           isCsrRcI
+          ]
+ ]
+
+
+ \\ INSTRUCTION FETCH ------------------------------------
+
+
+ \\ Handle power-on and trap events.
+
+ [on [rst]                      ft0_o pc_mbvec mie_0 mpie_1]
+
+ \\ Handle instruction fetch.
+
+ [on [~rst ft0 ~take_irq ~trap_o]                 iadr_pc istb_o]
+ [on [~rst ft0 ~take_irq ~trap_o ~iack_i]         ft0_o]
+ [on [~rst ft0 ~take_irq ~trap_o iack_i]          pc_pcPlus4 ia_pc ir_idat xt0_o]
+
+ \\ Handle a trap.  We save the IA and reload it with the current value of MTVEC,
+ \\ preserve the current interrupt enable flag, and clear it.  Then we resume
+ \\ instruction execution.
+
+ [on [~rst ~take_irq trap]                        mepc_ia pc_mtvec  mpie_mie mie_0  ft0_o]
+
+ \\ Handle external interrupts.  The CSR module exposes a signal, take_irq, which if asserted
+ \\ means we should take an interrupt.  Note that the CSR unit handles interrupt masking for us.
+ \\ NOTE: External interrupts ALWAYS take priority over other kinds of traps.
+ \\ NOTE: MEPC is loaded with PC and not with IA, because we haven't executed the addressed insn yet.
+ [on [~rst ft0 take_irq]                          mepc_pc pc_mtvec mpie_mie mie_0 mcause_11 mcause_irq_o ft0_o]
+
+ \\ Are we jammed?  If we're not executing an instruction,
+ \\ AND we're not fetching an instruction, then the CPU will
+ \\ deadlock.  Detect this, and trap with an illegal instruction
+ \\ exception.
+
+ [on [~rst ~trap ~ft0 ~xt0 ~xt1 ~xt2 ~xt3 ~xt4]    trap_o mcause_2]
+
+
+ \\ INSTRUCTION DECODE AND EXECUTION ---------------------
+
+ [on [["ir[14:12]" 3'b000]]     fn3_is_000]
+ [on [["ir[14:12]" 3'b001]]     fn3_is_001]
+ [on [["ir[14:12]" 3'b010]]     fn3_is_010]
+ [on [["ir[14:12]" 3'b011]]     fn3_is_011]
+ [on [["ir[14:12]" 3'b100]]     fn3_is_100]
+ [on [["ir[14:12]" 3'b101]]     fn3_is_101]
+ [on [["ir[14:12]" 3'b110]]     fn3_is_110]
+ [on [["ir[14:12]" 3'b111]]     fn3_is_111]
+
+ [on [["ir[6:4]" "3'b001"] ["ir[2:0]" "3'b011"]]        isOpI]
+ [on [["ir[6:4]" "3'b011"] ["ir[2:0]" "3'b011"]]        isOpR]
+
+ [on [~rst xt0 isOpI]           xt1_o ra_ir1]
+ [on [~rst xt1 isOpI]           xt2_o alua_rdat alub_imm12i]
+ [on [~rst xt2 isOpI]           ra_ird rdat_alu rwe_o useAlu ft0_o]
+
+ [on [useAlu fn3_is_000]        sum_en]
+ [on [useAlu fn3_is_001]        lsh_en]
+ [on [useAlu fn3_is_010]        cflag_i invB_en lts_en]
+ [on [useAlu fn3_is_011]        cflag_i invB_en ltu_en]
+ [on [useAlu fn3_is_100]        xor_en]
+ [on [useAlu fn3_is_101 "~ir[30]"]  rsh_en]
+ [on [useAlu fn3_is_101 "ir[30]"]   rsh_en cflag_i]
+ [on [useAlu fn3_is_110]        and_en xor_en]
+ [on [useAlu fn3_is_111]        and_en]
+ [on [useAlu "ir[3]"]           sx32_en]
+
+ [on [~rst xt0 isOpR]           xt1_o ra_ir1]
+ [on [~rst xt1 isOpR]           xt2_o alua_rdat ra_ir2]
+ [on [~rst xt2 isOpR]           xt3_o alub_rdat]
+ [on [~rst xt3 isOpR]           ra_ird rdat_alu rwe_o useAlu2 ft0_o]
+
+ [on [useAlu2 fn3_is_000 "~ir[30]"]     sum_en]
+ [on [useAlu2 fn3_is_000 "ir[30]"]      sum_en cflag_i invB_en]
+ [on [useAlu2 fn3_is_001]       lsh_en]
+ [on [useAlu2 fn3_is_010]       cflag_i invB_en lts_en]
+ [on [useAlu2 fn3_is_011]       cflag_i invB_en ltu_en]
+ [on [useAlu2 fn3_is_100]       xor_en]
+ [on [useAlu2 fn3_is_101 "~ir[30]"]  rsh_en]
+ [on [useAlu2 fn3_is_101 "ir[30]"]   rsh_en cflag_i]
+ [on [useAlu2 fn3_is_110]       and_en xor_en]
+ [on [useAlu2 fn3_is_111]       and_en]
+ [on [useAlu2 "ir[3]"]          sx32_en]
+
+ [on [["ir[6:0]" "7'b1100111"]] isJalr]
+ [on [["ir[6:0]" "7'b1101111"]] isJal]
+
+ [on [~rst xt0 isJalr]          xt1_o ra_ird rdat_pc rwe_o]
+ [on [~rst xt1 isJalr]          xt2_o ra_ir1]
+ [on [~rst xt2 isJalr]          xt3_o alua_rdat alub_imm12i]
+ [on [~rst xt3 isJalr]          ft0_o pc_alu sum_en]
+
+ [on [~rst xt0 isJal]           xt1_o ra_ird rdat_pc rwe_o]
+ [on [~rst xt1 isJal]           xt2_o alua_ia alub_imm20uj]
+ [on [~rst xt2 isJal]           ft0_o pc_alu sum_en]
+
+ [on ["~ir[6]" ["ir[4:0]" "5'b10111"]]  isLuiAuipc]
+ [on [~rst xt0 isLuiAuipc]              xt1_o alub_imm20u]
+ [on [~rst xt0 isLuiAuipc "ir[5]"]      alua_0]
+ [on [~rst xt0 isLuiAuipc "~ir[5]"]     alua_ia]
+ [on [~rst xt1 isLuiAuipc]              ra_ird rdat_alu rwe_o sum_en ft0_o]
+
+ [on [["ir[6:0]" "7'b0000011"]]         isLoad]
+ [on [["ir[6:0]" "7'b0100011"]]         isStore]
+
+ [on [~rst xt0 isLoad]                  xt1_o ra_ir1]
+ [on [~rst xt1 isLoad]                  xt2_o alua_rdat alub_imm12i]
+ [on [~rst xt2 isLoad ~dack_i]          xt2_o sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3]
+ [on [~rst xt2 isLoad dack_i]           sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3 ra_ird  rwe_o rdat_ddat  ft0_o]
+
+ [on [~rst xt0 isStore]                 xt1_o ra_ir1]
+ [on [~rst xt1 isStore]                 xt2_o alua_rdat alub_imm12s ra_ir2]
+ [on [~rst xt2 isStore ~dack_i]         xt2_o sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3 ddat_rdat ra_ir2 dwe_o]
+ [on [~rst xt2 isStore dack_i]          sum_en dadr_alu dcyc_1 dstb_1 dsiz_fn3 ddat_rdat dwe_o ft0_o]
+
+ [on [["ir[6:0]" "7'b1100011"]]         isBr]
+
+ [on [~rst xt0 isBr]                    xt1_o ra_ir1]
+ [on [~rst xt1 isBr]                    xt2_o ra_ir2 alua_rdat]
+ [on [~rst xt2 isBr]                    xt3_o alub_rdat]
+ [on [~rst xt3 isBr]                    xt4_o sum_en invB_en cflag_i ccr_alu alua_ia alub_imm12sb]
+ [on [~rst xt4 isBr]                    ft0_o sum_en]
+
+ [on [isBr xt4 fn3_is_000 "ccr[0]"]     pc_alu]
+ [on [isBr xt4 fn3_is_001 "ccr[1]"]     pc_alu]
+ [on [isBr xt4 fn3_is_100 "ccr[4]"]     pc_alu]
+ [on [isBr xt4 fn3_is_101 "ccr[5]"]     pc_alu]
+ [on [isBr xt4 fn3_is_110 "ccr[6]"]     pc_alu]
+ [on [isBr xt4 fn3_is_111 "ccr[7]"]     pc_alu]
+
+ [on [["ir[31:28]" "4'b0000"] ["ir[19:0]" "20'h0000F"]] isFence]        \\ FENCE
+ [on [["ir[31:0]" "32'h0000100F"]]                      isFence]        \\ FENCE.I
+
+ [on [~rst isFence xt0]                 xt1_o fence_o]
+ [on [~rst isFence xt1]                 xt2_o fence_o]
+ [on [~rst isFence xt2]                 xt3_o fence_o]
+ [on [~rst isFence xt3]                 ft0_o fence_o]
+
+ [on [["ir[31:0]" "32'b0000_0000_0000_00000_000_00000_1110011"]]        isECall]
+ [on [["ir[31:0]" "32'b0000_0000_0001_00000_000_00000_1110011"]]        isEBreak]
+
+ [on [~rst isECall xt0]                 trap_o mcause_11]
+ [on [~rst isEBreak xt0]                trap_o mcause_3]
+
+ [on [["ir[31:0]" "32'b0011_0000_0010_00000_000_00000_1110011"]]        isMRet]
+
+ [on [~rst isMRet xt0]                  ft0_o pc_mepc mie_mpie mpie_1]
+
+ [on [["ir[6:0]" "7'b1110011"] fn3_is_001]      isCsrRw]
+ [on [["ir[6:0]" "7'b1110011"] fn3_is_010]      isCsrRs]
+ [on [["ir[6:0]" "7'b1110011"] fn3_is_011]      isCsrRc]
+ [on [["ir[6:0]" "7'b1110011"] fn3_is_101]      isCsrRwI]
+ [on [["ir[6:0]" "7'b1110011"] fn3_is_110]      isCsrRsI]
+ [on [["ir[6:0]" "7'b1110011"] fn3_is_111]      isCsrRcI]
+
+ \\ CSR address automatically taken from IR[31:20].
+ \\ If CSR not OK, then nothing fires, and we invoke illegal instruction trap in next cycle.
+
+ [on [~rst isCsrRw xt0 csrok_i]         xt1_o ra_ir1]
+ [on [~rst isCsrRw xt1]                 ra_ird rdat_cdat coe_o rwe_o  cdat_rdat cwe_o ft0_o]
+
+ [on [~rst isCsrRwI xt0 csrok_i]        xt1_o]
+ [on [~rst isCsrRwI xt1]                ra_ird rdat_cdat coe_o rwe_o  cdat_imm5 cwe_o ft0_o]
+
+ [on [~rst isCsrRs xt0 csrok_i]         xt1_o ra_ir1]
+ [on [~rst isCsrRs xt1]                 xt2_o ra_ird rdat_cdat coe_o rwe_o  alua_cdat alub_rdat]
+ [on [~rst isCsrRs xt2]                 and_en xor_en cdat_alu cwe_o ft0_o]
+
+ [on [~rst isCsrRsI xt0 csrok_i]        xt1_o]
+ [on [~rst isCsrRsI xt1]                xt2_o ra_ird rdat_cdat coe_o rwe_o  alua_cdat alub_imm5]
+ [on [~rst isCsrRsI xt2]                and_en xor_en cdat_alu cwe_o ft0_o]
+
+ [on [~rst isCsrRc xt0 csrok_i]         xt1_o ra_ir1]
+ [on [~rst isCsrRc xt1]                 xt2_o ra_ird rdat_cdat coe_o rwe_o  alua_cdat alub_rdat]
+ [on [~rst isCsrRc xt2]                 and_en invB_en cdat_alu cwe_o ft0_o]
+
+ [on [~rst isCsrRcI xt0 csrok_i]        xt1_o]
+ [on [~rst isCsrRcI xt1]                xt2_o ra_ird rdat_cdat coe_o rwe_o  alua_cdat alub_imm5]
+ [on [~rst isCsrRcI xt2]                and_en invB_en cdat_alu cwe_o ft0_o]
+]
+
