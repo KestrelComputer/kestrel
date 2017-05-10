@@ -11,4 +11,4 @@ install:
   - git clone https://github.com/apenwarr/redo
   - (cd redo && ./redo && sudo ./redo install)
 script:
-  - cd 3 && redo
+  - cd software && redo
