@@ -16,10 +16,9 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
+// #include <stdio.h>
+#include <stdint.h>
 
-#include "address_space.h"
-#include "timeline.h"
 #include "processor.h"
 
 
@@ -27,11 +26,11 @@
 
 
 static void
-trap(Processor *p, Uint64_t cause) {
+trap(Processor *p, uint64_t cause) {
 	/* KCP53000 only supports M-mode, so we can hardwire the
 	 * MPP bits of mstatus.
 	 */
-	Uint64_t newstat = p->mstatus & 0xFFFFFFFFFFFFE777;
+	uint64_t newstat = p->mstatus & 0xFFFFFFFFFFFFE777;
 	newstat |= (p->mstatus & 0x8) << 4;
 
 	p->mcause = cause;
@@ -130,7 +129,7 @@ ecall(Processor *p) {
 
 static void
 mret(Processor *p) {
-	Uint64_t new_mie = (p->mstatus & 0x80) >> 4;
+	uint64_t new_mie = (p->mstatus & 0x80) >> 4;
 	p->mstatus = (p->mstatus & 0xFFFFFFFFFFFE0F77) | new_mie | 0x1880;
 	p->pc = p->mepc;
 }
@@ -161,11 +160,13 @@ new_processor(AddressSpace *as) {
 
 
 void
-step(Processor *p, Timeline *t) {
+step(Processor *p) {
 	int32_t ir;
 	int opc, rd, fn3, rs1, rs2, imm12, imm12s, disp12;
 	int64_t imm20, disp20, ia;
-	Uint64_t mask, v;
+	uint64_t mask, v;
+	AddressSpace *as = p->as;
+	IAddressSpace *asi = as->i;
 
 	/* If service from the virtual machine monitor is required,
 	 * return to the VMM until it has been properly serviced.
@@ -186,18 +187,17 @@ step(Processor *p, Timeline *t) {
 	mask = (p->mstatus & MSTATUSF_MIE) ?
 		p->mip & p->mie : 0;
 	if(mask & MIEF_MEIE) {
-		trap(p, MCAUSEF_IRQ | MEIB_MEIE);
+		trap(p, MCAUSEF_IRQ | MIEB_MEIE);
 	}
 	else if(mask & MIEF_MSIE) {
-		trap(p, MCAUSEF_IRQ | MEIB_MSIE);
+		trap(p, MCAUSEF_IRQ | MIEB_MSIE);
 	}
 	else if(mask & MIEF_MTIE) {
-		trap(p, MCAUSEF_IRQ | MEIB_MTIE);
+		trap(p, MCAUSEF_IRQ | MIEB_MTIE);
 	}
 
-	ir = as->fetch_word(p->as, ia);
+	ir = asi->fetch_word(p->as, ia);
 	p->pc = ia + 4;
-	tt->step(t, 2); /* 32-bit fetches take 2 cycles over 16-bit bus. */
 
 	/* This takes a bunch of time. */
 	opc = ir & 0x7F;
@@ -280,16 +280,16 @@ step(Processor *p, Timeline *t) {
 
 				case 6: /* BLTU */
 					if(
-						(Uint64_t)(p->x[rs1]) <
-						(Uint64_t)(p->x[rs2])
+						(uint64_t)(p->x[rs1]) <
+						(uint64_t)(p->x[rs2])
 					)
 						p->pc = ia + disp12;
 					break;
 
 				case 7: /* BGEU */
 					if(
-						(Uint64_t)(p->x[rs1]) >=
-						(Uint64_t)(p->x[rs2])
+						(uint64_t)(p->x[rs1]) >=
+						(uint64_t)(p->x[rs2])
 					)
 						p->pc = ia + disp12;
 					break;
@@ -300,62 +300,54 @@ step(Processor *p, Timeline *t) {
 		case 0x03:
 			switch(fn3) {
 				case 0: /* LB */
-					p->x[rd] = as->fetch_byte(
+					p->x[rd] = asi->fetch_byte(
 						p->as, p->x[rs1] + imm12
 					);
 					p->x[rd] |= -(p->x[rd] & 0x80);
-					tt->step(t, 1);
 					break;
 
 				case 1: /* LH */
-					p->x[rd] = as->fetch_hword(
+					p->x[rd] = asi->fetch_hword(
 						p->as, p->x[rs1] + imm12
 					);
 					p->x[rd] |= -(p->x[rd] & 0x8000);
-					tt->step(t, 1);
 					break;
 
 				case 2: /* LW */
-					p->x[rd] = as->fetch_word(
+					p->x[rd] = asi->fetch_word(
 						p->as, p->x[rs1] + imm12
 					);
 					p->x[rd] |= -(p->x[rd] & 0x80000000);
-					tt->step(t, 2);
 					break;
 
 				case 3: /* LD */
-					p->x[rd] = as->fetch_dword(
+					p->x[rd] = asi->fetch_dword(
 						p->as, p->x[rs1] + imm12
 					);
-					tt->step(t, 4);
 					break;
 
 				case 4: /* LBU */
-					p->x[rd] = as->fetch_byte(
+					p->x[rd] = asi->fetch_byte(
 						p->as, p->x[rs1] + imm12
 					);
-					tt->step(t, 1);
 					break;
 
 				case 5: /* LHU */
-					p->x[rd] = as->fetch_hword(
+					p->x[rd] = asi->fetch_hword(
 						p->as, p->x[rs1] + imm12
 					);
-					tt->step(t, 1);
 					break;
 
 				case 6: /* LWU */
-					p->x[rd] = as->fetch_word(
+					p->x[rd] = asi->fetch_word(
 						p->as, p->x[rs1] + imm12
 					);
-					tt->step(t, 2);
 					break;
 
 				case 7: /* LDU */
-					p->x[rd] = as->fetch_dword(
-						p->as, p->x[rs1] + imm12'
+					p->x[rd] = asi->fetch_dword(
+						p->as, p->x[rs1] + imm12
 					);
-					tt->step(t, 4);
 					break;
 			}
 			break;
@@ -363,39 +355,35 @@ step(Processor *p, Timeline *t) {
 		case 0x23:
 			switch(fn3) {
 				case 0: /* SB */
-					as->store_byte(
+					asi->store_byte(
 						p->as,
 						p->x[rs1]+imm12s,
 						p->x[rs2]
 					);
-					tt->step(t, 1);
 					break;
 
 				case 1: /* SH */
-					as->store_hword(
+					asi->store_hword(
 						p->as,
 						p->x[rs1]+imm12s,
 						p->x[rs2]
 					);
-					tt->step(t, 1);
 					break;
 
 				case 2: /* SW */
-					as->store_word(
+					asi->store_word(
 						p->as,
 						p->x[rs1]+imm12s,
 						p->x[rs2]
 					);
-					tt->step(t, 2);
 					break;
 
 				case 3: /* SD */
-					as->store_dword(
+					asi->store_dword(
 						p->as,
 						p->x[rs1]+imm12s,
 						p->x[rs2]
 					);
-					tt->step(t, 4);
 					break;
 
 				default:
@@ -421,7 +409,7 @@ step(Processor *p, Timeline *t) {
 
 			case 3: /* SLTIU */
 				p->x[rd] =
-				(Uint64_t)p->x[rs1] < (Uint64_t)imm12;
+				(uint64_t)p->x[rs1] < (uint64_t)imm12;
 				break;
 
 			case 4: /* XORI */
@@ -435,7 +423,7 @@ step(Processor *p, Timeline *t) {
 				}
 				else {
 					p->x[rd] =
-					(Uint64_t)p->x[rs1] >> (Uint64_t)imm12;
+					(uint64_t)p->x[rs1] >> (uint64_t)imm12;
 				}
 				break;
 
@@ -548,7 +536,7 @@ step(Processor *p, Timeline *t) {
 
 			case 3: /* SLTU */
 				p->x[rd] =
-				(Uint64_t)p->x[rs1] < (Uint64_t)p->x[rs2];
+				(uint64_t)p->x[rs1] < (uint64_t)p->x[rs2];
 				break;
 
 			case 4: /* XOR */
@@ -562,8 +550,8 @@ step(Processor *p, Timeline *t) {
 				}
 				else {
 					p->x[rd] =
-					(Uint64_t)p->x[rs1] >>
-					(Uint64_t)p->x[rs2];
+					(uint64_t)p->x[rs1] >>
+					(uint64_t)p->x[rs2];
 				}
 				break;
 

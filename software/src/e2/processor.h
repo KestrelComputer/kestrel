@@ -4,7 +4,69 @@
 #include <stdint.h>
 
 
+/*
+ * The Main Interface.
+ *
+ * To emulate a system built around a KCP53000-compatible processor, you must
+ * have one processor and one address space in which it runs.  
+ */
+
 typedef struct Processor	Processor;
+typedef struct AddressSpace	AddressSpace;
+typedef struct IAddressSpace	IAddressSpace;
+
+struct Processor {
+	// VM state/pseudo-CSRs
+
+	uint64_t	vmcause;
+	uint64_t	ia;
+	AddressSpace *	as;
+
+	// M-mode CSRs
+
+	uint64_t	mvendorid;
+	uint64_t	marchid;
+	uint64_t	mimpid;
+	uint64_t	mhartid;
+	uint64_t	mstatus;
+	uint64_t	misa;
+	uint64_t	medeleg;
+	uint64_t	mideleg;
+	uint64_t	mie;
+	uint64_t	mtvec;
+	uint64_t	mcounteren;
+	uint64_t	mscratch;
+	uint64_t	mepc;
+	uint64_t	mcause;
+	uint64_t	mtval;
+	uint64_t	mip;
+	uint64_t	mcycle;
+	uint64_t	minstret;
+
+	// U-mode state
+
+	uint64_t	x[32];
+	uint64_t	pc;
+};
+
+
+struct AddressSpace {
+	IAddressSpace *i;
+	/* Append virtual resources here */
+};
+
+
+struct IAddressSpace {
+	void (*store_byte)(AddressSpace *as, uint64_t address, uint8_t datum);
+	void (*store_hword)(AddressSpace *as, uint64_t address, uint16_t datum);
+	void (*store_word)(AddressSpace *as, uint64_t address, uint32_t datum);
+	void (*store_dword)(AddressSpace *as, uint64_t address, uint64_t datum);
+	uint8_t (*fetch_byte)(AddressSpace *as, uint64_t address);
+	uint16_t (*fetch_hword)(AddressSpace *as, uint64_t address);
+	uint32_t (*fetch_word)(AddressSpace *as, uint64_t address);
+	uint64_t (*fetch_dword)(AddressSpace *as, uint64_t address);
+};
+
 
 typedef enum {
 	CSR_MVENDORID = 0xF11,
@@ -162,39 +224,6 @@ typedef enum {
 #define EXCF_reserved2              	(1ULL << EXCB_reserved2)
 #define EXCF_STORE_PAGE_FAULT		(1ULL << EXCB_STORE_PAGE_FAULT)
 
-
-struct Processor {
-	// VM state/pseudo-CSRs
-
-	uint64_t	vmcause;
-	uint64_t	ia;
-
-	// M-mode CSRs
-
-	uint64_t	mvendorid;
-	uint64_t	marchid;
-	uint64_t	mimpid;
-	uint64_t	mhartid;
-	uint64_t	mstatus;
-	uint64_t	misa;
-	uint64_t	medeleg;
-	uint64_t	mideleg;
-	uint64_t	mie;
-	uint64_t	mtvec;
-	uint64_t	mcounteren;
-	uint64_t	mscratch;
-	uint64_t	mepc;
-	uint64_t	mcause;
-	uint64_t	mtval;
-	uint64_t	mip;
-	uint64_t	mcycle;
-	uint64_t	minstret;
-
-	// U-mode state
-
-	uint64_t	x[32];
-	uint64_t	pc;
-};
 
 
 #endif
