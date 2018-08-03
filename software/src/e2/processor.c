@@ -135,7 +135,7 @@ mret(Processor *p) {
 }
 
 
-static Processor *
+Processor *
 new_processor(AddressSpace *as) {
 	Processor *p = (Processor *)malloc(sizeof(Processor));
 	if(p) {

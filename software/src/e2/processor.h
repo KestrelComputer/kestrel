@@ -225,6 +225,8 @@ typedef enum {
 #define EXCF_STORE_PAGE_FAULT		(1ULL << EXCB_STORE_PAGE_FAULT)
 
 
+Processor *new_processor(AddressSpace *);
+void step(Processor *);
 
 #endif
 
