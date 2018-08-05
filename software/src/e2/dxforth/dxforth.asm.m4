@@ -50,9 +50,9 @@ assoc(`dup',       `DUP     ')
 dnl''assoc(`curson',    `CURSON  ')
 dnl''assoc(`cursoff',   `CURSOFF ')
 dnl''assoc(`cursxy',    `CURSXY  ')
-assoc(`pemitp',    `(EMIT)  ')
+dnl''assoc(`pemitp',    `(EMIT)  ')
 assoc(`emit',      `EMIT    ')
-assoc(`ptypep',    `(TYPE)  ')
+dnl''assoc(`ptypep',    `(TYPE)  ')
 assoc(`type',      `TYPE    ')
 assoc(`evaluate',  `EVALUATE')
 assoc(`execute',   `EXECUTE ')
@@ -155,15 +155,15 @@ assoc(`depth',     `DEPTH   ')
 assoc(`pick',      `PICK    ')
 dnl``START BLOCK vocabulary
 dnl``assoc(`remount',   `remount ')
-dnl``assoc(`first',     `FIRST   ')
+assoc(`first',     `FIRST   ')
 dnl``assoc(`flags',     `FLAGS   ')
 dnl``assoc(`bns',       `BNS     ')
 dnl``assoc(`used',      `USED    ')
 dnl``assoc(`empty_bufs',`EMPTY-BU')
 dnl``assoc(`fbic',      `find-blo')
 dnl``assoc(`ba',        `block-ad')
-dnl``assoc(`bclr',      `BCLR    ')
-dnl``assoc(`bset',      `BSET    ')
+assoc(`bclr',      `BCLR    ')
+assoc(`bset',      `BSET    ')
 dnl``assoc(`snb',       `select-n')
 dnl``assoc(`wb',        `write-bl')
 dnl``assoc(`fb',        `flush-bl')
@@ -624,6 +624,14 @@ __xor:	ld	W,0(S)
 	jal	x0,next
 
 ; Maths
+
+	align	4
+_bclr:	jal	W,_docol
+	hword	tuck, cfetch, _bic, swap, cstore, exit
+
+	align	4
+_bset:	jal	W,_docol
+	hword	tuck, cfetch, _or, swap, cstore, exit
 
 	align	4
 _negate:
@@ -1173,6 +1181,17 @@ key = _key - _start
 _key:	jal	W,_docol
 	hword	_key		; deadlock until we figure out the input side of the SIA.
 
+	align	4
+_ntib:	jal	W,_dovar
+	align	8
+	dword	0
+
+	align	4
+_tib:	jal	W,_dovar
+	align	8
+	adv	*+256, 0
+
+
 ; ----- ACCEPT -----
 ;
 ; This implementation of ACCEPT is not elegant, but it is
@@ -1565,7 +1584,7 @@ _srcid:	jal	W,_dovar	; 0 if interpreting interactively.
 _source:
 	jal	W,_docol
 	hword	blk, fetch, zgo, _source_1
-	hword	blk, fetch, block, lit16, 1024, exit
+;	hword	blk, fetch, block, lit16, 1024, exit
 _source_1:
 	hword	src, fetch, nsrc, fetch, exit
 
@@ -1834,8 +1853,11 @@ _load:	jal	W,_docol
 	align	4
 rep = _rep - _start
 _rep:	jal	W,_docol
-	hword	tib, lit16, 256, curson			; read
-	hword	accept, cursoff, ntib, store
+	hword	tib, lit16, 256				; read
+;	hword	curson
+	hword	accept
+;	hword   cursoff
+	hword	ntib, store
 	hword	space, space
 	hword	tib, ntib, fetch, evaluate		; eval
 	hword	squote					; print
@@ -1850,6 +1872,17 @@ _quit:	lui	R,$14000		; Hard reset of return stack.
 	hword	cr
 _quit_0:
 	hword	rep, go, _quit_0
+
+; ====== BEGIN BLOCKS ======
+;
+; I think this is where I had it last.  TODO: Fix this later.
+
+	align	4
+_first:	jal	W,_docon
+	align	8
+	dword	DXFORTH_TOP	; First of four 1KiB blocks
+
+; ====== END BLOCKS ======
 
 ; ====== COMPILER ======
 ;

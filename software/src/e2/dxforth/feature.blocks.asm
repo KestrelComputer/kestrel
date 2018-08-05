@@ -44,11 +44,6 @@
 ; state of the cache as a whole (vs. EMPTY-BUFFERS).
 
 
-	align	4
-_first:	jal	W,_docon
-	align	8
-	dword	DXFORTH_TOP	; First of four 1KiB blocks
-
 	; We use only four bytes of the space reserved for
 	; the flags "variable".  Each byte has the following
 	; bit meanings:
@@ -103,14 +98,6 @@ _fbic_2:
 	align	4
 _ba:	jal	W,_docol
 	hword	lit16, 1024, mult, first, plus, exit
-
-	align	4
-_bclr:	jal	W,_docol
-	hword	tuck, cfetch, _bic, swap, cstore, exit
-
-	align	4
-_bset:	jal	W,_docol
-	hword	tuck, cfetch, _or, swap, cstore, exit
 
 	align	4
 _snb:	jal	W,_docol
