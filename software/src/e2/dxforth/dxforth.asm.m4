@@ -47,9 +47,9 @@ assoc(`cmove',     `CMOVE   ')
 assoc(`bye',       `BYE     ')
 assoc(`drop',      `DROP    ')
 assoc(`dup',       `DUP     ')
-assoc(`curson',    `CURSON  ')
-assoc(`cursoff',   `CURSOFF ')
-assoc(`cursxy',    `CURSXY  ')
+dnl''assoc(`curson',    `CURSON  ')
+dnl''assoc(`cursoff',   `CURSOFF ')
+dnl''assoc(`cursxy',    `CURSXY  ')
 assoc(`pemitp',    `(EMIT)  ')
 assoc(`emit',      `EMIT    ')
 assoc(`ptypep',    `(TYPE)  ')
@@ -293,7 +293,7 @@ lit64 = _lit64 - _start
 _cold:	jal	W,_docol
 _cold_0:
 	hword	lit16, 10, base, store, empty
-	hword	hi, quit, wedge	; Quit should never return.
+	hword	hi, quit, cold	; Quit should never return.
 
 	align	4
 _empty:	jal	W,_docol
@@ -1132,46 +1132,6 @@ _docon:
 	sd	T,0(S)
 	andi	T,W,-8
 	ld	T,0(T)
-	jal	x0,next
-
-; User console I/O primitives.  These primitives provide the
-; user interface to the Forth environment.
-
-; Cursor controls
-
-	align	4
-_curson:
-	addi	S,S,-8
-	sd	T,0(S)
-	ld	W,bs_bi-_start(D)
-	ld	W,bi_term_cursor_on(W)
-	jalr	ra,0(W)
-	ld	T,0(S)
-	addi	S,S,8
-	jal	x0,next
-
-	align	4
-_cursoff:
-	addi	S,S,-8
-	sd	T,0(S)
-	ld	W,bs_bi-_start(D)
-	ld	W,bi_term_cursor_off(W)
-	jalr	ra,0(W)
-	ld	T,0(S)
-	addi	S,S,8
-	jal	x0,next
-
-	align	4
-_cursxy:
-	addi	S,S,-8
-	sd	T,0(S)
-	addi	a0,S,8	; px
-	addi	a1,S,0	; py
-	ld	W,bs_bi-_start(D)
-	ld	W,bi_term_cursor_swap(W)
-	jalr	ra,0(W)
-	ld	T,0(S)
-	addi	S,S,8
 	jal	x0,next
 
 ; Print a single character to the user's console.
