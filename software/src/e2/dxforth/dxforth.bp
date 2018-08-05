@@ -1,0 +1,67 @@
+\ out bin/dxforth/dxforth.img
+\ block 64
+EMPTY ( Root of Custom Load Tree )
+
+65 LOAD ( compiler tools, MARKER, .CREDITS, etc. )
+66 LOAD ( simple block editor )
+
+: PAGE 12 EMIT ; PAGE hi CR
+
+\ block 65
+." [COMPILE] COMPILE, OFF> MARKER" CR
+: [COMPILE]  NAME 2DUP handler IF NIP NIP H, EXIT THEN
+             ." ?? " TYPE ."  not found" QUIT ; IMMEDIATE
+: COMPILE,   R> DUP H@ H, 2 + >R ;
+
+HEX : OFF>    14300 + ; DECIMAL
+: (m)     R> DUP H@ OFF> H ! 2 + H@ tlast ! ;
+: MARKER  LAST HERE >OFF : COMPILE, (m) [COMPILE] [ H, H, ;
+: .CREDITS 99 LIST ;
+CR
+
+\ block 99
+Special thanks to the following for their Patreon support.
+
+Top Tier:
+- Luc Vanderhof
+
+Supporting:
+- DJ Sundog
+- Sean Lynch
+
+\ block 66
+." Loading command-line block editor" CR
+67 LOAD ( LIST, EDIT )
+68 LOAD ( $-commands to change block text )
+70 LOAD ( block I/O and utilities )
+
+\ block 67
+."   primitives, LIST, EDIT" CR ( CLI blk editor )
+VARIABLE scr
+: screen   scr @ BLOCK ;
+: .l       <# # # #> TYPE SPACE 64 TYPE CR ;
+: l        2DUP .l  1+ SWAP 64 + SWAP ;
+: 4l ( a n - a' n' ) l l l l ;
+: EDIT ( n - ) scr ! ;
+: .scr     CR ."    SCR #" scr @ DECIMAL . CR ;
+: LIST ( n - ) EDIT .scr screen 0 4l 4l 4l 4l 2DROP ;
+: $adr ( n - a ) 64 * screen + ;
+: $adru ( n - a ) $adr UPDATE ;
+
+\ block 68
+."   $N $S $Z" CR ( CLI blk editor )
+: $N ( n - ) EDIT 0 $adru 1024 32 FILL ;
+: $Z ( n - ) $adru 64 32 FILL ;
+: overwrite  >R 10 PARSE 64 MIN R> $adru SWAP CMOVE ;
+: $S ( n / "... - ) DUP $Z overwrite ;
+: open ( n - ) 15 OVER = IF EXIT THEN
+  >R R@ $adru DUP 64 + 1024 R> 1+ 64 * - CMOVE ;
+: $O ( n - ) DUP open $Z ;
+
+\ block 70
+." Block I/O and utilities" CR
+
+: .l0  DUP . SPACE BLOCK 64 TYPE CR ;
+: INDEX ( ns nf-) CR BEGIN SWAP DUP .l0 1+ SWAP
+                  2DUP >= IF 2DROP EXIT THEN AGAIN ;
+

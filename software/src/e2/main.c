@@ -133,8 +133,6 @@ uint64_t
 root_fetch_dword(AddressSpace *as, uint64_t addr) {
 	RootAS *root = (RootAS *)as;
 
-	fprintf(stderr, "$%016llX @D\n", addr);
-
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top))
 		return root->rom_seg.as.i->fetch_dword(&root->rom_seg.as, addr);
 
@@ -145,8 +143,6 @@ root_fetch_dword(AddressSpace *as, uint64_t addr) {
 uint32_t
 root_fetch_word(AddressSpace *as, uint64_t addr) {
 	RootAS *root = (RootAS *)as;
-
-	fprintf(stderr, "$%016llX @W\n", addr);
 
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top))
 		return root->rom_seg.as.i->fetch_word(&root->rom_seg.as, addr);
@@ -159,8 +155,6 @@ uint16_t
 root_fetch_hword(AddressSpace *as, uint64_t addr) {
 	RootAS *root = (RootAS *)as;
 
-	fprintf(stderr, "$%016llX @H\n", addr);
-
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top))
 		return root->rom_seg.as.i->fetch_dword(&root->rom_seg.as, addr);
 
@@ -171,8 +165,6 @@ root_fetch_hword(AddressSpace *as, uint64_t addr) {
 uint8_t
 root_fetch_byte(AddressSpace *as, uint64_t addr) {
 	RootAS *root = (RootAS *)as;
-
-	fprintf(stderr, "$%016llX @B\n", addr);
 
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top))
 		return root->rom_seg.as.i->fetch_dword(&root->rom_seg.as, addr);
@@ -286,7 +278,8 @@ main(int argc, char *argv[]) {
 		exit(1);
 	}
 
-	p->pc = 0;	// KCP53000B cold-starts at address 0.
+	p->pc = 0;		// KCP53000B cold-starts at address 0.
+	p->mtvec = 0x100;	// KCP53000B traps by default to 0x100.
 
 	while(1) {
 		step(p);
