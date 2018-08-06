@@ -66,8 +66,9 @@ sia1_fetch_dword(AddressSpace *as, uint64_t addr) {
 
 void
 sia1_store_byte(AddressSpace *as, uint64_t addr, uint8_t datum) {
-	if(addr == 0) {
+	if((addr & 0xFFF) == 0) {
 		fprintf(stdout, "%c", datum);
+		fflush(stdout);
 	}
 }
 
@@ -309,6 +310,9 @@ root_fetch_dword(AddressSpace *as, uint64_t addr) {
 	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top))
 		return root->ram_seg.as.i->fetch_dword(&root->ram_seg.as, addr);
 
+	if((root->sia1.bottom <= addr) && (addr < root->sia1.top))
+		return root->sia1.as.i->fetch_dword(&root->sia1.as, addr);
+
 	fprintf(stderr, "TODO: raise access error trap to CPU\n");
 	return 0xCCCCCCCCCCCCCCCC;
 }
@@ -324,6 +328,9 @@ root_fetch_word(AddressSpace *as, uint64_t addr) {
 
 	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top))
 		return root->ram_seg.as.i->fetch_word(&root->ram_seg.as, addr);
+
+	if((root->sia1.bottom <= addr) && (addr < root->sia1.top))
+		return root->sia1.as.i->fetch_word(&root->sia1.as, addr);
 
 	fprintf(stderr, "TODO: raise access error trap to CPU\n");
 	return 0xCCCCCCCC;
@@ -341,6 +348,9 @@ root_fetch_hword(AddressSpace *as, uint64_t addr) {
 	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top))
 		return root->ram_seg.as.i->fetch_hword(&root->ram_seg.as, addr);
 
+	if((root->sia1.bottom <= addr) && (addr < root->sia1.top))
+		return root->sia1.as.i->fetch_hword(&root->sia1.as, addr);
+
 	fprintf(stderr, "TODO: raise access error trap to CPU\n");
 	return 0xCCCC;
 }
@@ -356,6 +366,9 @@ root_fetch_byte(AddressSpace *as, uint64_t addr) {
 
 	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top))
 		return root->ram_seg.as.i->fetch_byte(&root->ram_seg.as, addr);
+
+	if((root->sia1.bottom <= addr) && (addr < root->sia1.top))
+		return root->sia1.as.i->fetch_byte(&root->sia1.as, addr);
 
 	fprintf(stderr, "TODO: raise access error trap to CPU\n");
 	return 0xCC;
@@ -374,6 +387,11 @@ root_store_dword(AddressSpace *as, uint64_t addr, uint64_t datum) {
 
 	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top)) {
 		root->ram_seg.as.i->store_dword(&root->ram_seg.as, addr, datum);
+		return;
+	}
+
+	if((root->sia1.bottom <= addr) && (addr < root->sia1.top)) {
+		root->sia1.as.i->store_dword(&root->sia1.as, addr, datum);
 		return;
 	}
 
@@ -396,6 +414,11 @@ root_store_word(AddressSpace *as, uint64_t addr, uint32_t datum) {
 		return;
 	}
 
+	if((root->sia1.bottom <= addr) && (addr < root->sia1.top)) {
+		root->sia1.as.i->store_word(&root->sia1.as, addr, datum);
+		return;
+	}
+
 	fprintf(stderr, "TODO: raise access error trap to CPU\n");
 }
 
@@ -415,6 +438,11 @@ root_store_hword(AddressSpace *as, uint64_t addr, uint16_t datum) {
 		return;
 	}
 
+	if((root->sia1.bottom <= addr) && (addr < root->sia1.top)) {
+		root->sia1.as.i->store_hword(&root->sia1.as, addr, datum);
+		return;
+	}
+
 	fprintf(stderr, "TODO: raise access error trap to CPU\n");
 }
 
@@ -431,6 +459,11 @@ root_store_byte(AddressSpace *as, uint64_t addr, uint8_t datum) {
 
 	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top)) {
 		root->ram_seg.as.i->store_byte(&root->ram_seg.as, addr, datum);
+		return;
+	}
+
+	if((root->sia1.bottom <= addr) && (addr < root->sia1.top)) {
+		root->sia1.as.i->store_byte(&root->sia1.as, addr, datum);
 		return;
 	}
 
