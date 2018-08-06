@@ -18,6 +18,101 @@ struct RootAS {
 	AddressSpace	as;
 	Segment		rom_seg;
 	Segment		ram_seg;
+	Segment		sia1;
+};
+
+
+uint8_t
+sia1_fetch_byte(AddressSpace *as, uint64_t addr) {
+	/* Emulator has no read registers yet. */
+	return 0xCC;
+}
+
+uint16_t
+sia1_fetch_hword(AddressSpace *as, uint64_t addr) {
+	if(addr & 1) {
+		fprintf(stderr, "TODO: raise a misalignment trap to the processor\n");
+		return 0xCCCC;
+	}
+	return (
+		(uint8_t)(sia1_fetch_byte(as, addr))
+	|	(uint8_t)(sia1_fetch_byte(as, addr+1) << 8)
+	);
+}
+
+uint32_t
+sia1_fetch_word(AddressSpace *as, uint64_t addr) {
+	if(addr & 3) {
+		fprintf(stderr, "TODO: raise a misalignment trap to the processor\n");
+		return 0xCCCCCCCC;
+	}
+	return (
+		(uint32_t)(sia1_fetch_hword(as, addr))
+	|	(uint32_t)(sia1_fetch_hword(as, addr+2) << 16)
+	);
+}
+
+uint64_t
+sia1_fetch_dword(AddressSpace *as, uint64_t addr) {
+	if(addr & 7) {
+		fprintf(stderr, "TODO: raise a misalignment trap to the processor\n");
+		return 0xCCCCCCCCCCCCCCCC;
+	}
+	return (
+		(uint64_t)(sia1_fetch_word(as, addr))
+	|	((uint64_t)(sia1_fetch_word(as, addr+4)) << 32)
+	);
+}
+
+void
+sia1_store_byte(AddressSpace *as, uint64_t addr, uint8_t datum) {
+	if(addr == 0) {
+		fprintf(stdout, "%c", datum);
+	}
+}
+
+void
+sia1_store_hword(AddressSpace *as, uint64_t addr, uint16_t datum) {
+	if(addr & 1) {
+		fprintf(stderr, "TODO: raise a misalignment trap to the processor\n");
+		return;
+	}
+	
+	sia1_store_byte(as, addr, (uint16_t)datum);
+	sia1_store_byte(as, addr+1, (uint16_t)datum >> 8);
+}
+
+void
+sia1_store_word(AddressSpace *as, uint64_t addr, uint32_t datum) {
+	if(addr & 3) {
+		fprintf(stderr, "TODO: raise a misalignment trap to the processor\n");
+		return;
+	}
+	
+	sia1_store_hword(as, addr, (uint16_t)datum);
+	sia1_store_hword(as, addr+2, (uint16_t)datum >> 16);
+}
+
+void
+sia1_store_dword(AddressSpace *as, uint64_t addr, uint64_t datum) {
+	if(addr & 7) {
+		fprintf(stderr, "TODO: raise a misalignment trap to the processor\n");
+		return;
+	}
+	
+	sia1_store_word(as, addr, (uint32_t)datum);
+	sia1_store_word(as, addr+4, (uint32_t)(datum >> 32));
+}
+
+struct IAddressSpace sia1_interface = {
+	.fetch_dword = sia1_fetch_dword,
+	.fetch_word = sia1_fetch_word,
+	.fetch_hword = sia1_fetch_hword,
+	.fetch_byte = sia1_fetch_byte,
+	.store_dword = sia1_store_dword,
+	.store_word = sia1_store_word,
+	.store_hword = sia1_store_hword,
+	.store_byte = sia1_store_byte,
 };
 
 
@@ -404,6 +499,10 @@ new_root_address_space(void) {
 			dispose_root_address_space(ras);
 			return NULL;
 		}
+
+		ras->sia1.as.i = &sia1_interface;
+		ras->sia1.bottom = 0xFFFFFFFFFFFFF000;
+		ras->sia1.top = 0xFFFFFFFFFFFFF001;
 	}
 	return ras;
 }
