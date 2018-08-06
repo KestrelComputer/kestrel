@@ -17,11 +17,12 @@ struct Segment {
 struct RootAS {
 	AddressSpace	as;
 	Segment		rom_seg;
+	Segment		ram_seg;
 };
 
 
 uint64_t
-rom_fetch_dword(AddressSpace *as, uint64_t addr) {
+mem_fetch_dword(AddressSpace *as, uint64_t addr) {
 	Segment *s = (Segment *)as;
 	int i;
 
@@ -44,7 +45,7 @@ rom_fetch_dword(AddressSpace *as, uint64_t addr) {
 }
 
 uint32_t
-rom_fetch_word(AddressSpace *as, uint64_t addr) {
+mem_fetch_word(AddressSpace *as, uint64_t addr) {
 	Segment *s = (Segment *)as;
 	int i;
 
@@ -60,10 +61,11 @@ rom_fetch_word(AddressSpace *as, uint64_t addr) {
 	|	(s->image[i+2] << 16)
 	|	(s->image[i+3] << 24)
 	);
-}
+};
+
 
 uint16_t
-rom_fetch_hword(AddressSpace *as, uint64_t addr) {
+mem_fetch_hword(AddressSpace *as, uint64_t addr) {
 	Segment *s = (Segment *)as;
 	int i;
 
@@ -80,7 +82,7 @@ rom_fetch_hword(AddressSpace *as, uint64_t addr) {
 }
 
 uint8_t
-rom_fetch_byte(AddressSpace *as, uint64_t addr) {
+mem_fetch_byte(AddressSpace *as, uint64_t addr) {
 	Segment *s = (Segment *)as;
 	int i;
 
@@ -117,11 +119,70 @@ rom_store_byte(AddressSpace *as, uint64_t addr, uint8_t datum) {
 	/* Do nothing, for we are ROM. */
 }
 
+void
+ram_store_dword(AddressSpace *as, uint64_t addr, uint64_t datum) {
+	Segment *s = (Segment *)as;
+	int i;
+
+	if(addr & 7) {
+		fprintf(stderr, "TODO: raise a misalignment trap to the processor\n");
+	}
+
+	i = (int)(addr - s->bottom);
+	s->image[i] = (uint8_t)(datum & 0xFF);
+	s->image[i+1] = (uint8_t)((datum >> 8) & 0xFF);
+	s->image[i+2] = (uint8_t)((datum >> 16) & 0xFF);
+	s->image[i+3] = (uint8_t)((datum >> 24) & 0xFF);
+	s->image[i+4] = (uint8_t)((datum >> 32) & 0xFF);
+	s->image[i+5] = (uint8_t)((datum >> 40) & 0xFF);
+	s->image[i+6] = (uint8_t)((datum >> 48) & 0xFF);
+	s->image[i+7] = (uint8_t)((datum >> 56) & 0xFF);
+}
+
+void
+ram_store_word(AddressSpace *as, uint64_t addr, uint32_t datum) {
+	Segment *s = (Segment *)as;
+	int i;
+
+	if(addr & 3) {
+		fprintf(stderr, "TODO: raise a misalignment trap to the processor\n");
+	}
+
+	i = (int)(addr - s->bottom);
+	s->image[i] = (uint8_t)(datum & 0xFF);
+	s->image[i+1] = (uint8_t)((datum >> 8) & 0xFF);
+	s->image[i+2] = (uint8_t)((datum >> 16) & 0xFF);
+	s->image[i+3] = (uint8_t)((datum >> 24) & 0xFF);
+}
+
+void
+ram_store_hword(AddressSpace *as, uint64_t addr, uint16_t datum) {
+	Segment *s = (Segment *)as;
+	int i;
+
+	if(addr & 1) {
+		fprintf(stderr, "TODO: raise a misalignment trap to the processor\n");
+	}
+
+	i = (int)(addr - s->bottom);
+	s->image[i] = (uint8_t)(datum & 0xFF);
+	s->image[i+1] = (uint8_t)((datum >> 8) & 0xFF);
+}
+
+void
+ram_store_byte(AddressSpace *as, uint64_t addr, uint8_t datum) {
+	Segment *s = (Segment *)as;
+	int i;
+
+	i = (int)(addr - s->bottom);
+	s->image[i] = datum;
+}
+
 struct IAddressSpace rom_segment_interface = {
-	.fetch_dword = rom_fetch_dword,
-	.fetch_word = rom_fetch_word,
-	.fetch_hword = rom_fetch_hword,
-	.fetch_byte = rom_fetch_byte,
+	.fetch_dword = mem_fetch_dword,
+	.fetch_word = mem_fetch_word,
+	.fetch_hword = mem_fetch_hword,
+	.fetch_byte = mem_fetch_byte,
 	.store_dword = rom_store_dword,
 	.store_word = rom_store_word,
 	.store_hword = rom_store_hword,
@@ -129,12 +190,29 @@ struct IAddressSpace rom_segment_interface = {
 };
 
 
+struct IAddressSpace ram_segment_interface = {
+	.fetch_dword = mem_fetch_dword,
+	.fetch_word = mem_fetch_word,
+	.fetch_hword = mem_fetch_hword,
+	.fetch_byte = mem_fetch_byte,
+	.store_dword = ram_store_dword,
+	.store_word = ram_store_word,
+	.store_hword = ram_store_hword,
+	.store_byte = ram_store_byte,
+};
+
+
 uint64_t
 root_fetch_dword(AddressSpace *as, uint64_t addr) {
 	RootAS *root = (RootAS *)as;
 
+	fprintf(stderr, "$%016llX @D\n", addr);
+
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top))
 		return root->rom_seg.as.i->fetch_dword(&root->rom_seg.as, addr);
+
+	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top))
+		return root->ram_seg.as.i->fetch_dword(&root->ram_seg.as, addr);
 
 	fprintf(stderr, "TODO: raise access error trap to CPU\n");
 	return 0xCCCCCCCCCCCCCCCC;
@@ -144,8 +222,13 @@ uint32_t
 root_fetch_word(AddressSpace *as, uint64_t addr) {
 	RootAS *root = (RootAS *)as;
 
+	fprintf(stderr, "$%016llX @W\n", addr);
+
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top))
 		return root->rom_seg.as.i->fetch_word(&root->rom_seg.as, addr);
+
+	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top))
+		return root->ram_seg.as.i->fetch_word(&root->ram_seg.as, addr);
 
 	fprintf(stderr, "TODO: raise access error trap to CPU\n");
 	return 0xCCCCCCCC;
@@ -155,8 +238,13 @@ uint16_t
 root_fetch_hword(AddressSpace *as, uint64_t addr) {
 	RootAS *root = (RootAS *)as;
 
+	fprintf(stderr, "$%016llX @H\n", addr);
+
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top))
-		return root->rom_seg.as.i->fetch_dword(&root->rom_seg.as, addr);
+		return root->rom_seg.as.i->fetch_hword(&root->rom_seg.as, addr);
+
+	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top))
+		return root->ram_seg.as.i->fetch_hword(&root->ram_seg.as, addr);
 
 	fprintf(stderr, "TODO: raise access error trap to CPU\n");
 	return 0xCCCC;
@@ -166,8 +254,13 @@ uint8_t
 root_fetch_byte(AddressSpace *as, uint64_t addr) {
 	RootAS *root = (RootAS *)as;
 
+	fprintf(stderr, "$%016llX @B\n", addr);
+
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top))
-		return root->rom_seg.as.i->fetch_dword(&root->rom_seg.as, addr);
+		return root->rom_seg.as.i->fetch_byte(&root->rom_seg.as, addr);
+
+	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top))
+		return root->ram_seg.as.i->fetch_byte(&root->ram_seg.as, addr);
 
 	fprintf(stderr, "TODO: raise access error trap to CPU\n");
 	return 0xCC;
@@ -177,8 +270,15 @@ void
 root_store_dword(AddressSpace *as, uint64_t addr, uint64_t datum) {
 	RootAS *root = (RootAS *)as;
 
+	fprintf(stderr, "$%016llX $%016llX !D\n", datum, addr);
+
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top)) {
 		root->rom_seg.as.i->store_dword(&root->rom_seg.as, addr, datum);
+		return;
+	}
+
+	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top)) {
+		root->ram_seg.as.i->store_dword(&root->ram_seg.as, addr, datum);
 		return;
 	}
 
@@ -189,8 +289,15 @@ void
 root_store_word(AddressSpace *as, uint64_t addr, uint32_t datum) {
 	RootAS *root = (RootAS *)as;
 
+	fprintf(stderr, "$%08lX $%016llX !W\n", datum, addr);
+
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top)) {
 		root->rom_seg.as.i->store_word(&root->rom_seg.as, addr, datum);
+		return;
+	}
+
+	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top)) {
+		root->ram_seg.as.i->store_word(&root->ram_seg.as, addr, datum);
 		return;
 	}
 
@@ -201,8 +308,15 @@ void
 root_store_hword(AddressSpace *as, uint64_t addr, uint16_t datum) {
 	RootAS *root = (RootAS *)as;
 
+	fprintf(stderr, "$%04X $%016llX !H\n", datum, addr);
+
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top)) {
 		root->rom_seg.as.i->store_hword(&root->rom_seg.as, addr, datum);
+		return;
+	}
+
+	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top)) {
+		root->ram_seg.as.i->store_hword(&root->ram_seg.as, addr, datum);
 		return;
 	}
 
@@ -213,8 +327,15 @@ void
 root_store_byte(AddressSpace *as, uint64_t addr, uint8_t datum) {
 	RootAS *root = (RootAS *)as;
 
+	fprintf(stderr, "$%02X $%016llX !B\n", datum, addr);
+
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top)) {
 		root->rom_seg.as.i->store_byte(&root->rom_seg.as, addr, datum);
+		return;
+	}
+
+	if((root->ram_seg.bottom <= addr) && (addr < root->ram_seg.top)) {
+		root->ram_seg.as.i->store_byte(&root->ram_seg.as, addr, datum);
 		return;
 	}
 
@@ -236,6 +357,7 @@ void
 dispose_root_address_space(RootAS *ras) {
 	if(ras) {
 		if(ras->rom_seg.image) free(ras->rom_seg.image);
+		if(ras->ram_seg.image) free(ras->ram_seg.image);
 		free(ras);
 	}
 }
@@ -243,6 +365,9 @@ dispose_root_address_space(RootAS *ras) {
 RootAS *
 new_root_address_space(void) {
 	RootAS *ras = (RootAS *)(malloc(sizeof(RootAS)));
+	FILE *fh;
+	size_t size, actual;
+
 	if(ras) {
 		memset(ras, 0, sizeof(RootAS));
 		ras->as.i = &root_interface;
@@ -250,9 +375,32 @@ new_root_address_space(void) {
 		ras->rom_seg.as.i = &rom_segment_interface;
 		ras->rom_seg.bottom = 0x0000000000000000;
 		ras->rom_seg.top = 0x0000000000100000;
-		ras->rom_seg.image = malloc(ras->rom_seg.top - ras->rom_seg.bottom);
+		size = ras->rom_seg.top - ras->rom_seg.bottom;
+		ras->rom_seg.image = malloc(size);
 		if(!ras->rom_seg.image) {
 			fprintf(stderr, "cannot allocate 1MB ROM image\n");
+			dispose_root_address_space(ras);
+			return NULL;
+		}
+		memset(ras->rom_seg.image, 0xAA, size);
+		fh = fopen("rom-image.bin", "rb");
+		if(!fh) {
+			fprintf(stderr, "cannot read rom-image.bin\n");
+			dispose_root_address_space(ras);
+			return NULL;
+		}
+		actual = fread(ras->rom_seg.image, 1, size, fh);
+		if(actual < size) {
+			fprintf(stderr, "WARNING: Expected %d byte file, but got %d.\n", size, actual);
+		}
+		fclose(fh);
+
+		ras->ram_seg.as.i = &ram_segment_interface;
+		ras->ram_seg.bottom = 0x0000000040000000;
+		ras->ram_seg.top = 0x0000000040100000;
+		ras->ram_seg.image = malloc(ras->ram_seg.top - ras->ram_seg.bottom);
+		if(!ras->ram_seg.image) {
+			fprintf(stderr, "cannot allocate 1MB RAM image\n");
 			dispose_root_address_space(ras);
 			return NULL;
 		}

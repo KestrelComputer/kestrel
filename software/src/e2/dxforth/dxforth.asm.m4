@@ -31,8 +31,8 @@ _bios_copy:
 	blt	a0,a1,_bios_copy
 
 _bios_boot:
-	ld	a2,_n3-_bios_entry(gp)
-	jalr	x0,0(a2)
+	lw	D,_n3-_bios_entry(gp)
+	jalr	x0,0(D)
 
 _n1:	word	_start
 _n2:	word	_end
