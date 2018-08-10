@@ -1206,7 +1206,7 @@ _space:	jal	W,_docol
 _type:	jal	W,_docol
 _type_0:
 	hword	dup, zgo, _type_1
-	hword	over, emit
+	hword	over, cfetch, emit
 	hword	lit16, -1, plus, swap, lit16, 1, plus, swap
 	hword	go, _type_0
 _type_1:
@@ -2052,7 +2052,7 @@ _record:
 	align	4
 _nfaok:	jal	W,_docol
 	hword	dup, lit16, (eval(defctr)+256)*8, is_ge, zgo, _nfaok_1
-	hword	_squote
+	hword	squote
 	byte	25,"?? TOO MANY DEFINITIONS",13,10
 	align	2
 	hword	type, cr, quit, exit
@@ -2174,13 +2174,13 @@ _dq_0:	hword	type, exit
 
 	align	4
 _hi:	jal	W,_docol
-	hword	_squote
-	byte	32,"**** Kestrel-2DX Forth V1.0 ****"
+	hword	squote
+	byte	36,"**** Kestrel-3/E2 DX-Forth V1.1 ****"
 	align	2
-	hword	type, cr, avail, dot, _squote
+	hword	type, cr, avail, dot, squote
 	byte	14," words free.  "
 	align	2
-	hword	type, dot, _squote
+	hword	type, dot, squote
 	byte	12," bytes free."
 	align	2
 	hword	type, cr, exit
