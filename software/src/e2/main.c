@@ -1,6 +1,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <errno.h>
+#include <termios.h>
 
 #include "processor.h"
 
@@ -24,8 +26,50 @@ struct RootAS {
 
 uint8_t
 sia1_fetch_byte(AddressSpace *as, uint64_t addr) {
-	/* Emulator has no read registers yet. */
-	return 0xCC;
+	int erc;
+	fd_set rfds;
+	struct timeval tv;
+	uint8_t b;
+
+	/*
+	 * Input registers:
+	 *
+	 * $001 STATUS
+	 * 	.... ...1	Character available
+	 *
+	 * $002	INPUT
+	 * 	xxxx xxxx	Next Character in FIFO
+	 */
+
+	switch(addr & 0xFFF) {
+	case 1:
+		b = 0;
+
+		FD_ZERO(&rfds);
+		FD_SET(0, &rfds);
+
+		tv.tv_sec = 0;
+		tv.tv_usec = 1;
+
+		erc = EAGAIN;
+		while(erc == EAGAIN) {
+			erc = select(1, &rfds, NULL, NULL, &tv);
+			if(erc < 0) {
+				erc = errno;
+				continue;
+			}
+		}
+		if(FD_ISSET(0, &rfds)) b |= 1;
+		break;
+
+	case 2:
+		b = (uint8_t)getchar();
+		break;
+
+	default:
+		b = 0xCC;
+	}
+	return b;
 }
 
 uint16_t
@@ -535,11 +579,19 @@ new_root_address_space(void) {
 
 		ras->sia1.as.i = &sia1_interface;
 		ras->sia1.bottom = 0xFFFFFFFFFFFFF000;
-		ras->sia1.top = 0xFFFFFFFFFFFFF001;
+		ras->sia1.top = 0xFFFFFFFFFFFFF004;
 	}
 	return ras;
 }
 
+
+struct termios orig_termios;
+struct termios new_termios;
+
+void
+reset_terminal() {
+	tcsetattr(0, TCSANOW, &orig_termios);
+}
 
 int
 main(int argc, char *argv[]) {
@@ -557,6 +609,12 @@ main(int argc, char *argv[]) {
 		fprintf(stderr, "cannot create processor.\n");
 		exit(1);
 	}
+
+	tcgetattr(0, &orig_termios);
+	tcgetattr(0, &new_termios);
+	atexit(reset_terminal);
+	cfmakeraw(&new_termios);
+	tcsetattr(0, TCSANOW, &new_termios);
 
 	p->pc = 0;		// KCP53000B cold-starts at address 0.
 	p->mtvec = 0x100;	// KCP53000B traps by default to 0x100.

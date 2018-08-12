@@ -1196,12 +1196,11 @@ _type_1:
 	align	4
 key = _key - _start
 _key:	jal	W,_docol
-	hword	lit16, 122, emit
-	hword	lit16, 122, emit
-	hword	lit16, 122, emit
-	hword	lit16, 122, emit
-	hword	lit16, 122, emit, cr, cr
-	hword	wedge		; deadlock until we figure out the input side of the SIA.
+_key_0:
+	hword	lit16, -4095, cfetch
+	hword	lit16, 1, _and, zgo, _key_0
+	hword	lit16, -4094, cfetch
+	hword	exit
 
 	align	4
 _ntib:	jal	W,_dovar
