@@ -10,11 +10,13 @@
 typedef struct RootAS RootAS;
 typedef struct Segment Segment;
 
+
 struct Segment {
 	AddressSpace	as;
 	uint64_t	bottom, top;
 	uint8_t		*image;
 };
+
 
 struct RootAS {
 	AddressSpace	as;
@@ -24,22 +26,54 @@ struct RootAS {
 };
 
 
+struct termios orig_termios;
+struct termios new_termios;
+
+
+/******
+ * SIA 1 -- User's Console.
+ *
+ * This virtual SIA is just an approximation of the actual hardware,
+ * which will include registers to set baud rate, etc. which we don't
+ * provide here.
+ *
+ * To exit the emulator, simply write -1 to the SIA baud rate generator
+ * register.
+ *
+ * Input registers:
+ *
+ * $001 STATUS
+ * 	.... ...1	Character available
+ *
+ * $002	INPUT
+ * 	xxxx xxxx	Next Character in FIFO
+ *
+ * Output registers:
+ *
+ * $000 OUTPUT
+ * 	xxxx xxxx	Character output
+ *
+ * Read/Write Registers:
+ *
+ * $004 BAUD
+ * 	........ ....xxxx xxxxxxxx xxxxxxxx	Baud rate register
+ *         7        6        5        4
+ ******/
+
+
+static int quit_flag;
+static union {
+	uint32_t word;
+	uint8_t byte[4];
+} sia1_baud;
+
+
 uint8_t
 sia1_fetch_byte(AddressSpace *as, uint64_t addr) {
 	int erc;
 	fd_set rfds;
 	struct timeval tv;
 	uint8_t b;
-
-	/*
-	 * Input registers:
-	 *
-	 * $001 STATUS
-	 * 	.... ...1	Character available
-	 *
-	 * $002	INPUT
-	 * 	xxxx xxxx	Next Character in FIFO
-	 */
 
 	switch(addr & 0xFFF) {
 	case 1:
@@ -64,6 +98,13 @@ sia1_fetch_byte(AddressSpace *as, uint64_t addr) {
 
 	case 2:
 		b = (uint8_t)getchar();
+		break;
+
+	case 4:
+	case 5:
+	case 6:
+	case 7:
+		b = (uint8_t)(sia1_baud.byte[addr & 3]);
 		break;
 
 	default:
@@ -110,9 +151,22 @@ sia1_fetch_dword(AddressSpace *as, uint64_t addr) {
 
 void
 sia1_store_byte(AddressSpace *as, uint64_t addr, uint8_t datum) {
-	if((addr & 0xFFF) == 0) {
+	fprintf(stderr, "$%02X $%016llX B!\n", datum, addr);
+	fflush(stderr);
+	switch(addr & 0xFFF) {
+	case 0:
 		fprintf(stdout, "%c", datum);
 		fflush(stdout);
+		break;
+
+	case 4:
+	case 5:
+	case 6:
+	case 7:
+		fprintf(stderr, "  BAUD=$%08lX\n", sia1_baud.word);
+		sia1_baud.byte[addr & 3] = datum;
+		quit_flag = (sia1_baud.word & 0xFFFFF) == 0xFFFFF;
+		break;
 	}
 }
 
@@ -123,8 +177,8 @@ sia1_store_hword(AddressSpace *as, uint64_t addr, uint16_t datum) {
 		return;
 	}
 	
-	sia1_store_byte(as, addr, (uint16_t)datum);
-	sia1_store_byte(as, addr+1, (uint16_t)datum >> 8);
+	sia1_store_byte(as, addr, (uint8_t)datum);
+	sia1_store_byte(as, addr+1, (uint8_t)(datum >> 8));
 }
 
 void
@@ -135,7 +189,7 @@ sia1_store_word(AddressSpace *as, uint64_t addr, uint32_t datum) {
 	}
 	
 	sia1_store_hword(as, addr, (uint16_t)datum);
-	sia1_store_hword(as, addr+2, (uint16_t)datum >> 16);
+	sia1_store_hword(as, addr+2, (uint16_t)(datum >> 16));
 }
 
 void
@@ -160,6 +214,10 @@ struct IAddressSpace sia1_interface = {
 	.store_byte = sia1_store_byte,
 };
 
+
+/******
+ * ROM and RAM emulation
+ ******/
 
 uint64_t
 mem_fetch_dword(AddressSpace *as, uint64_t addr) {
@@ -341,6 +399,12 @@ struct IAddressSpace ram_segment_interface = {
 	.store_byte = ram_store_byte,
 };
 
+
+/******
+ * The address space as viewed by the processor.  We dispatch fetches and
+ * stores to individual resources based on configured address ranges in
+ * child AddressSpace records.
+ ******/
 
 uint64_t
 root_fetch_dword(AddressSpace *as, uint64_t addr) {
@@ -579,19 +643,17 @@ new_root_address_space(void) {
 
 		ras->sia1.as.i = &sia1_interface;
 		ras->sia1.bottom = 0xFFFFFFFFFFFFF000;
-		ras->sia1.top = 0xFFFFFFFFFFFFF004;
+		ras->sia1.top = 0xFFFFFFFFFFFFF008;
 	}
 	return ras;
 }
 
 
-struct termios orig_termios;
-struct termios new_termios;
-
 void
 reset_terminal() {
 	tcsetattr(0, TCSANOW, &orig_termios);
 }
+
 
 int
 main(int argc, char *argv[]) {
@@ -619,7 +681,8 @@ main(int argc, char *argv[]) {
 	p->pc = 0;		// KCP53000B cold-starts at address 0.
 	p->mtvec = 0x100;	// KCP53000B traps by default to 0x100.
 
-	while(1) {
+	quit_flag = 0;
+	while(!quit_flag) {
 		step(p);
 	}
 }
