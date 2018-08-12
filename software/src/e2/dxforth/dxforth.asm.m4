@@ -225,7 +225,7 @@ assoc(`hi',        `hi      ')
 
 
 DXFORTH_BASE = $0000000040000000
-DXFORTH_TOP  = DXFORTH_BASE + $6B00
+DXFORTH_TOP  = DXFORTH_BASE + $E000
 
 ; On the Kestrel-2DX:
 ;
