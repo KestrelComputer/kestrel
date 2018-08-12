@@ -151,8 +151,6 @@ sia1_fetch_dword(AddressSpace *as, uint64_t addr) {
 
 void
 sia1_store_byte(AddressSpace *as, uint64_t addr, uint8_t datum) {
-	fprintf(stderr, "$%02X $%016llX B!\n", datum, addr);
-	fflush(stderr);
 	switch(addr & 0xFFF) {
 	case 0:
 		fprintf(stdout, "%c", datum);
@@ -163,7 +161,6 @@ sia1_store_byte(AddressSpace *as, uint64_t addr, uint8_t datum) {
 	case 5:
 	case 6:
 	case 7:
-		fprintf(stderr, "  BAUD=$%08lX\n", sia1_baud.word);
 		sia1_baud.byte[addr & 3] = datum;
 		quit_flag = (sia1_baud.word & 0xFFFFF) == 0xFFFFF;
 		break;
@@ -410,8 +407,6 @@ uint64_t
 root_fetch_dword(AddressSpace *as, uint64_t addr) {
 	RootAS *root = (RootAS *)as;
 
-	fprintf(stderr, "$%016llX @D\n", addr);
-
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top))
 		return root->rom_seg.as.i->fetch_dword(&root->rom_seg.as, addr);
 
@@ -428,8 +423,6 @@ root_fetch_dword(AddressSpace *as, uint64_t addr) {
 uint32_t
 root_fetch_word(AddressSpace *as, uint64_t addr) {
 	RootAS *root = (RootAS *)as;
-
-	fprintf(stderr, "$%016llX @W\n", addr);
 
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top))
 		return root->rom_seg.as.i->fetch_word(&root->rom_seg.as, addr);
@@ -448,8 +441,6 @@ uint16_t
 root_fetch_hword(AddressSpace *as, uint64_t addr) {
 	RootAS *root = (RootAS *)as;
 
-	fprintf(stderr, "$%016llX @H\n", addr);
-
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top))
 		return root->rom_seg.as.i->fetch_hword(&root->rom_seg.as, addr);
 
@@ -467,8 +458,6 @@ uint8_t
 root_fetch_byte(AddressSpace *as, uint64_t addr) {
 	RootAS *root = (RootAS *)as;
 
-	fprintf(stderr, "$%016llX @B\n", addr);
-
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top))
 		return root->rom_seg.as.i->fetch_byte(&root->rom_seg.as, addr);
 
@@ -485,8 +474,6 @@ root_fetch_byte(AddressSpace *as, uint64_t addr) {
 void
 root_store_dword(AddressSpace *as, uint64_t addr, uint64_t datum) {
 	RootAS *root = (RootAS *)as;
-
-	fprintf(stderr, "$%016llX $%016llX !D\n", datum, addr);
 
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top)) {
 		root->rom_seg.as.i->store_dword(&root->rom_seg.as, addr, datum);
@@ -510,8 +497,6 @@ void
 root_store_word(AddressSpace *as, uint64_t addr, uint32_t datum) {
 	RootAS *root = (RootAS *)as;
 
-	fprintf(stderr, "$%08lX $%016llX !W\n", datum, addr);
-
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top)) {
 		root->rom_seg.as.i->store_word(&root->rom_seg.as, addr, datum);
 		return;
@@ -534,8 +519,6 @@ void
 root_store_hword(AddressSpace *as, uint64_t addr, uint16_t datum) {
 	RootAS *root = (RootAS *)as;
 
-	fprintf(stderr, "$%04X $%016llX !H\n", datum, addr);
-
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top)) {
 		root->rom_seg.as.i->store_hword(&root->rom_seg.as, addr, datum);
 		return;
@@ -557,8 +540,6 @@ root_store_hword(AddressSpace *as, uint64_t addr, uint16_t datum) {
 void
 root_store_byte(AddressSpace *as, uint64_t addr, uint8_t datum) {
 	RootAS *root = (RootAS *)as;
-
-	fprintf(stderr, "$%02X $%016llX !B\n", datum, addr);
 
 	if((root->rom_seg.bottom <= addr) && (addr < root->rom_seg.top)) {
 		root->rom_seg.as.i->store_byte(&root->rom_seg.as, addr, datum);
