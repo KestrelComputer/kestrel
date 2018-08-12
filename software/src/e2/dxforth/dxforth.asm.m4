@@ -298,14 +298,6 @@ lit16 = _lit16 - _start
 lit32 = _lit32 - _start
 lit64 = _lit64 - _start
 
-wedge = _wedge - _start
-	align	4
-_wedge:	auipc	gp,0
-	lw	a0,_w0-_wedge(gp)
-	sw	gp,0(a0)
-_w1:	jal	x0,_w1
-_w0:	word	$0BADC0DE
-
 	align	4
 _cold:	jal	W,_docol
 _cold_0:
