@@ -310,7 +310,7 @@ _w0:	word	$0BADC0DE
 _cold:	jal	W,_docol
 _cold_0:
 	hword	lit16, 10, base, store, empty
-	hword	hi, wedge, quit, cold	; Quit should never return.
+	hword	hi, quit, cold	; Quit should never return.
 
 	align	4
 _empty:	jal	W,_docol
@@ -1196,7 +1196,12 @@ _type_1:
 	align	4
 key = _key - _start
 _key:	jal	W,_docol
-	hword	_key		; deadlock until we figure out the input side of the SIA.
+	hword	lit16, 122, emit
+	hword	lit16, 122, emit
+	hword	lit16, 122, emit
+	hword	lit16, 122, emit
+	hword	lit16, 122, emit, cr, cr
+	hword	wedge		; deadlock until we figure out the input side of the SIA.
 
 	align	4
 _ntib:	jal	W,_dovar
@@ -1883,9 +1888,10 @@ _rep:	jal	W,_docol
 	hword	type, cr, exit
 
 	align	4
-_quit:	lui	R,$14000		; Hard reset of return stack.
+_quit:	lui	R,rstack_top		; Hard reset of return stack.
 	jal	W,_docol
-	hword	blk, off, state, off
+;	hword	blk, off
+	hword	state, off
 	hword	cr
 _quit_0:
 	hword	rep, go, _quit_0
