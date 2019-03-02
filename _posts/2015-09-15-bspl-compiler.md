@@ -627,7 +627,7 @@ corresponds to one CPU instruction.
 If any optimization passes were run,
 then the program in the compile buffer should be as close to optimal as
 stack-architecture compiler technology can bring it.
-So, the [final pass](https://github.com/KestrelComputer/kestrel/blob/master/3/src/bspl/bspl.fm/asm.fs)
+So, the [final pass](https://github.com/KestrelComputer/kestrel/blob/master/software/src/bspl/bspl.fm/asm.fs)
 through the compile buffer
 produces the assembly language listing.
 It walks through every instruction in the compiler buffer,
