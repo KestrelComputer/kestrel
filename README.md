@@ -1,5 +1,9 @@
 [![Build Status](https://travis-ci.org/KestrelComputer/kestrel.svg?branch=master)](https://travis-ci.org/KestrelComputer/kestrel)
 
+# ARCHIVED
+
+I have decided to archive this site because of [Raptor Engineering Releases Kestrel, The “First Open-HDL/Open Firmware BMC”](https://medium.com/librecores/el-correo-libre-issue-35-b548ee0b9d47), 2021 Feb 09.  Many commercial products with the name Kestrel have come and gone in the years since creating this project; however, none have overlapped so much with my end goals as this BMC.  I can't risk legal action.  I'm shutting the project down.
+
 # Kestrel
 
 With each passing day, technically capable consumers of computing technology
